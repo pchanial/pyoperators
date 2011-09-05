@@ -883,9 +883,14 @@ class ScalarOperator(Operator):
                           shapein=shapein, dtype=dtype, flags=flags)
 
     def associated_operators(self):
-        return { 'C' : ScalarOperator(np.conjugate(self.data)),
-                 'I' : ScalarOperator(1/self.data),
-                 'IC' : ScalarOperator(np.conjugate(1/self.data)) }
+        return {
+            'C' : ScalarOperator(np.conjugate(self.data), shapein=self.shapein,
+                                 dtype=self.dtype),
+            'I' : ScalarOperator(1/self.data, shapein=self.shapeout,
+                                 dtype=self.dtype),
+            'IC' : ScalarOperator(np.conjugate(1/self.data),
+                                  shapein=self.shapeout, dtype=self.dtype)
+        }
 
     def __str__(self):
         value = self.data.flat[0]
