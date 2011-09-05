@@ -1,14 +1,8 @@
+import nose
 import numpy as np
 from numpy.testing import *
-import scipy
 
-from operators import Symmetric, Operator, AdditionOperator, I, O
-
-#from tamasis.operators import \
-#    Addition, CircularShift, Composition, Convolution, Diagonal, \
-#    DiscreteDifference, DdTdd, Fft, FftHalfComplex, Masking, Packing, Rounding,\
-#    Scalar, Shift, Unpacking, I, O, asoperator
-#from tamasis.var import FLOAT_DTYPE as FTYPE, COMPLEX_DTYPE as CTYPE
+from operators import Symmetric, Operator, AdditionOperator, CompositionOperator, ScalarOperator, I, O
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
@@ -41,6 +35,7 @@ def test_dtype1():
             assert o.dtype == (i * np.array(value, dop)).dtype
             assert_array_equal(o, i * np.array(value, dop))
 
+
 def test_dtype2():
     class Op(Operator):
         def direct(self, input, output):
@@ -56,6 +51,7 @@ def test_dtype2():
         print o.dtype, o
         assert o.dtype == (i * i).dtype
         assert_array_equal(o, i * i)
+
 
 def test_symmetric():
     
@@ -103,33 +99,92 @@ def test_addition():
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
-    #op = sum([Op(v) for v in [1]])
-    #assert op.__class__ is Op
+    op = np.sum([Op(v) for v in [1]])
+    assert op.__class__ is Op
 
-    op = sum([Op(v) for v in [1,2]])
+    op = np.sum([Op(v) for v in [1,2]])
     assert op.__class__ is AdditionOperator
     assert_array_equal(op(1), 3)
     assert op.work[0] is not None
     assert op.work[1] is None
 
-    op = sum([Op(v) for v in [1,2,3]])
+    op = np.sum([Op(v) for v in [1,2,4]])
     assert op.__class__ is AdditionOperator
 
     input = np.array(1, int)
     output = np.array(0, int)
-    assert_array_equal(op(input, output), 6)
-
+    assert_array_equal(op(input, output), 7)
     assert_array_equal(input, 1)
-    assert_array_equal(output, 6)
+    assert_array_equal(output, 7)
     assert op.work[0] is not None
     assert op.work[1] is None
 
+    output = input
+    assert_array_equal(op(input, output), 7)
+    assert_array_equal(input, 7)
+    assert_array_equal(output, 7)
     assert op.work[0] is not None
     assert op.work[1] is not None
 
-    
-test_dtype1()
-test_dtype2()
-test_symmetric()
-test_scalar_reduction()
-test_addition()
+
+def test_composition():
+    class Op(Operator):
+        def __init__(self, v, **keywords):
+            self.v = v
+            Operator.__init__(self, **keywords)
+        def direct(self, input, output):
+            np.multiply(input, self.v, output)
+
+    op = np.product([Op(v) for v in [1]])
+    assert op.__class__ is Op
+
+    op = np.product([Op(v) for v in [1,2]])
+    assert op.__class__ is CompositionOperator
+    assert_array_equal(op(1), 2)
+    assert op.work[0] is None
+    assert op.work[1] is None
+
+    op = np.product([Op(v) for v in [1,2,4]])
+    assert op.__class__ is CompositionOperator
+
+    input = np.array(1, int)
+    output = np.array(0, int)
+    assert_array_equal(op(input, output), 8)
+    assert_array_equal(input, 1)
+    assert_array_equal(output, 8)
+    assert op.work[0] is None
+    assert op.work[1] is None
+
+    output = input
+    assert_array_equal(op(input, output), 8)
+    assert_array_equal(input, 8)
+    assert_array_equal(output, 8)
+    assert op.work[0] is None
+    assert op.work[1] is None
+
+
+def test_scalar_operator():
+    s = ScalarOperator(1)
+    assert s.C is s.T is s.H is s.I is s
+
+    s = ScalarOperator(-1)
+    assert s.C is s.T is s.H is s.I is s
+
+    s = ScalarOperator(2.)
+    assert s.C is s.T is s.H is s
+    assert s.I is not s
+    for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
+        assert isinstance(o, ScalarOperator)
+
+    s = ScalarOperator(complex(0,1))
+    assert s.T is s
+    assert s.H is s.C
+    assert s.I not in (s, s.C)
+    assert s.I.C not in (s, s.C)
+    assert isinstance(s.C, ScalarOperator)
+    for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
+        assert isinstance(o, ScalarOperator)
+
+
+if __name__ == "__main__":
+    nose.run(argv=['', __file__])
