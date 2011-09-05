@@ -487,39 +487,39 @@ class Operator(object):
             C = ops['C']
         else:
             C = Operator(self.conjugate_, dtype=self.dtype, flags=self.flags)
-            C.__name__ += '.C'
+            C.__name__ = self.__name__ + '.C'
 
-        if 'T' in ops:
-            T = ops['T']
-        elif self.flags.SYMMETRIC:
+        if self.flags.SYMMETRIC:
             T = self
+        elif 'T' in ops:
+            T = ops['T']
         else:
             T = Operator(self.transpose, dtype=self.dtype, flags=self.flags)
-            T.__name__ += '.T'
+            T.__name__ = self.__name__ + '.T'
 
-        if 'H' in ops:
-            H = ops['H']
-        elif self.flags.HERMITIAN:
+        if self.flags.HERMITIAN:
             H = self
+        elif 'H' in ops:
+            H = ops['H']
         elif self.flags.REAL:
             H = T
         elif self.flags.SYMMETRIC:
             H = C
         else:
             H = Operator(self.adjoint, dtype=self.dtype, flags=self.flags)
-            H.__name__ += '.H'
+            H.__name__ = self.__name__ + '.H'
 
-        if 'I' in ops:
+        if self.flags.INVOLUTARY:
+            I = self
+        elif 'I' in ops:
             I = ops['I']
         elif self.flags.ORTHOGONAL:
             I = T
         elif self.flags.UNITARY:
             I = H
-        elif self.flags.INVOLUTARY:
-            I = self
         else:
             I = Operator(self.inverse, dtype=self.dtype, flags=self.flags)
-            I.__name__ += '.I'
+            I.__name__ = self.__name__ + '.I'
 
         if self.flags.REAL:
             IC = I
@@ -533,37 +533,39 @@ class Operator(object):
             IC = C
         else:
             IC = Operator(self.inverse_conjugate, dtype=self.dtype, flags=self.flags)
-            IC.__name__ += '.I.C'
+            IC.__name__ = self.__name__ + '.I.C'
 
-        if 'IT' in ops:
-            IT = ops['IT']
+        if self.flags.ORTHOGONAL:
+            IT = self
         elif self.flags.SYMMETRIC:
             IT = I
-        elif self.flags.ORTHOGONAL:
-            IT = self
         elif self.flags.UNITARY:
             IT = C
         elif self.flags.INVOLUTARY:
             IT = T
+        elif 'IT' in ops:
+            IT = ops['IT']
         else:
             IT = Operator(self.inverse_transpose, dtype=self.dtype, flags=self.flags)
-            IT.__name__ += '.I.T'
+            IT.__name__ = self.__name__ + '.I.T'
 
-        if 'IH' in ops:
-            IH = ops['IH']
+        if self.flags.UNITARY:
+            IH = self
         elif self.flags.HERMITIAN:
             IH = I
         elif self.flags.ORTHOGONAL:
             IH = C
-        elif self.flags.UNITARY:
-            IH = self
         elif self.flags.INVOLUTARY:
             IH = H
+        elif self.flags.SYMMETRIC:
+            IH = IC
         elif self.flags.REAL:
             IH = IT
+        elif 'IH' in ops:
+            IH = ops['IH']
         else:
             IH = Operator(self.inverse_adjoint, dtype=self.dtype, flags=self.flags)
-            IH.__name__ += '.I.H'
+            IH.__name__ = self.__name__ + '.I.H'
 
         for op in (T, H, I, IC):
             op.shapein = self.shapeout
