@@ -724,7 +724,7 @@ class CompositeOperator(Operator):
         ops = list(ops)
         i = len(ops) - 2
         while i >= 0:
-            if isinstance(ops[i + 1], ScalarOperator):
+            if isinstance(ops[i + 1], ScalarOperator) and not ops[i + 1].shapein:
                 if isinstance(ops[i], ScalarOperator):
                     ops[i] = ScalarOperator(opn(ops[i].data, ops[i + 1].data))
                     del ops[i + 1]
@@ -739,6 +739,7 @@ class CompositeOperator(Operator):
             and opn == np.multiply
             and isinstance(ops[0], ScalarOperator)
             and ops[0].data == 1
+            and ops[0].shapein is None
         ):
             del ops[0]
 
