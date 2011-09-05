@@ -502,6 +502,8 @@ class Operator(object):
             H = self
         elif self.flags.REAL:
             H = T
+        elif self.flags.SYMMETRIC:
+            H = C
         else:
             H = Operator(self.adjoint, dtype=self.dtype, flags=self.flags)
             H.__name__ += '.H'
@@ -575,8 +577,9 @@ class Operator(object):
             op.shapeout = self.shapeout
 
         # once all the associated operators are instanciated, we set all their
-        # associated operators. To do so, we use the fact that the transpose, adjoint,
-        # conjugate and inverse operators are commutative and involutary
+        # associated operators. To do so, we use the fact that the transpose,
+        # adjoint, conjugate and inverse operators are commutative and
+        # involutary.
         self._C, self._T, self._H, self._I = C, T, H, I
         C._C, C._T, C._H, C._I = self, H, T, IC
         T._C, T._T, T._H, T._I = H, self, C, IT
