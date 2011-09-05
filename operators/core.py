@@ -444,6 +444,8 @@ class Operator(object):
             H = self
         elif self.flags.REAL:
             H = T
+        elif self.flags.SYMMETRIC:
+            H = C
         else:
             H = Operator(self.adjoint, dtype=self.dtype, flags=self.flags)
             H.__name__ += '.H'
@@ -471,7 +473,8 @@ class Operator(object):
         elif self.flags.INVOLUTARY:
             IC = C
         else:
-            IC = Operator(self.inverse_conjugate, dtype=self.dtype, flags=self.flags)
+            IC = Operator(self.inverse_conjugate, dtype=self.dtype,
+                          flags=self.flags)
             IC.__name__ += '.I.C'
 
         if 'IT' in ops:
@@ -485,7 +488,8 @@ class Operator(object):
         elif self.flags.INVOLUTARY:
             IT = T
         else:
-            IT = Operator(self.inverse_transpose, dtype=self.dtype, flags=self.flags)
+            IT = Operator(self.inverse_transpose, dtype=self.dtype,
+                          flags=self.flags)
             IT.__name__ += '.I.T'
 
         if 'IH' in ops:
@@ -517,8 +521,9 @@ class Operator(object):
             op.shapeout = self.shapeout
 
         # once all the associated operators are instanciated, we set all their
-        # associated operators. To do so, we use the fact that the transpose, adjoint,
-        # conjugate and inverse operators are commutative and involutary
+        # associated operators. To do so, we use the fact that the transpose,
+        # adjoint, conjugate and inverse operators are commutative and 
+        # involutary.
         self._C, self._T, self._H, self._I = C, T, H, I
         C._C, C._T, C._H, C._I = self, H, T, IC
         T._C, T._T, T._H, T._I = H, self, C, IT
