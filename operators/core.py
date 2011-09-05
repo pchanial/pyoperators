@@ -291,6 +291,13 @@ class Operator(object):
         )
         return input, output
 
+    @staticmethod
+    def same_data(array1, array2):
+        return (
+            array1.__array_interface__['data'][0]
+            == array2.__array_interface__['data'][0]
+        )
+
     def todense(self, shapein=None):
         if not self.flags.LINEAR:
             raise TypeError('The operator is not linear.')
@@ -787,7 +794,7 @@ class AdditionOperator(CompositeOperator):
             return
 
         # more than 2 operands, input == output: 2 temporaries
-        if input.data is output.data:
+        if self.same_data(input, output):
             work[1] = self._allocate_like(output, work[1])
             operands[0].direct(input, work[0])
             for model in operands[1:-1]:
