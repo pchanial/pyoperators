@@ -413,7 +413,7 @@ class Operator(object):
 
         names = ('C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
         ops = self.associated_operators()
-        if not set(ops.iteritems()) <= set(names):
+        if not set(ops.keys()) <= set(names):
             raise ValueError("Invalid associated operators. Expected operators are '{"\
                              "0}'".format(','.join(names)))
 
