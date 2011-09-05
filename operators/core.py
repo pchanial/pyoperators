@@ -342,7 +342,8 @@ class Operator(object):
         By default, the operators returned by the C, T, H and I properties are
         instanciated from the methods provided in the operator's __init__.
         This method provides a way to override this behavior, by specifying the
-        associated operators themselves as values in a dictionary, in which items are
+        associated operators themselves as values in a dictionary, in which
+        items are
             - 'C' : conjugate
             - 'T' : tranpose
             - 'H' : adjoint
@@ -476,8 +477,8 @@ class Operator(object):
         ops = self.associated_operators()
         if not set(ops.keys()) <= set(names):
             raise ValueError(
-                "Invalid associated operators. Expected operators are '{"
-                "0}'".format(','.join(names))
+                "Invalid associated operators. Expected operators"
+                " are '{0}'".format(','.join(names))
             )
 
         if self.flags.REAL:
