@@ -1,3 +1,4 @@
 from .core import *
-from .operators import *
+from .linear import *
+from .nonlinear import *
 from .iterative import *

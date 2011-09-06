@@ -6,12 +6,14 @@ import numpy as np
 import scipy.sparse.linalg
 
 from collections import namedtuple
+from .utils import strenum
 
 __all__ = [
     'Operator',
     'OperatorFlags',
     'Linear',
     'Square',
+    'Real',
     'Symmetric',
     'Hermitian',
     'Idempotent',
@@ -22,6 +24,7 @@ __all__ = [
     'AdditionOperator',
     'CompositionOperator',
     'ScalarOperator',
+    'BroadcastingOperator',
 ]
 
 verbose = True
@@ -47,46 +50,62 @@ class OperatorFlags(namedtuple('OperatorFlags',
 
 def Linear(cls):
     cls.flags = cls.flags._replace(LINEAR=True)
+    cls._validate_flags(cls)
     return cls
 
 def Square(cls):
     cls.flags = cls.flags._replace(SQUARE=True)
+    cls._validate_flags(cls)
+    return cls
+
+def NotSquare(cls):
+    cls.flags = cls.flags._replace(SQUARE=False)
+    cls._validate_flags(cls)
+    return cls
+
+def Real(cls):
+    cls.flags = cls.flags._replace(REAL=True)
+    cls._validate_flags(cls)
     return cls
 
 def Symmetric(cls):
     cls.flags = cls.flags._replace(LINEAR=True,
                                    SQUARE=True,
                                    SYMMETRIC=True)
+    cls._validate_flags(cls)
     return cls
 
 def Hermitian(cls):
     cls.flags = cls.flags._replace(LINEAR=True,
                                    SQUARE=True,
-                                   REAL=False,
                                    HERMITIAN=True)
+    cls._validate_flags(cls)
     return cls
 
 def Idempotent(cls):
     cls.flags = cls.flags._replace(SQUARE=True,
                                    IDEMPOTENT=True)
+    cls._validate_flags(cls)
     return cls
 
 def Orthogonal(cls):
     cls.flags = cls.flags._replace(LINEAR=True,
                                    SQUARE=True,
                                    ORTHOGONAL=True)
+    cls._validate_flags(cls)
     return cls
     
 def Unitary(cls):
     cls.flags = cls.flags._replace(LINEAR=True,
                                    SQUARE=True,
-                                   REAL=False,
                                    UNITARY=True)
+    cls._validate_flags(cls)
     return cls
     
 def Involutary(cls):
     cls.flags = cls.flags._replace(SQUARE=True,
                                    INVOLUTARY=True)
+    cls._validate_flags(cls)
     return cls
     
     
@@ -165,18 +184,25 @@ class Operator(object):
             else:
                 raise ValueError('Invalid input flags.')
 
-        self._validate_flags()
+        if self.dtype is None or self.dtype.kind != 'c':
+            self.flags = self.flags._replace(REAL=True)
 
-        self.shapeout = shapeout if shapeout is not None else \
-                        self.toshapeout(shapein)
-        self.shapein = shapein if shapein is not None else \
-                       self.toshapein(shapeout)
+        self._validate_flags(self)
+
+        self.shapein = shapein
+        if self.flags.SQUARE:
+            self.shapeout = self.shapein
+            self.toshapein = self.toshapeout
+            self.reshapeout = self.reshapein
+        else:
+            self.shapeout = shapeout if shapeout is not None else \
+                self.toshapeout(shapein)
 
         if self.__class__ != 'Operator':
             self.__name__ = self.__class__.__name__
         elif direct is not None:
             self.__name__ = direct.__name__
-            if self.__name__ == '<lambda>':
+            if self.__name__ in ('<lambda>', 'direct'):
                 self.__name__ = 'Operator'                
 
     flags = OperatorFlags(*9*(False,))
@@ -227,15 +253,11 @@ class Operator(object):
                              "fined shapeout.")
         return v.reshape(self.shapeout)
 
-    def toshapein(self, shape):
-        if self.shapein is not None:
-            return self.shapein
-        return shape
+    def toshapeout(self, shapein):
+        return shapein
 
-    def toshapeout(self, shape):
-        if self.shapeout is not None:
-            return self.shapeout
-        return shape
+    def toshapein(self, shapeout):
+        return shapeout
 
     def validate_input(self, input, output):
         """Returns input as ndarray and allocate output if necessary"""
@@ -243,8 +265,11 @@ class Operator(object):
         if self.shapein is not None and self.shapein != input.shape:
             raise ValidationError('The input of {0} has an incompatible shape '\
                 '{1}. Expected shape is {2}.'.format(self.__name__,
-                input.shapein, self.shapein))
-        shapeout = self.toshapeout(input.shape)
+                input.shape, self.shapein))
+        if self.shapeout is not None:
+            shapeout = self.shapeout
+        else:
+            shapeout = self.toshapeout(input.shape)
         output = self._allocate(shapeout, _get_dtypeout(input.dtype,
                                 self.dtype), output)
         return input, output
@@ -258,6 +283,9 @@ class Operator(object):
         if not self.flags.LINEAR:
             raise TypeError('The operator is not linear.')
         shapein = shapein or self.shapein
+        if shapein is None:
+            raise ValueError("The operator has an implicit shape. Use the 'sha"\
+                             "pein' keyword.")
         shapeout = self.toshapeout(shapein)
         m, n = np.product(shapeout), np.product(shapein)
         d = np.empty((n,m), self.dtype)
@@ -353,7 +381,9 @@ class Operator(object):
             if buf.nbytes != nbytes:
                 raise ValueError('The output has invalid shape {0}. Expected s'\
                                  'hape is {1}.'.format(buf.shape, shape))
-            return buf.reshape(shape)
+            if buf.shape != shape:
+                buf.shape = shape
+            return buf
 
         if verbose:
             if nbytes < 1024:
@@ -373,46 +403,45 @@ class Operator(object):
     def _allocate_like(self, a, b):
         return self._allocate(a.shape, a.dtype, b)
 
-    def _validate_flags(self):
-        if self.dtype is None or self.dtype.kind != 'c':
-            self.flags = self.flags._replace(REAL=True)
+    @staticmethod
+    def _validate_flags(op):
 
-        if self.flags.REAL:
-            if self.flags.SYMMETRIC:
-                self.flags = self.flags._replace(HERMITIAN=True)
-            if self.flags.HERMITIAN:
-                self.flags = self.flags._replace(SYMMETRIC=True)
-            if self.flags.ORTHOGONAL:
-                self.flags = self.flags._replace(UNITARY=True)
-            if self.flags.UNITARY:
-                self.flags = self.flags._replace(ORTHOGONAL=True)
+        if op.flags.REAL:
+            if op.flags.SYMMETRIC:
+                op.flags = op.flags._replace(HERMITIAN=True)
+            if op.flags.HERMITIAN:
+                op.flags = op.flags._replace(SYMMETRIC=True)
+            if op.flags.ORTHOGONAL:
+                op.flags = op.flags._replace(UNITARY=True)
+            if op.flags.UNITARY:
+                op.flags = op.flags._replace(ORTHOGONAL=True)
 
-        if self.flags.ORTHOGONAL:
-            if self.flags.IDEMPOTENT:
-                self.flags = self.flags._replace(SYMMETRIC=True)
-            if self.flags.SYMMETRIC:
-                self.flags = self.flags._replace(IDEMPOTENT=True)
+        if op.flags.ORTHOGONAL:
+            if op.flags.IDEMPOTENT:
+                op.flags = op.flags._replace(SYMMETRIC=True)
+            if op.flags.SYMMETRIC:
+                op.flags = op.flags._replace(IDEMPOTENT=True)
 
-        if self.flags.UNITARY:
-            if self.flags.IDEMPOTENT:
-                self.flags = self.flags._replace(HERMITIAN=True)
-            if self.flags.HERMITIAN:
-                self.flags = self.flags._replace(IDEMPOTENT=True)
+        if op.flags.UNITARY:
+            if op.flags.IDEMPOTENT:
+                op.flags = op.flags._replace(HERMITIAN=True)
+            if op.flags.HERMITIAN:
+                op.flags = op.flags._replace(IDEMPOTENT=True)
 
-        if self.flags.INVOLUTARY:
-            if self.flags.SYMMETRIC:
-                self.flags = self.flags._replace(ORTHOGONAL=True)
-            if self.flags.ORTHOGONAL:
-                self.flags = self.flags._replace(SYMMETRIC=True)
-            if self.flags.HERMITIAN:
-                self.flags = self.flags._replace(UNITARY=True)
-            if self.flags.UNITARY:
-                self.flags = self.flags._replace(HERMITIAN=True)
+        if op.flags.INVOLUTARY:
+            if op.flags.SYMMETRIC:
+                op.flags = op.flags._replace(ORTHOGONAL=True)
+            if op.flags.ORTHOGONAL:
+                op.flags = op.flags._replace(SYMMETRIC=True)
+            if op.flags.HERMITIAN:
+                op.flags = op.flags._replace(UNITARY=True)
+            if op.flags.UNITARY:
+                op.flags = op.flags._replace(HERMITIAN=True)
 
-        if self.flags.IDEMPOTENT:
-            if any([self.flags.ORTHOGONAL, self.flags.UNITARY,
-                    self.flags.INVOLUTARY]):
-                self.flags = self.flags._replace(ORTHOGONAL=True, UNITARY=True,
+        if op.flags.IDEMPOTENT:
+            if any([op.flags.ORTHOGONAL, op.flags.UNITARY,
+                    op.flags.INVOLUTARY]):
+                op.flags = op.flags._replace(ORTHOGONAL=True, UNITARY=True,
                                                  INVOLUTARY=True)
 
     def _generate_associated_operators(self):
@@ -896,10 +925,10 @@ class ScalarOperator(Operator):
         return {
             'C' : ScalarOperator(np.conjugate(self.data), shapein=self.shapein,
                                  dtype=self.dtype),
-            'I' : ScalarOperator(1/self.data, shapein=self.shapeout,
+            'I' : ScalarOperator(1/self.data, shapein=self.shapein,
                                  dtype=self.dtype),
             'IC' : ScalarOperator(np.conjugate(1/self.data),
-                                  shapein=self.shapeout, dtype=self.dtype)
+                                  shapein=self.shapein, dtype=self.dtype)
         }
 
     def __str__(self):
@@ -907,6 +936,71 @@ class ScalarOperator(Operator):
         if value == int(value):
             value = int(value)
         return str(value)
+
+
+@Square
+class BroadcastingOperator(Operator):
+    """
+    Abstract class for operators that operate on a data array and
+    the input array, and for which broadcasting of the data array across
+    the input array is required.
+    """
+    def __init__(self, data, broadcast, dtype=None, **keywords):
+        if data is None:
+            raise ValueError('The data array is None.')
+
+        if dtype is None:
+            data = np.asarray(data)
+            dtype = data.dtype
+        self.data = np.array(data, dtype, copy=False, order='c', ndmin=1)
+
+        broadcast = broadcast.lower()
+        values = ('fast', 'slow', 'disabled')
+        if broadcast not in values:
+            raise ValueError("Invalid value '{0}' for the broadcast keyword. E"\
+                "xpected values are {1}.".format(broadcast, strenum(values)))
+        shapein = data.shape if broadcast == 'disabled' else None
+        self.broadcast = broadcast
+
+        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
+
+    def toshapeout(self, shape):
+        if shape is None:
+            return None
+        n = self.data.ndim
+        if len(shape) < n:
+            raise ValueError("Invalid number of dimensions.")
+        
+        if self.broadcast == 'fast':
+            it = zip(shape[0:n], self.data.shape[0:n])
+        else:
+            it = zip(shape[-n:], self.data.shape[-n:])
+        for si, sd in it:
+            if sd != 1 and sd != si:
+                raise ValueError("The data array cannot be broadcast across th"\
+                                 "e input.")
+        return shape
+
+    def reshapein(self, v):
+        sd = list(self.data.shape)
+        n = sd.count(1)
+        if n > 1:
+            raise ValueError('Ambiguous broadcasting.')
+        if n == 0:
+            if self.broadcast == 'fast':
+                sd.append(-1)
+            else:
+                sd.insert(0, -1)
+        else:
+            sd[sd.index(1)] = -1
+        
+        try:
+            v = v.reshape(sd)
+        except ValueError:
+            raise ValueError("Invalid broadcasting.")
+
+        return v
+
 
 def _get_dtypeout(d1, d2):
     """Return dtype of greater type rank."""
