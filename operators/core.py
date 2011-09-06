@@ -945,7 +945,8 @@ class BroadcastingOperator(Operator):
     the input array, and for which broadcasting of the data array across
     the input array is required.
     """
-    def __init__(self, data, broadcast, dtype=None, **keywords):
+    def __init__(self, data, broadcast='disabled', shapein=None, dtype=None,
+                 **keywords):
         if data is None:
             raise ValueError('The data array is None.')
 
@@ -959,7 +960,11 @@ class BroadcastingOperator(Operator):
         if broadcast not in values:
             raise ValueError("Invalid value '{0}' for the broadcast keyword. E"\
                 "xpected values are {1}.".format(broadcast, strenum(values)))
-        shapein = data.shape if broadcast == 'disabled' else None
+        if broadcast == 'disabled':
+            if shapein not in (None, data.shape):
+                raise ValueError("The input shapein is incompatible with the d"\
+                                 "ata shape.")
+            shapein = data.shape
         self.broadcast = broadcast
 
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
@@ -982,6 +987,11 @@ class BroadcastingOperator(Operator):
         return shape
 
     def reshapein(self, v):
+        if self.shapein is not None:
+            return v.reshape(self.shapein)
+        if self.data.ndim < 2:
+            return v
+
         sd = list(self.data.shape)
         n = sd.count(1)
         if n > 1:

@@ -8,17 +8,17 @@ from operators import IdentityOperator, ZeroOperator, DiagonalOperator, MaskOper
 
 def test_masking():
 
-    mask = MaskOperator(1)
+    mask = MaskOperator(0)
     assert isinstance(mask, IdentityOperator)
-    mask = MaskOperator(1, shapein=(32,32), dtype=np.float32)
+    mask = MaskOperator(0, shapein=(32,32), dtype=np.float32)
     assert isinstance(mask, IdentityOperator)
     assert mask.shapein == (32,32)
     assert mask.dtype == np.float32
 
-    mask = MaskOperator(0)
+    mask = MaskOperator(1)
     assert isinstance(mask, ZeroOperator)
     mask = MaskOperator(1, shapein=(32,32), dtype=np.float32)
-    assert isinstance(mask, IdentityOperator)
+    assert isinstance(mask, ZeroOperator)
     assert mask.shapein == (32,32)
     assert mask.dtype == np.float32
 
