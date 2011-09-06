@@ -89,6 +89,7 @@ class DiagonalOperator(BroadcastingOperator):
 
 
 @Real
+@Idempotent
 class MaskOperator(DiagonalOperator):
     """
     We follow the convention of MaskedArray, where True means masked.
