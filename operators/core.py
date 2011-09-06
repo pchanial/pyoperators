@@ -236,9 +236,10 @@ class Operator(object):
             self.toshapein = self.toshapeout
             self.reshapeout = self.reshapein
         else:
-            self.shapeout = (
-                shapeout if shapeout is not None else self.toshapeout(shapein)
-            )
+            if self.shapeout is None:
+                self.shapeout = (
+                    shapeout if shapeout is not None else self.toshapeout(shapein)
+                )
 
         if self.__class__ != 'Operator':
             self.__name__ = self.__class__.__name__
@@ -299,9 +300,13 @@ class Operator(object):
         return v.reshape(self.shapeout)
 
     def toshapeout(self, shapein):
+        if self.shapeout is not None:
+            return self.shapeout
         return shapein
 
     def toshapein(self, shapeout):
+        if self.shapein is not None:
+            return self.shapein
         return shapeout
 
     def validate_input(self, input, output):
@@ -314,10 +319,7 @@ class Operator(object):
                     self.__name__, input.shape, self.shapein
                 )
             )
-        if self.shapeout is not None:
-            shapeout = self.shapeout
-        else:
-            shapeout = self.toshapeout(input.shape)
+        shapeout = self.toshapeout(input.shape)
         output = self._allocate(
             shapeout, _get_dtypeout(input.dtype, self.dtype), output
         )
@@ -1076,6 +1078,8 @@ class BroadcastingOperator(Operator):
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
     def toshapeout(self, shape):
+        if self.shapeout is not None:
+            return self.shapeout
         if shape is None:
             return None
         n = self.data.ndim
