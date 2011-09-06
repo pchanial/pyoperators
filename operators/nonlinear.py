@@ -2,7 +2,8 @@ import numpy as np
 
 from .core import Square, Operator
 
-__all__ = ['ClipOperator', 'MaximumOperator', 'MinimumOperator', 'RoundingOperator']
+__all__ = ['ClipOperator', 'MaximumOperator', 'MinimumOperator',
+           'RoundOperator']
 
 
 @Square
@@ -24,7 +25,7 @@ class MinimumOperator(Operator):
 
 
 @Square
-class RoundingOperator(Operator):
+class RoundOperator(Operator):
     """Rounding operator.
     
     The rounding method may be one of the following:
