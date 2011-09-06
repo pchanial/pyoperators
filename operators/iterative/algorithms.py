@@ -286,7 +286,7 @@ class ConjugateGradient(Algorithm):
         Sets current_solution attribute to initial value.
         """
         if x0 is None:
-            self.current_solution = np.zeros(self.shapein)
+            self.current_solution = np.zeros(np.prod(self.shapein))
         else:
             self.current_solution = copy(x0)
 
