@@ -17,8 +17,20 @@ def assert_flags(operator, flags):
         assert getattr(operator.flags, f.replace(' ', ''))
 
 
-def test_dtype1():
+def check_shapes(shapein):
+    o = Operator(shapein=shapein)
+    assert type(o.shapein) is tuple
+    assert all([isinstance(s, int) for s in o.shapein])
 
+def test_shapes():
+    for shapein in (3, [3], np.array(3), np.array([3]), (3,),
+                    3., [3.], np.array(3.), np.array([3.]), (3.,),
+                    [3,2], np.array([3,2]), (3,2),
+                    [3.,2], np.array([3.,2]), (3.,2),
+                   ):
+        yield check_shapes, shapein
+
+def test_dtype1():
     value = 2.5
     class Op(Operator):
         def __init__(self, dtype):
