@@ -7,19 +7,11 @@ import scipy.sparse.linalg
 
 from collections import namedtuple
 from .utils import strenum
+from .decorators import square, symmetric
 
 __all__ = [
     'Operator',
     'OperatorFlags',
-    'Linear',
-    'Square',
-    'Real',
-    'Symmetric',
-    'Hermitian',
-    'Idempotent',
-    'Orthogonal',
-    'Unitary',
-    'Involutary',
     'ValidationError',
     'AdditionOperator',
     'CompositionOperator',
@@ -56,66 +48,6 @@ class OperatorFlags(
         n = max([len(f) for f in self._fields])
         fields = ['  ' + f.ljust(n) + ' : ' for f in self._fields]
         return '\n'.join([f + str(v) for f, v in zip(fields, self)])
-
-
-def Linear(cls):
-    cls.flags = cls.flags._replace(LINEAR=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Square(cls):
-    cls.flags = cls.flags._replace(SQUARE=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def NotSquare(cls):
-    cls.flags = cls.flags._replace(SQUARE=False)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Real(cls):
-    cls.flags = cls.flags._replace(REAL=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Symmetric(cls):
-    cls.flags = cls.flags._replace(LINEAR=True, SQUARE=True, SYMMETRIC=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Hermitian(cls):
-    cls.flags = cls.flags._replace(LINEAR=True, SQUARE=True, HERMITIAN=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Idempotent(cls):
-    cls.flags = cls.flags._replace(SQUARE=True, IDEMPOTENT=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Orthogonal(cls):
-    cls.flags = cls.flags._replace(LINEAR=True, SQUARE=True, ORTHOGONAL=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Unitary(cls):
-    cls.flags = cls.flags._replace(LINEAR=True, SQUARE=True, UNITARY=True)
-    cls._validate_flags(cls)
-    return cls
-
-
-def Involutary(cls):
-    cls.flags = cls.flags._replace(SQUARE=True, INVOLUTARY=True)
-    cls._validate_flags(cls)
-    return cls
 
 
 class Operator(object):
@@ -258,7 +190,7 @@ class Operator(object):
     adjoint = None
 
     def conjugate_(self, input, output):
-        self._direct(input.conjugate(), output)
+        self.direct(input.conjugate(), output)
         output[:] = output.conjugate()
 
     inverse = None
@@ -996,7 +928,7 @@ class CompositionOperator(CompositeOperator):
         self.work[0] = None
 
 
-@Symmetric
+@symmetric
 class ScalarOperator(Operator):
     """
     Multiplication by a scalar.
@@ -1041,7 +973,7 @@ class ScalarOperator(Operator):
         return str(value)
 
 
-@Square
+@square
 class BroadcastingOperator(Operator):
     """
     Abstract class for operators that operate on a data array and
