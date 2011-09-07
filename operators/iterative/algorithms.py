@@ -3,6 +3,7 @@ Implements iterative algorithm class.
 """
 import numpy as np
 from copy import copy
+import pylab
 
 from .linesearch import *
 from .criterions import *
@@ -103,8 +104,6 @@ class Callback(object):
             np.savez(self.savefile, **var_dict)
 
     def imshow(self, algo):
-        import pylab
-
         if algo.iter_ == 1:
             self.im = pylab.imshow(algo.current_solution.reshape(self.shape))
         else:
@@ -355,17 +354,52 @@ class HuberConjugateGradient(ConjugateGradient):
 # for backward compatibility
 
 
-def acg(model, data, priors=[], hypers=[], covariances=None, **kwargs):
+def define_stop_condition(**kwargs):
+    defaults = {'maxiter': None, 'tol': TOL, 'gtol': GTOL, 'cond': np.any}
+    new_kwargs = {key: kwargs.get(key, defaults[key]) for key in defaults.keys()}
+    return StopCondition(**new_kwargs)
+
+
+def define_callback(**kwargs):
+    defaults = {'verbose': False, 'savefile': None, 'shape': ()}
+    new_kwargs = {key: kwargs.get(key, defaults[key]) for key in defaults.keys()}
+    return Callback(**new_kwargs)
+
+
+def acg(
+    model, data, priors=[], hypers=[], covariances=None, return_algo=False, **kwargs
+):
+    stop_condition = define_stop_condition(**kwargs)
+    callback = define_callback(**kwargs)
     algorithm = QuadraticConjugateGradient(
-        model, data, priors=priors, hypers=hypers, covariances=covariances, **kwargs
+        model,
+        data,
+        priors=priors,
+        hypers=hypers,
+        covariances=covariances,
+        stop_condition=stop_condition,
+        callback=callback,
+        **kwargs,
     )
     sol = algorithm()
-    return sol
+    if return_algo:
+        return sol, algorithm
+    else:
+        return sol
 
 
-def hacg(model, data, priors=[], hypers=[], deltas=None, **kwargs):
+def hacg(model, data, priors=[], hypers=[], deltas=None, return_algo=False, **kwargs):
+    stop_condition = define_stop_condition(**kwargs)
+    callback = define_callback(**kwargs)
     algorithm = HuberConjugateGradient(
-        model, data, priors=priors, hypers=hypers, deltas=deltas, **kwargs
+        model,
+        data,
+        priors=priors,
+        hypers=hypers,
+        deltas=deltas,
+        stop_condition=stop_condition,
+        callback=callback,
+        **kwargs,
     )
     sol = algorithm()
     return sol
