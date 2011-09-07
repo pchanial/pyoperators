@@ -1,7 +1,7 @@
 """ Wrap pywt transform into LinearOperators """
 import numpy as np
 import pywt
-from .operators import linear, real
+from .decorators import linear, real
 from .core import Operator
 
 # Operators factories :
