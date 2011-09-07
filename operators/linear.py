@@ -2,8 +2,7 @@ from __future__ import division
 
 import numpy as np
 
-from .decorators import (linear, real, idempotent, involutary, symmetric,
-                         orthogonal)
+from .decorators import linear, real, idempotent, involutary, symmetric
 from .core import Operator, ScalarOperator, BroadcastingOperator
 
 __all__ = [ 'DiagonalOperator', 'IdentityOperator', 'MaskOperator',
