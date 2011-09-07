@@ -12,5 +12,5 @@ setup(
         'scipy',
     ],
     # packages=['operators', 'operators.wrappers', 'operators.iterative'],
-    packages=['operators'],
+    packages=['operators', 'operators.iterative'],
 )
