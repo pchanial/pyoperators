@@ -12,7 +12,6 @@ from .decorators import square, symmetric
 __all__ = [
     'Operator',
     'OperatorFlags',
-    'ValidationError',
     'AdditionOperator',
     'CompositionOperator',
     'ScalarOperator',
@@ -20,10 +19,6 @@ __all__ = [
 ]
 
 verbose = True
-
-
-class ValidationError(Exception):
-    pass
 
 
 class OperatorFlags(
@@ -206,7 +201,7 @@ class Operator(object):
     def __call__(self, input, output=None):
         if self.direct is None:
             raise NotImplementedError(
-                'Call to ' + self.__name__ + ' is not im' 'plemented.'
+                'Call to ' + self.__name__ + ' is not imp' 'lemented.'
             )
         input, output = self._validate_input(input, output)
         self._propagate_input(input, output)
@@ -228,7 +223,8 @@ class Operator(object):
         with the operator's shapein."""
         if self.shapein is None:
             raise ValueError(
-                "The operator '" + self.__name__ + "' has an unde" "fined shapein."
+                "The operator '" + self.__name__ + "' does not hav"
+                "e an explicit shape."
             )
         return v.reshape(self.shapein)
 
@@ -237,7 +233,8 @@ class Operator(object):
         with the operator's shapeout."""
         if self.shapeout is None:
             raise ValueError(
-                "The operator '" + self.__name__ + "' has an unde" "fined shapeout."
+                "The operator '" + self.__name__ + "' does not hav"
+                "e an explicit shape."
             )
         return v.reshape(self.shapeout)
 
@@ -278,11 +275,9 @@ class Operator(object):
             input = input.view(ndarraywrap)
 
         if self.shapein is not None and self.shapein != input.shape:
-            raise ValidationError(
-                'The input of {0} has an incompatible shape '
-                '{1}. Expected shape is {2}.'.format(
-                    self.__name__, input.shape, self.shapein
-                )
+            raise ValueError(
+                'The input of {0} has an invalid shape {1}. Expect'
+                'ed shape is {2}.'.format(self.__name__, input.shape, self.shapein)
             )
         shapeout = self.reshapein(input.shape)
         output = self._allocate(
@@ -303,7 +298,7 @@ class Operator(object):
         shapein = shapein or self.shapein
         if shapein is None:
             raise ValueError(
-                "The operator has an implicit shape. Use the 'sha" "pein' keyword."
+                "The operator has an implicit shape. Use the 'shap" "pin' keyword."
             )
         shapeout = self.reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
@@ -396,13 +391,13 @@ class Operator(object):
         if buf is not None:
             if buf.dtype != dtype:
                 raise ValueError(
-                    "Invalid output dtype '{0}'. Expected dtype i"
-                    "s '{1}'.".format(buf.dtype, dtype)
+                    "Invalid output dtype '{0}'. Expected dtype is"
+                    " '{1}'.".format(buf.dtype, dtype)
                 )
             if buf.nbytes != nbytes:
                 raise ValueError(
-                    'The output has invalid shape {0}. Expected s'
-                    'hape is {1}.'.format(buf.shape, shape)
+                    'The output has invalid shape {0}. Expected sh'
+                    'ape is {1}.'.format(buf.shape, shape)
                 )
             if buf.shape != shape:
                 buf.shape = shape
@@ -486,8 +481,8 @@ class Operator(object):
         ops = self.associated_operators()
         if not set(ops.keys()) <= set(names):
             raise ValueError(
-                "Invalid associated operators. Expected operators"
-                " are '{0}'".format(','.join(names))
+                "Invalid associated operators. Expected operators "
+                "are '{0}'".format(','.join(names))
             )
 
         if self.flags.REAL:
@@ -645,13 +640,13 @@ def asoperator(operator, shapein=None, shapeout=None):
     if isinstance(operator, Operator):
         if shapein and operator.shapein and shapein != operator.shapein:
             raise ValueError(
-                'The input shapein ' + str(shapein) + ' is incom'
-                'patible with that of the input ' + str(operator.shapein) + '.'
+                'The input shapein ' + str(shapein) + ' is incompa'
+                'atible with that of the input ' + str(operator.shapein) + '.'
             )
         if shapeout and operator.shapeout and shapeout != operator.shapeout:
             raise ValueError(
-                'The input shapeout ' + str(shapeout) + ' is inco'
-                'mpatible with that of the input ' + str(operator.shapeout) + '.'
+                'The input shapeout ' + str(shapeout) + ' is incom'
+                'patible with that of the input ' + str(operator.shapeout) + '.'
             )
         if shapein and not operator.shapein or shapeout and not operator.shapeout:
             operator = copy.copy(operator)
@@ -839,7 +834,7 @@ class AdditionOperator(CompositeOperator):
                 shapein = shapein_
                 continue
             if shapein != shapein_:
-                raise ValidationError(
+                raise ValueError(
                     "Incompatible shape in operands: '"
                     + str(shapein)
                     + "' and '"
@@ -863,7 +858,7 @@ class AdditionOperator(CompositeOperator):
                 shapeout = shapeout_
                 continue
             if shapeout != shapeout_:
-                raise ValidationError(
+                raise ValueError(
                     "Incompatible shape in operands: '"
                     + str(shapeout)
                     + "' and '"
@@ -1037,13 +1032,13 @@ class BroadcastingOperator(Operator):
         values = ('fast', 'slow', 'disabled')
         if broadcast not in values:
             raise ValueError(
-                "Invalid value '{0}' for the broadcast keyword. E"
-                "xpected values are {1}.".format(broadcast, strenum(values))
+                "Invalid value '{0}' for the broadcast keyword. Ex"
+                "pected values are {1}.".format(broadcast, strenum(values))
             )
         if broadcast == 'disabled':
             if shapein not in (None, data.shape):
                 raise ValueError(
-                    "The input shapein is incompatible with the d" "ata shape."
+                    "The input shapein is incompatible with the da" "ta shape."
                 )
             shapein = data.shape
         self.broadcast = broadcast
@@ -1066,7 +1061,7 @@ class BroadcastingOperator(Operator):
         for si, sd in it:
             if sd != 1 and sd != si:
                 raise ValueError(
-                    "The data array cannot be broadcast across th" "e input."
+                    "The data array cannot be broadcast across the" " input."
                 )
         return shape
 

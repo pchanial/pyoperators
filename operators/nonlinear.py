@@ -58,8 +58,8 @@ class RoundOperator(Operator):
         }
         if method not in table:
             raise ValueError(
-                'The rounding method must be one of the following'
-                ': ' + ','.join("'" + k + "'" for k in table.keys()) + '.'
+                'The rounding method must be one of the following:'
+                ' ' + ','.join("'" + k + "'" for k in table.keys()) + '.'
             )
         Operator.__init__(self, table[method], **keywords)
         self.__name__ += ' [' + method + ']'
