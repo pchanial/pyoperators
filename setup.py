@@ -7,5 +7,5 @@ setup(name='operators',
       author_email='',
       requires=['numpy', 'scipy', ],
       #packages=['operators', 'operators.wrappers', 'operators.iterative'],
-      packages=['operators']
+      packages=['operators', 'operators.iterative']
       )
