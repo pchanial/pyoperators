@@ -172,6 +172,8 @@ class Operator(object):
                 self.shapeout = (
                     shapeout if shapeout is not None else self.reshapein(shapein)
                 )
+        if self.flags.SYMMETRIC or self.flags.HERMITIAN:
+            self.decorateout = self.decoratein
 
         if self.__class__ != 'Operator':
             self.__name__ = self.__class__.__name__
@@ -207,7 +209,11 @@ class Operator(object):
                 'Call to ' + self.__name__ + ' is not im' 'plemented.'
             )
         input, output = self.validate_input(input, output)
+        self._propagate_input(input, output)
+        self.decoratein(output)
         self.direct(input, output)
+        if type(output) is ndarraywrap and len(output.__dict__) == 0:
+            output = output.view(np.ndarray)
         return output
 
     @property
@@ -249,9 +255,28 @@ class Operator(object):
             return self.shapein
         return shapeout
 
+    def decoratein(self, input):
+        """Override this method to make an Operator return an ndarray subclass
+        different from that of the input, or to add attributes to the output.
+        Changes must be done in-place.
+        """
+        pass
+
+    decorateout = decoratein
+
+    def _propagate_input(self, input, output):
+        """This method sets the output's class to that of the input, if it is
+        possible. It also copies input's attributes into the output."""
+        output.__class__ = input.__class__
+        output.__dict__.update(input.__dict__)
+
     def validate_input(self, input, output):
-        """Returns input as ndarray and allocate output if necessary"""
+        """Return the input as ndarray subclass and allocate the output
+        if necessary."""
         input = np.array(input, copy=False, subok=True, ndmin=1)
+        if type(input) is np.ndarray:
+            input = input.view(ndarraywrap)
+
         if self.shapein is not None and self.shapein != input.shape:
             raise ValidationError(
                 'The input of {0} has an incompatible shape '
@@ -381,6 +406,8 @@ class Operator(object):
                 )
             if buf.shape != shape:
                 buf.shape = shape
+            if type(buf) is np.ndarray:
+                buf = buf.view(ndarraywrap)
             return buf
 
         if verbose:
@@ -404,7 +431,10 @@ class Operator(object):
         except MemoryError:
             gc.collect()
             buf = np.empty(shape, dtype)
-        return buf
+
+        # make it an instance of a heap class so that we can change
+        # its class in _propagate_input and decoratein/out
+        return buf.view(ndarraywrap)
 
     def _allocate_like(self, a, b):
         return self._allocate(a.shape, a.dtype, b)
@@ -547,12 +577,10 @@ class Operator(object):
             IH.__name__ = self.__name__ + '.I.H'
 
         for op in (T, H, I, IC):
-            op.shapein = self.shapeout
-            op.shapeout = self.shapein
-            op.toshapein = self.toshapeout
-            op.toshapeout = self.toshapein
-            op.reshapeout = self.reshapein
-            op.reshapein = self.reshapeout
+            op.shapein, op.shapeout = self.shapeout, self.shapein
+            op.toshapein, op.toshapeout = self.toshapeout, self.toshapein
+            op.reshapein, op.reshapeout = self.reshapeout, self.reshapein
+            op.decoratein, op.decorateout = self.decorateout, self.decoratein
 
         for op in (C, IT, IH):
             op.shapein = self.shapein
@@ -766,6 +794,10 @@ class AdditionOperator(CompositeOperator):
         operands = self.operands
         work = self.work
 
+        self._propagate_input(input, output)
+        for op in self.operands:
+            op.decoratein(output)
+
         # 1 operand: no temporaries
         if len(operands) == 1:
             operands[0].direct(input, output)
@@ -783,8 +815,8 @@ class AdditionOperator(CompositeOperator):
         if self.same_data(input, output):
             work[1] = self._allocate_like(output, work[1])
             operands[0].direct(input, work[0])
-            for model in operands[1:-1]:
-                model.direct(input, work[1])
+            for op in operands[1:-1]:
+                op.direct(input, work[1])
                 work[0] += work[1]
             operands[-1].direct(input, output)
             output += work[0]
@@ -792,8 +824,8 @@ class AdditionOperator(CompositeOperator):
 
         # more than 2 operands, input != output: 1 temporary
         operands[0].direct(input, output)
-        for model in self.operands[1:]:
-            model.direct(input, work[0])
+        for op in self.operands[1:]:
+            op.direct(input, work[0])
             output += work[0]
 
     @property
@@ -879,18 +911,19 @@ class CompositionOperator(CompositeOperator):
     def direct(self, input, output):
         operands = self.operands
         if len(operands) == 1:
+            operands[0].decoratein(output)
             operands[0].direct(input, output)
             return
 
-        # make the output variable available in the work pool
+        # make the output buffer available in the work pool
         self._set_output(output)
 
         i = input
-        for model in reversed(self.operands):
-            shapeout = model.reshapein(input.shape)
+        for op in reversed(self.operands):
+            op.decoratein(output)
             # get output from the work pool
-            o = self._get_output(shapeout, input.dtype)
-            model.direct(i, o)
+            o = self._get_output(op.reshapein(input.shape), input.dtype)
+            op.direct(i, o)
             i = o
 
         # remove output from the work poll, to avoid side effects on the output
@@ -1061,6 +1094,10 @@ class BroadcastingOperator(Operator):
             raise ValueError("Invalid broadcasting.")
 
         return v
+
+
+class ndarraywrap(np.ndarray):
+    pass
 
 
 def _get_dtypeout(d1, d2):
