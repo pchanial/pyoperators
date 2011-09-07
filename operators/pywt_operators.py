@@ -4,6 +4,16 @@ import pywt
 from .decorators import linear, real
 from .core import Operator
 
+# dict of corresponding wavelets
+rwavelist = {}
+for l in pywt.wavelist():
+    if 'bior' in l:
+        rwavelist[l] = 'rbio' + l[-3:]
+    elif 'rbio' in l:
+        rwavelist[l] = 'bior' + l[-3:]
+    else:
+        rwavelist[l] = l
+
 # Operators factories :
 
 @linear
@@ -11,6 +21,7 @@ from .core import Operator
 class Wavelet(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
         self.wavelet = wavelet
+        self.rwavelet = rwavelist[self.wavelet]
         self.mode = mode
         self.level = level
         # needed to get sizes of all coefficients
@@ -26,7 +37,7 @@ class Wavelet(Operator):
             out[:] = self.coeffs2vect(coeffs)
         def transpose(x, out):
             coeffs = self.vect2coeffs(x)
-            out[:] = pywt.waverec(coeffs, self.wavelet, mode=self.mode)[:self.shapein[0]]
+            out[:] = pywt.waverec(coeffs, self.rwavelet, mode=self.mode)[:self.shapein[0]]
         super(Wavelet, self).__init__(direct=direct, transpose=transpose,
                                       shapein=shapein, shapeout=shapeout, **kwargs)
 
@@ -51,6 +62,7 @@ class Wavelet2(Operator):
         Otherwise, take a look at wavelet2
         """
         self.wavelet = wavelet
+        self.rwavelet = rwavelist[self.wavelet]
         self.mode = mode
         self.level = level
         # compute shapes and sizes
@@ -67,12 +79,12 @@ class Wavelet2(Operator):
         shapeout = sum(self.sizes)
 
         def direct(x, out):
-            coeffs = pywt.wavedec2(x, wavelet, mode=mode, level=level)
+            coeffs = pywt.wavedec2(x, self.wavelet, mode=self.mode, level=self.level)
             out[:] = self.coeffs2vect(coeffs)
 
         def transpose(x, out):
             coeffs = self.vect2coeffs(x)
-            out[:] = pywt.waverec2(coeffs, wavelet, mode=mode)[:shapein[0], :shapein[1]]
+            out[:] = pywt.waverec2(coeffs, self.rwavelet, mode=self.mode)[:shapein[0], :shapein[1]]
 
         super(Wavelet2, self).__init__(direct=direct, transpose=transpose,
                                        shapein=shapein, shapeout=shapeout, **kwargs)
