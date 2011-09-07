@@ -327,6 +327,9 @@ class Operator(object):
         
     def _allocate(self, shape, dtype, buf=None):
 
+        if isscalar(shape):
+            shape = (shape,)
+        dtype = np.dtype(dtype)
         nbytes = dtype.itemsize * np.product(shape)
         if buf is not None:
             if buf.dtype != dtype:
@@ -870,7 +873,7 @@ class CompositionOperator(CompositeOperator):
             buf = self.work[0]
         else:
             if self.work[1] is None or self.work[1].nbytes < nbytes:
-                self.work[1] = self._allocate((nbytes,), np.int8)
+                self.work[1] = self._allocate(nbytes, np.int8)
             buf = self.work[1]
         
         return buf[:nbytes].view(dtype).reshape(shape)
