@@ -1,9 +1,10 @@
 import nose
 import numpy as np
-from numpy.testing import *
+from numpy.testing import assert_array_equal
 
-from operators import Operator, AdditionOperator, CompositionOperator, ScalarOperator, I, O
-from operators.decorators import symmetric
+from operators.core import Operator, AdditionOperator, CompositionOperator, ScalarOperator, ndarraywrap
+from operators.linear import I, O
+from operators.decorators import symmetric, square
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
@@ -91,6 +92,157 @@ def test_scalar_reduction():
             assert model(i) == result
             assert model(i).dtype == np.float64
 
+
+def test_decoratein_attribute():
+    class ndarray2(np.ndarray):
+        pass
+    @square
+    class AddAttribute(Operator):
+        def direct(self, input, output):
+            pass
+        transpose = direct
+        def decoratein(self, input):
+            input.newattr_direct = True
+        def decorateout(self, input):
+            input.newattr_transpose = True
+    @square
+    class AddAttribute2(Operator):
+        def direct(self, input, output):
+            pass
+        transpose = direct
+        def decoratein(self, input):
+            input.newattr_direct = False
+        def decorateout(self, input):
+            input.newattr_transpose = False
+    @square
+    class AddAttribute3(Operator):
+        def direct(self, input, output):
+            pass
+        transpose = direct
+        def decoratein(self, input):
+            input.newattr3_direct = True
+        def decorateout(self, input):
+            input.newattr3_transpose = True
+
+    inputs = [np.ones(5), np.ones(5).view(ndarray2)]
+    for i in inputs:
+        op = AddAttribute()
+        assert op(i).newattr_direct
+        assert op.T(i).newattr_transpose
+
+        op = AddAttribute2() * AddAttribute()
+        assert not op(i).newattr_direct
+        assert op.T(i).newattr_transpose
+
+        op = AddAttribute3() * AddAttribute()
+        assert op(i).newattr_direct
+        assert op(i).newattr3_direct
+        assert op.T(i).newattr_transpose
+        assert op.T(i).newattr3_transpose
+
+    for i_ in inputs:
+        op = AddAttribute()
+        i = i_.copy()
+        assert op(i,i).newattr_direct
+        if type(i) is not np.ndarray:
+            assert i.newattr_direct
+        i = i_.copy()
+        assert op.T(i,i).newattr_transpose
+        if type(i) is not np.ndarray:
+            assert i.newattr_transpose
+
+        op = AddAttribute2() * AddAttribute()
+        i = i_.copy()
+        assert not op(i,i).newattr_direct
+        if type(i) is not np.ndarray:
+            assert not i.newattr_direct
+        i = i_.copy()
+        assert op.T(i,i).newattr_transpose
+        if type(i) is not np.ndarray:
+            assert i.newattr_transpose
+
+        op = AddAttribute3() * AddAttribute()
+        i = i_.copy()
+        o = op(i,i)
+        assert o.newattr_direct
+        assert o.newattr3_direct
+        if type(i) is not np.ndarray:
+            assert i.newattr_direct
+            assert i.newattr3_direct
+        i = i_.copy()
+        o = op.T(i,i)
+        assert o.newattr_transpose
+        assert o.newattr3_transpose
+        if type(i) is not np.ndarray:
+            assert i.newattr_transpose
+            assert i.newattr3_transpose
+
+    
+def test_decoratein_class():
+    class ndarray2(np.ndarray):
+        pass
+
+    class ndarray3(np.ndarray):
+        pass
+
+    class ndarray4(np.ndarray):
+        pass
+
+    @square
+    class I2(Operator):
+        def direct(self, input, output):
+            pass
+        transpose = direct
+        def decoratein(self, output):
+            output.newattr = True
+
+    @square
+    class I3(Operator):
+        def direct(self, input, output):
+            pass
+        transpose = direct
+        def decoratein(self, input):
+            input.__class__ = ndarray3
+        def decorateout(self, input):
+            input.__class__ = ndarray4
+
+    inputs = [np.ones(5), np.ones(5).view(ndarray2)]
+    ops = [I, I2(), I2()*I3(), I3()*I2()]
+    results = [[np.ndarray, ndarray2],
+               [ndarraywrap, ndarray2],
+               [ndarray3, ndarray3],
+               [ndarray3, ndarray3]]
+    resultsT = [[np.ndarray, ndarray2],
+                [np.ndarray, ndarray2],
+                [ndarray4, ndarray4],
+                [ndarray4, ndarray4]]
+
+    for op, results_, resultsT_ in zip(ops, results, resultsT):
+        for i, c, cT in zip(inputs, results_, resultsT_):
+            o = op(i)
+            assert o.__class__ == c
+            o = op.T(i)
+            assert o.__class__ == cT
+
+    for op, results_ in zip(ops, results):
+        for i, c in zip(inputs, results_):
+            i = i.copy()
+            if type(i) is np.ndarray:
+                op(i,i)
+                assert i.__class__ == np.ndarray
+            else:
+                op(i,i)
+                assert i.__class__ == c
+
+    for op, resultsT_ in zip(ops, resultsT):
+        for i, cT in zip(inputs, resultsT_):
+            i = i.copy()
+            if type(i) is np.ndarray:
+                op.T(i,i)
+                assert i.__class__ == np.ndarray
+            else:
+                op.T(i,i)
+                assert i.__class__ == cT
 
 def test_addition():
     class Op(Operator):
