@@ -2,7 +2,8 @@ import nose
 import numpy as np
 from numpy.testing import *
 
-from operators import Symmetric, Operator, AdditionOperator, CompositionOperator, ScalarOperator, I, O
+from operators import Operator, AdditionOperator, CompositionOperator, ScalarOperator, I, O
+from operators.decorators import symmetric
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
@@ -56,7 +57,7 @@ def test_dtype2():
 def test_symmetric():
     
     mat = np.matrix([[2,1],[1,2]])
-    @Symmetric
+    @symmetric
     class Op(Operator):
         def __init__(self):
             Operator.__init__(self, shapein=(2,), dtype=mat.dtype)
