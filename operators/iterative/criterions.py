@@ -7,8 +7,10 @@ Interfaces with the scipy.optimize algorithms are defined through
 their __call__ and diff methods and their shapein attribute.
 """
 
+import copy
 import numpy as np
 from ..core import Operator
+from ..linear import I
 
 __all__ = ['norm2',
            'dnorm2',
@@ -25,9 +27,6 @@ __all__ = ['norm2',
            'quadratic_criterion',
            'huber_criterion',
            'normp_criterion']
-           #'QuadraticCriterion',
-           #'HuberCriterion',
-           #'NormpCriterion',]
 
 # norms
 # =====
@@ -105,9 +104,13 @@ class Norm(object):
     def __mul__(self, x):
         # returns a norm with modified _call and _diff
         if np.isscalar(x):
-            N = Norm()
+            kwargs = {k:self.__dict__[k]
+                      for k in self.__dict__.keys() if k[0] != '_'}
+            N = type(self)(kwargs)
             N._call = _scalar_mul(self._call, x)
             N._diff = _scalar_mul(self._diff, x)
+            if hasattr(N, "_hessian"):
+                N._hessian = _scalar_mul(self._hessian, x)
         else:
             raise ValueError("Expects only scalar multiplication")
         return N
@@ -135,21 +138,23 @@ class Norm2(Norm):
             return norm2(x)
         def diff(x):
             return 2 * x
-        #def hessian(x):
-        #    return 2 * I(shapein=x.size)
+        def hessian(x):
+            return 2 * I(shapein=x.size)
         def c_call(x):
             return np.dot(x.T, C * x)
         def c_diff(x):
             return 2 * C * x
-        #def c_hessian(x):
-        #    return 2 * C
+        def c_hessian(x):
+            return 2 * C
         self.C = C
         if C is None:
             self._call = call
             self._diff = diff
+            self._hessian = hessian
         else:
             self._call = c_call
             self._diff = c_diff
+            self._hessian = c_hessian
 
 class Huber(Norm):
     """
@@ -197,6 +202,7 @@ class Normp(Norm):
 
 class CriterionElement(object):
     def __init__(self, norm, op, data=None):
+        # test inputs
         if not isinstance(norm, Norm):
             raise ValueError("First parameter should be a Norm instance")
         self.norm = norm
@@ -204,22 +210,46 @@ class CriterionElement(object):
             raise ValueError("First parameter should be an Operator instance")
         self.op = op
         self.shapein = op.shapein
-        # should test for data shape
+        if not (isinstance(data, np.ndarray) or data is None):
+            raise ValueError("data parameter should be ndarray or None")
+        if data is not None and not data.shape == np.prod(op.shapeout):
+            raise ValueError("data shape sould equal operator shapeout")
         self.data = data
+
+        # cache result
+        self.last_x = None
+        self.last_ox = None
+
+        # define call and diff
         def _call(x):
-            return self.norm(self.op * x)
+            if not self._islastx(x):
+                self._storex(x)
+            return self.norm(self.last_ox)
         def _diff(x):
-            return self.op.T * self.norm.diff(self.op * x)
+            if not self._islastx(x):
+                self._storex(x)
+            return self.op.T * self.norm.diff(self.last_ox)
         def _data_call(x):
-            return self.norm(self.op * x - data)
+            if not self._islastx(x):
+                self._storex(x)
+            return self.norm(self.last_ox - data)
         def _data_diff(x):
-            return self.op.T * self.norm.diff(self.op * x - data)
+            if not self._islastx(x):
+                self._storex(x)
+            return self.op.T * self.norm.diff(self.last_ox - data)
         if data is None:
             self._call = _call
             self._diff = _diff
         else:
             self._call = _data_call
             self._diff = _data_diff
+
+    def _islastx(self, x):
+        return np.all(x == self.last_x)
+
+    def _storex(self, x):
+        self.last_x = copy.copy(x)
+        self.last_ox = self.op * x
 
     def __call__(self, x):
         return self._call(x)
@@ -271,7 +301,7 @@ class Criterion(object):
     def __mul__(self, x):
         """returns a criterion element with modified norm"""
         if np.isscalar(x):
-            return Criterion([x *e for e in self.elements])
+            return Criterion([x * e for e in self.elements])
         else:
             raise ValueError("Expects only scalar multiplication")
     __imul__ = __mul__
@@ -298,7 +328,7 @@ def quadratic_criterion(model, data, hypers=[], priors=[], covariances=None):
         norms = [Norm2(C) for C in covariances]
     likelihood = CriterionElement(norms[0], model, data=data)
     prior_elements = [CriterionElement(n, p) for n, p in zip(norms[1:], priors)]
-    prior = sum([h *p for h, p in zip(hypers, prior_elements)])
+    prior = sum([h * p for h, p in zip(hypers, prior_elements)])
     criterion = likelihood + prior
     return criterion
 
