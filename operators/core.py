@@ -793,10 +793,9 @@ class AdditionOperator(CompositeOperator):
         for op in self.operands:
             op.decoratein(output)
 
-        # 1 operand: no temporaries
-        if len(operands) == 1:
-            operands[0].direct(input, output)
-            return
+        # 1 operand: this case should not happen
+        assert len(operands) > 1
+
         work[0] = self._allocate_like(output, work[0])
 
         # 2 operands: 1 temporary
@@ -904,11 +903,11 @@ class CompositionOperator(CompositeOperator):
         }
 
     def direct(self, input, output):
+
         operands = self.operands
-        if len(operands) == 1:
-            operands[0].decoratein(output)
-            operands[0].direct(input, output)
-            return
+
+        # 1 operand: this case should not happen
+        assert len(operands) > 1
 
         # make the output buffer available in the work pool
         self._set_output(output)
