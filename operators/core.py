@@ -140,31 +140,10 @@ class Operator(object):
         self._generated = False
         self._C = self._T = self._H = self._I = None
 
-        if dtype is not None:
-            dtype = np.dtype(dtype)
-        self.dtype = dtype
-
-        if flags is not None:
-            if isinstance(flags, tuple):
-                self.flags = flags
-            elif isinstance(flags, dict):
-                self.flags = self.flags._replace(**flags)
-            else:
-                raise ValueError('Invalid input flags.')
-
-        if self.dtype is None or self.dtype.kind != 'c':
-            self.flags = self.flags._replace(REAL=True)
-
-        self._validate_flags(self)
-
+        self._validate_dtype(dtype)
+        self._validate_flags(self, flags)
         self._validate_inout(shapein, shapeout)
-
-        if self.__class__ != 'Operator':
-            self.__name__ = self.__class__.__name__
-        elif direct is not None:
-            self.__name__ = direct.__name__
-            if self.__name__ in ('<lambda>', 'direct'):
-                self.__name__ = 'Operator'
+        self._validate_name()
 
     flags = OperatorFlags(*9 * (False,))
     shapein = None
@@ -426,47 +405,6 @@ class Operator(object):
     def _allocate_like(self, a, b):
         return self._allocate(a.shape, a.dtype, b)
 
-    @staticmethod
-    def _validate_flags(op):
-
-        if op.flags.REAL:
-            if op.flags.SYMMETRIC:
-                op.flags = op.flags._replace(HERMITIAN=True)
-            if op.flags.HERMITIAN:
-                op.flags = op.flags._replace(SYMMETRIC=True)
-            if op.flags.ORTHOGONAL:
-                op.flags = op.flags._replace(UNITARY=True)
-            if op.flags.UNITARY:
-                op.flags = op.flags._replace(ORTHOGONAL=True)
-
-        if op.flags.ORTHOGONAL:
-            if op.flags.IDEMPOTENT:
-                op.flags = op.flags._replace(SYMMETRIC=True)
-            if op.flags.SYMMETRIC:
-                op.flags = op.flags._replace(IDEMPOTENT=True)
-
-        if op.flags.UNITARY:
-            if op.flags.IDEMPOTENT:
-                op.flags = op.flags._replace(HERMITIAN=True)
-            if op.flags.HERMITIAN:
-                op.flags = op.flags._replace(IDEMPOTENT=True)
-
-        if op.flags.INVOLUTARY:
-            if op.flags.SYMMETRIC:
-                op.flags = op.flags._replace(ORTHOGONAL=True)
-            if op.flags.ORTHOGONAL:
-                op.flags = op.flags._replace(SYMMETRIC=True)
-            if op.flags.HERMITIAN:
-                op.flags = op.flags._replace(UNITARY=True)
-            if op.flags.UNITARY:
-                op.flags = op.flags._replace(HERMITIAN=True)
-
-        if op.flags.IDEMPOTENT:
-            if any([op.flags.ORTHOGONAL, op.flags.UNITARY, op.flags.INVOLUTARY]):
-                op.flags = op.flags._replace(
-                    ORTHOGONAL=True, UNITARY=True, INVOLUTARY=True
-                )
-
     def _generate_associated_operators(self):
 
         names = ('C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
@@ -589,6 +527,62 @@ class Operator(object):
         for op in (self, C, T, H, I, IC, IT, IH):
             op._generated = True
 
+    def _validate_dtype(self, dtype):
+        if dtype is not None:
+            dtype = np.dtype(dtype)
+        self.dtype = dtype
+        if self.dtype is None or self.dtype.kind != 'c':
+            self.flags = self.flags._replace(REAL=True)
+
+    @staticmethod
+    def _validate_flags(op, flags):
+
+        if flags is not None:
+            if isinstance(flags, tuple):
+                op.flags = flags
+            elif isinstance(flags, dict):
+                op.flags = op.flags._replace(**flags)
+            else:
+                raise ValueError('Invalid input flags.')
+
+        if op.flags.REAL:
+            if op.flags.SYMMETRIC:
+                op.flags = op.flags._replace(HERMITIAN=True)
+            if op.flags.HERMITIAN:
+                op.flags = op.flags._replace(SYMMETRIC=True)
+            if op.flags.ORTHOGONAL:
+                op.flags = op.flags._replace(UNITARY=True)
+            if op.flags.UNITARY:
+                op.flags = op.flags._replace(ORTHOGONAL=True)
+
+        if op.flags.ORTHOGONAL:
+            if op.flags.IDEMPOTENT:
+                op.flags = op.flags._replace(SYMMETRIC=True)
+            if op.flags.SYMMETRIC:
+                op.flags = op.flags._replace(IDEMPOTENT=True)
+
+        if op.flags.UNITARY:
+            if op.flags.IDEMPOTENT:
+                op.flags = op.flags._replace(HERMITIAN=True)
+            if op.flags.HERMITIAN:
+                op.flags = op.flags._replace(IDEMPOTENT=True)
+
+        if op.flags.INVOLUTARY:
+            if op.flags.SYMMETRIC:
+                op.flags = op.flags._replace(ORTHOGONAL=True)
+            if op.flags.ORTHOGONAL:
+                op.flags = op.flags._replace(SYMMETRIC=True)
+            if op.flags.HERMITIAN:
+                op.flags = op.flags._replace(UNITARY=True)
+            if op.flags.UNITARY:
+                op.flags = op.flags._replace(HERMITIAN=True)
+
+        if op.flags.IDEMPOTENT:
+            if any([op.flags.ORTHOGONAL, op.flags.UNITARY, op.flags.INVOLUTARY]):
+                op.flags = op.flags._replace(
+                    ORTHOGONAL=True, UNITARY=True, INVOLUTARY=True
+                )
+
     def _validate_inout(self, shapein, shapeout):
         if shapein is not None:
             if isscalar(shapein):
@@ -609,6 +603,14 @@ class Operator(object):
 
         if self.flags.SYMMETRIC or self.flags.HERMITIAN:
             self.decorateout = self.decoratein
+
+    def _validate_name(self):
+        if self.__class__ != 'Operator':
+            self.__name__ = self.__class__.__name__
+        elif self.direct is not None:
+            self.__name__ = self.direct.__name__
+            if self.__name__ in ('<lambda>', 'direct'):
+                self.__name__ = 'Operator'
 
     def __mul__(self, other):
         if isinstance(other, np.ndarray):
