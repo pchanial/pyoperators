@@ -208,7 +208,7 @@ class Operator(object):
             raise NotImplementedError(
                 'Call to ' + self.__name__ + ' is not im' 'plemented.'
             )
-        input, output = self.validate_input(input, output)
+        input, output = self._validate_input(input, output)
         self._propagate_input(input, output)
         self.decoratein(output)
         self.direct(input, output)
@@ -270,7 +270,7 @@ class Operator(object):
         output.__class__ = input.__class__
         output.__dict__.update(input.__dict__)
 
-    def validate_input(self, input, output):
+    def _validate_input(self, input, output):
         """Return the input as ndarray subclass and allocate the output
         if necessary."""
         input = np.array(input, copy=False, subok=True, ndmin=1)
@@ -317,7 +317,7 @@ class Operator(object):
 
     def matvec(self, v):
         v = self.toshapein(v)
-        input, output = self.validate_input(v, None)
+        input, output = self._validate_input(v, None)
         self.direct(input, output)
         return output.ravel()
 
