@@ -1,13 +1,14 @@
 """ Wrap pywt transform into LinearOperators """
 import numpy as np
 import pywt
-from .core import Operator, Real, Linear
+from .operators import linear, real
+from .core import Operator
 
 # Operators factories :
 
 
-@Linear
-@Real
+@linear
+@real
 class Wavelet(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
         self.wavelet = wavelet
@@ -50,8 +51,8 @@ class Wavelet(Operator):
         ]
 
 
-@Linear
-@Real
+@linear
+@real
 class Wavelet2(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
         """

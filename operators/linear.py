@@ -2,17 +2,8 @@ from __future__ import division
 
 import numpy as np
 
-from .core import (
-    Real,
-    Idempotent,
-    Involutary,
-    NotSquare,
-    Symmetric,
-    Orthogonal,
-    Operator,
-    ScalarOperator,
-    BroadcastingOperator,
-)
+from .decorators import linear, real, idempotent, involutary, symmetric, orthogonal
+from .core import Operator, ScalarOperator, BroadcastingOperator
 
 __all__ = [
     'DiagonalOperator',
@@ -26,9 +17,9 @@ __all__ = [
 ]
 
 
-@Real
-@Idempotent
-@Involutary
+@real
+@idempotent
+@involutary
 class IdentityOperator(ScalarOperator):
     def __init__(self, **keywords):
         ScalarOperator.__init__(self, 1, **keywords)
@@ -39,8 +30,8 @@ class IdentityOperator(ScalarOperator):
         output[:] = input
 
 
-@Real
-@Idempotent
+@real
+@idempotent
 class ZeroOperator(ScalarOperator):
     def __init__(self, **keywords):
         ScalarOperator.__init__(self, 0, **keywords)
@@ -49,7 +40,7 @@ class ZeroOperator(ScalarOperator):
         output[:] = 0
 
 
-@Symmetric
+@symmetric
 class DiagonalOperator(BroadcastingOperator):
     def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None, **keywords):
         data = np.array(data, dtype, copy=False)
@@ -88,8 +79,8 @@ class DiagonalOperator(BroadcastingOperator):
             np.divide(input, np.conjugate(self.data), output)
 
 
-@Real
-@Idempotent
+@real
+@idempotent
 class MaskOperator(DiagonalOperator):
     """
     We follow the convention of MaskedArray, where True means masked.
@@ -104,9 +95,8 @@ class MaskOperator(DiagonalOperator):
     inverse_conjugate = None
 
 
-@Real
-@NotSquare
-@Orthogonal
+@linear
+@real
 class PackOperator(Operator):
     """
     Convert an ndarray into a vector, under the control of a mask.
@@ -126,9 +116,8 @@ class PackOperator(Operator):
         return {'T': UnpackOperator(~self.mask, dtype=self.dtype)}
 
 
-@Real
-@NotSquare
-@Orthogonal
+@linear
+@real
 class UnpackOperator(Operator):
     """
     Convert a vector into an ndarray, under the control of a mask.
