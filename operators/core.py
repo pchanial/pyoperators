@@ -832,7 +832,7 @@ class CompositionOperator(CompositeOperator):
             op.direct(i, o)
             i = o
 
-        # remove output from the work poll, to avoid side effects on the output
+        # remove output from the work pool, to avoid side effects on the output
         self._del_output()
 
     @property
