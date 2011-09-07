@@ -208,7 +208,7 @@ class Operator(object):
         self.decoratein(output)
         self.direct(input, output)
         if type(output) is ndarraywrap and len(output.__dict__) == 0:
-            output = output.view(np.ndarray)
+            output = output.base
         return output
 
     @property
