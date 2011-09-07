@@ -118,17 +118,7 @@ class Operator(object):
 
         self._validate_flags(self)
 
-        self.shapein = shapein
-        if self.flags.SQUARE:
-            self.shapeout = self.shapein
-            self.reshapeout = self.reshapein
-            self.toshapeout = self.toshapein
-        else:
-            if self.shapeout is None:
-                self.shapeout = shapeout if shapeout is not None else \
-                    self.reshapein(shapein)
-        if self.flags.SYMMETRIC or self.flags.HERMITIAN:
-            self.decorateout = self.decoratein
+        self._validate_inout(shapein, shapeout)
 
         if self.__class__ != 'Operator':
             self.__name__ = self.__class__.__name__
@@ -535,6 +525,27 @@ class Operator(object):
 
         for op in (self, C, T, H, I, IC, IT, IH):
             op._generated = True
+
+    def _validate_inout(self, shapein, shapeout):
+        if shapein is not None:
+            if isscalar(shapein):
+                shapein = (shapein,)
+            self.shapein = tuple(int(s) for s in shapein)
+
+        if self.flags.SQUARE:
+            self.shapeout = self.shapein
+            self.reshapeout = self.reshapein
+            self.toshapeout = self.toshapein
+        else:
+            if shapeout is None:
+                shapeout = self.reshapein(shapein)
+            elif isscalar(shapeout):
+                shapeout = (shapeout,)
+            if shapeout is not None:
+                self.shapeout = tuple(int(s) for s in shapeout)
+                    
+        if self.flags.SYMMETRIC or self.flags.HERMITIAN:
+            self.decorateout = self.decoratein
 
     def __mul__(self, other):
         if isinstance(other, np.ndarray):
