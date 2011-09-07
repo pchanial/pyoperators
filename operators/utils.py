@@ -1,5 +1,12 @@
 from __future__ import division
 
+import numpy as np
+
+def isscalar(data):
+    """Hack around np.isscalar oddity"""
+    return data.ndim == 0 if isinstance(data, np.ndarray) else np.isscalar(data)
+
+
 def strenum(choices, last='or'):
     """
     Enumerates elements of a list

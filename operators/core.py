@@ -6,7 +6,7 @@ import numpy as np
 import scipy.sparse.linalg
 
 from collections import namedtuple
-from .utils import strenum
+from .utils import isscalar, strenum
 from .decorators import square, symmetric
 
 __all__ = [
@@ -542,7 +542,7 @@ class Operator(object):
         return CompositionOperator([self, other])
 
     def __rmul__(self, other):
-        if not _isscalar(other):
+        if not isscalar(other):
             raise NotImplementedError("It is not possible to multiply '" + \
                 str(type(other)) + "' with an Operator.")
         return CompositionOperator([other, self])
@@ -600,7 +600,7 @@ def asoperator(operator, shapein=None, shapeout=None):
                         shapeout=shapeout or operator.shape[0],
                         dtype=operator.dtype)
     
-    if _isscalar(operator):
+    if isscalar(operator):
         return ScalarOperator(operator)
 
     return asoperator(scipy.sparse.linalg.aslinearoperator(operator))
@@ -984,8 +984,10 @@ class BroadcastingOperator(Operator):
 
         return v
 
+
 class ndarraywrap(np.ndarray):
     pass
+
 
 def _get_dtypeout(d1, d2):
     """Return dtype of greater type rank."""
@@ -994,9 +996,3 @@ def _get_dtypeout(d1, d2):
     if d2 is None:
         return d1
     return np.find_common_type([d1, d2], [])
-
-
-def _isscalar(data):
-    """Hack around np.isscalar oddity"""
-    return data.ndim == 0 if isinstance(data, np.ndarray) else np.isscalar(data)
-
