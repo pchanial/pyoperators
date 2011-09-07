@@ -165,12 +165,12 @@ class Operator(object):
         self.shapein = shapein
         if self.flags.SQUARE:
             self.shapeout = self.shapein
-            self.toshapein = self.toshapeout
             self.reshapeout = self.reshapein
+            self.toshapeout = self.toshapein
         else:
             if self.shapeout is None:
                 self.shapeout = (
-                    shapeout if shapeout is not None else self.toshapeout(shapein)
+                    shapeout if shapeout is not None else self.reshapein(shapein)
                 )
 
         if self.__class__ != 'Operator':
@@ -217,26 +217,34 @@ class Operator(object):
             return None
         return shape
 
-    def reshapein(self, v):
+    def toshapein(self, v):
+        """Reshape input vector into a multi-dimensional array compatible
+        with the operator's shapein."""
         if self.shapein is None:
             raise ValueError(
                 "The operator '" + self.__name__ + "' has an unde" "fined shapein."
             )
         return v.reshape(self.shapein)
 
-    def reshapeout(self, v):
+    def toshapeout(self, v):
+        """Reshape input vector into a multi-dimensional array compatible
+        with the operator's shapeout."""
         if self.shapeout is None:
             raise ValueError(
                 "The operator '" + self.__name__ + "' has an unde" "fined shapeout."
             )
         return v.reshape(self.shapeout)
 
-    def toshapeout(self, shapein):
+    def reshapein(self, shapein):
+        """For explicit-shape operators, return operator's shapeout. Otherwise,
+        compute the operator's output shape from a given input shape."""
         if self.shapeout is not None:
             return self.shapeout
         return shapein
 
-    def toshapein(self, shapeout):
+    def reshapeout(self, shapeout):
+        """For explicit-shape operators, return operator's shapein. Otherwise,
+        compute the operator's input shape from a given output shape."""
         if self.shapein is not None:
             return self.shapein
         return shapeout
@@ -251,7 +259,7 @@ class Operator(object):
                     self.__name__, input.shape, self.shapein
                 )
             )
-        shapeout = self.toshapeout(input.shape)
+        shapeout = self.reshapein(input.shape)
         output = self._allocate(
             shapeout, _get_dtypeout(input.dtype, self.dtype), output
         )
@@ -272,7 +280,7 @@ class Operator(object):
             raise ValueError(
                 "The operator has an implicit shape. Use the 'sha" "pein' keyword."
             )
-        shapeout = self.toshapeout(shapein)
+        shapeout = self.reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
         d = np.empty((n, m), self.dtype)
         v = np.zeros(n, self.dtype)
@@ -283,7 +291,7 @@ class Operator(object):
         return d.T
 
     def matvec(self, v):
-        v = self.reshapein(v)
+        v = self.toshapein(v)
         input, output = self.validate_input(v, None)
         self.direct(input, output)
         return output.ravel()
@@ -541,10 +549,10 @@ class Operator(object):
         for op in (T, H, I, IC):
             op.shapein = self.shapeout
             op.shapeout = self.shapein
-            op.reshapein = self.reshapeout
-            op.reshapeout = self.reshapein
             op.toshapein = self.toshapeout
             op.toshapeout = self.toshapein
+            op.reshapeout = self.reshapein
+            op.reshapein = self.reshapeout
 
         for op in (C, IT, IH):
             op.shapein = self.shapein
@@ -879,7 +887,7 @@ class CompositionOperator(CompositeOperator):
 
         i = input
         for model in reversed(self.operands):
-            shapeout = model.toshapeout(input.shape)
+            shapeout = model.reshapein(input.shape)
             # get output from the work pool
             o = self._get_output(shapeout, input.dtype)
             model.direct(i, o)
@@ -892,7 +900,7 @@ class CompositionOperator(CompositeOperator):
     def shapein(self):
         shape = None
         for model in self.operands:
-            shape = model.toshapein(shape)
+            shape = model.reshapeout(shape)
         return shape
 
     @shapein.setter
@@ -903,7 +911,7 @@ class CompositionOperator(CompositeOperator):
     def shapeout(self):
         shape = None
         for model in reversed(self.operands):
-            shape = model.toshapeout(shape)
+            shape = model.reshapein(shape)
         return shape
 
     @shapeout.setter
@@ -1009,7 +1017,7 @@ class BroadcastingOperator(Operator):
 
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
-    def toshapeout(self, shape):
+    def reshapein(self, shape):
         if self.shapeout is not None:
             return self.shapeout
         if shape is None:
@@ -1029,7 +1037,7 @@ class BroadcastingOperator(Operator):
                 )
         return shape
 
-    def reshapein(self, v):
+    def toshapein(self, v):
         if self.shapein is not None:
             return v.reshape(self.shapein)
         if self.data.ndim < 2:
