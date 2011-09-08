@@ -10,6 +10,15 @@ def isscalar(data):
     return data.ndim == 0 if isinstance(data, np.ndarray) else np.isscalar(data)
 
 
+def tointtuple(data):
+    """Return input as a tuple of int."""
+    if data is None:
+        return data
+    if isscalar(data):
+        data = (data,)
+    return tuple(int(d) for d in data)
+
+
 def strenum(choices, last='or'):
     """
     Enumerates elements of a list

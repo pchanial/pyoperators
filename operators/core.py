@@ -6,7 +6,7 @@ import numpy as np
 import scipy.sparse.linalg
 
 from collections import namedtuple
-from .utils import isscalar, strenum
+from .utils import isscalar, tointtuple, strenum
 from .decorators import square, symmetric
 
 __all__ = [
@@ -553,9 +553,7 @@ class Operator(object):
         """Set methods and attributes dealing with the input and output
         handling."""
         if shapein is not None:
-            if isscalar(shapein):
-                shapein = (shapein,)
-            self.shapein = tuple(int(s) for s in shapein)
+            self.shapein = tointtuple(shapein)
 
         if self.flags.SQUARE:
             self.shapeout = self.shapein
@@ -564,10 +562,7 @@ class Operator(object):
         else:
             if shapeout is None:
                 shapeout = self.reshapein(shapein)
-            elif isscalar(shapeout):
-                shapeout = (shapeout,)
-            if shapeout is not None:
-                self.shapeout = tuple(int(s) for s in shapeout)
+            self.shapeout = tointtuple(shapeout)
 
     def _set_name(self):
         """Set operator's __name__ attribute."""
