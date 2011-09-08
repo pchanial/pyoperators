@@ -16,6 +16,7 @@ __all__ = [
     'CompositionOperator',
     'ScalarOperator',
     'BroadcastingOperator',
+    'asoperator',
 ]
 
 verbose = True
