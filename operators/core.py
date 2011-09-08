@@ -45,6 +45,16 @@ class OperatorFlags(
         fields = ['  ' + f.ljust(n) + ' : ' for f in self._fields]
         return '\n'.join([f + str(v) for f, v in zip(fields, self)])
 
+    def __repr__(self):
+        n = max([len(f) for f in self._fields])
+        fields = [f.ljust(n) + '= ' for f in self._fields]
+        return (
+            self.__class__.__name__
+            + '(\n  '
+            + ',\n  '.join([f + str(v) for f, v in zip(fields, self)])
+            + ')'
+        )
+
 
 class Operator(object):
     """Abstract class representing an operator.
