@@ -163,17 +163,13 @@ class Operator(object):
         return v.reshape(self.shapeout)
 
     def reshapein(self, shapein):
-        """For explicit-shape operators, return operator's output shape.
-        Otherwise, compute it from a given input shape."""
-        if self.shapeout is not None:
-            return self.shapeout
+        """Return operator's output shape computed from a given input shape.
+        This method is only called for implicit-shape operators."""
         return shapein
 
     def reshapeout(self, shapeout):
-        """For explicit-shape operators, return operator's input shape.
-        Otherwise, compute it from a given output shape."""
-        if self.shapein is not None:
-            return self.shapein
+        """Return operator's input shape computed from a given output shape.
+        This method is only called for implicit-shape operators."""
         return shapeout
 
     @staticmethod
@@ -188,7 +184,7 @@ class Operator(object):
         if shapein is None:
             raise ValueError("The operator has an implicit shape. Use the 'shap"
                              "pin' keyword.")
-        shapeout = self.reshapein(shapein)
+        shapeout = self._reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
         d = np.empty((n,m), self.dtype).view(ndarraywrap)
         v = np.zeros(n, self.dtype)
@@ -314,6 +310,24 @@ class Operator(object):
             output.__dict__.update(input.__dict__)
         else:
             output.__dict__ = input.__dict__
+
+    def _reshapein(self, shapein):
+        """Return operator's output shape. For implicit-shape operators,
+        one should override the method reshapein."""
+        if shapein is None:
+            return None
+        if self.shapeout is not None:
+            return self.shapeout
+        return self.reshapein(shapein)
+
+    def _reshapeout(self, shapeout):
+        """Return operator's input shape. For implicit-shape operators,
+        one should override the method reshapeout."""
+        if shapeout is None:
+            return None
+        if self.shapein is not None:
+            return self.shapein
+        return self.reshapeout(shapeout)
 
     def _generate_associated_operators(self):
         """Compute at once the conjugate, transpose, adjoint and inverse
@@ -507,7 +521,7 @@ class Operator(object):
             self.toshapeout = self.toshapein
         else:
             if shapeout is None:
-                shapeout = self.reshapein(shapein)
+                shapeout = self._reshapein(shapein)
             self.shapeout = tointtuple(shapeout)
                     
     def _set_name(self):
@@ -530,7 +544,7 @@ class Operator(object):
             raise ValueError('The input of {0} has an invalid shape {1}. Expect'
                 'ed shape is {2}.'.format(self.__name__,
                 input.shape, self.shapein))
-        shapeout = self.reshapein(input.shape)
+        shapeout = self._reshapein(input.shape)
         dtype = _get_dtypeout(input.dtype, self.dtype)
         if output is not None:
             if output.dtype != dtype:
@@ -854,7 +868,7 @@ class CompositionOperator(CompositeOperator):
         i = input
         for op in reversed(self.operands):
             # get output from the work pool
-            o = self._get_output(op.reshapein(input.shape), input.dtype)
+            o = self._get_output(op._reshapein(input.shape), input.dtype)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
@@ -867,7 +881,7 @@ class CompositionOperator(CompositeOperator):
     def shapein(self):
         shape = None
         for model in self.operands:
-            shape = model.reshapeout(shape)
+            shape = model._reshapeout(shape)
         return shape
 
     @shapein.setter
@@ -878,7 +892,7 @@ class CompositionOperator(CompositeOperator):
     def shapeout(self):
         shape = None
         for model in reversed(self.operands):
-            shape = model.reshapein(shape)
+            shape = model._reshapein(shape)
         return shape
 
     @shapeout.setter
