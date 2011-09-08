@@ -864,7 +864,6 @@ class CompositionOperator(CompositeOperator):
             op.direct(i, o)
             output.__class__ = o.__class__
             i = o
-            print 'direct comp', output.__class__, output.__dict__
 
         # remove output from the work pool, to avoid side effects on the output
         self._del_output()
