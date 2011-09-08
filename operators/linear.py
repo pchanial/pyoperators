@@ -42,9 +42,9 @@ class DiagonalOperator(BroadcastingOperator):
         if shapein is None and broadcast == 'disabled' and data.ndim > 0:
             shapein = data.shape
         if np.all(data == 1):
-            return ZeroOperator(shapein=shapein, dtype=dtype, **keywords)
-        elif np.all(data == 0):
             return IdentityOperator(shapein=shapein, dtype=dtype, **keywords)
+        elif np.all(data == 0):
+            return ZeroOperator(shapein=shapein, dtype=dtype, **keywords)
         return BroadcastingOperator.__new__(cls, data, broadcast=broadcast,
             shapein=shapein, dtype=dtype, **keywords)
 
@@ -79,6 +79,18 @@ class MaskOperator(DiagonalOperator):
     """
     We follow the convention of MaskedArray, where True means masked.
     """
+    def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None,
+                **keywords):
+        data = np.array(data, dtype, copy=False)
+        if shapein is None and broadcast == 'disabled' and data.ndim > 0:
+            shapein = data.shape
+        if np.all(data == 1):
+            return ZeroOperator(shapein=shapein, dtype=dtype, **keywords)
+        elif np.all(data == 0):
+            return IdentityOperator(shapein=shapein, dtype=dtype, **keywords)
+        return BroadcastingOperator.__new__(cls, data, broadcast=broadcast,
+            shapein=shapein, dtype=dtype, **keywords)
+
     def __init__(self, mask, dtype=None, **keywords):
         DiagonalOperator.__init__(self, mask, dtype=np.bool8, **keywords)
         self.data = ~self.data
