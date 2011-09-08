@@ -187,8 +187,8 @@ class Operator(object):
         return shape
 
     def toshapein(self, v):
-        """Reshape input vector into a multi-dimensional array compatible
-        with the operator's shapein."""
+        """Reshape a vector into a multi-dimensional array compatible with
+        the operator's input shape."""
         if self.shapein is None:
             raise ValueError(
                 "The operator '" + self.__name__ + "' does not hav"
@@ -197,8 +197,8 @@ class Operator(object):
         return v.reshape(self.shapein)
 
     def toshapeout(self, v):
-        """Reshape input vector into a multi-dimensional array compatible
-        with the operator's shapeout."""
+        """Reshape a vector into a multi-dimensional array compatible with
+        the operator's output shape."""
         if self.shapeout is None:
             raise ValueError(
                 "The operator '" + self.__name__ + "' does not hav"
@@ -207,15 +207,15 @@ class Operator(object):
         return v.reshape(self.shapeout)
 
     def reshapein(self, shapein):
-        """For explicit-shape operators, return operator's shapeout. Otherwise,
-        compute the operator's output shape from a given input shape."""
+        """For explicit-shape operators, return operator's output shape.
+        Otherwise, compute it from a given input shape."""
         if self.shapeout is not None:
             return self.shapeout
         return shapein
 
     def reshapeout(self, shapeout):
-        """For explicit-shape operators, return operator's shapein. Otherwise,
-        compute the operator's input shape from a given output shape."""
+        """For explicit-shape operators, return operator's input shape.
+        Otherwise, compute it from a given output shape."""
         if self.shapein is not None:
             return self.shapein
         return shapeout
@@ -228,30 +228,6 @@ class Operator(object):
         pass
 
     decorateout = decoratein
-
-    def _propagate_input(self, input, output):
-        """This method sets the output's class to that of the input, if it is
-        possible. It also copies input's attributes into the output."""
-        output.__class__ = input.__class__
-        output.__dict__.update(input.__dict__)
-
-    def _validate_input(self, input, output):
-        """Return the input as ndarray subclass and allocate the output
-        if necessary."""
-        input = np.array(input, copy=False, subok=True, ndmin=1)
-        if type(input) is np.ndarray:
-            input = input.view(ndarraywrap)
-
-        if self.shapein is not None and self.shapein != input.shape:
-            raise ValueError(
-                'The input of {0} has an invalid shape {1}. Expect'
-                'ed shape is {2}.'.format(self.__name__, input.shape, self.shapein)
-            )
-        shapeout = self.reshapein(input.shape)
-        output = self._allocate(
-            shapeout, _get_dtypeout(input.dtype, self.dtype), output
-        )
-        return input, output
 
     @staticmethod
     def same_data(array1, array2):
@@ -286,22 +262,6 @@ class Operator(object):
 
     def rmatvec(self, v):
         return self.T.matvec(v)
-
-    def __str__(self):
-        result = self.__name__
-        if self.shapein is not None or self.shapeout is not None:
-            result += ' [input:'
-            if self.shapein is None:
-                result += 'unconstrained'
-            else:
-                result += str(self.shapein).replace(' ', '')
-            result += ', output:'
-            if self.shapeout is None:
-                result += 'unconstrained'
-            else:
-                result += str(self.shapeout).replace(' ', '')
-            result += ']'
-        return result
 
     def associated_operators(self):
         """
@@ -404,6 +364,12 @@ class Operator(object):
 
     def _allocate_like(self, a, b):
         return self._allocate(a.shape, a.dtype, b)
+
+    def _propagate_input(self, input, output):
+        """This method sets the output's class to that of the input, if it is
+        possible. It also copies input's attributes into the output."""
+        output.__class__ = input.__class__
+        output.__dict__.update(input.__dict__)
 
     def _generate_associated_operators(self):
 
@@ -526,6 +492,24 @@ class Operator(object):
 
         for op in (self, C, T, H, I, IC, IT, IH):
             op._generated = True
+
+    def _validate_input(self, input, output):
+        """Return the input as ndarray subclass and allocate the output
+        if necessary."""
+        input = np.array(input, copy=False, subok=True, ndmin=1)
+        if type(input) is np.ndarray:
+            input = input.view(ndarraywrap)
+
+        if self.shapein is not None and self.shapein != input.shape:
+            raise ValueError(
+                'The input of {0} has an invalid shape {1}. Expect'
+                'ed shape is {2}.'.format(self.__name__, input.shape, self.shapein)
+            )
+        shapeout = self.reshapein(input.shape)
+        output = self._allocate(
+            shapeout, _get_dtypeout(input.dtype, self.dtype), output
+        )
+        return input, output
 
     def _validate_dtype(self, dtype):
         if dtype is not None:
@@ -650,6 +634,22 @@ class Operator(object):
     def __neg__(self):
         return ScalarOperator(-1) * self
 
+    def __str__(self):
+        result = self.__name__
+        if self.shapein is not None or self.shapeout is not None:
+            result += ' [input:'
+            if self.shapein is None:
+                result += 'unconstrained'
+            else:
+                result += str(self.shapein).replace(' ', '')
+            result += ', output:'
+            if self.shapeout is None:
+                result += 'unconstrained'
+            else:
+                result += str(self.shapeout).replace(' ', '')
+            result += ']'
+        return result
+
 
 def asoperator(operator, shapein=None, shapeout=None):
     if isinstance(operator, Operator):
@@ -718,17 +718,6 @@ class CompositeOperator(Operator):
         pass
 
     @classmethod
-    def _validate_operands(cls, operands):
-        operands = [asoperator(op) for op in operands]
-        result = []
-        for op in operands:
-            if isinstance(op, cls):
-                result.extend(op.operands)
-            else:
-                result.append(op)
-        return result
-
-    @classmethod
     def _reduce_commute_scalar(cls, ops):
         if issubclass(cls, AdditionOperator):
             opn = np.add
@@ -763,6 +752,17 @@ class CompositeOperator(Operator):
             del ops[0]
 
         return ops
+
+    @classmethod
+    def _validate_operands(cls, operands):
+        operands = [asoperator(op) for op in operands]
+        result = []
+        for op in operands:
+            if isinstance(op, cls):
+                result.extend(op.operands)
+            else:
+                result.append(op)
+        return result
 
     def __str__(self):
         result = Operator.__str__(self) + ':'
