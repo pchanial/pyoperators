@@ -190,12 +190,14 @@ class Operator(object):
                              "pin' keyword.")
         shapeout = self.reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
-        d = np.empty((n,m), self.dtype)
+        d = np.empty((n,m), self.dtype).view(ndarraywrap)
         v = np.zeros(n, self.dtype)
         for i in range(n):
             v[i] = 1
             self.direct(v.reshape(shapein), d[i,:].reshape(shapeout))
             v[i] = 0
+        if len(d.__dict__) == 0:
+            d = d.view(np.ndarray)
         return d.T
 
     def matvec(self, v):
