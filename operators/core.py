@@ -624,7 +624,8 @@ def asoperator(operator, shapein=None, shapeout=None):
                         transpose=transpose,
                         shapein=shapein or operator.shape[1],
                         shapeout=shapeout or operator.shape[0],
-                        dtype=operator.dtype)
+                        dtype=operator.dtype,
+                        flags={'LINEAR':True})
     
     if isscalar(operator):
         return ScalarOperator(operator)
