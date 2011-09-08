@@ -1,6 +1,8 @@
 from __future__ import division
 
+import multiprocessing
 import numpy as np
+import os
 
 
 def isscalar(data):
@@ -63,3 +65,10 @@ def strplural(name, n, prepend=True, s=''):
         return ('1 ' if prepend else '') + name + s
     else:
         return (str(n) + ' ' if prepend else '') + name + 's' + s
+
+
+def openmp_num_threads():
+    n = os.getenv('OMP_NUM_THREADS')
+    if n is None:
+        n = multiprocessing.cpu_count
+    return n
