@@ -28,13 +28,15 @@ def idempotent(cls):
     return cls
 
 def orthogonal(cls):
-    cls._set_flags(cls, {'LINEAR':True,
+    cls._set_flags(cls, {'REAL':True,
+                         'LINEAR':True,
                          'SQUARE':True,
                          'ORTHOGONAL':True})
     return cls
     
 def unitary(cls):
-    cls._set_flags(cls, {'LINEAR':True,
+    cls._set_flags(cls, {'REAL':False,
+                         'LINEAR':True,
                          'SQUARE':True,
                          'UNITARY':True})
     return cls
