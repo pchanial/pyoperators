@@ -36,8 +36,8 @@ class OperatorFlags(namedtuple('OperatorFlags',
         n = max([len(f) for f in self._fields])
         fields = [ '  ' + f.ljust(n) + ' : ' for f in self._fields]
         return '\n'.join([f + str(v) for f,v in zip(fields,self)])
-    
-    
+
+
 class Operator(object):
     """Abstract class representing an operator.
 
@@ -132,8 +132,7 @@ class Operator(object):
             raise NotImplementedError('Call to ' + self.__name__ + ' is not imp'
                                       'lemented.')
         input, output = self._validate_input(input, output)
-        self._propagate_input(input, output)
-        self.decoratein(output)
+        self._propagate(input, output, copy=True)
         self.direct(input, output)
         if type(output) is ndarraywrap and len(output.__dict__) == 0:
             output = output.base
@@ -175,15 +174,6 @@ class Operator(object):
         if self.shapein is not None:
             return self.shapein
         return shapeout
-
-    def decoratein(self, input):
-        """Override this method to make an Operator return an ndarray subclass
-        different from that of the input, or to add attributes to the output.
-        Changes must be done in-place.
-        """
-        pass
-
-    decorateout = decoratein
 
     @staticmethod
     def same_data(array1, array2):
@@ -312,12 +302,15 @@ class Operator(object):
             array = array.view(ndarraywrap)
         return array
 
-    def _propagate_input(self, input, output):
+    def _propagate(self, input, output, copy=False):
         """Set the output's class to that of the input. It also copies input's
         attributes into the output. Note that these changes cannot be propagated
         to a non-subclassed ndarray."""
         output.__class__ = input.__class__
-        output.__dict__.update(input.__dict__)
+        if copy:
+            output.__dict__.update(input.__dict__)
+        else:
+            output.__dict__ = input.__dict__
 
     def _generate_associated_operators(self):
         """Compute at once the conjugate, transpose, adjoint and inverse
@@ -421,7 +414,6 @@ class Operator(object):
             op.shapein, op.shapeout = self.shapeout, self.shapein
             op.toshapein, op.toshapeout = self.toshapeout, self.toshapein
             op.reshapein, op.reshapeout = self.reshapeout, self.reshapein
-            op.decoratein, op.decorateout = self.decorateout, self.decoratein
         
         for op in (C, IT, IH):
             op.shapein = self.shapein
@@ -520,9 +512,6 @@ class Operator(object):
             if shapeout is not None:
                 self.shapeout = tuple(int(s) for s in shapeout)
                     
-        if self.flags.SYMMETRIC or self.flags.HERMITIAN:
-            self.decorateout = self.decoratein
-
     def _set_name(self):
         """Set operator's __name__ attribute."""
         if self.__class__ != 'Operator':
@@ -743,21 +732,20 @@ class AdditionOperator(CompositeOperator):
     def direct(self, input, output):
         operands = self.operands
 
-        self._propagate_input(input, output)
-        for op in self.operands:
-            op.decoratein(output)
-
         # 1 operand: this case should not happen
         assert len(operands) > 1
 
         w0, new = self._allocate_like(output, self.work[0])
         if new:
             self.work[0] = w0
+        self._propagate(output, w0)
 
         # 2 operands: 1 temporary
         if len(operands) == 2:
-            operands[0].direct(input, w0)
-            operands[1].direct(input, output)
+            operands[0].direct(input, output)
+            w0.__class__ = output.__class__
+            operands[1].direct(input, w0)
+            output.__class__ = w0.__class__
             output += w0
             return
 
@@ -767,8 +755,11 @@ class AdditionOperator(CompositeOperator):
             if new:
                 self.work[1] = w1
             operands[0].direct(input, w0)
+            output.__class__ = w0.__class__
+            self._propagate(w0, w1)
             for op in operands[1:-1]:
                 op.direct(input, w1)
+                output.__class__ = w1.__class__
                 w0 += w1
             operands[-1].direct(input, output)
             output += w0
@@ -776,8 +767,10 @@ class AdditionOperator(CompositeOperator):
         
         # more than 2 operands, input != output: 1 temporary
         operands[0].direct(input, output)
+        self._propagate(output, w0)
         for op in self.operands[1:]:
             op.direct(input, w0)
+            output.__class__ = w0.__class__
             output += w0
 
     @property
@@ -861,11 +854,13 @@ class CompositionOperator(CompositeOperator):
 
         i = input
         for op in reversed(self.operands):
-            op.decoratein(output)
             # get output from the work pool
             o = self._get_output(op.reshapein(input.shape), input.dtype)
+            op._propagate(output, o)
             op.direct(i, o)
+            output.__class__ = o.__class__
             i = o
+            print 'direct comp', output.__class__, output.__dict__
 
         # remove output from the work pool, to avoid side effects on the output
         self._del_output()
