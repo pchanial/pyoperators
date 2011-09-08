@@ -811,10 +811,10 @@ class AdditionOperator(CompositeOperator):
 
     def __init__(self, operands):
         flags = {
-            'LINEAR': all([op.flags.REAL for op in self.operands]),
+            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
             'REAL': all([op.flags.REAL for op in self.operands]),
             'SQUARE': self.shapein is not None
-            and (self.shapein == self.shapeout)
+            and self.shapein == self.shapeout
             or all([op.flags.SQUARE for op in self.operands]),
         }
         CompositeOperator.__init__(self, flags=flags)
@@ -931,7 +931,7 @@ class CompositionOperator(CompositeOperator):
 
     def __init__(self, operands):
         flags = {
-            'LINEAR': all([op.flags.REAL for op in self.operands]),
+            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
             'REAL': all([op.flags.REAL for op in self.operands]),
             'SQUARE': self.shapein is not None
             and (self.shapein == self.shapeout)
