@@ -140,10 +140,10 @@ class Operator(object):
         self._generated = False
         self._C = self._T = self._H = self._I = None
 
-        self._validate_dtype(dtype)
-        self._validate_flags(self, flags)
-        self._validate_inout(shapein, shapeout)
-        self._validate_name()
+        self._set_dtype(dtype)
+        self._set_flags(self, flags)
+        self._set_inout(shapein, shapeout)
+        self._set_name()
 
     flags = OperatorFlags(*9 * (False,))
     shapein = None
@@ -314,6 +314,10 @@ class Operator(object):
         return self.C
 
     def _allocate(self, shape, dtype, buf=None):
+        """Return an array of given shape and dtype. If a buffer is provided and
+        is of proper size and dtype, it is reused, otherwise a memory allocation
+        takes place. Every allocation should go through this method.
+        """
 
         if isscalar(shape):
             shape = (shape,)
@@ -363,16 +367,19 @@ class Operator(object):
         return buf.view(ndarraywrap)
 
     def _allocate_like(self, a, b):
+        """Return an array of same shape and dtype as a given array."""
         return self._allocate(a.shape, a.dtype, b)
 
     def _propagate_input(self, input, output):
-        """This method sets the output's class to that of the input, if it is
-        possible. It also copies input's attributes into the output."""
+        """Set the output's class to that of the input. It also copies input's
+        attributes into the output. Note that these changes cannot be propagated
+        to a non-subclassed ndarray."""
         output.__class__ = input.__class__
         output.__dict__.update(input.__dict__)
 
     def _generate_associated_operators(self):
-
+        """Compute at once the conjugate, transpose, adjoint and inverse
+        operators of the instance and of themselves."""
         names = ('C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
         ops = self.associated_operators()
         if not set(ops.keys()) <= set(names):
@@ -493,25 +500,8 @@ class Operator(object):
         for op in (self, C, T, H, I, IC, IT, IH):
             op._generated = True
 
-    def _validate_input(self, input, output):
-        """Return the input as ndarray subclass and allocate the output
-        if necessary."""
-        input = np.array(input, copy=False, subok=True, ndmin=1)
-        if type(input) is np.ndarray:
-            input = input.view(ndarraywrap)
-
-        if self.shapein is not None and self.shapein != input.shape:
-            raise ValueError(
-                'The input of {0} has an invalid shape {1}. Expect'
-                'ed shape is {2}.'.format(self.__name__, input.shape, self.shapein)
-            )
-        shapeout = self.reshapein(input.shape)
-        output = self._allocate(
-            shapeout, _get_dtypeout(input.dtype, self.dtype), output
-        )
-        return input, output
-
-    def _validate_dtype(self, dtype):
+    def _set_dtype(self, dtype):
+        """A non-complex dtype sets the REAL flag to true"""
         if dtype is not None:
             dtype = np.dtype(dtype)
         self.dtype = dtype
@@ -519,8 +509,8 @@ class Operator(object):
             self.flags = self.flags._replace(REAL=True)
 
     @staticmethod
-    def _validate_flags(op, flags):
-
+    def _set_flags(op, flags):
+        """Sets class or instance flags."""
         if flags is not None:
             if isinstance(flags, tuple):
                 op.flags = flags
@@ -567,7 +557,9 @@ class Operator(object):
                     ORTHOGONAL=True, UNITARY=True, INVOLUTARY=True
                 )
 
-    def _validate_inout(self, shapein, shapeout):
+    def _set_inout(self, shapein, shapeout):
+        """Set methods and attributes dealing with the input and output
+        handling."""
         if shapein is not None:
             if isscalar(shapein):
                 shapein = (shapein,)
@@ -588,13 +580,32 @@ class Operator(object):
         if self.flags.SYMMETRIC or self.flags.HERMITIAN:
             self.decorateout = self.decoratein
 
-    def _validate_name(self):
+    def _set_name(self):
+        """Set operator's __name__ attribute."""
         if self.__class__ != 'Operator':
             self.__name__ = self.__class__.__name__
         elif self.direct is not None:
             self.__name__ = self.direct.__name__
             if self.__name__ in ('<lambda>', 'direct'):
                 self.__name__ = 'Operator'
+
+    def _validate_input(self, input, output):
+        """Return the input as ndarray subclass and allocate the output
+        if necessary."""
+        input = np.array(input, copy=False, subok=True, ndmin=1)
+        if type(input) is np.ndarray:
+            input = input.view(ndarraywrap)
+
+        if self.shapein is not None and self.shapein != input.shape:
+            raise ValueError(
+                'The input of {0} has an invalid shape {1}. Expect'
+                'ed shape is {2}.'.format(self.__name__, input.shape, self.shapein)
+            )
+        shapeout = self.reshapein(input.shape)
+        output = self._allocate(
+            shapeout, _get_dtypeout(input.dtype, self.dtype), output
+        )
+        return input, output
 
     def __mul__(self, other):
         if isinstance(other, np.ndarray):
