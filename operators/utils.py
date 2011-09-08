@@ -78,6 +78,6 @@ def strplural(name, n, prepend=True, s=''):
 
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
-    if n is None:
-        n = multiprocessing.cpu_count()
-    return n
+    if n is not None:
+        return int(n)
+    return multiprocessing.cpu_count()
