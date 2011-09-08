@@ -138,7 +138,6 @@ class Operator(object):
         if self.inverse is None:
             self.inverse_conjugate = None
 
-        self._generated = False
         self._C = self._T = self._H = self._I = None
 
         self._set_dtype(dtype)
@@ -273,28 +272,28 @@ class Operator(object):
     @property
     def C(self):
         """Return the complex-conjugate of the operator."""
-        if not self._generated:
+        if self._C is None:
             self._generate_associated_operators()
         return self._C
 
     @property
     def T(self):
         """Return the transpose of the operator."""
-        if not self._generated:
+        if self._T is None:
             self._generate_associated_operators()
         return self._T
 
     @property
     def H(self):
         """Return the adjoint of the operator."""
-        if not self._generated:
+        if self._H is None:
             self._generate_associated_operators()
         return self._H
 
     @property
     def I(self):
         """Return the inverse of the operator."""
-        if not self._generated:
+        if self._I is None:
             self._generate_associated_operators()
         return self._I
 
@@ -502,9 +501,6 @@ class Operator(object):
         IC._C, IC._T, IC._H, IC._I = I, IH, IT, C
         IT._C, IT._T, IT._H, IT._I = IH, I, IC, T
         IH._C, IH._T, IH._H, IH._I = IT, IC, I, H
-
-        for op in (self, C, T, H, I, IC, IT, IH):
-            op._generated = True
 
     def _set_dtype(self, dtype):
         """A non-complex dtype sets the REAL flag to true"""
