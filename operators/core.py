@@ -1024,9 +1024,10 @@ class ScalarOperator(Operator):
         if dtype is None:
             dtype = np.find_common_type([value.dtype, float], [])
             value = np.array(value, dtype=dtype)
-        self.data = value
 
-        if value in (1, -1):
+        if value == 0:
+            flags = {'IDEMPOTENT': True}
+        elif value in (1, -1):
             flags = {'IDEMPOTENT': True, 'INVOLUTARY': True}
         else:
             flags = None
@@ -1038,6 +1039,7 @@ class ScalarOperator(Operator):
             dtype=dtype,
             flags=flags,
         )
+        self.data = value
 
     def associated_operators(self):
         return {
