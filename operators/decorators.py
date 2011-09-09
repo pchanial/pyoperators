@@ -1,3 +1,9 @@
+"""
+Defines decorators for Operator subclasses. Those decorators update
+the subclass flags to specify properties of the operators (linear,
+square, ...).
+"""
+
 def linear(cls):
     cls._set_flags(cls, {'LINEAR':True})
     return cls
