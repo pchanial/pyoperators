@@ -1,4 +1,8 @@
-""" Wrap pywt transform into LinearOperators """
+""" Wrap PyWavelets wavelet transforms into Operators.
+
+For now only 1D and 2D wavelets are available.
+
+"""
 import numpy as np
 import pywt
 from .decorators import linear, real
