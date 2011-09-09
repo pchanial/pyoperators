@@ -188,6 +188,16 @@ class Operator(object):
                array2.__array_interface__['data'][0]
 
     def todense(self, shapein=None):
+        """
+        Output the dense representation of the Operator
+        as a ndarray.
+
+        Arguments
+        ---------
+        shapein: (default None) None or tuple
+          If a shapein is not already associated with the Operator,
+          it must me passed to the todense method.
+        """
         if not self.flags.LINEAR:
             raise TypeError('The operator is not linear.')
         shapein = shapein or self.shapein
