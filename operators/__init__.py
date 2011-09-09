@@ -1,13 +1,13 @@
 """
 The operators contains the following packages:
 
-core : defines the Operator class
-linear : defines standard linear operators (can be seen as matrices)
-nonlinear : defines non-linear operators (such as thresholding or rounding)
-iterative : defines iterative algorithms working with operators
+- core : defines the Operator class
 
-Optionnally, if PyWavelets ( https://github.com/nigma/pywt.git ) is
-present, the pywt_operators is loaded.
+- linear : defines standard linear operators (can be seen as matrices)
+- nonlinear : defines non-linear operators (such as thresholding or rounding)
+- iterative : defines iterative algorithms working with operators
+
+- pywt_operators : (optional) loaded if PyWavelets is present.
 """
 
 from .core import *
