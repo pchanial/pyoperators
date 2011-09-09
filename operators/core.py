@@ -1,3 +1,9 @@
+"""
+The core module defines the Operator class. Operators are functions
+which can be added, composed or multiplied by a scalar. See the
+Operator docstring for more information.
+"""
+
 from __future__ import division
 
 import copy
