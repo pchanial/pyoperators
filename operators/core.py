@@ -1,3 +1,4 @@
+# coding: utf-8
 from __future__ import division
 
 import copy
@@ -391,7 +392,9 @@ class Operator(object):
         if None not in (self.shapein, shapein) and self.shapein != shapein:
             raise ValueError(
                 "The input shape of {0} is {1}. It is incompatible"
-                " with '{2}'.".format(self.__name__, self.shapein, shapein)
+                " with '{2}'.".format(
+                    self.__name__, _strshape(self.shapein), _strshape(shapein)
+                )
             )
         if self.shapeout is not None:
             return self.shapeout
@@ -406,7 +409,9 @@ class Operator(object):
         if None not in (self.shapeout, shapeout) and self.shapeout != shapeout:
             raise ValueError(
                 "The output shape of {0} is {1}. It is incompatibl"
-                "e with '{2}'.".format(self.__name__, self.shapeout, shapeout)
+                "e with '{2}'.".format(
+                    self.__name__, _strshape(self.shapeout), _strshape(shapeout)
+                )
             )
         if self.shapein is not None:
             return self.shapein
@@ -706,20 +711,28 @@ class Operator(object):
         return ScalarOperator(-1) * self
 
     def __str__(self):
-        result = self.__name__
-        if self.shapein is not None or self.shapeout is not None:
-            result += ' [input:'
-            if self.shapein is None:
-                result += 'unconstrained'
+        if self.shapein is not None:
+            if self.flags.SQUARE and len(self.shapein) > 1:
+                s = _strshape(self.shapein) + '²'
             else:
-                result += str(self.shapein).replace(' ', '')
-            result += ', output:'
-            if self.shapeout is None:
-                result += 'unconstrained'
-            else:
-                result += str(self.shapeout).replace(' ', '')
-            result += ']'
-        return result
+                s = _strshape(self.shapeout) + 'x' + _strshape(self.shapein)
+            s += ' '
+        else:
+            s = ''
+        s += self.__name__
+        return s
+
+    def __repr__(self):
+        r = self.__name__ + '('
+        a = []
+        if self.shapein:
+            a += ['shapein=' + _strshape(self.shapein)]
+        if self.shapeout:
+            a += ['shapeout=' + _strshape(self.shapeout)]
+        if self.dtype is not None:
+            a += ['dtype=' + str(self.dtype)]
+        r += ', '.join(a) + ')'
+        return r
 
 
 def asoperator(operator, shapein=None, shapeout=None):
@@ -859,12 +872,26 @@ class CompositeOperator(Operator):
         return result
 
     def __str__(self):
-        result = Operator.__str__(self) + ':'
+        if isinstance(self, AdditionOperator):
+            op = ' + '
+        else:
+            op = ' * '
+        operands = [
+            '({0})'.format(o) if isinstance(o, AdditionOperator) else str(o)
+            for o in self.operands
+        ]
+        return op.join(operands)
+
+    def __repr__(self):
+        r = self.__name__ + '(['
+        rops = [repr(op) for op in self.operands]
         components = []
-        for operand in self.operands:
-            components.extend(str(operand).split('\n'))
-        result += '\n    ' + '\n    '.join(components)
-        return result
+        for i, rop in enumerate(rops):
+            if i != len(rops) - 1:
+                rop += ','
+            components.extend(rop.split('\n'))
+        r += '\n    ' + '\n    '.join(components) + '])'
+        return r
 
 
 class AdditionOperator(CompositeOperator):
@@ -1097,6 +1124,11 @@ class ScalarOperator(Operator):
             value = int(value)
         return str(value)
 
+    def __repr__(self):
+        r = super(ScalarOperator, self).__repr__().split('(')
+        r[1] = str(self) + (', ' if r[1][0] != ')' else '') + r[1]
+        return '('.join(r)
+
 
 @square
 class BroadcastingOperator(Operator):
@@ -1187,3 +1219,9 @@ def _get_dtypeout(d1, d2):
     if d2 is None:
         return d1
     return np.find_common_type([d1, d2], [])
+
+
+def _strshape(shape):
+    if len(shape) == 1:
+        return str(shape[0])
+    return str(shape).replace(' ', '')
