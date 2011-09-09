@@ -7,7 +7,9 @@ import os
 
 def isscalar(data):
     """Hack around np.isscalar oddity"""
-    return data.ndim == 0 if isinstance(data, np.ndarray) else np.isscalar(data)
+    if isinstance(data, np.ndarray):
+        return data.ndim == 0
+    return not isinstance(data, (list, tuple))
 
 
 def tointtuple(data):
