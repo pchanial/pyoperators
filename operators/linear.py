@@ -18,7 +18,26 @@ __all__ = [ 'DiagonalOperator', 'IdentityOperator', 'MaskOperator',
 @idempotent
 @involutary
 class IdentityOperator(ScalarOperator):
+    """
+    A subclass of ScalarOperator with value=1.
+    All __init__ keyword arguments are passed to the
+    ScalarOperator __init__.
 
+    Exemple
+    -------
+    >>> I = IdentityOperator()
+    >>> I.todense(3)
+
+    array([[ 1.,  0.,  0.],
+           [ 0.,  1.,  0.],
+           [ 0.,  0.,  1.]])
+
+    >>> I = IdentityOperator(shapein=2)
+    >>> I * arange(2)
+    Info: Allocating (2,) float64 = 16 bytes in IdentityOperator.
+    ndarraywrap([ 0.,  1.])
+
+    """
     def __init__(self, **keywords):
         ScalarOperator.__init__(self, 1, **keywords)
 
@@ -31,7 +50,11 @@ class IdentityOperator(ScalarOperator):
 @real
 @idempotent
 class ZeroOperator(ScalarOperator):
-
+    """
+    A subclass of ScalarOperator with value=0.
+    All __init__ keyword arguments are passed to the
+    ScalarOperator __init__.
+    """
     def __init__(self, **keywords):
         ScalarOperator.__init__(self, 0, **keywords)
 
@@ -44,6 +67,37 @@ class DiagonalOperator(BroadcastingOperator):
 
     def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None,
                 **keywords):
+        """
+        Subclass of BroadcastingOperator.
+
+        Arguments
+        ---------
+
+        data : ndarray
+          The diagonal coefficients
+
+        broadcast : 'fast' or 'disabled' (default 'disabled')
+          If broadcast == 'fast', the diagonal is broadcasted along the fast
+          axis.
+
+        Exemple
+        -------
+        >>> A = DiagonalOperator(arange(1, 6, 2))
+        >>> A.todense()
+
+        array([[1, 0, 0],
+               [0, 3, 0],
+               [0, 0, 5]])
+
+        >>> A = DiagonalOperator(arange(1, 3), broadcast='fast', shapein=(2, 2))
+        >>> A.todense()
+
+        array([[1, 0, 0, 0],
+               [0, 1, 0, 0],
+               [0, 0, 2, 0],
+               [0, 0, 0, 2]])
+        """
+
         data = np.array(data, dtype, copy=False)
         if shapein is None and broadcast == 'disabled' and data.ndim > 0:
             shapein = data.shape
@@ -83,6 +137,18 @@ class DiagonalOperator(BroadcastingOperator):
 @idempotent
 class MaskOperator(DiagonalOperator):
     """
+    A subclass of DiagonalOperator with booleans on the diagonal.
+
+    Exemple
+    -------
+    >>> M = MaskOperator(np.asarray([True, False]))
+    >>> M.todense()
+
+    array([[False, False],
+           [False,  True]], dtype=bool)
+
+    Notes
+    -----
     We follow the convention of MaskedArray, where True means masked.
     """
     def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None,
@@ -424,12 +490,18 @@ def _band_diag(ku, i=0):
         return (slice(ku - i, ku - i + 1, None), slice(None, i, None))
 
 class LowerTriangularOperator(BandOperator):
+    """
+    A BandOperator with no upper diagonals (ku=0)
+    """
     def __init__(self, ab, **kwargs):
         kl = ab.shape[0] - 1
         ku = 0
         BandOperator.__init__(self, ab, kl, ku, **kwargs)
 
 class UpperTriangularOperator(BandOperator):
+    """
+    A BandOperator with no lower diagonals (kl=0)
+    """
     def __init__(self, ab, **kwargs):
         kl = 0
         ku = ab.shape[0] - 1
@@ -437,6 +509,11 @@ class UpperTriangularOperator(BandOperator):
 
 @symmetric
 class SymmetricBandOperator(Operator):
+    """
+    SymmetricBandOperator do not store diagonal datas in the same
+    format as BandOperator does. This is not a subclass of
+    BandOperator.
+    """
     def __init__(self, ab, lower=True, **kwargs):
         shapein = ab.shape[1]
         self.ab = ab
