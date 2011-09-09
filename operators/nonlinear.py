@@ -9,18 +9,87 @@ __all__ = ['ClipOperator', 'MaximumOperator', 'MinimumOperator', 'RoundOperator'
 @square
 class ClipOperator(Operator):
     def __init__(self, vmin, vmax, **keywords):
+        """
+        Clips the values of the input arrays.
+
+        Arguments
+        ---------
+
+        vmin: scalar
+          The minimum limit below which all input values are set to vmin.
+        vmax: scalar
+          The maximum limit above which all input values are set to vmax.
+
+        Exemples
+        --------
+        >>> C = ClipOperator(0, 1, shapein=5)
+        >>> x =  linspace(-2, 2, 5)
+        >>> x
+        array([-2., -1.,  0.,  1.,  2.])
+        >>> C * x
+        Info: Allocating (5,) float64 = 40 bytes in ClipOperator.
+        ndarraywrap([ 0.,  0.,  0.,  1.,  1.])
+
+        See also
+        --------
+        np.clip
+        """
         Operator.__init__(self, lambda i, o: np.clip(i, vmin, vmax, out=o), **keywords)
 
 
 @square
 class MaximumOperator(Operator):
     def __init__(self, value, **keywords):
+        """
+        Set all input array values below value to value.
+
+        Arguments
+        ---------
+        value: scalar
+          The value with which the input array is compared.
+
+        Exemple
+        -------
+        >>> M = MaximumOperator(1, shapein=5)
+        >>> x =  linspace(-2, 2, 5)
+        >>> x
+        array([-2., -1.,  0.,  1.,  2.])
+        >>> M * x
+        Info: Allocating (5,) float64 = 40 bytes in MaximumOperator.
+        ndarraywrap([ 1.,  1.,  1.,  1.,  2.])
+
+        See also
+        --------
+        np.maximum
+        """
         Operator.__init__(self, lambda i, o: np.maximum(i, value, o), **keywords)
 
 
 @square
 class MinimumOperator(Operator):
     def __init__(self, value, **keywords):
+        """
+        Set all input array values above value to value.
+
+        Arguments
+        ---------
+        value: scalar
+          The value with which the input array is compared.
+
+        Exemple
+        -------
+        >>> M = MinimumOperator(1, shapein=5)
+        >>> x =  linspace(-2, 2, 5)
+        >>> x
+        array([-2., -1.,  0.,  1.,  2.])
+        >>> M * x
+        Info: Allocating (5,) float64 = 40 bytes in MinimumOperator.
+        ndarraywrap([-2., -1.,  0.,  1.,  1.])
+
+        See also
+        --------
+        np.minimum
+        """
         Operator.__init__(self, lambda i, o: np.minimum(i, value, o), **keywords)
 
 
