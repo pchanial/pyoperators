@@ -21,6 +21,28 @@ for l in pywt.wavelist():
 @real
 class Wavelet(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
+        """
+        1D wavelet decomposition and reconstruction. Wavelet coefficients
+        are stored in a vector (ndarray with ndim=1).
+
+        Exemples
+        --------
+        >>> W = Wavelet("haar", level=1, shapein=2)
+        >>> W.todense()
+
+        array([[ 0.70710678,  0.70710678],
+               [ 0.70710678, -0.70710678]])
+
+        See Also
+        --------
+        See operators.pywt.MODES docstring for available modes.
+        See operators.pywt.wavelist() for available wavelets.
+        See operators.pywt.wavedec for the operation performed on input arrays.
+
+        Notes
+        -----
+        Wrapping around PyWavelet
+        """
         self.wavelet = wavelet
         self.rwavelet = rwavelist[self.wavelet]
         self.mode = mode
@@ -67,13 +89,28 @@ class Wavelet(Operator):
 class Wavelet2(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
         """
-        2d wavelet decomposition / reconstruction as a NDOperator.
+        2D wavelet decomposition and reconstruction. Wavelet coefficients
+        are stored in a vector (ndarray with ndim=1).
+
+        Exemple
+        -------
+        >>> W = Wavelet2("haar", level=1, shapein=(2, 2))
+        >>> W.todense()
+
+        array([[ 0.5,  0.5,  0.5,  0.5],
+               [ 0.5,  0.5, -0.5, -0.5],
+               [ 0.5, -0.5,  0.5, -0.5],
+               [ 0.5, -0.5, -0.5,  0.5]])
+
+        See Also
+        --------
+        See operators.pywt.MODES docstring for available modes.
+        See operators.pywt.wavelist() for available wavelets.
+        See operators.pywt.wavedec for the operation performed on input arrays.
 
         Notes
         -----
-        Does not work with all parameters depending if wavelet coefficients
-        can be concatenated as 2d arrays !
-        Otherwise, take a look at wavelet2
+        Wrapping around PyWavelet
         """
         self.wavelet = wavelet
         self.rwavelet = rwavelist[self.wavelet]
