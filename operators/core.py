@@ -265,7 +265,7 @@ class Operator(object):
         shapein = shapein or self.shapein
         if shapein is None:
             raise ValueError(
-                "The operator has an implicit shape. Use the 'shap" "pin' keyword."
+                "The operator has an implicit shape. Use the 'shap" "ein' keyword."
             )
         shapeout = self._reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
