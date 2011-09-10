@@ -7,7 +7,18 @@ import os
 
 def isscalar(data):
     """Hack around np.isscalar oddity"""
-    return data.ndim == 0 if isinstance(data, np.ndarray) else np.isscalar(data)
+    if isinstance(data, np.ndarray):
+        return data.ndim == 0
+    return not isinstance(data, (list, tuple))
+
+
+def tointtuple(data):
+    """Return input as a tuple of int."""
+    if data is None:
+        return data
+    if isscalar(data):
+        data = (data,)
+    return tuple(int(d) for d in data)
 
 
 def strenum(choices, last='or'):
@@ -69,6 +80,6 @@ def strplural(name, n, prepend=True, s=''):
 
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
-    if n is None:
-        n = multiprocessing.cpu_count()
-    return n
+    if n is not None:
+        return int(n)
+    return multiprocessing.cpu_count()

@@ -8,10 +8,9 @@ from nose.tools import (
     assert_is_not,
     assert_not_in,
     assert_is_instance,
-    nottest,
 )
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
 from operators.core import (
     Operator,
@@ -24,11 +23,28 @@ from operators.linear import I, O
 from operators.decorators import symmetric, square
 
 
-def assert_flags(operator, flags):
+def assert_flags(operator, flags, msg=''):
     if isinstance(flags, str):
-        flags = flags.split(',')
+        flags = [f.replace(' ', '') for f in flags.split(',')]
     for f in flags:
-        assert getattr(operator.flags, f.replace(' ', ''))
+        assert getattr(operator.flags, f), 'Operator {0} is not {1}.'.format(
+            operator, f
+        ) + (' ' + msg if msg else '')
+
+
+def assert_flags_false(operator, flags, msg=''):
+    if isinstance(flags, str):
+        flags = [f.replace(' ', '') for f in flags.split(',')]
+    for f in flags:
+        assert not getattr(operator.flags, f), 'Operator {0} is not {1}.'.format(
+            operator, f
+        ) + (' ' + msg if msg else '')
+
+
+def assert_is_inttuple(shape, msg=''):
+    msg = '{0} is not an int tuple.'.format(shape) + (' ' + msg if msg else '')
+    assert type(shape) is tuple, msg
+    assert all([isinstance(s, int) for s in shape]), msg
 
 
 dtypes = [
@@ -82,7 +98,7 @@ class I3(Operator):
         output.__class__ = ndarray4
 
 
-def test_shapes():
+def test_shape_is_inttuple():
     for shapein in (
         3,
         [3],
@@ -101,14 +117,94 @@ def test_shapes():
         np.array([3.0, 2]),
         (3.0, 2),
     ):
-        o = Operator(shapein=shapein)
-        yield assert_is, type(o.shapein), tuple
-        yield ok_, all([isinstance(s, int) for s in o.shapein])
+        o = Operator(shapein=shapein, shapeout=shapein)
+        yield assert_is_inttuple, o.shapein, 'shapein: ' + str(shapein)
+        yield assert_is_inttuple, o.shapeout, 'shapeout: ' + str(shapein)
+
+
+def test_shape_explicit():
+    o1, o2, o3 = (
+        Operator(shapeout=(13, 2), shapein=(2, 2)),
+        Operator(shapeout=(2, 2), shapein=(1, 3)),
+        Operator(shapeout=(1, 3), shapein=4),
+    )
+    for o, eout, ein in zip(
+        [o1 * o2, o2 * o3, o1 * o2 * o3],
+        ((13, 2), (2, 2), (13, 2)),
+        ((1, 3), (4,), (4,)),
+    ):
+        yield assert_equal, o.shapeout, eout, '*shapeout:' + str(o)
+        yield assert_equal, o.shapein, ein, '*shapein:' + str(o)
+    yield assert_raises, ValueError, CompositionOperator, [o2, o1]
+    yield assert_raises, ValueError, CompositionOperator, [o3, o2]
+    yield assert_raises, ValueError, CompositionOperator, [o3, I, o1]
+
+    o4 = Operator(shapeout=o1.shapeout, shapein=o1.shapein)
+    o5 = Operator(flags={'SQUARE': True})
+
+    for o in [o1 + I, I + o1, o1 + o4, o1 + I + o5 + o4, I + o5 + o1]:
+        yield assert_equal, o.shapein, o1.shapein, '+shapein:' + str(o)
+        yield assert_equal, o.shapeout, o1.shapeout, '+shapeout:' + str(o)
+    yield assert_raises, ValueError, AdditionOperator, [o2, o1]
+    yield assert_raises, ValueError, AdditionOperator, [o3, o2]
+    yield assert_raises, ValueError, AdditionOperator, [I, o3, o1]
+    yield assert_raises, ValueError, AdditionOperator, [o3, I, o1]
+
+
+def test_shape_implicit():
+    class Op(Operator):
+        def __init__(self, factor):
+            self.factor = factor
+            Operator.__init__(self)
+
+        def reshapein(self, shape):
+            return shape[0] * self.factor
+
+        def reshapeout(self, shape):
+            return shape[0] / self.factor
+
+        def __str__(self):
+            return super(Op, self).__str__() + ' {0}'.format(self.factor)
+
+    o1, o2, o3 = (Op(2), Op(3), Op(4))
+    assert o1.shapein is o2.shapein is o3.shapein is None
+    shapein = (1,)
+    shapeout = (24,)
+    for o, eout, ein in zip(
+        [o1 * o2, o2 * o3, o1 * o2 * o3], ((6,), (12,), (24,)), ((4,), (2,), (1,))
+    ):
+        yield assert_equal, o._reshapein(shapein), eout, 'reshapein:' + str(o)
+        yield assert_equal, o._reshapeout(shapeout), ein, 'reshapeout:' + str(o)
+
+
+def test_shape_cornercases():
+    op = Operator()
+    assert_flags(op, 'SQUARE')
+    op = Operator(shapein=2)
+    assert_flags(op, 'SQUARE')
+    assert op.shapeout == op.shapein
+    assert_raises(ValueError, Operator, shapeout=3)
+
+    class Op(Operator):
+        def reshapein(self, shape):
+            return shape[0] * 2
+
+    op = Op()
+    assert_flags_false(op, 'SQUARE')
+    op = Op(shapein=2)
+    assert_flags_false(op, 'SQUARE')
+    assert op.shapeout == (4,)
+
+    assert_raises(ValueError, Op, shapein=3, shapeout=11)
+
+    op = Op(shapein=2) * Operator(shapein=4, shapeout=2)
+    assert_flags(op, 'SQUARE')
 
 
 def test_dtype1():
     value = 2.5
 
+    @square
     class Op(Operator):
         def __init__(self, dtype):
             Operator.__init__(self, dtype=dtype)
@@ -124,11 +220,14 @@ def test_dtype1():
             except TypeError:
                 i = np.array(input.real, di)
             o = Op(dop)(i)
-            yield eq_, o.dtype, (i * np.array(value, dop)).dtype
-            yield assert_array_equal, o, i * np.array(value, dop)
+            yield assert_equal, o.dtype, (i * np.array(value, dop)).dtype, str(
+                (dop, di)
+            )
+            yield assert_array_equal, o, i * np.array(value, dop), str((dop, di))
 
 
 def test_dtype2():
+    @square
     class Op(Operator):
         def direct(self, input, output):
             np.multiply(input, input, output)
@@ -141,8 +240,8 @@ def test_dtype2():
         except TypeError:
             i = np.array(input.real, di)
         o = op(i)
-        yield eq_, o.dtype, (i * i).dtype
-        yield assert_array_equal, o, i * i
+        yield assert_equal, o.dtype, (i * i).dtype, str(di)
+        yield assert_array_equal, o, i * i, str(di)
 
 
 def test_symmetric():
@@ -157,13 +256,13 @@ def test_symmetric():
             output[:] = np.dot(mat, input)
 
     op = Op()
-    yield assert_flags, op, 'LINEAR,SQUARE,REAL,SYMMETRIC'
-    yield eq_, op.shape, (2, 2)
-    yield eq_, op.shapeout, (2,)
-    yield assert_is, op, op.C
-    yield assert_is, op, op.T
-    yield assert_is, op, op.H
-    yield assert_array_equal, op([1, 1]), np.array(mat * [[1], [1]]).ravel()
+    assert_flags(op, 'LINEAR,SQUARE,REAL,SYMMETRIC')
+    assert_equal(op.shape, (2, 2))
+    assert_equal(op.shapeout, (2,))
+    assert op is op.C
+    assert op is op.T
+    assert op is op.H
+    assert_array_equal(op([1, 1]), np.array(mat * [[1], [1]]).ravel())
 
 
 def test_scalar_reduction1():
@@ -172,8 +271,8 @@ def test_scalar_reduction1():
     for model, result in zip(models, results):
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             o = model(i)
-            yield eq_, o, result
-            yield eq_, o.dtype, np.float64
+            yield assert_equal, o, result, str((model, i))
+            yield assert_equal, o.dtype, np.float64, str((model, i))
 
 
 def test_scalar_reduction2():
@@ -184,7 +283,7 @@ def test_scalar_reduction2():
     for iop, imodel, result in zip(iops, imodels, results):
         model = getattr(model, iop)(imodel)
         for i in (np.array(3), [3], (3,), np.int(3), 3):
-            yield eq_, model(i), result
+            yield eq_, model(i), result, str((iop, i))
 
 
 def test_propagation_attribute():
@@ -346,11 +445,13 @@ def test_propagation_classT_inplace():
 
 
 def test_propagation_class_nested():
+    @square
     class O1(Operator):
         def direct(self, input, output):
             output[:] = input
             output.__class__ = ndarray2
 
+    @square
     class O2(Operator):
         def direct(self, input, output):
             output[:] = input
@@ -382,6 +483,7 @@ def test_propagation_class_nested():
 
 
 def test_addition():
+    @square
     class Op(Operator):
         def __init__(self, v, **keywords):
             self.v = v
@@ -419,6 +521,7 @@ def test_addition():
 
 
 def test_composition():
+    @square
     class Op(Operator):
         def __init__(self, v, **keywords):
             self.v = v
