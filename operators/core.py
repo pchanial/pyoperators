@@ -755,14 +755,16 @@ class CompositeOperator(Operator):
         ops = list(ops)
         i = len(ops) - 2
         while i >= 0:
-            if isinstance(ops[i+1], ScalarOperator) and not ops[i+1].shapein:
+            if isinstance(ops[i+1], ScalarOperator):
                 if isinstance(ops[i], ScalarOperator):
-                    ops[i] = ScalarOperator(opn(ops[i].data, ops[i+1].data))
+                    shapein = ops[i].shapein or ops[i+1].shapein
+                    ops[i] = ScalarOperator(opn(ops[i].data, ops[i+1].data),
+                                            shapein=shapein)
                     del ops[i+1]
                 elif ops[i].flags.LINEAR:
                     ops[i], ops[i+1] = ops[i+1], ops[i]
                 elif opn == np.multiply:
-                    if ops[i+1].data == 1:
+                    if ops[i+1].data == 1 and ops[i+1].shapein is None:
                         del ops[i+1]
             i -= 1
         if len(ops) > 1 and opn == np.multiply and \
