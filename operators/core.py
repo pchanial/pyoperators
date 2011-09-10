@@ -1,3 +1,4 @@
+#coding: utf-8
 """
 The core module defines the Operator class. Operators are functions
 which can be added, composed or multiplied by a scalar. See the
@@ -12,7 +13,7 @@ import numpy as np
 import scipy.sparse.linalg
 
 from collections import namedtuple
-from .utils import isscalar, strenum
+from .utils import isscalar, tointtuple, strenum
 from .decorators import square, symmetric
 
 __all__ = [
@@ -29,7 +30,7 @@ verbose = True
 
 class OperatorFlags(namedtuple('OperatorFlags',
                                ['LINEAR',
-                                'SQUARE',
+                                'SQUARE',     # shapein == shapeout
                                 'REAL',       # o.C = o
                                 'SYMMETRIC',  # o.T = o
                                 'HERMITIAN',  # o.H = o
@@ -43,6 +44,12 @@ class OperatorFlags(namedtuple('OperatorFlags',
         n = max([len(f) for f in self._fields])
         fields = [ '  ' + f.ljust(n) + ' : ' for f in self._fields]
         return '\n'.join([f + str(v) for f,v in zip(fields,self)])
+
+    def __repr__(self):
+        n = max([len(f) for f in self._fields])
+        fields = [ f.ljust(n) + '= ' for f in self._fields]
+        return self.__class__.__name__ + '(\n  ' + ',\n  '.join([f + str(v) \
+            for f,v in zip(fields,self)]) + ')'
 
 
 class Operator(object):
@@ -105,18 +112,17 @@ class Operator(object):
         if self.inverse is None:
             self.inverse_conjugate = None
 
-        self._generated = False
         self._C = self._T = self._H = self._I = None
 
         self._set_dtype(dtype)
         self._set_flags(self, flags)
-        self._set_inout(shapein, shapeout)
         self._set_name()
+        self._set_inout(shapein, shapeout)
 
-    flags = OperatorFlags(*9*(False,))
     shapein = None
     shapeout = None
     dtype = None
+    flags = OperatorFlags(*9*(False,))
 
     direct = None
     transpose = None
@@ -169,18 +175,20 @@ class Operator(object):
         return v.reshape(self.shapeout)
 
     def reshapein(self, shapein):
-        """For explicit-shape operators, return operator's output shape.
-        Otherwise, compute it from a given input shape."""
-        if self.shapeout is not None:
-            return self.shapeout
-        return shapein
+        """Return operator's output shape from a given input shape.
+        This method is only called for implicit-shape operators."""
+        raise NotImplementedError("This non-square operator has an implicit sha"
+            "pe and there is no rule to infer its output shape from that of the"
+            " input. You can make it explicit with the 'shapein' keyword, decor"
+            "ate it as square, or override the 'reshapein/out' methods.")
 
     def reshapeout(self, shapeout):
-        """For explicit-shape operators, return operator's input shape.
-        Otherwise, compute it from a given output shape."""
-        if self.shapein is not None:
-            return self.shapein
-        return shapeout
+        """Return operator's input shape from a given output shape.
+        This method is only called for implicit-shape operators."""
+        raise NotImplementedError("This non-square operator has an implicit sha"
+            "pe and there is no rule to infer its input shape from that of the "
+            "output. You can make it explicit with the 'shapein' keyword, decor"
+            "ate it as square, or override the 'reshapein/out' methods.")
 
     @staticmethod
     def same_data(array1, array2):
@@ -204,7 +212,7 @@ class Operator(object):
         if shapein is None:
             raise ValueError("The operator has an implicit shape. Use the 'shap"
                              "pin' keyword.")
-        shapeout = self.reshapein(shapein)
+        shapeout = self._reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
         d = np.empty((n,m), self.dtype).view(ndarraywrap)
         v = np.zeros(n, self.dtype)
@@ -246,28 +254,28 @@ class Operator(object):
     @property
     def C(self):
         """Return the complex-conjugate of the operator."""
-        if not self._generated:
+        if self._C is None:
             self._generate_associated_operators()
         return self._C
 
     @property
     def T(self):
         """Return the transpose of the operator."""
-        if not self._generated:
+        if self._T is None:
             self._generate_associated_operators()
         return self._T
 
     @property
     def H(self):
         """Return the adjoint of the operator."""
-        if not self._generated:
+        if self._H is None:
             self._generate_associated_operators()
         return self._H
 
     @property
     def I(self):
         """Return the inverse of the operator."""
-        if not self._generated:
+        if self._I is None:
             self._generate_associated_operators()
         return self._I
 
@@ -330,6 +338,34 @@ class Operator(object):
             output.__dict__.update(input.__dict__)
         else:
             output.__dict__ = input.__dict__
+
+    def _reshapein(self, shapein):
+        """Return operator's output shape. For implicit-shape operators,
+        one should override the method 'reshapein', not this one."""
+        if None not in (self.shapein, shapein) and self.shapein != shapein:
+            raise ValueError("The input shape of {0} is {1}. It is incompatible"
+                " with '{2}'.".format(self.__name__, _strshape(self.shapein),
+                _strshape(shapein)))
+        if self.shapeout is not None:
+            return self.shapeout
+        if shapein is None or self.flags.SQUARE:
+            return shapein
+        shapeout = self.reshapein(shapein)
+        return tointtuple(shapeout)
+
+    def _reshapeout(self, shapeout):
+        """Return operator's input shape. For implicit-shape operators,
+        one should override the method 'reshapeout', not this one."""
+        if None not in (self.shapeout, shapeout)  and self.shapeout != shapeout:
+            raise ValueError("The output shape of {0} is {1}. It is incompatibl"
+                "e with '{2}'.".format(self.__name__, _strshape(self.shapeout),
+                _strshape(shapeout)))
+        if self.shapein is not None:
+            return self.shapein
+        if shapeout is None or self.flags.SQUARE:
+            return shapeout
+        shapein = self.reshapeout(shapeout)
+        return tointtuple(shapein)
 
     def _generate_associated_operators(self):
         """Compute at once the conjugate, transpose, adjoint and inverse
@@ -451,9 +487,6 @@ class Operator(object):
         IT._C, IT._T, IT._H, IT._I = IH, I, IC, T
         IH._C, IH._T, IH._H, IH._I = IT, IC, I, H
 
-        for op in (self, C, T, H, I, IC, IT, IH):
-            op._generated = True
-
     def _set_dtype(self, dtype):
         """A non-complex dtype sets the REAL flag to true"""
         if dtype is not None:
@@ -514,31 +547,51 @@ class Operator(object):
     def _set_inout(self, shapein, shapeout):
         """Set methods and attributes dealing with the input and output
         handling."""
-        if shapein is not None:
-            if isscalar(shapein):
-                shapein = (shapein,)
-            self.shapein = tuple(int(s) for s in shapein)
+
+        shapein = tointtuple(shapein)
+        shapeout = tointtuple(shapeout)
+
+        if shapeout is not None and shapein is None:
+            raise ValueError('The input shape of the operator is not defined.')
+
+        if shapein is shapeout is None:
+            try:
+                shapeout = tointtuple(self.reshapein(None))
+            except NotImplementedError:
+                self.flags = self.flags._replace(SQUARE=True)
+            except:
+                pass # specialised reshapein/out should not handle input None
+            shapein = self._reshapeout(None) # reshapeout may not be specialised
+        elif shapein is not None:
+            try:
+                shapeout_ = tointtuple(self.reshapein(shapein))
+                if shapeout is not None and shapeout_ != shapeout:
+                    raise ValueError("The specified output shape '{0}' is incom"
+                        "patible with that given by reshapein '{1}'.".format(
+                        shapeout, shapeout_))
+                shapeout = shapeout_
+            except NotImplementedError:
+                if shapeout is None:
+                    shapeout = shapein
+
+        if shapein is not None and shapein == shapeout:
+            self.flags = self.flags._replace(SQUARE=True)
 
         if self.flags.SQUARE:
-            self.shapeout = self.shapein
             self.reshapeout = self.reshapein
             self.toshapeout = self.toshapein
-        else:
-            if shapeout is None:
-                shapeout = self.reshapein(shapein)
-            elif isscalar(shapeout):
-                shapeout = (shapeout,)
-            if shapeout is not None:
-                self.shapeout = tuple(int(s) for s in shapeout)
+        self.shapein = shapein
+        self.shapeout = shapeout
                     
     def _set_name(self):
         """Set operator's __name__ attribute."""
         if self.__class__ != 'Operator':
-            self.__name__ = self.__class__.__name__
-        elif self.direct is not None:
-            self.__name__ = self.direct.__name__
-            if self.__name__ in ('<lambda>', 'direct'):
-                self.__name__ = 'Operator'                
+            name = self.__class__.__name__
+        elif self.direct and self.direct.__name__ not in ('<lambda>', 'direct'):
+            name = self.direct.__name__
+        else:
+            name = 'Operator'
+        self.__name__ = name
 
     def _validate_input(self, input, output):
         """Return the input as ndarray subclass and allocate the output
@@ -547,11 +600,7 @@ class Operator(object):
         if type(input) is np.ndarray:
             input = input.view(ndarraywrap)
 
-        if self.shapein is not None and self.shapein != input.shape:
-            raise ValueError('The input of {0} has an invalid shape {1}. Expect'
-                'ed shape is {2}.'.format(self.__name__,
-                input.shape, self.shapein))
-        shapeout = self.reshapein(input.shape)
+        shapeout = self._reshapein(input.shape)
         dtype = _get_dtypeout(input.dtype, self.dtype)
         if output is not None:
             if output.dtype != dtype:
@@ -600,21 +649,28 @@ class Operator(object):
         return ScalarOperator(-1) * self
 
     def __str__(self):
-        result = self.__name__
-        if self.shapein is not None or self.shapeout is not None:
-            result += ' [input:'
-            if self.shapein is None:
-                result += 'unconstrained'
+        if self.shapein is not None:
+            if self.flags.SQUARE and len(self.shapein) > 1:
+                s = _strshape(self.shapein) + '²'
             else:
-                result += str(self.shapein).replace(' ','')
-            result += ', output:'
-            if self.shapeout is None:
-                result += 'unconstrained'
-            else:
-                result += str(self.shapeout).replace(' ','')
-            result += ']'
-        return result
+                s = _strshape(self.shapeout) + 'x' + _strshape(self.shapein)
+            s += ' '
+        else:
+            s = ''
+        s += self.__name__
+        return s
 
+    def __repr__(self):
+        r = self.__name__ + '('
+        a = []
+        if self.shapein:
+            a += ['shapein=' + _strshape(self.shapein)]
+        if self.shapeout:
+            a += ['shapeout=' + _strshape(self.shapeout)]
+        if self.dtype is not None:
+            a += ['dtype=' + str(self.dtype)]
+        r += ', '.join(a) + ')'
+        return r
 
 def asoperator(operator, shapein=None, shapeout=None):
     if isinstance(operator, Operator):
@@ -653,10 +709,10 @@ def asoperator(operator, shapein=None, shapeout=None):
 
 class CompositeOperator(Operator):
     """
-    Class for grouping operands
+    Abstract class for grouping operands.
     """
 
-    def __new__(cls, operands):
+    def __new__(cls, operands, *args, **keywords):
         operands = cls._validate_operands(operands)
         operands = cls._reduce_commute_scalar(operands)
         if len(operands) == 1:
@@ -667,11 +723,33 @@ class CompositeOperator(Operator):
 
     @property
     def dtype(self):
-        return max([b.dtype for b in self.operands])
+        return max([op.dtype for op in self.operands])
 
     @dtype.setter
     def dtype(self, dtype):
         pass
+
+    @property
+    def shapein(self):
+        return self.reshapeout(None)
+
+    @shapein.setter
+    def shapein(self, value):
+        pass
+
+    @property
+    def shapeout(self):
+        return self.reshapein(None)
+
+    @shapeout.setter
+    def shapeout(self, value):
+        pass
+
+    def _reshapein(self, shapein):
+        return self.reshapein(shapein)
+
+    def _reshapeout(self, shapeout):
+        return self.reshapeout(shapeout)
 
     @classmethod
     def _reduce_commute_scalar(cls, ops):
@@ -717,12 +795,24 @@ class CompositeOperator(Operator):
         return result
 
     def __str__(self):
-        result = Operator.__str__(self) + ':'
+        if isinstance(self, AdditionOperator):
+            op = ' + '
+        else:
+            op = ' * '
+        operands = ['({0})'.format(o) if isinstance(o, AdditionOperator) else \
+                    str(o) for o in self.operands]
+        return op.join(operands)
+
+    def __repr__(self):
+        r = self.__name__ + '(['
+        rops = [repr(op) for op in self.operands]
         components = []
-        for operand in self.operands:
-            components.extend(str(operand).split('\n'))
-        result += '\n    '+'\n    '.join(components)
-        return result
+        for i, rop in enumerate(rops):
+            if i != len(rops) - 1:
+                rop += ','
+            components.extend(rop.split('\n'))
+        r += '\n    '+'\n    '.join(components) + '])'
+        return r
 
 
 class AdditionOperator(CompositeOperator):
@@ -730,15 +820,15 @@ class AdditionOperator(CompositeOperator):
     Class for operator addition
 
     If at least one of the input already is the result of an addition,
-    a flattened list of operators is created by associativity, in order to
-    benefit from the Operator's caching mechanism.
+    a flattened list of operators is created by associativity, to simplify
+    reduction.
     """
     def __init__(self, operands):
         flags = {
-            'LINEAR':all([op.flags.REAL for op in self.operands]),
+            'LINEAR':all([op.flags.LINEAR for op in self.operands]),
             'REAL':all([op.flags.REAL for op in self.operands]),
             'SQUARE':self.shapein is not None and \
-                (self.shapein == self.shapeout) or \
+                self.shapein == self.shapeout or \
                 all([op.flags.SQUARE for op in self.operands])}
         CompositeOperator.__init__(self, flags=flags)
         self.work = [None, None]
@@ -793,57 +883,47 @@ class AdditionOperator(CompositeOperator):
             output.__class__ = w0.__class__
             output += w0
 
-    @property
-    def shapein(self):
-        shapein = None
-        for op in self.operands:
-            shapein_ = op.shapein
-            if shapein_ is None:
-                continue
-            if shapein is None or type(shapein_[-1]) is tuple:
-                shapein = shapein_
-                continue
-            if shapein != shapein_:
-                raise ValueError("Incompatible shape in operands: '" + \
-                    str(shapein) +"' and '" + str(shapein_) + "'.")
-        return shapein
-
-    @shapein.setter
-    def shapein(self, value):
-        pass
-
-    @property
-    def shapeout(self):
+    def reshapein(self, shapein):
         shapeout = None
         for op in self.operands:
-            shapeout_ = op.shapeout
+            shapeout_ = op._reshapein(shapein)
             if shapeout_ is None:
                 continue
-            if shapeout is None or type(shapeout_[-1]) is tuple:
+            if shapeout is None:
                 shapeout = shapeout_
                 continue
             if shapeout != shapeout_:
-                raise ValueError("Incompatible shape in operands: '" + \
-                    str(shapeout) +"' and '" + str(shapeout_) + "'.")
+                raise ValueError("Incompatible shape in operands: '{0}' and '{1"
+                                 "}'.".format(shapeout, shapeout_))
         return shapeout
 
-    @shapeout.setter
-    def shapeout(self, value):
-        pass
+    def reshapeout(self, shapeout):
+        shapein = None
+        for op in self.operands:
+            shapein_ = op._reshapeout(shapeout)
+            if shapein_ is None:
+                continue
+            if shapein is None:
+                shapein = shapein_
+                continue
+            if shapein != shapein_:
+                raise ValueError("Incompatible shape in operands: '{0}' and '{1"
+                                 "}'.".format(shapein, shapein_))
+        return shapein
 
 
 class CompositionOperator(CompositeOperator):
     """
-    Class for acquisition models composition
+    Class handling operator composition.
 
     If at least one of the input already is the result of a composition,
-    a flattened list of operators is created by associativity, in order to
-    benefit from the Operator's caching mechanism.
+    a flattened list of operators is created by associativity, to simplify
+    reduction.
     """
 
     def __init__(self, operands):
         flags = {
-            'LINEAR':all([op.flags.REAL for op in self.operands]),
+            'LINEAR':all([op.flags.LINEAR for op in self.operands]),
             'REAL':all([op.flags.REAL for op in self.operands]),
             'SQUARE':self.shapein is not None and \
                 (self.shapein == self.shapeout) or \
@@ -875,7 +955,7 @@ class CompositionOperator(CompositeOperator):
         i = input
         for op in reversed(self.operands):
             # get output from the work pool
-            o = self._get_output(op.reshapein(input.shape), input.dtype)
+            o = self._get_output(op._reshapein(input.shape), input.dtype)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
@@ -884,27 +964,15 @@ class CompositionOperator(CompositeOperator):
         # remove output from the work pool, to avoid side effects on the output
         self._del_output()
 
-    @property
-    def shapein(self):
-        shape = None
-        for model in self.operands:
-            shape = model.reshapeout(shape)
+    def reshapein(self, shape):
+        for op in reversed(self.operands):
+            shape = op._reshapein(shape)
         return shape
 
-    @shapein.setter
-    def shapein(self, value):
-        pass
-
-    @property
-    def shapeout(self):
-        shape = None
-        for model in reversed(self.operands):
-            shape = model.reshapein(shape)
+    def reshapeout(self, shape):
+        for op in self.operands:
+            shape = op._reshapeout(shape)
         return shape
-
-    @shapeout.setter
-    def shapeout(self, value):
-        pass
 
     def _get_output(self, shape, dtype):
         nbytes = np.product(shape) * dtype.itemsize
@@ -934,15 +1002,17 @@ class ScalarOperator(Operator):
         if dtype is None:
             dtype = np.find_common_type([value.dtype, float], [])
             value = np.array(value, dtype=dtype)
-        self.data = value
-        
-        if value in (1, -1):
+
+        if value == 0:
+            flags = {'IDEMPOTENT':True}
+        elif value in (1, -1):
             flags = {'IDEMPOTENT':True, 'INVOLUTARY':True}
         else:
             flags = None
 
         Operator.__init__(self, lambda i,o: np.multiply(i, value, o),
                           shapein=shapein, dtype=dtype, flags=flags)
+        self.data = value
 
     def associated_operators(self):
         return {
@@ -959,6 +1029,11 @@ class ScalarOperator(Operator):
         if value == int(value):
             value = int(value)
         return str(value)
+
+    def __repr__(self):
+        r = super(ScalarOperator, self).__repr__().split('(')
+        r[1] = str(self) + (', ' if r[1][0] != ')' else '') + r[1]
+        return '('.join(r)
 
 
 @square
@@ -993,10 +1068,6 @@ class BroadcastingOperator(Operator):
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
     def reshapein(self, shape):
-        if self.shapeout is not None:
-            return self.shapeout
-        if shape is None:
-            return None
         n = self.data.ndim
         if len(shape) < n:
             raise ValueError("Invalid number of dimensions.")
@@ -1048,3 +1119,9 @@ def _get_dtypeout(d1, d2):
     if d2 is None:
         return d1
     return np.find_common_type([d1, d2], [])
+
+
+def _strshape(shape):
+    if len(shape) == 1:
+        return str(shape[0])
+    return str(shape).replace(' ','')
