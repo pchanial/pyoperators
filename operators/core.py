@@ -342,6 +342,7 @@ class Operator(object):
     def _reshapein(self, shapein):
         """Return operator's output shape. For implicit-shape operators,
         one should override the method 'reshapein', not this one."""
+        shapein = tointtuple(shapein)
         if None not in (self.shapein, shapein) and self.shapein != shapein:
             raise ValueError("The input shape of {0} is {1}. It is incompatible"
                 " with '{2}'.".format(self.__name__, _strshape(self.shapein),
@@ -356,6 +357,7 @@ class Operator(object):
     def _reshapeout(self, shapeout):
         """Return operator's input shape. For implicit-shape operators,
         one should override the method 'reshapeout', not this one."""
+        shapeout = tointtuple(shapeout)
         if None not in (self.shapeout, shapeout)  and self.shapeout != shapeout:
             raise ValueError("The output shape of {0} is {1}. It is incompatibl"
                 "e with '{2}'.".format(self.__name__, _strshape(self.shapeout),
@@ -551,17 +553,15 @@ class Operator(object):
         shapein = tointtuple(shapein)
         shapeout = tointtuple(shapeout)
 
-        if shapeout is not None and shapein is None:
-            raise ValueError('The input shape of the operator is not defined.')
-
         if shapein is shapeout is None:
+            shapeout = tointtuple(self._reshapein(None))
+            shapein = tointtuple(self._reshapeout(None))
             try:
-                shapeout = tointtuple(self.reshapein(None))
+                self.reshapein(None)
             except NotImplementedError:
                 self.flags = self.flags._replace(SQUARE=True)
             except:
-                pass # specialised reshapein/out should not handle input None
-            shapein = self._reshapeout(None) # reshapeout may not be specialised
+                pass
         elif shapein is not None:
             try:
                 shapeout_ = tointtuple(self.reshapein(shapein))
@@ -573,6 +573,11 @@ class Operator(object):
             except NotImplementedError:
                 if shapeout is None:
                     shapeout = shapein
+        elif shapeout is not None:
+            try:
+                shapein = tointtuple(self.reshapeout(shapeout))
+            except NotImplementedError:
+                pass
 
         if shapein is not None and shapein == shapeout:
             self.flags = self.flags._replace(SQUARE=True)
@@ -729,27 +734,11 @@ class CompositeOperator(Operator):
     def dtype(self, dtype):
         pass
 
-    @property
-    def shapein(self):
-        return self.reshapeout(None)
+    def _reshapein(self, shape):
+        return self.reshapein(shape)
 
-    @shapein.setter
-    def shapein(self, value):
-        pass
-
-    @property
-    def shapeout(self):
-        return self.reshapein(None)
-
-    @shapeout.setter
-    def shapeout(self, value):
-        pass
-
-    def _reshapein(self, shapein):
-        return self.reshapein(shapein)
-
-    def _reshapeout(self, shapeout):
-        return self.reshapeout(shapeout)
+    def _reshapeout(self, shape):
+        return self.reshapeout(shape)
 
     @classmethod
     def _reduce_commute_scalar(cls, ops):

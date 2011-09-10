@@ -115,7 +115,6 @@ def test_shape_cornercases():
     op = Operator(shapein=2)
     assert_flags(op, 'SQUARE')
     assert op.shapeout == op.shapein
-    assert_raises(ValueError, Operator, shapeout=3)
 
     class Op(Operator):
         def reshapein(self, shape):
