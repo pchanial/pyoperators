@@ -1036,13 +1036,13 @@ class CompositionOperator(CompositeOperator):
         if nbytes <= self.work[0].nbytes:
             return self.work[0][:nbytes].view(dtype).reshape(shape)
 
-        buf, new = self._allocate(nbytes, np.int8, self.work[1])
+        buf, new = self._allocate(shape, dtype, self.work[1])
         if new:
             self.work[1] = buf
         return buf
 
     def _set_output(self, output):
-        self.work[0] = output.ravel().view(np.int8)
+        self.work[0] = output.ravel().view(np.int8, ndarraywrap)
         
     def _del_output(self):
         self.work[0] = None
