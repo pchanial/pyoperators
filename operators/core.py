@@ -749,7 +749,7 @@ class Operator(object):
         a = []
         if self.shapein:
             a += ['shapein=' + _strshape(self.shapein)]
-        if self.shapeout:
+        if self.shapeout and self.shapeout != self.shapein:
             a += ['shapeout=' + _strshape(self.shapeout)]
         if self.dtype is not None:
             a += ['dtype=' + str(self.dtype)]
