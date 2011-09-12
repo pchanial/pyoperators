@@ -24,7 +24,7 @@ This operator do not have a shape :
 
 >>> A(ones(5))
 Info: Allocating (5,) float64 = 40 bytes in Operator.
-ndarraywrap([ 2.,  2.,  2.,  2.,  2.])
+array([ 2.,  2.,  2.,  2.,  2.])
 >>> A(ones(2))
 Info: Allocating (2,) float64 = 16 bytes in Operator.
 array([ 2.,  2.])
