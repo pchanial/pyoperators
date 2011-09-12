@@ -15,6 +15,10 @@ MAXITER = None
 
 # stop conditions
 class StopCondition(object):
+    """
+    A class defining stop conditions for iterative algorithms.
+    Must be called with an Algorithm instance as argument.
+    """
     def _test_maxiter(self, algo):
         return algo.iter_ >= self.maxiter
     def _test_tol(self, algo):
@@ -25,6 +29,23 @@ class StopCondition(object):
         return algo.current_gradient_norm < self.gtol
     _all_tests = [_test_maxiter, _test_tol, _test_gtol]
     def __init__(self, maxiter=None, tol=None, gtol=None, cond=np.any):
+        """
+        Generate a StopCondition instance.
+
+        Parameters
+        ----------
+        maxiter: int (None)
+            If not None, stops after a fixed number of iterations.
+        tol: float (None)
+            If not None, stops when the criterion decreases by less than
+            tol times the first criterion value.
+        gtol: float (None)
+            If not None, stops when the norm of the gradient falls below
+            gtol.
+        cond: np.any, np.all
+            If cond==np.any, stops when any of the above condition is True.
+            If cond==np.all, stops when all of the above condition is True.
+        """
         self.cond = cond
         self.maxiter = maxiter
         self.tol = tol
@@ -71,7 +92,32 @@ def polak_ribiere(algo):
 # callback function
 
 class Callback(object):
+    """
+    A Callback instance is called by an Algorithm at each iteration
+    with the Algorithm instance as input. It can be used to display
+    convergence information at each iteration (iteration number,
+    criterion value), display the current solution or store it on
+    disk.
+    """
     def __init__(self, verbose=False, savefile=None, shape=()):
+        """
+        Parameters
+        ----------
+        verbose: boolean (default False)
+            If True, iteration number and criterion value are displayed.
+        savefile: str or file
+            If not None, the current iteration, criterion value and solution
+            are stored with numpy savez function.
+        shape: 2-tuple
+            Shape of the solution.
+            If not empty tuple, pylab plot or imshow are called to display
+            current solution (solution should be 1D or 2D).
+
+        Returns
+        -------
+        None
+
+        """
         self.verbose = verbose
         self.savefile = savefile
         self.shape = shape
@@ -136,11 +182,16 @@ class Algorithm(object):
     Methods
     -------
 
-    initialize : Set variables to initial state
-    iterate : perform one iteration and return current solution
-    callback : user-defined function to print status or save variables
-    cont : continue the optimization skipping initialiaztion
-    __call__ : perform the optimization unt stop_condition is reached
+    initialize : Set variables to initial state.
+
+    iterate : perform one iteration and return current solution.
+
+    callback : user-defined function to print status or save variables.
+
+    cont : continue the optimization skipping initialiaztion.
+
+    __call__ : performs the optimization until stop_condition is reached.
+
     """
     def initialize(self):
         self.iter_ = 0
@@ -189,8 +240,8 @@ class ConjugateGradient(Algorithm):
     criterion : Criterion
         A Criterion instance. It should have following methods and attributes:
             __call__ : returns criterion values at given point
-            gradient : returns gradient (1st derivative) of criterion at given point
-            n_variable: the size of the input vector of criterion
+            diff : returns gradient (1st derivative) of criterion at given point
+            shapein: the shape of the input of criterion
 
     x0 : ndarray (None)
         The first guess of the algorithm.
@@ -212,7 +263,7 @@ class ConjugateGradient(Algorithm):
     -------
 
     Returns an algorithm instance. Optimization is performed by
-    calling the this instance.
+    calling this instance.
 
     """
     def __init__(self, criterion, x0=None,
@@ -287,6 +338,8 @@ class ConjugateGradient(Algorithm):
         self.update_solution()
         self.update_criterion()
         Algorithm.iterate(self)
+    def at_exit(self):
+        self.current_solution.resize(self.criterion.shapein)
 
 class QuadraticConjugateGradient(ConjugateGradient):
     """
