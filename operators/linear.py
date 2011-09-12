@@ -667,5 +667,8 @@ class EigendecompositionOperator(Operator):
         nze = self.eigenvalues[self.eigenvalues != 0]
         return nze.max() / nze.min()
 
+    def associated_operators(self):
+        return { 'I' : self ** -1 }
+
 I = IdentityOperator()
 O = ZeroOperator()
