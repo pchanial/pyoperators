@@ -721,6 +721,7 @@ class CompositeOperator(Operator):
     def __new__(cls, operands, *args, **keywords):
         operands = cls._validate_operands(operands)
         operands = cls._reduce_commute_scalar(operands)
+        operands = cls._reduce_partition(operands)
         if len(operands) == 1:
             return operands[0]
         instance = super(CompositeOperator, cls).__new__(cls)
@@ -755,7 +756,6 @@ class CompositeOperator(Operator):
         # moving scalars from right to left
         if len(ops) < 2:
             return ops
-        ops = list(ops)
         i = len(ops) - 2
         while i >= 0:
             if isinstance(ops[i+1], ScalarOperator):
@@ -778,6 +778,52 @@ class CompositeOperator(Operator):
         return ops
 
     @classmethod
+    def _reduce_partition(cls, ops):
+        if issubclass(cls, AdditionOperator):
+            opn = np.add
+        elif issubclass(cls, CompositionOperator):
+            opn = np.multiply
+        else:
+            return ops
+        if len(ops) < 2:
+            return ops
+        i = 0
+        while i < len(ops):
+            p = ops[i]
+            if isinstance(p, PartitionOperator):
+                break
+            i += 1
+        else:
+            return ops
+
+        for i in range(i-1,-1,-1):
+            op = ops[i]
+            if op.shapein is None:
+                del ops[i]
+                p = ops[i] = PartitionOperator([opn(op,o) for o in p.operands],
+                                 partitionin=p.partitionin, axisin=p.axisin)
+            else:
+                break
+
+        i += 1
+        while True:
+            if i >= len(ops):
+                break
+            op = ops[i]
+            if isinstance(op, PartitionOperator):
+                del ops[i]
+                p = ops[i-1] = PartitionOperator([opn(o1,o2) for o1,o2 in \
+                    zip(p.operands, op.operands)])
+            if op.shapein is None:
+                del ops[i]
+                p = ops[i-1] = PartitionOperator([opn(o,op) for o in \
+                    p.operands], partitionin=p.partitionin, axisin=p.axisin)
+            else:
+                break
+        return ops
+                
+            
+    @classmethod
     def _validate_operands(cls, operands):
         operands = [asoperator(op) for op in operands]
         result = []
@@ -791,7 +837,7 @@ class CompositeOperator(Operator):
     def __str__(self):
         if isinstance(self, AdditionOperator):
             op = ' + '
-        if isinstance(self, PartitionOperator):
+        elif isinstance(self, PartitionOperator):
             op = ' ⊕ '
         else:
             op = ' * '
@@ -1153,7 +1199,7 @@ class PartitionOperator(CompositeOperator):
                 try:
                     shapeout_ = op.shapeout or op._reshapein(shapein_)
                     pout.append(shapeout_[axisout])
-                except IndexError:
+                except (IndexError, NotImplementedError):
                     continue
             if len(pout) == 0 or any([p != pout[0] for p in pout]):
                 return None

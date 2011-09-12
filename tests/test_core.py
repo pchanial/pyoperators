@@ -513,6 +513,17 @@ def test_partition3():
     pass
 
 
+def test_partition4():
+    o1 = ScalarOperator(1, shapein=1)
+    o2 = ScalarOperator(2, shapein=2)
+    o3 = ScalarOperator(3, shapein=3)
+    class Op(Operator):
+        pass
+    op=Op()
+    p=PartitionOperator([o1,o2,o3])
+    
+    r = (op + p + op) * p
+    assert isinstance(r, PartitionOperator)
+
 if __name__ == "__main__":
     nose.run(argv=['', __file__])
-
