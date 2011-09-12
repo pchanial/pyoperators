@@ -52,7 +52,6 @@ multiplication (composition of functions) :
 >>> B = 2 * operators.I + operators.DiagonalOperator(arange(3))
 >>> B.todense()
 Info: Allocating (3,) float64 = 24 bytes in AdditionOperator.
-
 array([[ 2.,  0.,  0.],
        [ 0.,  3.,  0.],
        [ 0.,  0.,  4.]])
