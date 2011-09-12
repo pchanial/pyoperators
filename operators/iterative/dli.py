@@ -27,6 +27,9 @@ from ..core import asoperator
 
 default_stop = StopCondition(maxiter=5)
 
+# reference recommands this initial z value
+Z0 = 0.05
+
 __all__ = ['LanczosAlgorithm', 'DoubleLoopAlgorithm']
 
 # lanczos algorithm
@@ -40,14 +43,36 @@ class LanczosAlgorithm(Algorithm):
     """
 
     def __init__(self, A, **kwargs):
+        """
+        Use Lanczos algorithm to approximate a linear Operator.
+
+        Parameters
+        ----------
+        A: Operator
+            The Operator to be approximated.
+        maxiter: int or None (defaults 300)
+            Number of iteration (equals number of eigenvalues).
+            If set to None, stops at A.shape[0]
+
+        Returns
+        -------
+        A LanczosAlgorithm instance. To get the approximated Operator,
+        calling this instance is required.
+
+        Notes
+        -----
+        Starting point is a normalized random vector so results may
+        differ from one call to another with the same input parameters.
+
+        The Operator approximation is returned as a
+        EigendecompositionOperator which can be easily inverted.
+        """
         self.A = A
         self.n = self.A.shape[0]
         self.kwargs = kwargs
         # extract appropriate kwargs for stop condition
         maxiter = kwargs.get("maxiter", 300)
-        tol = kwargs.get("tol", None)
-        gtol = kwargs.get("gtol", None)
-        self.stop_condition = StopCondition(maxiter=maxiter, tol=tol, gtol=gtol)
+        self.stop_condition = StopCondition(maxiter=maxiter, tol=None, gtol=None)
         # maxiter default to matrix size if not given.
         self.maxiter = getattr(self.stop_condition, "maxiter", self.n)
         Algorithm.__init__(self)
@@ -212,7 +237,7 @@ class Criterion(object):
 
 class DoubleLoopAlgorithm(Algorithm):
     """
-    A class implementing the double loop algorithm.
+    A subclass of Algorithm implementing the double loop algorithm.
 
     Parameters
     ----------
@@ -231,6 +256,16 @@ class DoubleLoopAlgorithm(Algorithm):
         Keyword arguments of the Lanczos decomposition.
     fmin_args : dict
         Keyword arguments of the function minimization.
+
+    Notes
+    -----
+
+    An iteration of DoubleLoopAlgorithm consists in two steps, the
+    inner loop and the outer loop. The outer loop is the computation
+    of a Lanczos approximation of the posterior covariance.  The inner
+    loop is a Newton-Conjugate-Gradient minimization of a criterion
+    with penalty terms determined by the Lanczos step.
+
     """
 
     def __init__(
@@ -288,7 +323,7 @@ class DoubleLoopAlgorithm(Algorithm):
         """
         Set parameters to initial values.
         """
-        self.z = 0.05 * np.ones(self.model.shape[1])
+        self.z = Z0 * np.ones(self.model.shape[1])
         self.g_star = 0.0
         self.current_solution = np.zeros(self.model.shape[1])
         self.iter_ = 0
