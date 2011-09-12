@@ -787,6 +787,8 @@ class CompositeOperator(Operator):
             return ops
         if len(ops) < 2:
             return ops
+
+        # find first PartitionOperator in operands
         i = 0
         while i < len(ops):
             p = ops[i]
@@ -796,30 +798,42 @@ class CompositeOperator(Operator):
         else:
             return ops
 
+        # eat operators on its left
         for i in range(i-1,-1,-1):
             op = ops[i]
             if op.shapein is None:
                 del ops[i]
                 p = ops[i] = PartitionOperator([opn(op,o) for o in p.operands],
-                                 partitionin=p.partitionin, axisin=p.axisin)
+                    partitionin=p.partitionin, axisin=p.axisin)
             else:
                 break
 
+        # eat operators on its right
         i += 1
         while True:
             if i >= len(ops):
                 break
             op = ops[i]
-            if isinstance(op, PartitionOperator):
-                del ops[i]
+
+            # eat PartitionOperators
+            if isinstance(op, PartitionOperator) and p.axisin == op.axisout:
+                if p.partitionin and op.partitionout and \
+                   p.partitionin != op.partitionout:
+                    break
+                partition = op.partitionin or p.partitionin
                 p = ops[i-1] = PartitionOperator([opn(o1,o2) for o1,o2 in \
-                    zip(p.operands, op.operands)])
-            if op.shapein is None:
+                    zip(p.operands, op.operands)], partitionin=partition,
+                    axisin=op.axisin, axisout=p.axisout)
                 del ops[i]
-                p = ops[i-1] = PartitionOperator([opn(o,op) for o in \
-                    p.operands], partitionin=p.partitionin, axisin=p.axisin)
-            else:
+                continue
+            if op.shapein is not None:
                 break
+
+            # eat implicit-shape operators
+            p = ops[i-1] = PartitionOperator([opn(o,op) for o in \
+                p.operands], partitionin=p.partitionin, axisin=p.axisin)
+            del ops[i]
+
         return ops
                 
             
