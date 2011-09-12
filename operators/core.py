@@ -1128,7 +1128,7 @@ class CompositionOperator(CompositeOperator):
         i = input
         for op in reversed(self.operands):
             # get output from the work pool
-            o = self._get_output(op._reshapein(input.shape), input.dtype)
+            o = self._get_output(op._reshapein(i.shape), output.dtype)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
