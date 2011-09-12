@@ -1,42 +1,42 @@
-================
-linear_operators
-================
+=========
+Operators
+=========
 
-What is linear_operators ?
-==========================
+The operators package defines Operators which are functions with a
+shape and dtype, and linear Operators which behave likes matrices
+but with close to no storage footprints.
 
-linear_operators is a package implementing estimation algorithms for
-large scale linear problems. The workflow is as follows :
+Getting started
+===============
 
-- generate a linear model using LinearOperator instances as buildling
-  blocks,
+To define an Operator one needs to define a direct functions
+which will replace the usual matrix vector operation :
 
-- define a criterion to minimize using this model (e.g. least-square),
+>>> def f(x, out):
+...     out[:] = 2 *x
+...
 
-- finally, perform minimization on the criterion using a minimization
-  algorithm (e.g. conjugate gradient).
+Then, you can instantiate an Operator:
 
-Subpackages implements each part of this workflow. Here is a list of
-the subpackages :
+>>> A = operators.Operator(direct=f, flags={"LINEAR":True, "SYMMETRIC":True}, shapein=2,)
+>>> A.todense()
+array([[ 2.,  0.],
+[ 0.,  2.]])
 
-- interface : Taken from the scipy.sparse package. It implement the
-  LinearOperator class which replaces matrices and do not require to
-  store any matrix coefficient. It makes use of matrix-vector
-  operations instead.
+The input function do not assume any shape so we can use it to define another operator:
 
-- operators : A set of LinearOperator subclasses implementing various
-  linear operation on vectors and their transpose.
+>>> A5 = operators.Operator(direct=f, flags={"LINEAR":True, "SYMMETRIC":True}, shapein=5,)
+>>> A5 * ones(5)
+Info: Allocating (5,) float64 = 40 bytes in Operator.
+ndarraywrap([ 2.,  2.,  2.,  2.,  2.])
 
-- ndoperators : A set of LinarOperator subclasses implementing
-  operations on multidimensional arrays.
+Operators do not have to be linear. If they are not they can't be seen
+as matrices.  Some operators are already predefined, such as the
+IdentityOperator, the DiagonalOperator or the nonlinear
+ClippingOperator.
 
-- iterative : Contains the Criterion class which allows to define objective
-  function as well as minimizers such as the conjugate gradient algorithms
-  and wrappers to other minimizing algorithms.
-
-- wrappers : define extra LinearOperator subclasses if optional
-  dependencies are available.
-
+Operators can be combined together by addition or by operator
+multiplication (composition of functions).
 
 Requirements
 =============
@@ -48,5 +48,4 @@ List of requirements:
 
 Optional requirements:
 
-- PyWavelets
-- fht (fast hadamard transform)
+- PyWavelets : wavelet transforms
