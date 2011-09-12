@@ -4,8 +4,8 @@ from nose.tools import (eq_, ok_, assert_is_none, assert_is_not_none, assert_is,
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
-from operators.core import Operator, AdditionOperator, CompositionOperator, ScalarOperator, ndarraywrap
-from operators.linear import I, O
+from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ScalarOperator, ndarraywrap
+from operators.linear import I, O, DiagonalOperator
 from operators.decorators import symmetric, square
 
 def assert_flags(operator, flags, msg=''):
@@ -115,7 +115,6 @@ def test_shape_cornercases():
     op = Operator(shapein=2)
     assert_flags(op, 'SQUARE')
     assert op.shapeout == op.shapein
-    assert_raises(ValueError, Operator, shapeout=3)
 
     class Op(Operator):
         def reshapein(self, shape):
@@ -469,6 +468,62 @@ def test_scalar_operator():
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
         yield assert_is_instance, o, ScalarOperator
 
+def test_partition1():
+    o1 = ScalarOperator(1, shapein=1)
+    o2 = ScalarOperator(2, shapein=2)
+    o3 = ScalarOperator(3, shapein=3)
+    
+    r = DiagonalOperator([1,2,2,3,3,3]).todense()
+    for ops, p in zip(((o1,o2,o3), (I,o2,o3), (o1,2*I,o3), (o1,o2,3*I)),
+                      (None, (1,2,3), (1,2,3), (1,2,3))):
+        op = PartitionOperator(ops, partitionin=p)
+        yield assert_array_equal, op.todense(6), r, str(op)
+
+def test_partition2():
+    class Op(Operator):
+        def __init__(self, axis, **keywords):
+            self.axis = axis
+            if self.axis < 0:
+                self.slice = [Ellipsis] + (-self.axis) * [slice(None)]
+            else:
+                self.slice = (self.axis+1) * [slice(None)] + [Ellipsis]
+            Operator.__init__(self, **keywords)
+        def direct(self, input, output):
+            self.slice[self.axis] = slice(0,None,2)
+            output[self.slice] = input
+            self.slice[self.axis] = slice(1,None,2)
+            output[self.slice] = input
+        def reshapein(self, shape):
+            shape_ = list(shape)
+            shape_[self.axis] *= 2
+            return shape_
+        def reshapeout(self, shape):
+            shape_ = list(shape)
+            shape_[self.axis] //= 2
+            return shape_
+    i = np.arange(3*4*5*6).reshape(3,4,5,6)
+    for axisp,p in zip((0,1,2,3,-1,-2,-3), ((1,1,1),(1,2,1),(2,2,1),(2,3,1), (2,3,1),(2,2,1), (1,2,1), (1,1,1))):
+        for axisr in (0,1,2,3):
+            op = PartitionOperator(3*[Op(axisr)], partitionin=p, axisin=axisp)
+            yield assert_array_equal, op(i), Op(axisr)(i), 'axis={},{}'.format(
+                axisp,axisr)
+
+def test_partition3():
+    # test axisin != axisout...
+    pass
+
+
+def test_partition4():
+    o1 = ScalarOperator(1, shapein=1)
+    o2 = ScalarOperator(2, shapein=2)
+    o3 = ScalarOperator(3, shapein=3)
+    class Op(Operator):
+        pass
+    op=Op()
+    p=PartitionOperator([o1,o2,o3])
+    
+    r = (op + p + op) * p
+    assert isinstance(r, PartitionOperator)
 
 if __name__ == "__main__":
     nose.run(argv=['', __file__])
