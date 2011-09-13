@@ -894,9 +894,17 @@ class CompositeOperator(Operator):
                     )
                     del ops[i + 1]
                 elif ops[i].flags.LINEAR:
-                    ops[i], ops[i + 1] = ops[i + 1], ops[i]
+                    if (
+                        ops[i + 1].shapein is None
+                        or ops[i].shapein is not None
+                        and ops[i + 1].shapein == ops[i].shapeout
+                    ):
+                        ops[i], ops[i + 1] = ops[i + 1], ops[i]
                 elif opn == np.multiply:
-                    if ops[i + 1].data == 1 and ops[i + 1].shapein is None:
+                    if ops[i + 1].data == 1 and ops[i + 1].shapein in (
+                        None,
+                        ops[i].shapein,
+                    ):
                         del ops[i + 1]
             i -= 1
         if (
@@ -904,7 +912,7 @@ class CompositeOperator(Operator):
             and opn == np.multiply
             and isinstance(ops[0], ScalarOperator)
             and ops[0].data == 1
-            and ops[0].shapein is None
+            and ops[0].shapein in (None, ops[1].shapeout)
         ):
             del ops[0]
 
