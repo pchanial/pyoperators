@@ -1526,11 +1526,11 @@ class BroadcastingOperator(Operator):
                 "pected values are {1}.".format(broadcast, strenum(values))
             )
         if broadcast == 'disabled':
-            if shapein not in (None, data.shape):
+            if shapein not in (None, self.data.shape):
                 raise ValueError(
                     "The input shapein is incompatible with the da" "ta shape."
                 )
-            shapein = data.shape
+            shapein = self.data.shape
         self.broadcast = broadcast
 
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)

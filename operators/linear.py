@@ -152,7 +152,7 @@ class MaskOperator(DiagonalOperator):
 
     Exemple
     -------
-    >>> M = MaskOperator(np.asarray([True, False]))
+    >>> M = MaskOperator([True, False])
     >>> M.todense()
 
     array([[False, False],
