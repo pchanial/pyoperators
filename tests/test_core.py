@@ -5,7 +5,7 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
 from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ScalarOperator, ndarraywrap
-from operators.linear import I, O, DiagonalOperator
+from operators.linear import I, O, DiagonalOperator, IdentityOperator
 from operators.decorators import symmetric, square
 
 def assert_flags(operator, flags, msg=''):
@@ -205,6 +205,28 @@ def test_scalar_reduction2():
         model = getattr(model, iop)(imodel)
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             yield eq_, model(i), result, str((iop,i))
+
+
+def test_scalar_reduction3():
+    for opout in (None, 100, 200):
+        for opin in (None, 100, 200):
+            for idin in (None, 100, 200):
+                if opin is not None and idin is not None and opin != idin:
+                    continue
+                p = Operator(shapeout=opout, shapein=opin,
+                    flags={'LINEAR':True}) * IdentityOperator(shapein=idin)
+
+                n = len(p.operands) if isinstance(p, CompositionOperator) else 1
+                if idin is None:
+                    yield assert_equal, n, 1, str((opout,opin,idin,p))
+                    continue
+                if opin is None:
+                    yield assert_equal, n, 2, str((opout,opin,idin,p))
+                    yield ok_, isinstance(p.operands[1], IdentityOperator), \
+                        str((opout,opin,idin,p))
+                    continue
+                if opin == idin and opout == idin:
+                    yield assert_equal, n, 1, str((opout,opin,idin,p))
 
 
 def test_propagation_attribute():
