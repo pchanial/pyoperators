@@ -225,14 +225,16 @@ class Operator(object):
             d = d.view(np.ndarray)
         return d.T
 
-    def matvec(self, v):
+    def matvec(self, v, output=None):
         v = self.toshapein(v)
-        input, output = self._validate_input(v, None)
+        if output is not None:
+            output = self.toshapeout(output)
+        input, output = self._validate_input(v, output)
         self.direct(input, output)
         return output.ravel()
 
-    def rmatvec(self, v):
-        return self.T.matvec(v)
+    def rmatvec(self, v, output=None):
+        return self.T.matvec(v, output)
 
     def associated_operators(self):
         """
@@ -384,7 +386,8 @@ class Operator(object):
         elif 'C' in ops:
             C = ops['C']
         else:
-            C = Operator(self.conjugate_, dtype=self.dtype, flags=self.flags)
+            C = Operator(self.conjugate_, shapein=self.shapein, shapeout= \
+                         self.shapeout, dtype=self.dtype, flags=self.flags)
             C.__name__ = self.__name__ + '.C'
 
         if self.flags.SYMMETRIC:
@@ -392,7 +395,8 @@ class Operator(object):
         elif 'T' in ops:
             T = ops['T']
         else:
-            T = Operator(self.transpose, dtype=self.dtype, flags=self.flags)
+            T = Operator(self.transpose, shapein=self.shapeout, shapeout= \
+                         self.shapein, dtype=self.dtype, flags=self.flags)
             T.__name__ = self.__name__ + '.T'
 
         if self.flags.HERMITIAN:
@@ -404,7 +408,8 @@ class Operator(object):
         elif self.flags.SYMMETRIC:
             H = C
         else:
-            H = Operator(self.adjoint, dtype=self.dtype, flags=self.flags)
+            H = Operator(self.adjoint, shapein=self.shapeout, shapeout= \
+                         self.shapein, dtype=self.dtype, flags=self.flags)
             H.__name__ = self.__name__ + '.H'
 
         if self.flags.INVOLUTARY:
@@ -416,7 +421,8 @@ class Operator(object):
         elif self.flags.UNITARY:
             I = H
         else:
-            I = Operator(self.inverse, dtype=self.dtype, flags=self.flags)
+            I = Operator(self.inverse, shapein=self.shapeout, shapeout= \
+                         self.shapein, dtype=self.dtype, flags=self.flags)
             I.__name__ = self.__name__ + '.I'
 
         if self.flags.REAL:
@@ -430,8 +436,8 @@ class Operator(object):
         elif self.flags.INVOLUTARY:
             IC = C
         else:
-            IC = Operator(self.inverse_conjugate, dtype=self.dtype,
-                          flags=self.flags)
+            IC = Operator(self.inverse_conjugate, shapein=self.shapeout,
+                     shapeout=self.shapein, dtype=self.dtype, flags=self.flags)
             IC.__name__ = self.__name__ + '.I.C'
 
         if self.flags.ORTHOGONAL:
@@ -445,8 +451,8 @@ class Operator(object):
         elif 'IT' in ops:
             IT = ops['IT']
         else:
-            IT = Operator(self.inverse_transpose, dtype=self.dtype,
-                          flags=self.flags)
+            IT = Operator(self.inverse_transpose, shapein=self.shapein,
+                     shapeout=self.shapeout, dtype=self.dtype, flags=self.flags)
             IT.__name__ = self.__name__ + '.I.T'
 
         if self.flags.UNITARY:
@@ -464,18 +470,13 @@ class Operator(object):
         elif 'IH' in ops:
             IH = ops['IH']
         else:
-            IH = Operator(self.inverse_adjoint, dtype=self.dtype,
-                          flags=self.flags)
+            IH = Operator(self.inverse_adjoint, shapein=self.shapein,
+                     shapeout=self.shapeout, dtype=self.dtype, flags=self.flags)
             IH.__name__ = self.__name__ + '.I.H'
 
         for op in (T, H, I, IC):
-            op.shapein, op.shapeout = self.shapeout, self.shapein
             op.toshapein, op.toshapeout = self.toshapeout, self.toshapein
             op.reshapein, op.reshapeout = self.reshapeout, self.reshapein
-        
-        for op in (C, IT, IH):
-            op.shapein = self.shapein
-            op.shapeout = self.shapeout
 
         # once all the associated operators are instanciated, we set all their
         # associated operators. To do so, we use the fact that the transpose,
