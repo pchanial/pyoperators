@@ -251,7 +251,8 @@ class DoubleLoopAlgorithm(Algorithm):
                  ):
 
         self.model = asoperator(model)
-        self.data = data
+        self.data_shape = data.shape
+        self.data = data.ravel()
         self.prior = asoperator(prior)
         if noise_covariance is not None:
             noise_covariance = asoperator(noise_covariance)
@@ -354,3 +355,7 @@ class DoubleLoopAlgorithm(Algorithm):
         self.gamma = np.sqrt(self.z + sn2) / self.tau
     def update_inv_gamma(self):
         self.inv_gamma = self.gamma ** (-1)
+    # at exit
+    def at_exit(self):
+        self.data.resize(self.data_shape)
+        self.current_solution.resize(self.model.shapein)
