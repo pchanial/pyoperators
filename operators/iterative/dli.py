@@ -17,13 +17,8 @@ import numpy as np
 from .algorithms import Algorithm, default_callback, StopCondition
 from .criterions import norm2, Norm2
 from .optimize import FminNCG
-from ..linear import (
-    DiagonalOperator,
-    IdentityOperator,
-    TridiagonalOperator,
-    EigendecompositionOperator,
-)
-from ..core import asoperator
+from ..linear import DiagonalOperator, TridiagonalOperator, EigendecompositionOperator
+from ..core import IdentityOperator, asoperator1d
 
 default_stop = StopCondition(maxiter=5)
 
@@ -181,10 +176,9 @@ class Criterion(object):
     def d2like(self, u):
         sigma = self.algo.sigma
         X = self.algo.model
-        I = IdentityOperator(shapein=X.shapein)
-        N = getattr(self.algo, "noise_covariance", I)
+        N = getattr(self.algo, "noise_covariance", None)
         if N is None:
-            N = I
+            N = IdentityOperator()
         return sigma ** (-2) * X.T * N * X
 
     def d2lik_p(self, u, p):
@@ -283,12 +277,12 @@ class DoubleLoopAlgorithm(Algorithm):
         stop_condition=default_stop,
     ):
 
-        self.model = asoperator(model)
+        self.model = asoperator1d(model)
         self.data_shape = data.shape
         self.data = data.ravel()
-        self.prior = asoperator(prior)
+        self.prior = asoperator1d(prior)
         if noise_covariance is not None:
-            noise_covariance = asoperator(noise_covariance)
+            noise_covariance = asoperator1d(noise_covariance)
         self.noise_covariance = noise_covariance
         # tau can be None or scalar or vector
         if tau is None:
