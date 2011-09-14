@@ -62,7 +62,7 @@ Requirements
 List of requirements:
 
 - numpy >= 1.3
-- scipy >= 0.8
+- scipy >= 0.9
 
 Optional requirements:
 
