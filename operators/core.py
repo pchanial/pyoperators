@@ -1537,7 +1537,7 @@ class ConcatenationOperator(CompositeOperator):
         dest = 0
         for op, n in zip(self.operands, self.partition):
             self.slice[self.axis] = slice(dest, dest + n)
-            op.transpose(input[self.slice], output)
+            op.T(input[self.slice], output)
             work += output
             dest += n
         output[:] = work
