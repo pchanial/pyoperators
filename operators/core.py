@@ -401,6 +401,8 @@ class Operator(object):
         else:
             T = Operator(self.transpose, shapein=self.shapeout, shapeout= \
                          self.shapein, dtype=self.dtype, flags=self.flags)
+            T.toshapein, T.toshapeout = self.toshapeout, self.toshapein
+            T.reshapein, T.reshapeout = self.reshapeout, self.reshapein
             T.__name__ = self.__name__ + '.T'
 
         if self.flags.HERMITIAN:
@@ -414,6 +416,8 @@ class Operator(object):
         else:
             H = Operator(self.adjoint, shapein=self.shapeout, shapeout= \
                          self.shapein, dtype=self.dtype, flags=self.flags)
+            H.toshapein, H.toshapeout = self.toshapeout, self.toshapein
+            H.reshapein, H.reshapeout = self.reshapeout, self.reshapein
             H.__name__ = self.__name__ + '.H'
 
         if self.flags.INVOLUTARY:
@@ -427,6 +431,8 @@ class Operator(object):
         else:
             I = Operator(self.inverse, shapein=self.shapeout, shapeout= \
                          self.shapein, dtype=self.dtype, flags=self.flags)
+            I.toshapein, I.toshapeout = self.toshapeout, self.toshapein
+            I.reshapein, I.reshapeout = self.reshapeout, self.reshapein
             I.__name__ = self.__name__ + '.I'
 
         if self.flags.REAL:
@@ -442,6 +448,8 @@ class Operator(object):
         else:
             IC = Operator(self.inverse_conjugate, shapein=self.shapeout,
                      shapeout=self.shapein, dtype=self.dtype, flags=self.flags)
+            IC.toshapein, IC.toshapeout = self.toshapeout, self.toshapein
+            IC.reshapein, IC.reshapeout = self.reshapeout, self.reshapein
             IC.__name__ = self.__name__ + '.I.C'
 
         if self.flags.ORTHOGONAL:
@@ -477,10 +485,6 @@ class Operator(object):
             IH = Operator(self.inverse_adjoint, shapein=self.shapein,
                      shapeout=self.shapeout, dtype=self.dtype, flags=self.flags)
             IH.__name__ = self.__name__ + '.I.H'
-
-        for op in (T, H, I, IC):
-            op.toshapein, op.toshapeout = self.toshapeout, self.toshapein
-            op.reshapein, op.reshapeout = self.reshapeout, self.reshapein
 
         # once all the associated operators are instanciated, we set all their
         # associated operators. To do so, we use the fact that the transpose,
