@@ -4,47 +4,16 @@ import numpy as np
 
 from scipy.sparse.linalg import eigsh
 
-from .decorators import linear, real, idempotent, involutary, symmetric
-from .core import Operator, ScalarOperator, BroadcastingOperator, asoperator
+from .decorators import linear, real, idempotent, symmetric
+from .core import (Operator, ScalarOperator, IdentityOperator,
+                   BroadcastingOperator, asoperator)
 from .utils import isscalar
 
-__all__ = [ 'DiagonalOperator', 'IdentityOperator', 'MaskOperator',
+__all__ = [ 'DiagonalOperator', 'MaskOperator',
             'PackOperator', 'UnpackOperator', 'ZeroOperator',
             'TridiagonalOperator', 'BandOperator', 'SymmetricBandOperator',
             'EigendecompositionOperator',
             'I', 'O' ]
-
-@real
-@idempotent
-@involutary
-class IdentityOperator(ScalarOperator):
-    """
-    A subclass of ScalarOperator with value=1.
-    All __init__ keyword arguments are passed to the
-    ScalarOperator __init__.
-
-    Exemple
-    -------
-    >>> I = IdentityOperator()
-    >>> I.todense(3)
-
-    array([[ 1.,  0.,  0.],
-           [ 0.,  1.,  0.],
-           [ 0.,  0.,  1.]])
-
-    >>> I = IdentityOperator(shapein=2)
-    >>> I * arange(2)
-    Info: Allocating (2,) float64 = 16 bytes in IdentityOperator.
-    ndarraywrap([ 0.,  1.])
-
-    """
-    def __init__(self, **keywords):
-        ScalarOperator.__init__(self, 1, **keywords)
-
-    def direct(self, input, output):
-        if self.same_data(input, output):
-            pass
-        output[:] = input
 
 
 @real

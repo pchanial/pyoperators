@@ -14,16 +14,20 @@ import scipy.sparse.linalg
 
 from collections import namedtuple
 from .utils import isscalar, tointtuple, strenum
-from .decorators import square, symmetric
+from .decorators import (real, idempotent, involutary, orthogonal, square,
+                         symmetric)
 
 __all__ = [
     'Operator',
     'OperatorFlags',
     'AdditionOperator',
-    'CompositionOperator',
-    'PartitionOperator',
-    'ScalarOperator',
     'BroadcastingOperator',
+    'CompositionOperator',
+    'ConcatenationOperator',
+    'IdentityOperator',
+    'PartitionOperator',
+    'ReshapeOperator',
+    'ScalarOperator',
     'asoperator',
 ]
 
@@ -231,7 +235,7 @@ class Operator(object):
             output = self.toshapeout(output)
         input, output = self._validate_input(v, output)
         self.direct(input, output)
-        return output.ravel()
+        return output.ravel().view(np.ndarray)
 
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
@@ -608,7 +612,7 @@ class Operator(object):
             input = input.view(ndarraywrap)
 
         shapeout = self._reshapein(input.shape)
-        dtype = _get_dtypeout(input.dtype, self.dtype)
+        dtype = _find_common_type([input.dtype, self.dtype])
         if output is not None:
             if output.dtype != dtype:
                 raise ValueError("Invalid output dtype '{0}'. Expected dtype is"
@@ -714,6 +718,13 @@ def asoperator(operator, shapein=None, shapeout=None):
     return asoperator(scipy.sparse.linalg.aslinearoperator(operator))
 
 
+def asoperator1d(operator):
+    operator = asoperator(operator)
+    r = ReshapeOperator(operator.shape[1], operator.shapein)
+    s = ReshapeOperator(operator.shapeout, operator.shape[0])
+    return s * operator * r
+
+
 class CompositeOperator(Operator):
     """
     Abstract class for grouping operands.
@@ -731,7 +742,7 @@ class CompositeOperator(Operator):
 
     @property
     def dtype(self):
-        return max([op.dtype for op in self.operands])
+        return _find_common_type([op.dtype for op in self.operands])
 
     @dtype.setter
     def dtype(self, dtype):
@@ -1257,6 +1268,129 @@ class PartitionOperator(CompositeOperator):
         return tointtuple(shape)
 
 
+class ConcatenationOperator(CompositeOperator):
+    """
+    Block column operator with more stringent conditions.
+
+    Example
+    -------
+    >>> I = IdentityOperator(shapein=3)
+    >>> op = ConcatenationOperator([I,2*I])
+    >>> op.todense()
+
+    array([[ 1.,  0.,  0.],
+           [ 0.,  1.,  0.],
+           [ 0.,  0.,  1.],
+           [ 2.,  0.,  0.],
+           [ 0.,  2.,  0.],
+           [ 0.,  0.,  2.]])
+
+    """   
+    def __init__(self, operands, partition=None, axis=0, shapein=None,
+                 shapeout=None):
+        if partition is None:
+            partition = tuple(None if op.shapeout is None else \
+                op.shapeout[axis] for op in operands)
+            if None in partition:
+                partition = None
+        partition = tointtuple(partition)
+
+        if partition is not None:
+            if len(partition) != len(operands):
+                raise ValueError('The number of operators must be the same as t'
+                                 'he length of the partition.')
+
+        if axis >= 0:
+            slice_ = (axis+1) * [slice(None)] + [Ellipsis]
+        else:
+            slice_ = [Ellipsis] + (-axis) * [slice(None)]
+
+        flags = {
+            'LINEAR':all([op.flags.LINEAR for op in self.operands]),
+            'REAL':all([op.flags.REAL for op in self.operands])}
+
+        self.axis = axis
+        self.partition = partition
+        self.slice = slice_
+        CompositeOperator.__init__(self, shapein=shapein, shapeout=shapeout,
+                                   flags=flags)
+
+    def direct(self, input, output):
+        if self.partition is None:
+            raise NotImplementedError()
+        dest = 0
+        for op, n in zip(self.operands, self.partition):
+            self.slice[self.axis] = slice(dest, dest + n)
+            op.direct(input, output[self.slice])
+            dest += n
+
+    def transpose(self, input, output):
+        if self.partition is None:
+            raise NotImplementedError()
+        work = np.zeros_like(output)
+        dest = 0
+        for op, n in zip(self.operands, self.partition):
+            self.slice[self.axis] = slice(dest, dest + n)
+            op.transpose(input[self.slice], output)
+            work += output
+            dest += n
+        output[:] = work
+
+    def reshapein(self, shapein):
+        shapeouts = [op._reshapein(shapein) for op in self.operands]
+        shapeout = list(shapeouts[0])
+        shapeout[self.axis] = np.sum((s[self.axis] for s in shapeouts))
+        return shapeout
+
+    def reshapeout(self, shapeout):
+        return self.operands[0].shapein
+
+    def __str__(self):
+        operands = ['[{}]'.format(o) for o in self.operands]
+        return '[' + ' '.join(operands) + ']'
+
+
+@real
+@orthogonal
+class ReshapeOperator(Operator):
+    """
+    Operator that reshapes arrays.
+
+    Example
+    -------
+    >>> op = ReshapeOperator(6, (3,2))
+    >>> op(np.ones(6)).shape
+    (3, 2)
+    """
+    def __new__(cls, shapein, shapeout):
+        if shapein is None:
+            raise ValueError('The input shape is None.')
+        if shapeout is None:
+            raise ValueError('The output shape is None.')
+        shapein = tointtuple(shapein)
+        shapeout = tointtuple(shapeout)
+        if shapein == shapeout:
+            return IdentityOperator(shapein)
+        inst = super(ReshapeOperator, cls).__new__(cls)
+        return inst
+
+    def __init__(self, shapein, shapeout):
+        if np.product(shapein) != np.product(shapeout):
+            raise ValueError('The total size of the output must be unchanged.')
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout)
+
+    def direct(self, input, output):
+        if self.same_data(input, output):
+            pass
+        output.ravel()[:] = input.ravel()
+
+    def associated_operators(self):
+        return {'T':ReshapeOperator(self.shapeout, self.shapein)}
+
+    def __str__(self):
+        return _strshape(self.shapeout) + '←' + _strshape(self.shapein)
+
+
 @symmetric
 class ScalarOperator(Operator):
     """
@@ -1264,6 +1398,8 @@ class ScalarOperator(Operator):
 
     """
     def __init__(self, value, shapein=None, dtype=None):
+        if value is None:
+            raise ValueError('Scalar value is None.')
         value = np.asarray(value)
         if dtype is None:
             dtype = np.find_common_type([value.dtype, float], [])
@@ -1300,6 +1436,39 @@ class ScalarOperator(Operator):
         r = super(ScalarOperator, self).__repr__().split('(')
         r[1] = str(self) + (', ' if r[1][0] != ')' else '') + r[1]
         return '('.join(r)
+
+
+@real
+@idempotent
+@involutary
+class IdentityOperator(ScalarOperator):
+    """
+    A subclass of ScalarOperator with value=1.
+    All __init__ keyword arguments are passed to the
+    ScalarOperator __init__.
+
+    Exemple
+    -------
+    >>> I = IdentityOperator()
+    >>> I.todense(3)
+
+    array([[ 1.,  0.,  0.],
+           [ 0.,  1.,  0.],
+           [ 0.,  0.,  1.]])
+
+    >>> I = IdentityOperator(shapein=2)
+    >>> I * arange(2)
+    Info: Allocating (2,) float64 = 16 bytes in IdentityOperator.
+    ndarraywrap([ 0.,  1.])
+
+    """
+    def __init__(self, shapein=None, dtype=None):
+        ScalarOperator.__init__(self, 1, shapein=shapein, dtype=dtype)
+
+    def direct(self, input, output):
+        if self.same_data(input, output):
+            pass
+        output[:] = input
 
 
 @square
@@ -1378,13 +1547,12 @@ class ndarraywrap(np.ndarray):
     pass
 
 
-def _get_dtypeout(d1, d2):
+def _find_common_type(dtypes):
     """Return dtype of greater type rank."""
-    if d1 is None:
-        return d2
-    if d2 is None:
-        return d1
-    return np.find_common_type([d1, d2], [])
+    dtypes = [d for d in dtypes if d is not None]
+    if len(dtypes) == 0:
+        return None
+    return np.find_common_type(dtypes, [])
 
 
 def _strshape(shape):
