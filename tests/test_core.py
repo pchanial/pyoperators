@@ -8,6 +8,8 @@ from operators.core import Operator, AdditionOperator, CompositionOperator, Part
 from operators.linear import I, O, DiagonalOperator, IdentityOperator
 from operators.decorators import symmetric, square
 
+np.seterr(all='raise')
+
 def assert_flags(operator, flags, msg=''):
     if isinstance(flags, str):
         flags = [f.replace(' ', '') for f in flags.split(',')]
@@ -77,9 +79,10 @@ def test_shape_explicit():
     yield assert_raises, ValueError, CompositionOperator, [o3, o2]
     yield assert_raises, ValueError, CompositionOperator, [o3, I, o1]
 
-    o4 = Operator(shapeout=o1.shapeout, shapein=o1.shapein)
+    o4 = Operator(shapeout=o1.shapeout)
     o5 = Operator(flags={'SQUARE':True})
 
+    o1 = Operator(shapein=(13,2))
     for o in [o1+I, I+o1, o1+o4, o1+I+o5+o4, I+o5+o1]:
         yield assert_equal, o.shapein, o1.shapein, '+shapein:'+str(o)
         yield assert_equal, o.shapeout, o1.shapeout, '+shapeout:'+str(o)
@@ -213,6 +216,7 @@ def test_scalar_reduction3():
             for idin in (None, 100, 200):
                 if opin is not None and idin is not None and opin != idin:
                     continue
+                print opout, opin, idin
                 p = Operator(shapeout=opout, shapein=opin,
                     flags={'LINEAR':True}) * IdentityOperator(shapein=idin)
 

@@ -4,7 +4,7 @@ import numpy as np
 
 from scipy.sparse.linalg import eigsh
 
-from .decorators import linear, real, idempotent, symmetric
+from .decorators import flags, linear, real, idempotent, symmetric
 from .core import (Operator, ScalarOperator, IdentityOperator,
                    BroadcastingOperator, asoperator)
 from .utils import isscalar
@@ -17,6 +17,7 @@ __all__ = [ 'DiagonalOperator', 'MaskOperator',
 
 
 @real
+@flags(SQUARE=False, HERMITIAN=False)
 @idempotent
 class ZeroOperator(ScalarOperator):
     """
@@ -24,18 +25,37 @@ class ZeroOperator(ScalarOperator):
     All __init__ keyword arguments are passed to the
     ScalarOperator __init__.
     """
-    def __init__(self, **keywords):
-        ScalarOperator.__init__(self, 0, **keywords)
+    def __init__(self, shapein=None, shapeout=None, dtype=None):
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout, dtype=dtype)
+        self.data = np.array(0)
+        self.add_rule('.{Operator}', self._rule_zero_times)
+        self.add_rule('{Operator}.', self._rule_times_zero)
 
     def direct(self, input, output):
         output[:] = 0
 
+    def _combine_operators(self, o1, o2):
+        result = ZeroOperator(shapein=o2.shapein or o2._reshapeout(o1.shapein),
+            shapeout=o1.shapeout or o2.shapeout, dtype=self._find_common_type([
+            o1.dtype, o2.dtype]))
+        result._reshapein = lambda s: o1._reshapein(o2._reshapein(s))
+        result._reshapeout = lambda s: o2._reshapeout(o1._reshapeout(s))
+        result.toshapein = lambda v: o2.toshapein(v)
+        return result
 
+    def _rule_zero_times(self, op):
+        return self._combine_operators(self, op)
+
+    def _rule_times_zero(self, op):
+        if not op.flags.LINEAR:
+            return None
+        return self._combine_operators(op, self)
+        
+        
 @symmetric
 class DiagonalOperator(BroadcastingOperator):
 
-    def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None,
-                **keywords):
+    def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None):
         """
         Subclass of BroadcastingOperator.
 
@@ -71,11 +91,22 @@ class DiagonalOperator(BroadcastingOperator):
         if shapein is None and broadcast == 'disabled' and data.ndim > 0:
             shapein = data.shape
         if np.all(data == 1):
-            return IdentityOperator(shapein=shapein, dtype=dtype, **keywords)
+            return IdentityOperator(shapein, dtype)
         elif np.all(data == 0):
-            return ZeroOperator(shapein=shapein, dtype=dtype, **keywords)
+            return ZeroOperator(shapein, dtype)
         return BroadcastingOperator.__new__(cls, data, broadcast=broadcast,
-            shapein=shapein, dtype=dtype, **keywords)
+            shapein=shapein, dtype=dtype)
+
+    def __init__(self, data, broadcast='disabled', shapein=None, dtype=None):
+        BroadcastingOperator.__init__(self, data, broadcast, shapein, dtype)
+        self.add_rule('{DiagonalOperator}.',
+                      lambda o: self._rule_diagonal(o, np.add), 'addition')
+        self.add_rule('{DiagonalOperator}.',
+                      lambda o: self._rule_diagonal(o, np.multiply))
+        self.add_rule('{ScalarOperator}.',
+                      lambda o: self._rule_scalar(o, np.add), 'addition')
+        self.add_rule('{ScalarOperator}.',
+                      lambda o: self._rule_scalar(o, np.multiply))
 
     def direct(self, input, output):
         if self.broadcast == 'fast':
@@ -100,7 +131,26 @@ class DiagonalOperator(BroadcastingOperator):
             np.divide(input.T, np.conjugate(self.data).T, output.T)
         else:
             np.divide(input, np.conjugate(self.data), output)
-        
+
+    def _rule_scalar(self, s, operation):
+        return DiagonalOperator(operation(s.data, self.data), self.broadcast,
+            shapein=self.shapein, dtype=self._find_common_type([self.dtype,
+            s.dtype]))
+
+    def _rule_diagonal(self, d, operation):
+        if set([self.broadcast, d.broadcast]) == set(['fast', 'slow']):
+            raise ValueError('Fast and slow broadcast cannot be combined.')
+        if self.broadcast == d.broadcast:
+            broadcast = self.broadcast
+        else:
+            broadcast = 'disabled'
+        if self.broadcast == 'fast' or d.broadcast == 'fast':
+            data = (operation(self.data.T, d.data.T)).T
+        else:
+            data = operation(self.data, d.data)
+        return DiagonalOperator(data, broadcast, self.shapein or d.shapein,
+            dtype=self._find_common_type([self.dtype, d.dtype]))
+
 
 @real
 @idempotent
@@ -152,6 +202,7 @@ class PackOperator(Operator):
         self.mask = ~np.array(mask, np.bool8, copy=False)
         Operator.__init__(self, shapein=self.mask.shape,
                           shapeout=np.sum(self.mask), **keywords)
+        self.add_rule('.T.', '1')
 
     def direct(self, input, output):
         output[:] = input[self.mask]
@@ -172,6 +223,7 @@ class UnpackOperator(Operator):
         self.mask = ~np.array(mask, np.bool8, copy=False)
         Operator.__init__(self, shapein=np.sum(self.mask),
                           shapeout=self.mask.shape, **keywords)
+        self.add_rule('.T.', '1')
 
     def direct(self, input, output):
         output[:] = 0
