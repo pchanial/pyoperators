@@ -5,6 +5,14 @@ square, ...).
 """
 
 
+def flags(**keywords):
+    def func(cls):
+        cls._set_flags(cls, keywords)
+        return cls
+
+    return func
+
+
 def linear(cls):
     cls._set_flags(cls, {'LINEAR': True})
     return cls

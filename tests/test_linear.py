@@ -3,8 +3,10 @@ from __future__ import division
 import nose
 import numpy as np
 
+from nose.plugins.skip import SkipTest
 from numpy.testing import assert_, assert_array_equal
 from operators import (
+    Operator,
     IdentityOperator,
     ZeroOperator,
     DiagonalOperator,
@@ -12,6 +14,7 @@ from operators import (
     PackOperator,
     UnpackOperator,
 )
+from operators.decorators import linear
 
 
 def test_masking():
@@ -62,6 +65,136 @@ def test_masking():
 
     c = mask(b, b)
     yield assert_, id(b) == id(c)
+
+
+def test_masking2():
+    m = MaskOperator([True, False, True])
+    yield assert_, m * m is m
+
+
+def test_diagonal1():
+    d = DiagonalOperator([1.0, 2.0, 3.0])
+    yield assert_, isinstance(2 * d, DiagonalOperator)
+    yield assert_, d * d is not d
+    yield assert_, isinstance(d * d, DiagonalOperator)
+    yield assert_, isinstance(3 + 2 * d * 3.0 * d + 2 * d + 2, DiagonalOperator)
+
+
+def test_zero1():
+    z = ZeroOperator()
+    o = Operator()
+    yield assert_, isinstance(z * o, ZeroOperator)
+    yield assert_, not isinstance(o * z, ZeroOperator)
+
+
+def test_zero2():
+    z = ZeroOperator()
+    o = Operator(shapein=3, shapeout=6)
+    zo = z * o
+    yield assert_, isinstance(zo, ZeroOperator)
+    yield assert_, zo.shapein == o.shapein and zo.shapeout == o.shapeout
+
+
+def test_zero3():
+    z = ZeroOperator(shapein=3, shapeout=6)
+    o = Operator()
+    zo = z * o
+    yield assert_, isinstance(zo, ZeroOperator)
+    yield assert_, zo.shapein == z.shapein and zo.shapeout == z.shapeout
+
+
+def test_zero4():
+    z = ZeroOperator()
+    o = Operator(flags={'LINEAR': True})
+    yield assert_, isinstance(z * o, ZeroOperator)
+    yield assert_, isinstance(o * z, ZeroOperator)
+
+
+def test_zero5():
+    z = ZeroOperator()
+    o = Operator(shapein=3, shapeout=6, flags={'LINEAR': True})
+    zo = z * o
+    oz = o * z
+    yield assert_, isinstance(zo, ZeroOperator)
+    yield assert_, zo.shapein == o.shapein and zo.shapeout == o.shapeout
+    yield assert_, isinstance(oz, ZeroOperator)
+    yield assert_, oz.shapein == o.shapein and oz.shapeout == o.shapeout
+
+
+def test_zero6():
+    z = ZeroOperator(shapein=3, shapeout=6)
+    o = Operator(flags={'LINEAR': True})
+    zo = z * o
+    oz = o * z
+    yield assert_, isinstance(zo, ZeroOperator)
+    yield assert_, zo.shapein == z.shapein and zo.shapeout == z.shapeout
+    yield assert_, isinstance(oz, ZeroOperator)
+    yield assert_, oz.shapein == z.shapein and oz.shapeout == z.shapeout
+
+
+def test_zero7():
+    z = ZeroOperator()
+
+    @linear
+    class Op(Operator):
+        def direct(self, input, output):
+            output[:] = np.concatenate([input, 2 * input])
+
+        def transpose(self, input, output):
+            output[:] = input[0 : output.size]
+
+        def reshapein(self, shapein):
+            s = list(shapein)
+            s[0] *= 2
+            return s
+
+        def reshapeout(self, shapeout):
+            s = list(shapeout)
+            s[0] //= 2
+            return s
+
+    o = Op()
+    zo = z * o
+    oz = o * z
+    v = np.ones(4)
+    yield assert_array_equal, zo(v), z(o(v))
+    yield assert_array_equal, oz(v), o(z(v))
+
+
+def test_zero7b():
+    # this test fails because ZeroOperator is mistakenly assumed to be SQUARE
+    raise SkipTest
+    z = ZeroOperator()
+
+    @linear
+    class Op(Operator):
+        def direct(self, input, output):
+            output[:] = np.concatenate([input, 2 * input])
+
+        def transpose(self, input, output):
+            output[:] = input[0 : output.size]
+
+        def reshapein(self, shapein):
+            s = list(shapein)
+            s[0] *= 2
+            return s
+
+        def reshapeout(self, shapeout):
+            s = list(shapeout)
+            s[0] //= 2
+            return s
+
+    o = Op()
+    zo = z * o
+    oz = o * z
+    v = np.ones(4)
+    yield assert_array_equal, zo.T(v), o.T(z.T(v))
+    yield assert_array_equal, oz.T(v), z.T(o.T(v))
+
+
+def test_zero8():
+    z = ZeroOperator()
+    yield assert_, z * z is z
 
 
 def test_packing():
