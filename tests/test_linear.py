@@ -122,10 +122,12 @@ def test_zero7():
         def transpose(self, input, output):
             output[:] = input[0:output.size]
         def reshapein(self, shapein):
+            if shapein is None: return None
             s = list(shapein)
             s[0] *= 2
             return s
         def reshapeout(self, shapeout):
+            if shapeout is None: return None
             s = list(shapeout)
             s[0] //= 2
             return s
@@ -137,8 +139,6 @@ def test_zero7():
     yield assert_array_equal, oz(v), o(z(v))
 
 def test_zero7b():
-    # this test fails because ZeroOperator is mistakenly assumed to be SQUARE
-    raise SkipTest
     z = ZeroOperator()
     @linear
     class Op(Operator):
@@ -147,10 +147,12 @@ def test_zero7b():
         def transpose(self, input, output):
             output[:] = input[0:output.size]
         def reshapein(self, shapein):
+            if shapein is None: return None
             s = list(shapein)
             s[0] *= 2
             return s
         def reshapeout(self, shapeout):
+            if shapeout is None: return None
             s = list(shapeout)
             s[0] //= 2
             return s

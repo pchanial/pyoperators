@@ -97,8 +97,10 @@ def test_shape_implicit():
             self.factor = factor
             Operator.__init__(self)
         def reshapein(self, shape):
+            if shape is None: return None
             return shape[0]*self.factor
         def reshapeout(self, shape):
+            if shape is None: return None
             return shape[0]/self.factor
         def __str__(self):
             return super(Op, self).__str__() + ' {0}'.format(self.factor)
@@ -109,8 +111,8 @@ def test_shape_implicit():
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((6,),(12,),(24,)),
                             ((4,),(2,),(1,))):
-        yield assert_equal, o._reshapein(shapein), eout, 'reshapein:'+str(o)
-        yield assert_equal, o._reshapeout(shapeout), ein, 'reshapeout:'+str(o)
+        yield assert_equal, o.reshapein(shapein), eout, 'reshapein:'+str(o)
+        yield assert_equal, o.reshapeout(shapeout), ein, 'reshapeout:'+str(o)
 
 def test_shape_cornercases():
     op = Operator()
@@ -121,6 +123,7 @@ def test_shape_cornercases():
 
     class Op(Operator):
         def reshapein(self, shape):
+            if shape is None: return None
             return shape[0]*2
     op = Op()
     assert_flags_false(op, 'SQUARE')
@@ -520,10 +523,12 @@ def test_partition2():
             self.slice[self.axis] = slice(1,None,2)
             output[self.slice] = input
         def reshapein(self, shape):
+            if shape is None: return None
             shape_ = list(shape)
             shape_[self.axis] *= 2
             return shape_
         def reshapeout(self, shape):
+            if shape is None: return None
             shape_ = list(shape)
             shape_[self.axis] //= 2
             return shape_
