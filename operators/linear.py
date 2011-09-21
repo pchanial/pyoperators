@@ -30,8 +30,7 @@ __all__ = [
 
 
 @real
-@flags(SQUARE=False, HERMITIAN=False)
-@idempotent
+@flags(SQUARE=False, SYMMETRIC=False)
 class ZeroOperator(ScalarOperator):
     """
     A subclass of ScalarOperator with value=0.
@@ -39,23 +38,53 @@ class ZeroOperator(ScalarOperator):
     ScalarOperator __init__.
     """
 
-    def __init__(self, shapein=None, shapeout=None, dtype=None):
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout, dtype=dtype)
+    def __init__(
+        self, shapein=None, shapeout=None, dtype=None, reshapein=None, reshapeout=None
+    ):
+        if (
+            shapein is not None
+            and shapein == shapeout
+            or reshapein is None
+            and reshapeout is None
+        ):
+            flags = {'SQUARE': True, 'SYMMETRIC': True, 'IDEMPOTENT': True}
+        else:
+            flags = None
+        Operator.__init__(
+            self,
+            shapein=shapein,
+            shapeout=shapeout,
+            reshapein=reshapein,
+            reshapeout=reshapeout,
+            dtype=dtype,
+            flags=flags,
+        )
         self.data = np.array(0)
         self.add_rule('.{Operator}', self._rule_zero_times)
         self.add_rule('{Operator}.', self._rule_times_zero)
+
+    def associated_operators(self):
+        return {
+            'T': ZeroOperator(
+                shapein=self.shapeout,
+                shapeout=self.shapein,
+                reshapein=self._reshapeout,
+                reshapeout=self._reshapein,
+                dtype=self.dtype,
+            )
+        }
 
     def direct(self, input, output):
         output[:] = 0
 
     def _combine_operators(self, o1, o2):
         result = ZeroOperator(
-            shapein=o2.shapein or o2._reshapeout(o1.shapein),
+            shapein=o2.shapein or o2.reshapeout(o1.shapein),
             shapeout=o1.shapeout or o2.shapeout,
+            reshapein=lambda s: o1.reshapein(o2.reshapein(s)),
+            reshapeout=lambda s: o2.reshapeout(o1.reshapeout(s)),
             dtype=self._find_common_type([o1.dtype, o2.dtype]),
         )
-        result._reshapein = lambda s: o1._reshapein(o2._reshapein(s))
-        result._reshapeout = lambda s: o2._reshapeout(o1._reshapeout(s))
         result.toshapein = lambda v: o2.toshapein(v)
         return result
 
