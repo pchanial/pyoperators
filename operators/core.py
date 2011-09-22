@@ -839,7 +839,8 @@ class Operator(object):
 
     def __repr__(self):
         a = []
-        vars, junk, junk, defaults = inspect.getargspec(self.__init__)
+        init = getattr(self, '__init_original__', self.__init__)
+        vars, junk, junk, defaults = inspect.getargspec(init)
         for ivar, var in enumerate(vars):
             if var in ('flags', 'self'):
                 continue
