@@ -779,6 +779,7 @@ class Operator(object):
 
         shapeout = self.reshapein(input.shape)
         dtype = self._find_common_type([input.dtype, self.dtype])
+        input = np.array(input, dtype=dtype, subok=True, copy=False)
         if output is not None:
             if output.dtype != dtype:
                 raise ValueError("Invalid output dtype '{0}'. Expected dtype is"
