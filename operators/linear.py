@@ -326,11 +326,15 @@ class TridiagonalOperator(Operator):
                 }
 
     def __repr__(self):
-        s = Operator.__repr__(self)[:-1]
-        s += ",\n superdiagonal=" + self.superdiag.__repr__()
-        s +=  ",\n diagonal=" + self.diag.__repr__()
-        s += ",\n subdiagonal=" + self.subdiag.__repr__() + ">"
-        return s
+        r = [repr(self.diag), repr(self.subdiag)]
+        if self.subdiag is not self.superdiag:
+            r += ['superdiag=' + repr(self.superdiag)]
+        if any([len(_) > 70 for _ in r]):
+            sep = ',\n'
+            r[0] = '\n' + r[0]
+        else:
+            sep = ', '
+        return self.__name__ + '(' + sep.join(r) + ')'
 
     def todense(self):
         out = np.zeros(self.shape, dtype=self.dtype)
