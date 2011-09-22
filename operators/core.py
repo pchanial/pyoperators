@@ -9,8 +9,10 @@ from __future__ import division
 
 import copy
 import gc
+import inspect
 import numpy as np
 import scipy.sparse.linalg
+import types
 
 from collections import namedtuple
 from .utils import isscalar, tointtuple, strenum
@@ -963,16 +965,35 @@ class Operator(object):
         return s
 
     def __repr__(self):
-        r = self.__name__ + '('
         a = []
-        if self.shapein:
-            a += ['shapein=' + _strshape(self.shapein)]
-        if self.shapeout and self.shapeout != self.shapein:
-            a += ['shapeout=' + _strshape(self.shapeout)]
-        if self.dtype is not None:
-            a += ['dtype=' + str(self.dtype)]
-        r += ', '.join(a) + ')'
-        return r
+        vars, junk, junk, defaults = inspect.getargspec(self.__init__)
+        for ivar, var in enumerate(vars):
+            if var in ('flags', 'self'):
+                continue
+            val = getattr(self, var, None)
+            if isinstance(val, types.MethodType):
+                continue
+            nargs = len(vars) - len(defaults)
+            if ivar >= nargs:
+                if val is defaults[ivar - nargs]:
+                    continue
+            if isinstance(val, Operator):
+                s = 'Operator()'
+            elif var in ['shapein', 'shapeout']:
+                s = _strshape(val)
+            elif isinstance(val, np.ndarray) and val.ndim == 0:
+                s = repr(val[()])
+            elif var == 'dtype':
+                s = str(val)
+            else:
+                s = repr(val)
+            if var == 'shapeout' and self.shapeout == self.shapein:
+                continue
+            if ivar < nargs:
+                a += [s]
+            else:
+                a += [var + '=' + s]
+        return self.__name__ + '(' + ', '.join(a) + ')'
 
 
 def asoperator(operator, shapein=None, shapeout=None):
@@ -1802,36 +1823,36 @@ class ScalarOperator(Operator):
 
     """
 
-    def __init__(self, value, shapein=None, dtype=None):
-        if value is None:
+    def __init__(self, data, shapein=None, dtype=None):
+        if data is None:
             raise ValueError('Scalar value is None.')
         if (
-            not hasattr(value, '__add__')
-            or not hasattr(value, '__mul__')
-            or not hasattr(value, '__cmp__')
-            and not hasattr(value, '__eq__')
+            not hasattr(data, '__add__')
+            or not hasattr(data, '__mul__')
+            or not hasattr(data, '__cmp__')
+            and not hasattr(data, '__eq__')
         ):
-            raise ValueError("Invalid scalar value '{0}'.".format(value))
-        value = np.asarray(value)
+            raise ValueError("Invalid scalar value '{0}'.".format(data))
+        data = np.asarray(data)
         if dtype is None:
-            dtype = np.find_common_type([value.dtype, float], [])
-            value = np.array(value, dtype=dtype)
+            dtype = np.find_common_type([data.dtype, float], [])
+            data = np.array(data, dtype=dtype)
 
-        if value == 0:
+        if data == 0:
             flags = {'IDEMPOTENT': True}
-        elif value in (1, -1):
+        elif data in (1, -1):
             flags = {'IDEMPOTENT': True, 'INVOLUTARY': True}
         else:
             flags = None
 
         Operator.__init__(
             self,
-            lambda i, o: np.multiply(i, value, o),
+            lambda i, o: np.multiply(i, data, o),
             shapein=shapein,
             dtype=dtype,
             flags=flags,
         )
-        self.data = value
+        self.data = data
         self.add_rule('{Operator}.', self._rule_linear)
         self.add_rule('{ScalarOperator}.', self._rule_mul)
         self.add_rule('{ScalarOperator}.', self._rule_add, 'addition')
@@ -1854,15 +1875,10 @@ class ScalarOperator(Operator):
         }
 
     def __str__(self):
-        value = self.data.flat[0]
-        if value == int(value):
-            value = int(value)
-        return str(value)
-
-    def __repr__(self):
-        r = super(ScalarOperator, self).__repr__().split('(')
-        r[1] = str(self) + (', ' if r[1][0] != ')' else '') + r[1]
-        return '('.join(r)
+        data = self.data.flat[0]
+        if data == int(data):
+            data = int(data)
+        return str(data)
 
     def _rule_linear(self, operator):
         if not operator.flags.LINEAR:
