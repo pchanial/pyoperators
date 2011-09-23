@@ -828,13 +828,13 @@ class Operator(object):
 
         if self.__class__.reshapein != Operator.reshapein:
             reshapein = self.reshapein
-            self.reshapein = super(self.__class__, self).reshapein
+            self.reshapein = lambda v: Operator.reshapein(self, v)
         if reshapein is not None:
             self._reshapein = reshapein
 
         if self.__class__.reshapeout != Operator.reshapeout:
             reshapeout = self.reshapeout
-            self.reshapeout = super(self.__class__, self).reshapeout
+            self.reshapeout = lambda v: Operator.reshapeout(self, v)
         if reshapeout is not None:
             self._reshapeout = reshapeout
 
