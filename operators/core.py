@@ -848,7 +848,7 @@ class Operator(object):
             val = getattr(self, var, None)
             if isinstance(val, types.MethodType):
                 continue
-            nargs = len(vars) - len(defaults)
+            nargs = len(vars) - (len(defaults) if defaults is not None else 0)
             if ivar >= nargs:
                 if val is defaults[ivar - nargs]:
                     continue
