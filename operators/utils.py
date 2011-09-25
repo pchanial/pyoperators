@@ -3,10 +3,13 @@ from __future__ import division
 import multiprocessing
 import numpy as np
 import os
+import scipy.sparse
 
 
 def isscalar(data):
     """Hack around np.isscalar oddity"""
+    if isinstance(data, scipy.sparse.base.spmatrix):
+        return False
     if isinstance(data, np.ndarray):
         return data.ndim == 0
     return not isinstance(data, (list, tuple))
