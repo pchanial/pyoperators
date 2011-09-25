@@ -1010,10 +1010,9 @@ class AdditionOperator(CompositeOperator):
 
         # 2 operands: 1 temporary
         if len(operands) == 2:
-            operands[0].direct(input, output)
-            w0.__class__ = output.__class__
-            operands[1].direct(input, w0)
+            operands[0].direct(input, w0)
             output.__class__ = w0.__class__
+            operands[1].direct(input, output)
             output += w0
             return
 
