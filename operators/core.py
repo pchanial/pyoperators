@@ -541,9 +541,9 @@ class Operator(object):
         shapein = tointtuple(shapein)
         if None not in (self.shapein, shapein) and self.shapein != shapein:
             raise ValueError(
-                "The input shape of {0} is {1}. It is incompatible"
-                " with '{2}'.".format(
-                    self.__name__, _strshape(self.shapein), _strshape(shapein)
+                "The input shape '{0}' is incompatible with that o"
+                "f {1}: '{2}'.".format(
+                    _strshape(shapein), self.__name__, _strshape(self.shapein)
                 )
             )
         if self.shapeout is not None:
@@ -559,9 +559,9 @@ class Operator(object):
         shapeout = tointtuple(shapeout)
         if None not in (self.shapeout, shapeout) and self.shapeout != shapeout:
             raise ValueError(
-                "The output shape of {0} is {1}. It is incompatibl"
-                "e with '{2}'.".format(
-                    self.__name__, _strshape(self.shapeout), _strshape(shapeout)
+                "The output shape '{0}' is incompatible with that "
+                "of {1}: '{2}'.".format(
+                    _strshape(shapeout), self.__name__, _strshape(self.shapeout)
                 )
             )
         if self.shapein is not None:
