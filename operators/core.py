@@ -548,11 +548,11 @@ class Operator(object):
             )
         if self.shapeout is not None:
             return self.shapeout
+        if self._reshapein is not None:
+            return tointtuple(self._reshapein(shapein))
         if self.flags.SQUARE:
             return shapein
-        if self._reshapein is None:
-            return None
-        return tointtuple(self._reshapein(shapein))
+        return None
 
     def reshapeout(self, shapeout):
         """Return operator's input shape."""
