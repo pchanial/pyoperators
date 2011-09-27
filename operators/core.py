@@ -1534,7 +1534,13 @@ class PartitionOperator(CompositeOperator):
         for op, nin, nout in zip(self.operands, self.partitionin, partitionout):
             self.slicein[self.axisin] = slice(destin, destin + nin)
             self.sliceout[self.axisout] = slice(destout, destout + nout)
-            op.direct(input[self.slicein], output[self.sliceout])
+            # view input_ and output_ as ndarraywrap, since ndarray subclasses
+            # could override __getitem__
+            input_ = input.view(ndarraywrap)[self.slicein]
+            output_ = output.view(ndarraywrap)[self.sliceout]
+            self._propagate(output, output_)
+            op.direct(input_, output_)
+            output.__class__ = output_.__class__
             destin += nin
             destout += nout
 
