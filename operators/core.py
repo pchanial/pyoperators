@@ -959,6 +959,9 @@ class CompositeOperator(Operator):
         operands = ['({0})'.format(o) if isinstance(o, (AdditionOperator,
                     PartitionOperator)) else \
                     str(o) for o in self.operands]
+        if isinstance(self, PartitionOperator):
+            if len(operands) > 2:
+                operands = [operands[0], '...', operands[-1]]
         return op.join(operands)
 
     def __repr__(self):
