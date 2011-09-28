@@ -6,6 +6,10 @@ import os
 import scipy.sparse
 
 
+class ndarraywrap(np.ndarray):
+    pass
+
+
 def isscalar(data):
     """Hack around np.isscalar oddity"""
     if isinstance(data, scipy.sparse.base.spmatrix):

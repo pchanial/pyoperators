@@ -8,14 +8,14 @@ Operator docstring for more information.
 from __future__ import division
 
 import copy
-import gc
 import inspect
 import numpy as np
 import scipy.sparse.linalg
 import types
 
 from collections import namedtuple
-from .utils import isscalar, tointtuple, strenum
+from . import memory
+from .utils import isscalar, ndarraywrap, tointtuple, strenum
 from .decorators import real, idempotent, involutary, orthogonal, square, symmetric
 
 __all__ = [
@@ -31,8 +31,6 @@ __all__ = [
     'ScalarOperator',
     'asoperator',
 ]
-
-verbose = True
 
 
 class OperatorFlags(
@@ -268,7 +266,7 @@ class Operator(object):
 
             def transpose(input, output):
                 self.adjoint(input.conjugate(), output)
-                output[:] = output.conjugate()
+                output[...] = output.conjugate()
 
             self.transpose = transpose
 
@@ -276,7 +274,7 @@ class Operator(object):
 
             def adjoint(input, output):
                 self.transpose(input.conjugate(), output)
-                output[:] = output.conjugate()
+                output[...] = output.conjugate()
 
         if self.inverse is None:
             self.inverse_conjugate = None
@@ -302,7 +300,7 @@ class Operator(object):
 
     def conjugate_(self, input, output):
         self.direct(input.conjugate(), output)
-        output[:] = output.conjugate()
+        output[...] = output.conjugate()
 
     inverse = None
     inverse_transpose = None
@@ -310,7 +308,7 @@ class Operator(object):
 
     def inverse_conjugate(self, input, output):
         self.inverse(input.conjugate(), output)
-        output[:] = output.conjugate()
+        output[...] = output.conjugate()
 
     def __call__(self, input, output=None):
         if self.direct is None:
@@ -471,60 +469,6 @@ class Operator(object):
     def conjugate(self):
         """Return the complex-conjugate of the operator. Same as '.C'"""
         return self.C
-
-    def _allocate(self, shape, dtype, buf=None):
-        """Return an array of given shape and dtype. If a buffer is provided and
-        is large enough, it is reused, otherwise a memory allocation takes
-        place. Every allocation should go through this method.
-        """
-
-        if isscalar(shape):
-            shape = (shape,)
-        dtype = np.dtype(dtype)
-
-        nbytes = dtype.itemsize * np.product(shape)
-        if buf is not None and buf.nbytes <= nbytes:
-            if buf.shape == shape and buf.dtype == dtype:
-                return self._wrap_ndarray(buf), False
-            if isscalar(buf):
-                buf = buf.reshape(1)
-            buf = buf.view(np.int8).ravel()[:nbytes].view(dtype).reshape(shape)
-            return self._wrap_ndarray(buf), False
-
-        if verbose:
-            if nbytes < 1024:
-                snbytes = str(nbytes) + ' bytes'
-            else:
-                snbytes = str(nbytes / 2**20) + ' MiB'
-            print(
-                'Info: Allocating '
-                + str(shape).replace(' ', '')
-                + ' '
-                + dtype.type.__name__
-                + ' = '
-                + snbytes
-                + ' in '
-                + self.__name__
-                + '.'
-            )
-        try:
-            buf = np.empty(shape, dtype)
-        except MemoryError:
-            gc.collect()
-            buf = np.empty(shape, dtype)
-
-        return self._wrap_ndarray(buf), True
-
-    def _allocate_like(self, a, b):
-        """Return an array of same shape and dtype as a given array."""
-        return self._allocate(a.shape, a.dtype, b)
-
-    def _wrap_ndarray(self, array):
-        """Make an input ndarray an instance of a heap class so that we can
-        change its class and attributes."""
-        if type(array) is np.ndarray:
-            array = array.view(ndarraywrap)
-        return array
 
     def _propagate(self, input, output, copy=False):
         """Set the output's class to that of the input. It also copies input's
@@ -893,7 +837,7 @@ class Operator(object):
     def _validate_input(self, input, output):
         """Return the input as ndarray subclass and allocate the output
         if necessary."""
-        input = np.array(input, copy=False, subok=True, ndmin=1)
+        input = np.array(input, copy=False, subok=True)
         if type(input) is np.ndarray:
             input = input.view(ndarraywrap)
 
@@ -903,16 +847,17 @@ class Operator(object):
         if output is not None:
             if output.dtype != dtype:
                 raise ValueError(
-                    "Invalid output dtype '{0}'. Expected dtype is"
-                    " '{1}'.".format(output.dtype, dtype)
+                    "The output has an invalid dtype '{0}'. Expect"
+                    "ed dtype is '{1}'.".format(output.dtype, dtype)
                 )
-            if output.nbytes != np.product(shapeout) * dtype.itemsize:
+            if output.shape != shapeout:
                 raise ValueError(
-                    'The output has invalid shape {0}. Expected sh'
-                    'ape is {1}.'.format(output.shape, shapeout)
+                    "The output has an invalid shape '{0}'. Expect"
+                    "ed shape is '{1}'.".format(output.shape, shapeout)
                 )
-
-        output = self._allocate(shapeout, dtype, output)[0]
+            output = memory.wrap_ndarray(output)
+        else:
+            output = memory.allocate(shapeout, dtype, None, self.__name__)[0]
         return input, output
 
     def __mul__(self, other):
@@ -1023,10 +968,10 @@ def asoperator(operator, shapein=None, shapeout=None):
     ):
 
         def direct(input, output):
-            output[:] = operator.matvec(input)
+            output[...] = operator.matvec(input)
 
         def transpose(input, output):
-            output[:] = operator.rmatvec(input)
+            output[...] = operator.rmatvec(input)
 
         return Operator(
             direct=direct,
@@ -1150,7 +1095,7 @@ class AdditionOperator(CompositeOperator):
         # 1 operand: this case should not happen
         assert len(operands) > 1
 
-        w0, new = self._allocate_like(output, self.work[0])
+        w0, new = memory.allocate_like(output, self.work[0], self.__name__)
         if new:
             self.work[0] = w0
         self._propagate(output, w0)
@@ -1165,7 +1110,7 @@ class AdditionOperator(CompositeOperator):
 
         # more than 2 operands, input == output: 2 temporaries
         if self.same_data(input, output):
-            w1, new = self._allocate_like(output, self.work[1])
+            w1, new = memory.allocate_like(output, self.work[1], self.__name__)
             if new:
                 self.work[1] = w1
             operands[0].direct(input, w0)
@@ -1291,25 +1236,20 @@ class CompositionOperator(CompositeOperator):
 
     def direct(self, input, output):
 
-        operands = self.operands
-
-        # 1 operand: this case should not happen
-        assert len(operands) > 1
-
         # make the output buffer available in the work pool
-        self._set_output(output)
+        memory.push(output)
 
         i = input
-        for op in reversed(self.operands):
+        for op in reversed(self.operands[1:]):
             # get output from the work pool
-            o = self._get_output(op.reshapein(i.shape), output.dtype)
+            o = memory.get(op.reshapein(i.shape), output.dtype, self.__name__)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
             i = o
 
-        # remove output from the work pool, to avoid side effects on the output
-        self._del_output()
+        # remove output from the work pool, to avoid side effects
+        self.operands[0].direct(i, memory.pop())
 
     def reshapein(self, shape):
         for op in reversed(self.operands):
@@ -1320,22 +1260,6 @@ class CompositionOperator(CompositeOperator):
         for op in self.operands:
             shape = op.reshapeout(shape)
         return shape
-
-    def _get_output(self, shape, dtype):
-        nbytes = np.product(shape) * dtype.itemsize
-        if nbytes <= self.work[0].nbytes:
-            return self.work[0][:nbytes].view(dtype).reshape(shape)
-
-        buf, new = self._allocate(shape, dtype, self.work[1])
-        if new:
-            self.work[1] = buf
-        return buf
-
-    def _set_output(self, output):
-        self.work[0] = output.ravel().view(np.int8, ndarraywrap)
-
-    def _del_output(self):
-        self.work[0] = None
 
     @staticmethod
     def _apply_rules(ops):
@@ -1541,9 +1465,10 @@ class PartitionOperator(CompositeOperator):
             # could override __getitem__
             input_ = input.view(ndarraywrap)[self.slicein]
             output_ = output.view(ndarraywrap)[self.sliceout]
-            self._propagate(output, output_)
+            output_.__dict__ = output.__dict__
             op.direct(input_, output_)
-            output.__class__ = output_.__class__
+            if output_.__class__ is not ndarraywrap:
+                output.__class__ = output_.__class__
             destin += nin
             destout += nout
 
@@ -1768,7 +1693,7 @@ class ConcatenationOperator(CompositeOperator):
             op.T(input[self.slice], output)
             work += output
             dest += n
-        output[:] = work
+        output[...] = work
 
     def reshapein(self, shapein):
         shapeouts = [op.reshapein(shapein) for op in self.operands]
@@ -1948,7 +1873,7 @@ class IdentityOperator(ScalarOperator):
     def direct(self, input, output):
         if self.same_data(input, output):
             pass
-        output[:] = input
+        output[...] = input
 
     def _rule_linear(self, operator):
         if not operator.flags.LINEAR:
@@ -2039,10 +1964,6 @@ class BroadcastingOperator(Operator):
             raise ValueError("Invalid broadcasting.")
 
         return v
-
-
-class ndarraywrap(np.ndarray):
-    pass
 
 
 def _strshape(shape):
