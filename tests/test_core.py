@@ -180,7 +180,7 @@ def test_symmetric():
         def __init__(self):
             Operator.__init__(self, shapein=(2,), dtype=mat.dtype)
         def direct(self, input, output):
-            output[:] = np.dot(mat, input)
+            output[...] = np.dot(mat, input)
 
     op = Op()
     assert_flags(op, 'LINEAR,SQUARE,REAL,SYMMETRIC')
@@ -381,12 +381,12 @@ def test_propagation_class_nested():
     @square
     class O1(Operator):
         def direct(self, input, output):
-            output[:] = input
+            output[...] = input
             output.__class__ = ndarray2            
     @square
     class O2(Operator):
         def direct(self, input, output):
-            output[:] = input
+            output[...] = input
     o1 = O1()
     o2 = O2()
     ops1 = [I, 2, o2, 2 + o2]

@@ -45,7 +45,7 @@ class ZeroOperator(ScalarOperator):
         }
 
     def direct(self, input, output):
-        output[:] = 0
+        output[...] = 0
 
     def _combine_operators(self, o1, o2):
         result = ZeroOperator(shapein=o2.shapein or o2.reshapeout(o1.shapein),
@@ -218,7 +218,7 @@ class PackOperator(Operator):
         self.add_rule('.T.', '1')
 
     def direct(self, input, output):
-        output[:] = input[self.mask]
+        output[...] = input[self.mask]
 
     def associated_operators(self):
         #XXX .T does not share the same mask...
@@ -239,7 +239,7 @@ class UnpackOperator(Operator):
         self.add_rule('.T.', '1')
 
     def direct(self, input, output):
-        output[:] = 0
+        output[...] = 0
         output[self.mask] = input
 
     def associated_operators(self):
