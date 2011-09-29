@@ -1875,6 +1875,9 @@ class IdentityOperator(ScalarOperator):
             pass
         output[...] = input
 
+    def toshapein(self, v):
+        return v.reshape(self.shapein)
+
     def _rule_linear(self, operator):
         if not operator.flags.LINEAR:
             return None
