@@ -265,7 +265,8 @@ class Operator(object):
                                       'lemented.')
         input, output = self._validate_input(input, output)
         self._propagate(input, output, copy=True)
-        self.direct(input, output)
+        with memory.manager(output):
+            self.direct(input, output)
         if type(output) is ndarraywrap and len(output.__dict__) == 0:
             output = output.base
         return output
@@ -332,7 +333,8 @@ class Operator(object):
         if output is not None:
             output = self.toshapeout(output)
         input, output = self._validate_input(v, output)
-        self.direct(input, output)
+        with memory.manager(output):
+            self.direct(input, output)
         return output.ravel().view(np.ndarray)
 
     def rmatvec(self, v, output=None):
@@ -1094,21 +1096,14 @@ class CompositionOperator(CompositeOperator):
         }
 
     def direct(self, input, output):
-
-        # make the output buffer available in the work pool
-        memory.push(output)
-
         i = input
         for op in reversed(self.operands[1:]):
-            # get output from the work pool
             o = memory.get(op.reshapein(i.shape), output.dtype, self.__name__)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
             i = o
-
-        # remove output from the work pool, to avoid side effects
-        self.operands[0].direct(i, memory.pop())
+        self.operands[0].direct(i, output)
 
     def reshapein(self, shape):
         for op in reversed(self.operands):
@@ -1208,7 +1203,7 @@ class PartitionOperator(CompositeOperator):
     -------
     o1, o2 = Operator(shapein=(16,4)), Operator(shapein=(16,3))
     p = PartitionOperator([o1, o2], axis=-1)
-    print p.shapein
+    print(p.shapein)
     (16,7)
 
     """
@@ -1275,6 +1270,7 @@ class PartitionOperator(CompositeOperator):
             }
         
     def direct(self, input, output):
+        memory.up()
         if self.partitionout is None:
             shapeins = self._get_shapeins(input.shape)
             partitionout = [op.reshapein(s)[self.axisout] \
@@ -1296,6 +1292,7 @@ class PartitionOperator(CompositeOperator):
                 output.__class__ = output_.__class__
             destin += nin
             destout += nout
+        memory.down()
 
     def reshapein(self, shapein):
         if shapein is None:
