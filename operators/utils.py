@@ -10,20 +10,21 @@ class ndarraywrap(np.ndarray):
 
 def isscalar(data):
     """Hack around np.isscalar oddity"""
-    if isinstance(data, scipy.sparse.base.spmatrix):
+    if isinstance(data, (list, tuple, scipy.sparse.base.spmatrix)):
         return False
     if isinstance(data, np.ndarray):
         return data.ndim == 0
-    return not isinstance(data, (list,tuple))
+    return True
 
 
 def tointtuple(data):
     """Return input as a tuple of int."""
     if data is None:
         return data
-    if isscalar(data):
-        data = (data,)
-    return tuple(int(d) for d in data)
+    try:
+        return tuple(int(d) for d in data)
+    except:
+        return (int(data),)
     
 def strenum(choices, last='or'):
     """
