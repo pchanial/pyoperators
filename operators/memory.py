@@ -26,7 +26,7 @@ def allocate(shape, dtype, buf, description):
         shape = (shape,)
     dtype = np.dtype(dtype)
 
-    requested = dtype.itemsize * np.product(shape)
+    requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
     if buf is not None and buf.nbytes >= requested:
         if utils.isscalar(buf):
             buf = buf.reshape(1)
@@ -71,7 +71,7 @@ def get(shape, dtype, description):
     """
     global stack, istack
     if istack == 0:
-        requested = dtype.itemsize * np.product(shape)
+        requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
         if requested > stack[0].size:
             istack += 1
     
