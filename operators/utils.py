@@ -24,7 +24,7 @@ def tointtuple(data):
     if data is None:
         return data
     try:
-        return tuple(int(d) for d in data)
+        return tuple(None if d is None else int(d) for d in data)
     except:
         return (int(data),)
 

@@ -24,9 +24,10 @@ __all__ = [
     'AdditionOperator',
     'BroadcastingOperator',
     'CompositionOperator',
-    'ConcatenationOperator',
+    'ExpansionOperator',
     'IdentityOperator',
     'PartitionOperator',
+    'ReductionOperator',
     'ReshapeOperator',
     'ScalarOperator',
     'asoperator',
@@ -92,6 +93,7 @@ class OperatorRule(object):
             '.T' : the transpose of the reference object
             '.H' : the adjoint of the reference object
             '{...}' : an instance of the class '...'
+            '{self}': an instance of the reference operator's class
         For instance, given a string '.C.', the rule will apply to the inputs
         o1 and o2 if o1 is o2.C. For a condition '.{DiagonalOperator}', the
         rule will apply if o2 is a DiagonalOperator instance.
@@ -139,7 +141,10 @@ class OperatorRule(object):
         predicate = self._symbol2operator(self.predicate)
 
         if isinstance(other_, str):
-            if other.__class__.__name__ != other_ and all(
+            if other_ == 'self':
+                if not isinstance(other, self.reference.__class__):
+                    return None
+            elif other.__class__.__name__ != other_ and all(
                 b.__name__ != other_ for b in other.__class__.__bases__
             ):
                 return None
@@ -381,7 +386,9 @@ class Operator(object):
         v = np.zeros(n, self.dtype)
         for i in range(n):
             v[i] = 1
-            self.direct(v.reshape(shapein), d[i, :].reshape(shapeout))
+            o = d[i, :].reshape(shapeout)
+            with memory.manager(o):
+                self.direct(v.reshape(shapein), o)
             v[i] = 0
         if len(d.__dict__) == 0:
             d = d.view(np.ndarray)
@@ -394,7 +401,7 @@ class Operator(object):
         input, output = self._validate_input(v, output)
         with memory.manager(output):
             self.direct(input, output)
-        return output.ravel().view(np.ndarray)
+        return output.view(np.ndarray).ravel()
 
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
@@ -1223,7 +1230,6 @@ class CompositionOperator(CompositeOperator):
             or all([op.flags.SQUARE for op in self.operands]),
         }
         CompositeOperator.__init__(self, flags=flags)
-        self.work = [None, None]
 
     def associated_operators(self):
         return {
@@ -1316,7 +1322,358 @@ class CompositionOperator(CompositeOperator):
         return ops
 
 
-class PartitionOperator(CompositeOperator):
+class PartitionBaseOperator(CompositeOperator):
+    """
+    Abstract base class for PartitionOperator, ExpansionOperator and
+    ReductionOperator.
+    """
+
+    def __init__(
+        self, operands, partitionin=None, partitionout=None, axisin=None, axisout=None
+    ):
+        if partitionin is partitionout is None:
+            raise ValueError('No partition is provided.')
+        if partitionin is not None:
+            if len(partitionin) != len(operands):
+                raise ValueError(
+                    'The number of operators must be the same as t'
+                    'he length of the input partition.'
+                )
+        if partitionout is not None:
+            if len(partitionout) != len(operands):
+                raise ValueError(
+                    'The number of operators must be the same as t'
+                    'he length of the output partition.'
+                )
+        flags = {
+            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
+            'REAL': all([op.flags.REAL for op in self.operands]),
+        }
+
+        if partitionin is not None and partitionout is not None:
+            flags['SQUARE'] = all([op.flags.SQUARE for op in self.operands])
+
+        self.axisin = axisin
+        self.axisout = axisout
+        self.partitionin = partitionin
+        self.partitionout = partitionout
+        self.slicein = self._get_slice(axisin)
+        self.sliceout = self._get_slice(axisout)
+        if partitionin is None:
+            self.__class__ = ExpansionOperator
+        elif partitionout is None:
+            self.__class__ = ReductionOperator
+        else:
+            self.__class__ = PartitionOperator
+        CompositeOperator.__init__(self, flags=flags)
+        self.add_rule('.{Operator}', self._rule_operator_add, 'addition')
+        self.add_rule('.{self}', self._rule_add, 'addition')
+        self.add_rule('.{Operator}', self._rule_operator_comp_right)
+        self.add_rule('{Operator}.', self._rule_operator_comp_left)
+        self.add_rule('.{PartitionBaseOperator}', self._rule_comp_right)
+        self.add_rule('{PartitionBaseOperator}.', self._rule_comp_left)
+
+    def reshapein(self, shapein):
+        if shapein is None:
+            shapeouts = [op.reshapein(None) for op in self.operands]
+        elif self.partitionin is None:
+            shapeouts = [op.reshapein(shapein) for op in self.operands]
+        else:
+            shapeouts = [
+                op.reshapein(s)
+                for op, s in zip(
+                    self.operands,
+                    self._get_shapes(shapein, self.partitionin, self.axisin),
+                )
+            ]
+        s = self._validate_shapes(shapeouts, self.partitionout, self.axisout)
+        if None in shapeouts or s is None:
+            if shapein is None:
+                return None
+            raise ValueError('Ambiguous implicit partition.')
+        if self.partitionout is None:
+            return s
+        shapeout = list(s)
+        shapeout[self.axisout] = np.sum([s[self.axisout] for s in shapeouts])
+        return tointtuple(shapeout)
+
+    def reshapeout(self, shapeout):
+        if shapeout is None:
+            shapeins = [op.reshapeout(None) for op in self.operands]
+        elif self.partitionout is None:
+            shapeins = [op.reshapeout(shapeout) for op in self.operands]
+        else:
+            shapeins = [
+                op.reshapeout(s)
+                for op, s in zip(
+                    self.operands,
+                    self._get_shapes(shapeout, self.partitionout, self.axisout),
+                )
+            ]
+        s = self._validate_shapes(shapeins, self.partitionin, self.axisin)
+        if None in shapeins or s is None:
+            if shapeout is None:
+                return None
+            raise ValueError('Ambiguous implicit partition.')
+        if self.partitionin is None:
+            return s
+        shapein = list(s)
+        shapein[self.axisin] = np.sum([s[self.axisin] for s in shapeins])
+        return tointtuple(shapein)
+
+    def toshapein(self, v):
+        if self.shapein is not None:
+            return v.reshape(self.shapein)
+        if self.partitionin is None:
+            return self.operands[0].toshapein(v)
+        if None in self.partitionin or self.axisin not in (0, -1):
+            raise ValueError('Ambiguous reshaping.')
+        p = np.sum(self.partitionin)
+        if v.size == p:
+            return v
+        if self.axisin == 0:
+            return v.reshape((p, -1))
+        return v.reshape((-1, p))
+
+    def toshapeout(self, v):
+        if self.shapeout is not None:
+            return v.reshape(self.shapeout)
+        if self.partitionout is None:
+            return self.operands[0].toshapeout(v)
+        if None in self.partitionout or self.axisout not in (0, -1):
+            raise ValueError('Ambiguous reshaping.')
+        p = np.sum(self.partitionout)
+        if v.size == p:
+            return v
+        if self.axisout == 0:
+            return v.reshape((p, -1))
+        return v.reshape((-1, p))
+
+    @staticmethod
+    def _get_partition(shapes, axis):
+        return tuple(None if s is None else s[axis] for s in shapes)
+
+    @staticmethod
+    def _get_partitionin(ops, partitionout, axisout, axisin):
+        ndim_min = axisout + 1 if axisout >= 0 else -axisout
+        partitionin = len(ops) * [None]
+        for i, op in enumerate(ops):
+            if partitionout[i] is None:
+                continue
+            pin = []
+            # check that partitionout does not depend on the rank of the input
+            for ndim in range(ndim_min, 33):
+                shapeout = ndim * [0]
+                shapeout[axisout] = partitionout[i]
+                try:
+                    shapein = op.shapein or op.reshapeout(shapeout)
+                    pin.append(shapein[axisin])
+                except IndexError:
+                    continue
+            if len(pin) == 0 or any([p != pin[0] for p in pin]):
+                continue
+            partitionin[i] = pin[0]
+        return tuple(partitionin)
+
+    @staticmethod
+    def _get_partitionout(ops, partitionin, axisin, axisout):
+        ndim_min = axisin + 1 if axisin >= 0 else -axisin
+        partitionout = len(ops) * [None]
+        for i, op in enumerate(ops):
+            if partitionin[i] is None:
+                continue
+            pout = []
+            # check that partitionout does not depend on the rank of the input
+            for ndim in range(ndim_min, 33):
+                shapein = ndim * [0]
+                shapein[axisin] = partitionin[i]
+                try:
+                    shapeout = op.shapeout or op.reshapein(shapein)
+                    pout.append(shapeout[axisout])
+                except IndexError:
+                    continue
+            if len(pout) == 0 or any([p != pout[0] for p in pout]):
+                continue
+            partitionout[i] = pout[0]
+        return tuple(partitionout)
+
+    @staticmethod
+    def _get_shapes(shape, partition, axis):
+        if None in partition:
+            raise ValueError(
+                'The shape of an operator with implicit partition '
+                'cannot be inferred.'
+            )
+        shapes = []
+        for p in partition:
+            shape_ = list(shape)
+            shape_[axis] = p
+            shapes.append(shape_)
+        return shapes
+
+    @staticmethod
+    def _get_slice(axis):
+        if axis is None:
+            return None
+        if axis >= 0:
+            return (axis + 1) * [slice(None)] + [Ellipsis]
+        return [Ellipsis] + (-axis) * [slice(None)]
+
+    @staticmethod
+    def _validate_composition(op1, op2):
+        if op1.axisin != op2.axisout:
+            return None
+        p1 = op1.partitionin
+        p2 = op2.partitionout
+        if p1 is None or p2 is None:
+            return None
+        if len(p1) != len(p2):
+            return None
+        if any(p != q for p, q in zip(p1, p2) if None not in (p, q)):
+            return None
+        return op2.partitionin, op1.partitionout
+
+    @staticmethod
+    def _validate_addition(op1, op2):
+        if op1.axisin != op2.axisin or op1.axisout != op2.axisout:
+            return None, None
+
+        def func(p1, p2):
+            if p1 is None and p2 is not None or p1 is not None and p2 is None:
+                return None
+            if len(p1) != len(p2):
+                return None
+            if any(p != q for p, q in zip(p1, p2) if None not in (p, q)):
+                return None
+            return [p or q for p, q in zip(p1, p2)]
+
+        return func(op1.partitionin, op2.partitionin), func(
+            op1.partitionout, op2.partitionout
+        )
+
+    @staticmethod
+    def _validate_shapes(shapes, p, axis):
+        if p is None:
+            if any([s != shapes[0] for s in shapes]):
+                raise ValueError('The operands have incompatible shapes.')
+            return shapes[0]
+        explicit = [s is not None for s in shapes]
+        try:
+            s0 = shapes[explicit.index(True)]
+        except ValueError:
+            return None
+        rank = len(s0)
+        if any([s is not None and len(s) != rank for s in shapes]):
+            raise ValueError(
+                'The partition operators do not have the same numb' 'er of dimensions.'
+            )
+        if any(
+            [
+                shapes[i] is not None and shapes[i][axis] != p[i]
+                for i in range(len(p))
+                if p[i] is not None
+            ]
+        ):
+            raise ValueError(
+                "The partition operators have shapes '{0}' incompa"
+                "tible with the partition {1}.".format(_strshape(shapes), _strshape(p))
+            )
+        if np.sum(explicit) < 2:
+            return s0
+        ok = [all([s is None or s[i] == s0[i] for s in shapes]) for i in range(rank)]
+        ok[axis] = True
+        if not all(ok):
+            raise ValueError(
+                "The dimensions of the partition operators '{0]' a"
+                "re not the same along axes other than that of the partition.".format(
+                    ','.join([_strshape(s) for s in shapes])
+                )
+            )
+        return s0
+
+    def _rule_operator_add(self, op):
+        if op.shapein is not None:
+            return None
+        return PartitionBaseOperator(
+            [o + op for o in self.operands],
+            partitionin=self.partitionin,
+            axisin=self.axisin,
+            partitionout=self.partitionout,
+            axisout=self.axisout,
+        )
+
+    def _rule_add(self, p):
+        partitionin, partitionout = self._validate_addition(p, self)
+        if partitionin is partitionout is None:
+            return None
+        operands = [o1 + o2 for o1, o2 in zip(p.operands, self.operands)]
+        return PartitionBaseOperator(
+            operands,
+            partitionin=partitionin,
+            axisin=self.axisin,
+            partitionout=partitionout,
+            axisout=self.axisout,
+        )
+
+    def _rule_operator_comp_left(self, op):
+        if self.partitionout is None:
+            return None
+        if op.shapein is not None:
+            return None
+        n = len(self.partitionout)
+        partitionout = self._get_partitionout(
+            n * [op], self.partitionout, self.axisout, self.axisout
+        )
+        return PartitionBaseOperator(
+            [op * o for o in self.operands],
+            partitionin=self.partitionin,
+            axisin=self.axisin,
+            partitionout=partitionout,
+            axisout=self.axisout,
+        )
+
+    def _rule_operator_comp_right(self, op):
+        if self.partitionin is None:
+            return None
+        if op.shapein is not None:
+            return None
+        n = len(self.partitionin)
+        partitionin = self._get_partitionin(
+            n * [op], self.partitionin, self.axisin, self.axisin
+        )
+        return PartitionBaseOperator(
+            [o * op for o in self.operands],
+            partitionin=partitionin,
+            axisin=self.axisin,
+            partitionout=self.partitionout,
+            axisout=self.axisout,
+        )
+
+    def _rule_comp_left(self, p):
+        return self._rule_comp(p, self)
+
+    def _rule_comp_right(self, p):
+        return self._rule_comp(self, p)
+
+    def _rule_comp(self, p1, p2):
+        partitions = self._validate_composition(p1, p2)
+        if partitions is None:
+            return None
+        partitionin, partitionout = partitions
+        axisin, axisout = p2.axisin, p1.axisout
+        operands = [o1 * o2 for o1, o2 in zip(p1.operands, p2.operands)]
+        if partitionin is partitionout is None:
+            return AdditionOperator(operands)
+        return PartitionBaseOperator(
+            operands,
+            partitionin=partitionin,
+            axisin=axisin,
+            partitionout=partitionout,
+            axisout=axisout,
+        )
+
+
+class PartitionOperator(PartitionBaseOperator):
     """
     Block diagonal operator with more stringent conditions.
 
@@ -1349,70 +1706,23 @@ class PartitionOperator(CompositeOperator):
 
     """
 
-    def __init__(
-        self,
-        operands,
-        partitionin=None,
-        axisin=0,
-        axisout=None,
-        shapein=None,
-        shapeout=None,
-    ):
+    def __init__(self, operands, partitionin=None, axisin=0, axisout=None):
 
         if axisout is None:
             axisout = axisin
 
         if partitionin is None:
-            partitionin = tuple(
-                None if op.shapein is None else op.shapein[axisin] for op in operands
-            )
-            if None in partitionin:
-                partitionin = None
+            partitionin = self._get_partition([op.shapein for op in operands], axisin)
         partitionin = tointtuple(partitionin)
+        partitionout = self._get_partitionout(operands, partitionin, axisin, axisout)
 
-        if partitionin is not None:
-            if len(partitionin) != len(operands):
-                raise ValueError(
-                    'The number of operators must be the same as t'
-                    'he length of the partition.'
-                )
-
-        partitionout = self._get_partitionout(partitionin, axisin, axisout)
-
-        if axisin >= 0:
-            slicein = (axisin + 1) * [slice(None)] + [Ellipsis]
-        else:
-            slicein = [Ellipsis] + (-axisin) * [slice(None)]
-        if axisout >= 0:
-            sliceout = (axisout + 1) * [slice(None)] + [Ellipsis]
-        else:
-            sliceout = [Ellipsis] + (-axisout) * [slice(None)]
-
-        flags = {
-            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
-            'REAL': all([op.flags.REAL for op in self.operands]),
-            'SQUARE': all([op.flags.SQUARE for op in self.operands]),
-        }
-
-        self.axisin = axisin
-        self.axisout = axisout
-        self.partitionin = partitionin
-        self.partitionout = partitionout
-        self.slicein = slicein
-        self.sliceout = sliceout
-        CompositeOperator.__init__(
-            self, shapein=shapein, shapeout=shapeout, flags=flags
-        )
-        self.add_rule('.{Operator}', self._rule_operator_comp_right)
-        self.add_rule('{Operator}.', self._rule_operator_comp_left)
-        self.add_rule('.{Operator}', self._rule_operator_add, 'addition')
-        self.add_rule(
-            '{PartitionOperator}.',
-            lambda o: self._rule_partition(o, self, np.add),
-            'addition',
-        )
-        self.add_rule(
-            '{PartitionOperator}.', lambda o: self._rule_partition(o, self, np.multiply)
+        PartitionBaseOperator.__init__(
+            self,
+            operands,
+            partitionin=partitionin,
+            partitionout=partitionout,
+            axisin=axisin,
+            axisout=axisout,
         )
 
     def associated_operators(self):
@@ -1445,8 +1755,8 @@ class PartitionOperator(CompositeOperator):
 
     def direct(self, input, output):
         memory.up()
-        if self.partitionout is None:
-            shapeins = self._get_shapeins(input.shape)
+        if None in self.partitionout:
+            shapeins = self._get_shapes(input.shape, self.partitionin, self.axisin)
             partitionout = [
                 op.reshapein(s)[self.axisout] for op, s in zip(self.operands, shapeins)
             ]
@@ -1457,8 +1767,7 @@ class PartitionOperator(CompositeOperator):
         for op, nin, nout in zip(self.operands, self.partitionin, partitionout):
             self.slicein[self.axisin] = slice(destin, destin + nin)
             self.sliceout[self.axisout] = slice(destout, destout + nout)
-            # view input_ and output_ as ndarraywrap, since ndarray subclasses
-            # could override __getitem__
+            # view as ndarraywrap, since subclasses could override __getitem__
             input_ = input.view(ndarraywrap)[self.slicein]
             output_ = output.view(ndarraywrap)[self.sliceout]
             output_.__dict__ = output.__dict__
@@ -1469,164 +1778,15 @@ class PartitionOperator(CompositeOperator):
             destout += nout
         memory.down()
 
-    def reshapein(self, shapein):
-        if shapein is None:
-            shapeouts = [op.reshapein(None) for op in self.operands]
-            return self._validate_shapes(shapeouts, self.partitionout, self.axisout)
-        shapeouts = [
-            op.reshapein(s) for op, s in zip(self.operands, self._get_shapeins(shapein))
-        ]
-        shapeout = list(shapeouts[0])
-        shapeout[self.axisout] = np.sum((s[self.axisout] for s in shapeouts))
-        return tointtuple(shapeout)
 
-    def reshapeout(self, shapeout):
-        if shapeout is None:
-            shapeins = [op.reshapeout(None) for op in self.operands]
-            return self._validate_shapes(shapeins, self.partitionin, self.axisin)
-        if self.partitionout is None:
-            raise ValueError(
-                'The input shape of an operator with implicit part'
-                'ition cannot be inferred.'
-            )
-        shapeout0 = list(shapeout)
-        shapeout0[self.axisout] = self.partitionout[0]
-        shapein = list(self.operands[0].reshapeout(shapeout0))
-        shapein[self.axisin] = np.sum(self.partitionin)
-        return tointtuple(shapein)
-
-    def toshapein(self, v):
-        if self.shapein is not None:
-            return v.reshape(self.shapein)
-        if self.partitionin is None or self.axisin not in (0, -1):
-            raise ValueError('Ambiguous reshaping.')
-        p = np.sum(self.partitionin)
-        if v.size == p:
-            return v
-        if self.axis == 0:
-            return v.reshape((p, -1))
-        return v.reshape((-1, p))
-
-    def _get_shapeins(self, shapein):
-        if self.partitionin is None:
-            raise ValueError(
-                'The output shape of an operator with implicit par'
-                'tition cannot be inferred.'
-            )
-        shapeins = []
-        for p in self.partitionin:
-            shapein_ = list(shapein)
-            shapein_[self.axisin] = p
-            shapeins.append(shapein_)
-        return shapeins
-
-    def _get_partitionout(self, partitionin, axisin, axisout):
-        if partitionin is None:
-            return None
-        ndim_min = axisin + 1 if axisin >= 0 else -axisin
-        partitionout = len(self.operands) * [None]
-        for i, op in enumerate(self.operands):
-            pout = []
-            # check that partitionout does not depend on the rank of the input
-            for ndim in range(ndim_min, 33):
-                shapein_ = ndim * [0]
-                shapein_[axisin] = partitionin[i]
-                try:
-                    shapeout_ = op.shapeout or op.reshapein(shapein_)
-                    pout.append(shapeout_[axisout])
-                except (IndexError, NotImplementedError):
-                    continue
-            if len(pout) == 0 or any([p != pout[0] for p in pout]):
-                return None
-            partitionout[i] = pout[0]
-        return tointtuple(partitionout)
-
-    def _validate_shapes(self, shapes, p, axis):
-        if p is None:
-            return None
-        explicit = [s is not None for s in shapes]
-        try:
-            s0 = shapes[explicit.index(True)]
-        except ValueError:
-            return None
-        rank = len(s0)
-        if any([s is not None and len(s) != rank for s in shapes]):
-            raise ValueError(
-                'The partition operators do not have the same numb' 'er of dimensions.'
-            )
-        if any(
-            [shapes[i] is not None and shapes[i][axis] != p[i] for i in range(len(p))]
-        ):
-            raise ValueError(
-                "The partition operators have shapes '{0}' incompa"
-                "tible with the partition {1}.".format(_strshape(shapes), _strshape(p))
-            )
-        if np.sum(explicit) < 2:
-            return None
-        ok = [all([s is None or s[i] == s0[i] for s in shapes]) for i in range(rank)]
-        ok[axis] = True
-        if not all(ok):
-            raise ValueError(
-                "The dimensions of the partition operators '{0]' a"
-                "re not the same along axes other than that of the partition.".format(
-                    ','.join([_strshape(s) for s in shapes])
-                )
-            )
-        if None in shapes or None in p:
-            return None
-        shape = list(s0)
-        shape[axis] = np.sum(p)
-        return tointtuple(shape)
-
-    def _rule_operator_add(self, op):
-        if op.shapein is not None:
-            return None
-        return PartitionOperator(
-            [o + op for o in self.operands],
-            partitionin=self.partitionin,
-            axisin=self.axisin,
-        )
-
-    def _rule_operator_comp_left(self, op):
-        if op.shapein is not None:
-            return None
-        return PartitionOperator(
-            [op * o for o in self.operands],
-            partitionin=self.partitionin,
-            axisin=self.axisin,
-        )
-
-    def _rule_operator_comp_right(self, op):
-        if op.shapein is not None:
-            return None
-        return PartitionOperator(
-            [o * op for o in self.operands],
-            partitionin=self.partitionin,
-            axisin=self.axisin,
-        )
-
-    def _rule_partition(self, p1, p2, opn):
-        if p1.axisin != p2.axisout:
-            return None
-        if p1.partitionin and p2.partitionout and p1.partitionin != p2.partitionout:
-            return None
-        partition = p2.partitionin or p2.partitionin
-        return PartitionOperator(
-            [opn(o1, o2) for o1, o2 in zip(p1.operands, p2.operands)],
-            partitionin=partition,
-            axisin=p2.axisin,
-            axisout=p1.axisout,
-        )
-
-
-class ConcatenationOperator(CompositeOperator):
+class ExpansionOperator(PartitionBaseOperator):
     """
     Block column operator with more stringent conditions.
 
     Example
     -------
     >>> I = IdentityOperator(shapein=3)
-    >>> op = ConcatenationOperator([I,2*I])
+    >>> op = ExpansionOperator([I,2*I])
     >>> op.todense()
 
     array([[ 1.,  0.,  0.],
@@ -1638,72 +1798,101 @@ class ConcatenationOperator(CompositeOperator):
 
     """
 
-    def __init__(self, operands, partition=None, axis=0, shapein=None, shapeout=None):
-        if partition is None:
-            partition = tuple(
-                None if op.shapeout is None else op.shapeout[axis] for op in operands
+    def __init__(self, operands, partitionout=None, axisout=0):
+        if partitionout is None:
+            partitionout = self._get_partition(
+                [op.shapeout for op in operands], axisout
             )
-            if None in partition:
-                partition = None
-        partition = tointtuple(partition)
+        partitionout = tointtuple(partitionout)
 
-        if partition is not None:
-            if len(partition) != len(operands):
-                raise ValueError(
-                    'The number of operators must be the same as t'
-                    'he length of the partition.'
-                )
-
-        if axis >= 0:
-            slice_ = (axis + 1) * [slice(None)] + [Ellipsis]
-        else:
-            slice_ = [Ellipsis] + (-axis) * [slice(None)]
-
-        flags = {
-            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
-            'REAL': all([op.flags.REAL for op in self.operands]),
-        }
-
-        self.axis = axis
-        self.partition = partition
-        self.slice = slice_
-        CompositeOperator.__init__(
-            self, shapein=shapein, shapeout=shapeout, flags=flags
+        PartitionBaseOperator.__init__(
+            self, operands, partitionout=partitionout, axisout=axisout
         )
 
+    def associated_operators(self):
+        return {
+            'C': ExpansionOperator(
+                [op.C for op in self.operands], self.partitionout, self.axisout
+            ),
+            'T': ReductionOperator(
+                [op.T for op in self.operands], self.partitionout, self.axisout
+            ),
+            'H': ReductionOperator(
+                [op.H for op in self.operands], self.partitionout, self.axisout
+            ),
+        }
+
     def direct(self, input, output):
-        if self.partition is None:
+        if None in self.partitionout:
             raise NotImplementedError()
         dest = 0
-        for op, n in zip(self.operands, self.partition):
-            self.slice[self.axis] = slice(dest, dest + n)
-            op.direct(input, output[self.slice])
+        for op, n in zip(self.operands, self.partitionout):
+            self.sliceout[self.axisout] = slice(dest, dest + n)
+            op.direct(input, output[self.sliceout])
             dest += n
 
-    def transpose(self, input, output):
-        if self.partition is None:
+    def __str__(self):
+        operands = ['[{}]'.format(o) for o in self.operands]
+        if len(operands) > 2:
+            operands = [operands[0], '...', operands[-1]]
+        return '[ ' + ' '.join(operands) + ' ]'
+
+
+class ReductionOperator(PartitionBaseOperator):
+    """
+    Block row operator with more stringent conditions.
+
+    Example
+    -------
+    >>> I = IdentityOperator(shapein=3)
+    >>> op = ReductionOperator([I,2*I])
+    >>> op.todense()
+
+    array([[ 1.,  0.,  0., 2., 0., 0.],
+           [ 0.,  1.,  0., 0., 2., 0.],
+           [ 0.,  0.,  1., 0., 0., 2.]])
+
+    """
+
+    def __init__(self, operands, partitionin=None, axisin=0):
+        if partitionin is None:
+            partitionin = self._get_partition([op.shapein for op in operands], axisin)
+        partitionin = tointtuple(partitionin)
+
+        PartitionBaseOperator.__init__(
+            self, operands, partitionin=partitionin, axisin=axisin
+        )
+
+    def associated_operators(self):
+        return {
+            'C': ReductionOperator(
+                [op.C for op in self.operands], self.partitionin, self.axisin
+            ),
+            'T': ExpansionOperator(
+                [op.T for op in self.operands], self.partitionin, self.axisin
+            ),
+            'H': ExpansionOperator(
+                [op.H for op in self.operands], self.partitionin, self.axisin
+            ),
+        }
+
+    def direct(self, input, output):
+        if None in self.partitionin:
             raise NotImplementedError()
         work = np.zeros_like(output)
         dest = 0
-        for op, n in zip(self.operands, self.partition):
-            self.slice[self.axis] = slice(dest, dest + n)
-            op.T(input[self.slice], output)
+        for op, n in zip(self.operands, self.partitionin):
+            self.slicein[self.axisin] = slice(dest, dest + n)
+            op(input[self.slicein], output)
             work += output
             dest += n
         output[...] = work
 
-    def reshapein(self, shapein):
-        shapeouts = [op.reshapein(shapein) for op in self.operands]
-        shapeout = list(shapeouts[0])
-        shapeout[self.axis] = np.sum((s[self.axis] for s in shapeouts))
-        return shapeout
-
-    def reshapeout(self, shapeout):
-        return self.operands[0].shapein
-
     def __str__(self):
-        operands = ['[{}]'.format(o) for o in self.operands]
-        return '[' + ' '.join(operands) + ']'
+        operands = [str(o) for o in self.operands]
+        if len(operands) > 2:
+            operands = [operands[0], '...', operands[-1]]
+        return '[[ ' + ' '.join(operands) + ' ]]'
 
 
 @real
