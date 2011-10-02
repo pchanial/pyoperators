@@ -4,7 +4,8 @@ from nose.tools import (eq_, ok_, assert_is_none, assert_is_not_none, assert_is,
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
-from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ScalarOperator, ndarraywrap
+from operators import memory
+from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ExpansionOperator, ReductionOperator, ScalarOperator, ndarraywrap, asoperator
 from operators.linear import I, O, DiagonalOperator, IdentityOperator
 from operators.decorators import symmetric, square
 
@@ -43,14 +44,14 @@ class ndarray4(np.ndarray):
     pass
 
 @square
-class I2(Operator):
+class Op2(Operator):
     def direct(self, input, output):
         output.newattr = True
     def transpose(self, input, output):
         pass            
 
 @square
-class I3(Operator):
+class Op3(Operator):
     def direct(self, input, output):
         output.__class__ = ndarray3
     def transpose(self, input, output):
@@ -328,7 +329,7 @@ def check_propagation_class_inplace(op, i, c):
 def test_propagation_class():
 
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
-    ops = [I, I2(), I2()*I3(), I3()*I2()]
+    ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
     results = [[np.ndarray, ndarray2],
                [ndarraywrap, ndarray2],
                [ndarray3, ndarray3],
@@ -341,7 +342,7 @@ def test_propagation_class():
 def test_propagation_class_inplace():
 
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
-    ops = [I, I2(), I2()*I3(), I3()*I2()]
+    ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
     results = [[np.ndarray, ndarray2],
                [ndarraywrap, ndarray2],
                [ndarray3, ndarray3],
@@ -354,7 +355,7 @@ def test_propagation_class_inplace():
 def test_propagation_classT():
 
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
-    ops = [I, I2(), I2()*I3(), I3()*I2()]
+    ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
     resultsT = [[np.ndarray, ndarray2],
                 [np.ndarray, ndarray2],
                 [ndarray4, ndarray4],
@@ -367,7 +368,7 @@ def test_propagation_classT():
 def test_propagation_classT_inplace():
 
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
-    ops = [I, I2(), I2()*I3(), I3()*I2()]
+    ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
     resultsT = [[np.ndarray, ndarray2],
                 [np.ndarray, ndarray2],
                 [ndarray4, ndarray4],
@@ -450,29 +451,51 @@ def test_composition():
     op = np.product([Op(v) for v in [1]])
     yield assert_is, op.__class__, Op
 
+    memory.stack = []
     op = np.product([Op(v) for v in [1,2]])
     yield assert_is, op.__class__, CompositionOperator
     yield assert_array_equal, op(1), 2
-    yield assert_is_none, op.work[0]
-    yield assert_is_none, op.work[1]
+    yield assert_equal, len(memory.stack), 1
+    yield assert_is_not_none, memory.stack[0]
+
+    memory.stack = []
+    yield assert_array_equal, op([1]), 2
+    yield assert_equal, len(memory.stack), 0
 
     op = np.product([Op(v) for v in [1,2,4]])
     yield assert_is, op.__class__, CompositionOperator
 
     input = np.array(1, int)
     output = np.array(0, int)
+    memory.stack = []
     yield assert_array_equal, op(input, output), 8
     yield assert_array_equal, input, 1
     yield assert_array_equal, output, 8
-    yield assert_is_none, op.work[0]
-    yield assert_is_none, op.work[1]
+    yield assert_equal, len(memory.stack), 1
+    yield assert_is_not_none, memory.stack[0]
 
     output = input
+    memory.stack = []
     yield assert_array_equal, op(input, output), 8
     yield assert_array_equal, input, 8
     yield assert_array_equal, output, 8
-    yield assert_is_none, op.work[0]
-    yield assert_is_none, op.work[1]
+    yield assert_equal, len(memory.stack), 1
+    yield assert_is_not_none, memory.stack[0]
+
+    input = np.array([1], int)
+    output = np.array([0], int)
+    memory.stack = []
+    yield assert_array_equal, op(input, output), 8
+    yield assert_array_equal, input, 1
+    yield assert_array_equal, output, 8
+    yield assert_equal, len(memory.stack), 0
+
+    output = input
+    memory.stack = []
+    yield assert_array_equal, op(input, output), 8
+    yield assert_array_equal, input, 8
+    yield assert_array_equal, output, 8
+    yield assert_equal, len(memory.stack), 0
 
 
 def test_scalar_operator():
@@ -533,7 +556,7 @@ def test_partition2():
             shape_[self.axis] //= 2
             return shape_
     i = np.arange(3*4*5*6).reshape(3,4,5,6)
-    for axisp,p in zip((0,1,2,3,-1,-2,-3), ((1,1,1),(1,2,1),(2,2,1),(2,3,1), (2,3,1),(2,2,1), (1,2,1), (1,1,1))):
+    for axisp,p in zip((0,1,2,3,-1,-2,-3), ((1,1,1),(1,2,1),(2,2,1),(2,3,1),(2,3,1),(2,2,1),(1,2,1),(1,1,1))):
         for axisr in (0,1,2,3):
             op = PartitionOperator(3*[Op(axisr)], partitionin=p, axisin=axisp)
             yield assert_array_equal, op(i), Op(axisr)(i), 'axis={},{}'.format(
@@ -555,6 +578,31 @@ def test_partition4():
     
     r = (op + p + op) * p
     assert isinstance(r, PartitionOperator)
+
+def test_expansion1():
+    I2 = IdentityOperator(2)
+    I3 = IdentityOperator(3)
+    assert_raises(ValueError, ExpansionOperator, [I2, 2*I3])
+
+def test_expansion2():
+    p = np.matrix([[1,0], [0,2], [1,0]])
+    o = asoperator(np.matrix(p))
+    e = ExpansionOperator([o, 2*o])
+    assert_array_equal(e.todense(), np.vstack([p,2*p]))
+    assert_array_equal(e.T.todense(), e.todense().T)
+
+def test_reduction1():
+    I2 = IdentityOperator(2)
+    I3 = IdentityOperator(3)
+    assert_raises(ValueError, ReductionOperator, [I2, 2*I3])
+
+def test_reduction2():
+    p = np.matrix([[1,0], [0,2], [1,0]])
+    o = asoperator(np.matrix(p))
+    r = ReductionOperator([o, 2*o])
+    assert_array_equal(r.todense(), np.hstack([p,2*p]))
+    assert_array_equal(r.T.todense(), r.todense().T)
+
 
 if __name__ == "__main__":
     nose.run(argv=['', __file__])

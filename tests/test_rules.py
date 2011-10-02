@@ -8,9 +8,11 @@ op = Operator()
 class Operator1(Operator): pass
 class Operator2(Operator): pass
 class Operator3(Operator): pass
+class Operator4(Operator1): pass
 op1 = Operator1()
 op2 = Operator2()
 op3 = Operator3()
+op4 = Operator4()
 
 def p1(o2):
     return (o2, op1)
@@ -53,6 +55,12 @@ def test_rule4():
     yield assert_is_none, rule(op2)
     s = ScalarOperator(2)
     yield eq_, rule(s), (s, op1)
+
+def test_rule5():
+    rule = OperatorRule(op1, '.{self}', p2)
+    yield eq_, rule(op1), op3
+    yield assert_is_none, rule(op2)
+    yield eq_, rule(op4), op3
 
 if __name__ == "__main__":
     nose.run(argv=['', __file__])
