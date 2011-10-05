@@ -60,3 +60,8 @@ def unitary(cls):
 def involutary(cls):
     cls._set_flags(cls, {'SQUARE': True, 'INVOLUTARY': True})
     return cls
+
+
+def inplace(cls):
+    cls.inplace = True
+    return cls

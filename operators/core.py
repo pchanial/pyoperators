@@ -16,7 +16,15 @@ import types
 from collections import namedtuple
 from . import memory
 from .utils import isscalar, ndarraywrap, tointtuple, strenum
-from .decorators import real, idempotent, involutary, orthogonal, square, symmetric
+from .decorators import (
+    real,
+    idempotent,
+    involutary,
+    orthogonal,
+    square,
+    symmetric,
+    inplace,
+)
 
 __all__ = [
     'Operator',
@@ -296,6 +304,7 @@ class Operator(object):
     shapeout = None
     dtype = None
     flags = OperatorFlags(*9 * (False,))
+    inplace = False
     _reshapein = None
     _reshapeout = None
 
@@ -321,9 +330,18 @@ class Operator(object):
                 'Call to ' + self.__name__ + ' is not imp' 'lemented.'
             )
         input, output = self._validate_input(input, output)
-        self._propagate(input, output, copy=True)
         with memory.manager(output):
-            self.direct(input, output)
+            if not self.inplace and self.same_data(input, output):
+                memory.up()
+                output_ = memory.get(output.shape, output.dtype, self.__name__)
+            else:
+                output_ = output
+            self._propagate(input, output_, copy=True)
+            self.direct(input, output_)
+            if not self.inplace and self.same_data(input, output):
+                memory.down()
+                output[...] = output_
+                self._propagate(output_, output, copy=True)
         if type(output) is ndarraywrap and len(output.__dict__) == 0:
             output = output.base
         return output
@@ -1212,6 +1230,7 @@ class AdditionOperator(CompositeOperator):
         return ops
 
 
+@inplace
 class CompositionOperator(CompositeOperator):
     """
     Class handling operator composition.
@@ -1243,14 +1262,100 @@ class CompositionOperator(CompositeOperator):
         }
 
     def direct(self, input, output):
-        i = input
-        for op in reversed(self.operands[1:]):
-            o = memory.get(op.reshapein(i.shape), output.dtype, self.__name__)
+
+        shapeouts = self._get_shapeouts(input.shape)
+        sizeouts = self._get_sizeouts(shapeouts)
+        dtype = output.dtype
+
+        inplace_composition = self.same_data(input, output)
+        outplaces, reuse_output = self._get_outplaces(
+            output.nbytes, inplace_composition, sizeouts
+        )
+        noutplaces = outplaces.count(True)
+
+        nswaps = 0
+        if not reuse_output:
+            memory.up()
+        elif (
+            inplace_composition
+            and outplaces[-1]
+            or not inplace_composition
+            and noutplaces % 2 == 0
+        ):
+            memory.swap()
+            nswaps += 1
+
+        def do_direct(op, i, shapeout, dtype):
+            o = memory.get(shapeout, dtype, self.__name__)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
-            i = o
+            return o
+
+        i = input
+        for iop, (op, outplace, shapeout) in enumerate(
+            zip(self.operands, outplaces, shapeouts)[:0:-1]
+        ):
+            if outplace and iop > 0:
+                # input and output must be different
+                memory.up()
+                i = do_direct(op, i, shapeout, dtype)
+                memory.down()
+                memory.swap()
+                nswaps += 1
+            else:
+                # we keep reusing the same stack element for inplace operators
+                i = do_direct(op, i, shapeout, dtype)
+
+        if outplaces[0]:
+            memory.up()
         self.operands[0].direct(i, output)
+        if outplaces[0]:
+            memory.down()
+            memory.swap()
+            nswaps += 1
+
+        if nswaps % 2 == 1:
+            memory.swap()
+
+        if not reuse_output:
+            memory.down()
+
+    def _get_outplaces(self, output_nbytes, inplace_composition, sizeouts):
+        outplaces = [not op.inplace for op in self.operands]
+        if not inplace_composition:
+            outplaces[-1] = True
+
+        noutplaces = outplaces.count(True)
+        if (
+            inplace_composition
+            and noutplaces % 2 == 1
+            and noutplaces == len(self.operands)
+        ):
+            return outplaces, False
+
+        last_inplace_changed_to_outplace = False
+        if inplace_composition:
+            # if composition is inplace, enforce  even number of outplace
+            if noutplaces % 2 == 1 and False in outplaces:
+                index = outplaces.index(False)
+                outplaces[index] = True
+                last_inplace_changed_to_outplace = True
+            output_is_requested = True  # we start with the input=output
+        else:
+            output_is_requested = noutplaces % 2 == 0
+
+        reuse_output = False
+        for op, outplace, nbytes in zip(self.operands, outplaces, sizeouts)[:0:-1]:
+            if outplace:
+                output_is_requested = not output_is_requested
+            if output_is_requested:
+                if nbytes > output_nbytes:
+                    if last_inplace_changed_to_outplace:
+                        outplaces[index] = False  # revert back
+                    return outplaces, False
+                reuse_output = True
+        return outplaces, reuse_output
 
     def reshapein(self, shape):
         for op in reversed(self.operands):
@@ -1320,6 +1425,28 @@ class CompositionOperator(CompositeOperator):
             i -= 1
 
         return ops
+
+    def _get_shapeouts(self, shapein):
+        if shapein is None:
+            shapein = self.shapein
+        shapeouts = []
+        for op in reversed(self.operands):
+            shapein = op.reshapein(shapein)
+            if shapein is None:
+                return None
+            shapeouts.insert(0, shapein)
+        return shapeouts
+
+    def _get_sizeouts(self, shapeouts):
+        # assuming input's dtype is float64
+        if shapeouts is None:
+            return None
+        sizeouts = []
+        dtype = np.dtype(np.float64)
+        for op, shapeout in reversed(zip(self.operands, shapeouts)):
+            dtype = self._find_common_type([dtype, op.dtype])
+            sizeouts.insert(0, dtype.itemsize * np.prod(shapeout))
+        return sizeouts
 
 
 class PartitionBaseOperator(CompositeOperator):
@@ -1754,7 +1881,6 @@ class PartitionOperator(PartitionBaseOperator):
         }
 
     def direct(self, input, output):
-        memory.up()
         if None in self.partitionout:
             shapeins = self._get_shapes(input.shape, self.partitionin, self.axisin)
             partitionout = [
@@ -1776,7 +1902,6 @@ class PartitionOperator(PartitionBaseOperator):
                 output.__class__ = output_.__class__
             destin += nin
             destout += nout
-        memory.down()
 
 
 class ExpansionOperator(PartitionBaseOperator):
@@ -1897,6 +2022,7 @@ class ReductionOperator(PartitionBaseOperator):
 
 @real
 @orthogonal
+@inplace
 class ReshapeOperator(Operator):
     """
     Operator that reshapes arrays.
@@ -1938,6 +2064,7 @@ class ReshapeOperator(Operator):
 
 
 @symmetric
+@inplace
 class ScalarOperator(Operator):
     """
     Multiplication by a scalar.
@@ -2030,6 +2157,7 @@ class ScalarOperator(Operator):
 @real
 @idempotent
 @involutary
+@inplace
 class IdentityOperator(ScalarOperator):
     """
     A subclass of ScalarOperator with value=1.

@@ -4,7 +4,7 @@ import numpy as np
 
 from scipy.sparse.linalg import eigsh
 
-from .decorators import flags, linear, real, idempotent, symmetric
+from .decorators import flags, linear, real, idempotent, symmetric, inplace
 from .core import (
     Operator,
     ScalarOperator,
@@ -31,6 +31,7 @@ __all__ = [
 
 @real
 @flags(SQUARE=False, SYMMETRIC=False)
+@inplace
 class ZeroOperator(ScalarOperator):
     """
     A subclass of ScalarOperator with value=0.
@@ -98,6 +99,7 @@ class ZeroOperator(ScalarOperator):
 
 
 @symmetric
+@inplace
 class DiagonalOperator(BroadcastingOperator):
     def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None):
         """
@@ -208,6 +210,7 @@ class DiagonalOperator(BroadcastingOperator):
 
 @real
 @idempotent
+@inplace
 class MaskOperator(DiagonalOperator):
     """
     A subclass of DiagonalOperator with booleans on the diagonal.
@@ -248,6 +251,7 @@ class MaskOperator(DiagonalOperator):
 
 @linear
 @real
+@inplace
 class PackOperator(Operator):
     """
     Convert an ndarray into a vector, under the control of a mask.
