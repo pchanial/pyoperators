@@ -2,7 +2,7 @@ import numpy as np
 from nose.tools import eq_
 
 from operators import Operator
-from operators.utils import isscalar, strenum, strplural
+from operators.utils import isscalar, strenum, strplural, strshape
 
 
 def assert_is_scalar(o):
@@ -51,3 +51,8 @@ def test_strplural():
         ),
     ):
         yield func, n, prepend, s, expected
+
+
+def test_strshape():
+    for shape, expected in zip(((1,), (2, 3)), ('1', '(2,3)')):
+        yield eq_, strshape(shape), expected

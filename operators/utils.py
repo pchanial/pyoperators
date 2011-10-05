@@ -86,6 +86,12 @@ def strplural(name, n, prepend=True, s=''):
         return (str(n) + ' ' if prepend else '') + name + 's' + s
 
 
+def strshape(shape):
+    if len(shape) == 1:
+        return str(shape[0])
+    return str(shape).replace(' ', '')
+
+
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
     if n is not None:

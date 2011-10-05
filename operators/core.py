@@ -15,7 +15,7 @@ import types
 
 from collections import namedtuple
 from . import memory
-from .utils import isscalar, ndarraywrap, tointtuple, strenum
+from .utils import isscalar, ndarraywrap, tointtuple, strenum, strshape
 from .decorators import (
     real,
     idempotent,
@@ -514,7 +514,7 @@ class Operator(object):
             raise ValueError(
                 "The input shape '{0}' is incompatible with that o"
                 "f {1}: '{2}'.".format(
-                    _strshape(shapein), self.__name__, _strshape(self.shapein)
+                    strshape(shapein), self.__name__, strshape(self.shapein)
                 )
             )
         if self.shapeout is not None:
@@ -532,7 +532,7 @@ class Operator(object):
             raise ValueError(
                 "The output shape '{0}' is incompatible with that "
                 "of {1}: '{2}'.".format(
-                    _strshape(shapeout), self.__name__, _strshape(self.shapeout)
+                    strshape(shapeout), self.__name__, strshape(self.shapeout)
                 )
             )
         if self.shapein is not None:
@@ -820,7 +820,7 @@ class Operator(object):
                 raise ValueError(
                     "The specified output shape '{0}' is incompati"
                     "ble with that given by reshapein '{1}'.".format(
-                        _strshape(shapeout), _strshape(shapeout_)
+                        strshape(shapeout), strshape(shapeout_)
                     )
                 )
         elif shapein is not None and self._reshapeout is not None:
@@ -829,7 +829,7 @@ class Operator(object):
                 raise ValueError(
                     "The specified input shape '{0}' is incompati"
                     "ble with that given by reshapeout '{1}'.".format(
-                        _strshape(shapein), _strshape(shapein_)
+                        strshape(shapein), strshape(shapein_)
                     )
                 )
         elif shapein and shapeout is None and self._reshapein is None:
@@ -928,9 +928,9 @@ class Operator(object):
     def __str__(self):
         if self.shapein is not None:
             if self.flags.SQUARE and len(self.shapein) > 1:
-                s = _strshape(self.shapein) + '²'
+                s = strshape(self.shapein) + '²'
             else:
-                s = _strshape(self.shapeout) + 'x' + _strshape(self.shapein)
+                s = strshape(self.shapeout) + 'x' + strshape(self.shapein)
             s += ' '
         else:
             s = ''
@@ -954,7 +954,7 @@ class Operator(object):
             if isinstance(val, Operator):
                 s = 'Operator()'
             elif var in ['shapein', 'shapeout']:
-                s = _strshape(val)
+                s = strshape(val)
             elif isinstance(val, np.ndarray) and val.ndim == 0:
                 s = repr(val[()])
             elif var == 'dtype':
@@ -1703,7 +1703,7 @@ class PartitionBaseOperator(CompositeOperator):
         ):
             raise ValueError(
                 "The partition operators have shapes '{0}' incompa"
-                "tible with the partition {1}.".format(_strshape(shapes), _strshape(p))
+                "tible with the partition {1}.".format(strshape(shapes), strshape(p))
             )
         if np.sum(explicit) < 2:
             return s0
@@ -1713,7 +1713,7 @@ class PartitionBaseOperator(CompositeOperator):
             raise ValueError(
                 "The dimensions of the partition operators '{0]' a"
                 "re not the same along axes other than that of the partition.".format(
-                    ','.join([_strshape(s) for s in shapes])
+                    ','.join([strshape(s) for s in shapes])
                 )
             )
         return s0
@@ -2060,7 +2060,7 @@ class ReshapeOperator(Operator):
         return {'T': ReshapeOperator(self.shapeout, self.shapein)}
 
     def __str__(self):
-        return _strshape(self.shapeout) + '←' + _strshape(self.shapein)
+        return strshape(self.shapeout) + '←' + strshape(self.shapein)
 
 
 @symmetric
@@ -2281,9 +2281,3 @@ class BroadcastingOperator(Operator):
             raise ValueError("Invalid broadcasting.")
 
         return v
-
-
-def _strshape(shape):
-    if len(shape) == 1:
-        return str(shape[0])
-    return str(shape).replace(' ', '')
