@@ -15,7 +15,7 @@ import types
 
 from collections import namedtuple
 from . import memory
-from .utils import isscalar, ndarraywrap, tointtuple, strenum
+from .utils import isscalar, ndarraywrap, tointtuple, strenum, strshape
 from .decorators import (real, idempotent, involutary, orthogonal, square,
                          symmetric, inplace)
 
@@ -445,8 +445,8 @@ class Operator(object):
         shapein = tointtuple(shapein)
         if None not in (self.shapein, shapein) and self.shapein != shapein:
             raise ValueError("The input shape '{0}' is incompatible with that o"
-                "f {1}: '{2}'.".format(_strshape(shapein), self.__name__,
-                _strshape(self.shapein)))
+                "f {1}: '{2}'.".format(strshape(shapein), self.__name__,
+                strshape(self.shapein)))
         if self.shapeout is not None:
             return self.shapeout
         if self._reshapein is not None:
@@ -460,8 +460,8 @@ class Operator(object):
         shapeout = tointtuple(shapeout)
         if None not in (self.shapeout, shapeout)  and self.shapeout != shapeout:
             raise ValueError("The output shape '{0}' is incompatible with that "
-                "of {1}: '{2}'.".format(_strshape(shapeout), self.__name__,
-                _strshape(self.shapeout)))
+                "of {1}: '{2}'.".format(strshape(shapeout), self.__name__,
+                strshape(self.shapeout)))
         if self.shapein is not None:
             return self.shapein
         if self.flags.SQUARE:
@@ -705,13 +705,13 @@ class Operator(object):
             if shapeout_ is not None and shapeout_ != shapeout:
                 raise ValueError("The specified output shape '{0}' is incompati"
                         "ble with that given by reshapein '{1}'.".format(
-                        _strshape(shapeout), _strshape(shapeout_)))
+                        strshape(shapeout), strshape(shapeout_)))
         elif shapein is not None and self._reshapeout is not None:
             shapein_ = tointtuple(self._reshapeout(shapeout))
             if shapein_ is not None and shapein_ != shapein:
                 raise ValueError("The specified input shape '{0}' is incompati"
                         "ble with that given by reshapeout '{1}'.".format(
-                        _strshape(shapein), _strshape(shapein_)))
+                        strshape(shapein), strshape(shapein_)))
         elif shapein and shapeout is None and self._reshapein is None:
             self.flags = self.flags._replace(SQUARE=True)
 
@@ -801,9 +801,9 @@ class Operator(object):
     def __str__(self):
         if self.shapein is not None:
             if self.flags.SQUARE and len(self.shapein) > 1:
-                s = _strshape(self.shapein) + '²'
+                s = strshape(self.shapein) + '²'
             else:
-                s = _strshape(self.shapeout) + 'x' + _strshape(self.shapein)
+                s = strshape(self.shapeout) + 'x' + strshape(self.shapein)
             s += ' '
         else:
             s = ''
@@ -827,7 +827,7 @@ class Operator(object):
             if isinstance(val, Operator):
                 s = 'Operator()'
             elif var in ['shapein', 'shapeout']:
-                s = _strshape(val)
+                s = strshape(val)
             elif isinstance(val, np.ndarray) and val.ndim == 0:
                 s = repr(val[()])
             elif var == 'dtype':
@@ -1519,7 +1519,7 @@ class PartitionBaseOperator(CompositeOperator):
                 for i in range(len(p)) if p[i] is not None]):
             raise ValueError("The partition operators have shapes '{0}' incompa"
                 "tible with the partition {1}.".format(
-                _strshape(shapes), _strshape(p)))
+                strshape(shapes), strshape(p)))
         if np.sum(explicit) < 2:
             return s0
         ok = [all([s is None or s[i] == s0[i] for s in shapes]) \
@@ -1528,7 +1528,7 @@ class PartitionBaseOperator(CompositeOperator):
         if not all(ok):
             raise ValueError("The dimensions of the partition operators '{0]' a"
                 "re not the same along axes other than that of the partition." \
-                .format(','.join([_strshape(s) for s in shapes])))
+                .format(','.join([strshape(s) for s in shapes])))
         return s0
 
     def _rule_operator_add(self, op):
@@ -1814,7 +1814,7 @@ class ReshapeOperator(Operator):
         return {'T':ReshapeOperator(self.shapeout, self.shapein)}
 
     def __str__(self):
-        return _strshape(self.shapeout) + '←' + _strshape(self.shapein)
+        return strshape(self.shapeout) + '←' + strshape(self.shapein)
 
 
 @symmetric
@@ -2002,9 +2002,3 @@ class BroadcastingOperator(Operator):
             raise ValueError("Invalid broadcasting.")
 
         return v
-
-
-def _strshape(shape):
-    if len(shape) == 1:
-        return str(shape[0])
-    return str(shape).replace(' ','')

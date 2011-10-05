@@ -16,7 +16,6 @@ def isscalar(data):
         return data.ndim == 0
     return True
 
-
 def tointtuple(data):
     """Return input as a tuple of int."""
     if data is None:
@@ -81,6 +80,10 @@ def strplural(name, n, prepend=True, s=''):
     else:
         return (str(n) + ' ' if prepend else '') + name + 's' + s
 
+def strshape(shape):
+    if len(shape) == 1:
+        return str(shape[0])
+    return str(shape).replace(' ','')
 
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
