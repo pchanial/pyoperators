@@ -58,4 +58,6 @@ def involutary(cls):
                          'INVOLUTARY':True})
     return cls
     
-    
+def inplace(cls):
+    cls.inplace = True
+    return cls

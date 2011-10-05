@@ -1,6 +1,6 @@
 import numpy as np
 
-from .decorators import square
+from .decorators import square, inplace
 from .core import Operator
 
 __all__ = ['ClipOperator', 'MaximumOperator', 'MinimumOperator',
@@ -8,6 +8,7 @@ __all__ = ['ClipOperator', 'MaximumOperator', 'MinimumOperator',
 
 
 @square
+@inplace
 class ClipOperator(Operator):
     def __init__(self, vmin, vmax, **keywords):
         """
@@ -39,6 +40,7 @@ class ClipOperator(Operator):
                           **keywords)
 
 @square
+@inplace
 class MaximumOperator(Operator):
     def __init__(self, value, **keywords):
         """
@@ -67,6 +69,7 @@ class MaximumOperator(Operator):
 
 
 @square 
+@inplace
 class MinimumOperator(Operator):
     def __init__(self, value, **keywords):
         """
@@ -95,6 +98,7 @@ class MinimumOperator(Operator):
 
 
 @square
+@inplace
 class RoundOperator(Operator):
     """Rounding operator.
     
