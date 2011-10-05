@@ -83,7 +83,7 @@ def swap():
         stack.append(None)
     stack[istack], stack[istack+1] = stack[istack+1], stack[istack]
 
-def get(shape, dtype, description):
+def get(nbytes, shape, dtype, description):
     """
     Get an array of given shape and dtype from the stack.
     The output array is guaranteed to be C-contiguous.
@@ -93,11 +93,28 @@ def get(shape, dtype, description):
     if istack == len(stack):
         stack.append(None)
 
-    buf, new = allocate(shape, dtype, stack[istack], description)
-    if new:
-        stack[istack] = buf.ravel().view(np.int8)
+    v = stack[istack]
+    if v is not None and v.nbytes >= nbytes:
+        return v[:nbytes]
 
-    return buf
+    if verbose:
+        if nbytes < 1024:
+            snbytes = str(nbytes) + ' bytes'
+        else:
+            snbytes = str(nbytes / 2**20) + ' MiB'
+        print('Info: Allocating ' + utils.strshape(shape) + ' ' + \
+              dtype.type.__name__ + ' = ' + snbytes + ' in ' + \
+              description + '.')
+
+    v = None
+    try:
+        v = np.empty(nbytes, dtype=np.int8).view(utils.ndarraywrap)
+    except MemoryError:
+        gc.collect()
+        v = np.empty(nbytes, dtype=np.int8).view(utils.ndarraywrap)
+    
+    stack[istack] = v
+    return v
 
 def wrap_ndarray(array):
     """
@@ -117,8 +134,8 @@ def manager(array):
     class MemoryManager(object):
         def __enter__(self):
             global stack, istack
-            if array.flags.contiguous and array.ndim > 0:
-                stack.insert(0, array.view(np.int8, utils.ndarraywrap).ravel())
+            if array.flags.contiguous:
+                stack.insert(0, array.ravel().view(np.int8, utils.ndarraywrap))
                 istack = 0
             else:
                 stack.insert(0, None)

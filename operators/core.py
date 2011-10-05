@@ -273,7 +273,8 @@ class Operator(object):
         with memory.manager(output):
             if not self.inplace and self.same_data(input, output):
                 memory.up()
-                output_ = memory.get(output.shape, output.dtype, self.__name__)
+                output_ = memory.get(output.nbytes, output.shape, output.dtype,
+                    self.__name__).view(output.dtype).reshape(output.shape)
             else:
                 output_ = output
             self._propagate(input, output_, copy=True)
@@ -1131,26 +1132,26 @@ class CompositionOperator(CompositeOperator):
             memory.swap()
             nswaps += 1
         
-        def do_direct(op, i, shapeout, dtype):
-            o = memory.get(shapeout, dtype, self.__name__)
+        def do_direct(op, i, sizeout, shapeout, dtype):
+            o = memory.get(sizeout, shapeout, dtype, self.__name__).view(dtype).reshape(shapeout)
             op._propagate(output, o)
             op.direct(i, o)
             output.__class__ = o.__class__
             return o
 
         i = input
-        for iop, (op, outplace, shapeout) in enumerate(
-            zip(self.operands, outplaces, shapeouts)[:0:-1]):
+        for iop, (op, outplace, sizeout, shapeout) in enumerate(
+            zip(self.operands, outplaces, sizeouts, shapeouts)[:0:-1]):
             if outplace and iop > 0:
                 # input and output must be different
                 memory.up()
-                i = do_direct(op, i, shapeout, dtype)
+                i = do_direct(op, i, sizeout, shapeout, dtype)
                 memory.down()
                 memory.swap()
                 nswaps += 1
             else:
                 # we keep reusing the same stack element for inplace operators
-                i = do_direct(op, i, shapeout, dtype)
+                i = do_direct(op, i, sizeout, shapeout, dtype)
 
         if outplaces[0]:
             memory.up()

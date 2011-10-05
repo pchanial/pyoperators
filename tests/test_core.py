@@ -5,9 +5,10 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
 from operators import memory
-from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ExpansionOperator, ReductionOperator, ScalarOperator, ndarraywrap, asoperator
-from operators.linear import I, O, DiagonalOperator, IdentityOperator
+from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ExpansionOperator, ReductionOperator, ScalarOperator, asoperator
 from operators.decorators import symmetric, square, inplace
+from operators.linear import I, O, DiagonalOperator, IdentityOperator
+from operators.utils import ndarraywrap
 
 np.seterr(all='raise')
 
@@ -420,10 +421,10 @@ def test_inplace1():
 
 def test_inplace_can_use_output():
 
-    A = np.zeros(10*8, dtype=np.int8)
-    B = np.zeros(10*8, dtype=np.int8)
-    C = np.zeros(10*8, dtype=np.int8)
-    D = np.zeros(10*8, dtype=np.int8)
+    A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    B = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    C = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    D = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
     ids = {A.__array_interface__['data'][0] : 'A',
            B.__array_interface__['data'][0] : 'B',
            C.__array_interface__['data'][0] : 'C',
@@ -568,10 +569,10 @@ def test_inplace_can_use_output():
 
 def test_inplace_cannot_use_output():
 
-    A = np.zeros(10*8, dtype=np.int8)
-    B = np.zeros(10*8, dtype=np.int8)
-    C = np.zeros(10*8, dtype=np.int8)
-    D = np.zeros(10*8, dtype=np.int8)
+    A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    B = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    C = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    D = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
     ids = {A.__array_interface__['data'][0] : 'A',
            B.__array_interface__['data'][0] : 'B',
            C.__array_interface__['data'][0] : 'C',
@@ -767,8 +768,7 @@ def test_composition():
     op = np.product([Op(v) for v in [1,2]])
     assert_is(op.__class__, CompositionOperator)
     assert_array_equal(op(1), 2)
-    assert_equal(len(memory.stack), 1)
-    assert_is_not_none(memory.stack[0])
+    assert_equal(len(memory.stack), 0)
 
     memory.stack = []
     assert_array_equal(op([1]), 2)
@@ -783,16 +783,14 @@ def test_composition():
     assert_array_equal(op(input, output), 8)
     assert_array_equal(input, 1)
     assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 1)
-    assert_is_not_none(memory.stack[0])
+    assert_equal(len(memory.stack), 0)
 
     output = input
     memory.stack = []
     assert_array_equal(op(input, output), 8)
     assert_array_equal(input, 8)
     assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 1)
-    assert_is_not_none(memory.stack[0])
+    assert_equal(len(memory.stack), 0)
 
     input = np.array([1], int)
     output = np.array([0], int)
