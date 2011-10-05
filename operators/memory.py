@@ -30,7 +30,7 @@ def allocate(shape, dtype, buf, description):
     if buf is not None and buf.nbytes >= requested:
         if utils.isscalar(buf):
             buf = buf.reshape(1)
-        buf = buf.view(np.int8).ravel()[:requested].view(dtype).reshape(shape)
+        buf = buf.ravel().view(np.int8)[:requested].view(dtype).reshape(shape)
         return wrap_ndarray(buf), False
 
     if verbose:
@@ -54,29 +54,42 @@ def allocate_like(a, b, description):
     return allocate(a.shape, a.dtype, b, description)
 
 def down():
+    """
+    Move stack pointer to the bottom.
+    """
     global istack
+    if istack == 0:
+        raise ValueError('The stack pointer already is at the bottom.')
     istack -= 1
 
 def up():
+    """
+    Move stack pointer to the top.
+    """
     global stack, istack
     assert istack <= len(stack)
     if istack == len(stack):
         stack.append(None)
     istack += 1
 
+def swap():
+    """
+    Swap stack elements istack and istack+1.
+    """
+    global stack, istack
+    if istack == len(stack):
+        stack.append(None)
+    if istack == len(stack) - 1:
+        stack.append(None)
+    stack[istack], stack[istack+1] = stack[istack+1], stack[istack]
+
 def get(shape, dtype, description):
     """
     Get an array of given shape and dtype from the stack.
     The output array is guaranteed to be C-contiguous.
     """
-    global stack, istack
-    if istack == 0:
-        requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
-        if requested > stack[0].size:
-            istack += 1
-    
+    global stack, istack    
     assert istack <= len(stack)
-
     if istack == len(stack):
         stack.append(None)
 
