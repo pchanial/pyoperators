@@ -1040,13 +1040,9 @@ class CompositeOperator(Operator):
         instance.operands = operands
         return instance
 
-    @property
-    def dtype(self):
-        return self._find_common_type([op.dtype for op in self.operands])
-
-    @dtype.setter
-    def dtype(self, dtype):
-        pass
+    def __init__(self, operands, *args, **keywords):
+        dtype = self._find_common_type([op.dtype for op in self.operands])
+        Operator.__init__(self, dtype=dtype, **keywords)
 
     @classmethod
     def _apply_rules(cls, ops):
@@ -1110,7 +1106,7 @@ class AdditionOperator(CompositeOperator):
             and self.shapein == self.shapeout
             or all([op.flags.SQUARE for op in self.operands]),
         }
-        CompositeOperator.__init__(self, flags=flags)
+        CompositeOperator.__init__(self, operands, flags=flags)
         self.work = [None, None]
 
     def associated_operators(self):
@@ -1252,7 +1248,7 @@ class CompositionOperator(CompositeOperator):
             and (self.shapein == self.shapeout)
             or all([op.flags.SQUARE for op in self.operands]),
         }
-        CompositeOperator.__init__(self, flags=flags)
+        CompositeOperator.__init__(self, operands, flags=flags)
         self._info = {}
 
     def associated_operators(self):
@@ -1511,7 +1507,7 @@ class PartitionBaseOperator(CompositeOperator):
             self.__class__ = ReductionOperator
         else:
             self.__class__ = PartitionOperator
-        CompositeOperator.__init__(self, flags=flags)
+        CompositeOperator.__init__(self, operands, flags=flags)
         self.add_rule('.{Operator}', self._rule_operator_add, 'addition')
         self.add_rule('.{self}', self._rule_add, 'addition')
         self.add_rule('.{Operator}', self._rule_operator_comp_right)
