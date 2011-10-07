@@ -329,26 +329,34 @@ class Operator(object):
             raise NotImplementedError(
                 'Call to ' + self.__name__ + ' is not imp' 'lemented.'
             )
-        input, output = self._validate_input(input, output)
-        with memory.manager(output):
-            if not self.inplace and self.same_data(input, output):
+        i, o = self._validate_input(input, output)
+        with memory.manager(o):
+            if not self.inplace and self.same_data(i, o):
                 memory.up()
-                output_ = (
-                    memory.get(output.nbytes, output.shape, output.dtype, self.__name__)
-                    .view(output.dtype)
-                    .reshape(output.shape)
+                o_ = (
+                    memory.get(o.nbytes, o.shape, o.dtype, self.__name__)
+                    .view(o.dtype)
+                    .reshape(o.shape)
                 )
             else:
-                output_ = output
-            self._propagate(input, output_, copy=True)
-            self.direct(input, output_)
-            if not self.inplace and self.same_data(input, output):
+                o_ = o
+            # o_.__dict__ = i.__dict__.copy()
+            self.direct(i, o_)
+            if not self.inplace and self.same_data(i, o):
                 memory.down()
-                output[...] = output_
-                self._propagate(output_, output, copy=True)
-        if type(output) is ndarraywrap and len(output.__dict__) == 0:
-            output = output.base
-        return output
+                o[...] = o_
+                # o.__dict__ = o_.__dict__
+
+        # o.__class__ = i.__class__ if type(o_) is ndarraywrap else o_.__class__
+        if type(o) is ndarraywrap:
+            if len(o.__dict__) == 0:
+                o = o.base
+        # elif o.__array_finalize__ is not None:
+        #     d = o.__dict__.copy()
+        #     o.__array_finalize__(None)
+        #     for k, v in d.iteritems():
+        #         setattr(o, k, v)
+        return o
 
     @property
     def shape(self):
@@ -500,16 +508,6 @@ class Operator(object):
     def conjugate(self):
         """Return the complex-conjugate of the operator. Same as '.C'"""
         return self.C
-
-    def _propagate(self, input, output, copy=False):
-        """Set the output's class to that of the input. It also copies input's
-        attributes into the output. Note that these changes cannot be propagated
-        to a non-subclassed ndarray."""
-        output.__class__ = input.__class__
-        if copy:
-            output.__dict__.update(input.__dict__)
-        else:
-            output.__dict__ = input.__dict__
 
     def reshapein(self, shapein):
         """Return operator's output shape."""
@@ -886,7 +884,7 @@ class Operator(object):
                     "The output has an invalid shape '{0}'. Expect"
                     "ed shape is '{1}'.".format(output.shape, shapeout)
                 )
-            output = memory.wrap_ndarray(output)
+            output = output.view(ndarraywrap)
         else:
             output = memory.allocate(shapeout, dtype, None, self.__name__)[0]
         return input, output
@@ -1125,13 +1123,14 @@ class AdditionOperator(CompositeOperator):
         w0, new = memory.allocate_like(output, self.work[0], self.__name__)
         if new:
             self.work[0] = w0
-        self._propagate(output, w0)
+        # self._propagate(output, w0)
 
         # 2 operands: 1 temporary
         if len(operands) == 2:
             operands[0].direct(input, w0)
-            output.__class__ = w0.__class__
+            # w0.__class__ = ndarraywrap
             operands[1].direct(input, output)
+            # output.__class__ = ndarraywrap
             output += w0
             return
 
@@ -1141,11 +1140,11 @@ class AdditionOperator(CompositeOperator):
             if new:
                 self.work[1] = w1
             operands[0].direct(input, w0)
-            output.__class__ = w0.__class__
-            self._propagate(w0, w1)
+            # output.__class__ = w0.__class__
+            # self._propagate(w0, w1)
             for op in operands[1:-1]:
                 op.direct(input, w1)
-                output.__class__ = w1.__class__
+                # w1.__class__ = ndarraywrap
                 w0 += w1
             operands[-1].direct(input, output)
             output += w0
@@ -1153,11 +1152,13 @@ class AdditionOperator(CompositeOperator):
 
         # more than 2 operands, input != output: 1 temporary
         operands[0].direct(input, output)
-        self._propagate(output, w0)
+        # new_class = output.__class__
+        # w0.__dict__ = output.__dict__
         for op in self.operands[1:]:
             op.direct(input, w0)
-            output.__class__ = w0.__class__
+            # w0.__class__ = ndarraywrap
             output += w0
+        # output.__class__ = new_class
 
     def reshapein(self, shapein):
         shapeout = None
@@ -1265,12 +1266,11 @@ class CompositionOperator(CompositeOperator):
     def direct(self, input, output):
 
         inplace_composition = self.same_data(input, output)
-
         shapeouts, sizeouts, outplaces, reuse_output = self._get_info(
             input.shape, output.nbytes, output.dtype, inplace_composition
         )
-
         noutplaces = outplaces.count(True)
+        # new_class = None
 
         nswaps = 0
         if not reuse_output:
@@ -1290,9 +1290,13 @@ class CompositionOperator(CompositeOperator):
                 .view(dtype)
                 .reshape(shapeout)
             )
-            op._propagate(output, o)
+            # o.__dict__ = output.__dict__
             op.direct(i, o)
-            output.__class__ = o.__class__
+            # if o.__class__ is not ndarraywrap:
+            #    new_class = o.__class__
+            #    print 'changing class', new_class
+            #    o.__class__ = ndarraywrap
+            # return o, new_class
             return o
 
         i = input
@@ -1313,6 +1317,10 @@ class CompositionOperator(CompositeOperator):
         if outplaces[0]:
             memory.up()
         self.operands[0].direct(i, output)
+        # print 'new_class', new_class
+        # print 'output.__class__', output.__class__
+        # if new_class is not None and output.__class__ is ndarraywrap:
+        #     output.__class__ = new_class
         if outplaces[0]:
             memory.down()
             memory.swap()
@@ -1908,13 +1916,12 @@ class PartitionOperator(PartitionBaseOperator):
         for op, nin, nout in zip(self.operands, self.partitionin, partitionout):
             self.slicein[self.axisin] = slice(destin, destin + nin)
             self.sliceout[self.axisout] = slice(destout, destout + nout)
-            # view as ndarraywrap, since subclasses could override __getitem__
-            input_ = input.view(ndarraywrap)[self.slicein]
-            output_ = output.view(ndarraywrap)[self.sliceout]
-            output_.__dict__ = output.__dict__
+            input_ = input[self.slicein]
+            output_ = output[self.sliceout]
+            # output_.__dict__ = output.__dict__
             op.direct(input_, output_)
-            if output_.__class__ is not ndarraywrap:
-                output.__class__ = output_.__class__
+            # if output_.__class__ is not ndarraywrap:
+            #    output.__class__ = output_.__class__
             destin += nin
             destout += nout
 
