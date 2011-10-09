@@ -1,8 +1,8 @@
 import nose
 from nose.tools import assert_is, assert_is_none, assert_is_not_none, assert_is_instance, eq_
 
-from operators import Operator, IdentityOperator, ScalarOperator
-from operators.core import OperatorRule
+from pyoperators import Operator, IdentityOperator, ScalarOperator
+from pyoperators.core import OperatorRule
 op = Operator()
 
 class Operator1(Operator): pass

@@ -1,8 +1,7 @@
 """
-The operators contains the following packages:
+The pyoperator package contains the following modules or packages:
 
 - core : defines the Operator class
-
 - linear : defines standard linear operators (can be seen as matrices)
 - nonlinear : defines non-linear operators (such as thresholding or rounding)
 - iterative : defines iterative algorithms working with operators

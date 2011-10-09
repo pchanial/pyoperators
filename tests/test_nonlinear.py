@@ -2,7 +2,7 @@ import nose
 import numpy as np
 from numpy.testing import assert_, assert_array_equal
 
-from operators import RoundOperator
+from pyoperators import RoundOperator
 
 def test_rounding():
     a=np.array([-3.5,-3,-2.6,-2.5,-2.4,0,0.2,0.5,0.9,1,1.5])

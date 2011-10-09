@@ -5,8 +5,8 @@ import numpy as np
 
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_, assert_array_equal
-from operators import Operator, IdentityOperator, ZeroOperator, DiagonalOperator, MaskOperator, PackOperator, UnpackOperator
-from operators.decorators import linear
+from pyoperators import Operator, IdentityOperator, ZeroOperator, DiagonalOperator, MaskOperator, PackOperator, UnpackOperator
+from pyoperators.decorators import linear
 
 def test_masking():
 
