@@ -714,14 +714,14 @@ def test_addition():
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
+    memory.stack = []
     op = np.sum([Op(v) for v in [1]])
     yield assert_is, op.__class__, Op
 
     op = np.sum([Op(v) for v in [1,2]])
     assert_equal(op.__class__, AdditionOperator)
     assert_array_equal(op(1), 3)
-    assert_is_not_none(op.work[0])
-    assert_is_none(op.work[1])
+    assert_equal(len(memory.stack), 1)
 
     op = np.sum([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, AdditionOperator)
@@ -731,15 +731,13 @@ def test_addition():
     assert_array_equal(op(input, output), 7)
     assert_array_equal(input, 1)
     assert_array_equal(output, 7)
-    assert_is_not_none(op.work[0])
-    assert_is_none(op.work[1])
+    assert_equal(len(memory.stack), 1)
 
     output = input
     assert_array_equal(op(input, output), 7)
     assert_array_equal(input, 7)
     assert_array_equal(output, 7)
-    assert_is_not_none(op.work[0])
-    assert_is_none(op.work[1])
+    assert_equal(len(memory.stack), 2)
 
 
 def test_composition():

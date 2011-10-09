@@ -10,6 +10,7 @@ from __future__ import division
 import copy
 import inspect
 import numpy as np
+import operator
 import scipy.sparse.linalg
 import types
 
@@ -300,11 +301,19 @@ class Operator(object):
         self._set_name()
         self._set_inout(shapein, shapeout, reshapein, reshapeout)
 
+        if isinstance(self.direct, (types.FunctionType, types.MethodType)):
+            if isinstance(self.direct, types.MethodType):
+                d = self.direct.im_func
+            else:
+                d = self.direct
+            self.inplace_reduction = 'operation' in d.func_code.co_varnames
+
     shapein = None
     shapeout = None
     dtype = None
     flags = OperatorFlags(*9 * (False,))
     inplace = False
+    inplace_reduction = False
     _reshapein = None
     _reshapeout = None
 
@@ -1097,6 +1106,12 @@ class AdditionOperator(CompositeOperator):
     """
 
     def __init__(self, operands):
+        try:
+            index = [o.inplace_reduction for o in operands].index(False)
+            o = operands.pop(index)
+            operands.insert(0, o)
+        except ValueError:
+            pass
         flags = {
             'LINEAR': all([op.flags.LINEAR for op in self.operands]),
             'REAL': all([op.flags.REAL for op in self.operands]),
@@ -1105,7 +1120,7 @@ class AdditionOperator(CompositeOperator):
             or all([op.flags.SQUARE for op in self.operands]),
         }
         CompositeOperator.__init__(self, operands, flags=flags)
-        self.work = [None, None]
+        self.need_temporary = any(not o.inplace_reduction for o in operands[1:])
 
     def associated_operators(self):
         return {
@@ -1116,49 +1131,27 @@ class AdditionOperator(CompositeOperator):
 
     def direct(self, input, output):
         operands = self.operands
-
-        # 1 operand: this case should not happen
         assert len(operands) > 1
 
-        w0, new = memory.allocate_like(output, self.work[0], self.__name__)
-        if new:
-            self.work[0] = w0
-        # self._propagate(output, w0)
+        if self.need_temporary:
+            memory.up()
+            buf = (
+                memory.get(output.nbytes, output.shape, output.dtype, self.__name__)
+                .view(output.dtype)
+                .reshape(output.shape)
+            )
 
-        # 2 operands: 1 temporary
-        if len(operands) == 2:
-            operands[0].direct(input, w0)
-            # w0.__class__ = ndarraywrap
-            operands[1].direct(input, output)
-            # output.__class__ = ndarraywrap
-            output += w0
-            return
-
-        # more than 2 operands, input == output: 2 temporaries
-        if self.same_data(input, output):
-            w1, new = memory.allocate_like(output, self.work[1], self.__name__)
-            if new:
-                self.work[1] = w1
-            operands[0].direct(input, w0)
-            # output.__class__ = w0.__class__
-            # self._propagate(w0, w1)
-            for op in operands[1:-1]:
-                op.direct(input, w1)
-                # w1.__class__ = ndarraywrap
-                w0 += w1
-            operands[-1].direct(input, output)
-            output += w0
-            return
-
-        # more than 2 operands, input != output: 1 temporary
         operands[0].direct(input, output)
-        # new_class = output.__class__
-        # w0.__dict__ = output.__dict__
-        for op in self.operands[1:]:
-            op.direct(input, w0)
-            # w0.__class__ = ndarraywrap
-            output += w0
-        # output.__class__ = new_class
+
+        for op in operands[1:]:
+            if op.inplace_reduction:
+                op.direct(input, output, operation=operator.__iadd__)
+            else:
+                op.direct(input, buf)
+                output += buf
+
+        if self.need_temporary:
+            memory.down()
 
     def reshapein(self, shapein):
         shapeout = None
@@ -1250,6 +1243,7 @@ class CompositionOperator(CompositeOperator):
             or all([op.flags.SQUARE for op in self.operands]),
         }
         CompositeOperator.__init__(self, operands, flags=flags)
+        self.inplace_reduction = self.operands[0].inplace_reduction
         self._info = {}
 
     def associated_operators(self):
@@ -1263,11 +1257,14 @@ class CompositionOperator(CompositeOperator):
             'IH': CompositionOperator([m.I.H for m in self.operands]),
         }
 
-    def direct(self, input, output):
+    def direct(self, input, output, operation=None):
 
         inplace_composition = self.same_data(input, output)
         shapeouts, sizeouts, outplaces, reuse_output = self._get_info(
-            input.shape, output.nbytes, output.dtype, inplace_composition
+            input.shape,
+            output.nbytes,
+            output.dtype,
+            inplace_composition and operation is None,
         )
         noutplaces = outplaces.count(True)
         # new_class = None
@@ -1284,20 +1281,15 @@ class CompositionOperator(CompositeOperator):
             memory.swap()
             nswaps += 1
 
-        def do_direct(op, i, sizeout, shapeout, dtype):
-            o = (
-                memory.get(sizeout, shapeout, dtype, self.__name__)
-                .view(dtype)
-                .reshape(shapeout)
-            )
-            # o.__dict__ = output.__dict__
-            op.direct(i, o)
-            # if o.__class__ is not ndarraywrap:
-            #    new_class = o.__class__
-            #    print 'changing class', new_class
-            #    o.__class__ = ndarraywrap
-            # return o, new_class
-            return o
+        # def do_direct(op, i, sizeout, shapeout, dtype):
+        #    o = memory.get(sizeout, shapeout, dtype, self.__name__).view(dtype).reshape(shapeout)
+        #    o.__dict__ = output.__dict__
+        #    op.direct(i, o)
+        #    if o.__class__ is not ndarraywrap:
+        #        new_class = o.__class__
+        #        print 'changing class', new_class
+        #        o.__class__ = ndarraywrap
+        #    return o, new_class
 
         i = input
         for iop, (op, shapeout, sizeout, outplace) in enumerate(
@@ -1306,17 +1298,34 @@ class CompositionOperator(CompositeOperator):
             if outplace and iop > 0:
                 # input and output must be different
                 memory.up()
-                i = do_direct(op, i, sizeout, shapeout, output.dtype)
+                # i = do_direct(op, i, sizeout, shapeout, output.dtype)
+                o = (
+                    memory.get(sizeout, shapeout, output.dtype, self.__name__)
+                    .view(output.dtype)
+                    .reshape(shapeout)
+                )
+                op.direct(i, o)
+                i = o
                 memory.down()
                 memory.swap()
                 nswaps += 1
             else:
                 # we keep reusing the same stack element for inplace operators
-                i = do_direct(op, i, sizeout, shapeout, output.dtype)
+                # i = do_direct(op, i, sizeout, shapeout, output.dtype)
+                o = (
+                    memory.get(sizeout, shapeout, output.dtype, self.__name__)
+                    .view(output.dtype)
+                    .reshape(shapeout)
+                )
+                op.direct(i, o)
+                i = o
 
         if outplaces[0]:
             memory.up()
-        self.operands[0].direct(i, output)
+        if self.inplace_reduction:
+            self.operands[0].direct(i, output, operation=operation)
+        else:
+            self.operands[0].direct(i, output)
         # print 'new_class', new_class
         # print 'output.__class__', output.__class__
         # if new_class is not None and output.__class__ is ndarraywrap:
