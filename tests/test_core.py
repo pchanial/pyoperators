@@ -5,11 +5,13 @@ from nose.tools import (eq_, ok_, assert_is_none, assert_is_not_none, assert_is,
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
-from operators import memory
-from operators.core import Operator, AdditionOperator, CompositionOperator, PartitionOperator, ExpansionOperator, ReductionOperator, ScalarOperator, asoperator
-from operators.decorators import symmetric, square, inplace
-from operators.linear import I, O, DiagonalOperator, IdentityOperator
-from operators.utils import ndarraywrap
+from pyoperators import memory
+from pyoperators.core import (Operator, AdditionOperator, CompositionOperator,
+         PartitionOperator, ExpansionOperator, ReductionOperator,
+         ScalarOperator, asoperator)
+from pyoperators.decorators import symmetric, square, inplace
+from pyoperators.linear import I, O, DiagonalOperator, IdentityOperator
+from pyoperators.utils import ndarraywrap
 
 np.seterr(all='raise')
 

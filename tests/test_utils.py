@@ -1,8 +1,8 @@
 import numpy as np
 from nose.tools import eq_
 
-from operators import Operator
-from operators.utils import isscalar, strenum, strplural, strshape
+from pyoperators import Operator
+from pyoperators.utils import isscalar, strenum, strplural, strshape
 
 
 def assert_is_scalar(o):

@@ -7,13 +7,13 @@ Testing of the iterative module
 import nose
 from numpy import testing
 import numpy as np
-import operators
-from operators import iterative
+import pyoperators
+from pyoperators import iterative
 
 # collection of linear operators to test
 operator_list = [
-    operators.DiagonalOperator(np.random.rand(16)),
-    operators.DiagonalOperator(np.arange(1, 17)),
+    pyoperators.DiagonalOperator(np.random.rand(16)),
+    pyoperators.DiagonalOperator(np.arange(1, 17)),
 ]
 
 # collection of vectors

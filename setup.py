@@ -2,7 +2,7 @@
 from distutils.core import setup
 
 setup(
-    name='operators',
+    name='pyoperators',
     version='0.0.0',
     description='Non-Linear Operators, Linear Operators and Iterative algorithms',
     author='',
@@ -11,6 +11,5 @@ setup(
         'numpy',
         'scipy',
     ],
-    # packages=['operators', 'operators.wrappers', 'operators.iterative'],
-    packages=['operators', 'operators.iterative'],
+    packages=['pyoperators', 'pyoperators.iterative'],
 )

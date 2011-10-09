@@ -1,26 +1,26 @@
 =========
-Operators
+Pyoperators
 =========
 
-The operators package defines Operators which are functions with a
+The pyoperators package defines Operators which are functions with a
 shape and dtype, and linear Operators which behave likes matrices
 but with close to no storage footprints.
 
 Getting started
 ===============
 
-To define an Operator one needs to define a direct functions
+To define an Operator one needs to define a direct function
 which will replace the usual matrix vector operation :
 
 >>> def f(x, out):
-...     out[:] = 2 *x
+...     out[...] = 2 *x
 ...
 
 Then, you can instantiate an Operator:
 
->>> A = operators.Operator(direct=f, flags={"LINEAR":True, "SYMMETRIC":True})
+>>> A = pyoperators.Operator(direct=f, flags={"LINEAR":True, "SYMMETRIC":True})
 
-This operator do not have a shape :
+This operator does not have a shape :
 
 >>> A(ones(5))
 Info: Allocating (5,) float64 = 40 bytes in Operator.

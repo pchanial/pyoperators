@@ -3,8 +3,8 @@ import nose
 import numpy as np
 from numpy import testing
 
-import operators
-from operators.iterative import criterions
+import pyoperators
+from pyoperators.iterative import criterions
 
 sizes = (1, 4, 16, 100)
 values = (-10, -1, 0, 2)
@@ -67,7 +67,7 @@ def test_dnorm2_mul():
 
 def check_elements(shapein):
     N = criterions.Norm2()
-    I = operators.IdentityOperator(shapein=shapein)
+    I = pyoperators.IdentityOperator(shapein=shapein)
     C0 = criterions.CriterionElement(N, I)
     assert C0(np.ones(shapein)) == np.prod(shapein)
 
