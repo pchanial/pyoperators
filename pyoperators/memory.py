@@ -66,7 +66,7 @@ def allocate_like(a, b, description):
 
 def down():
     """
-    Move stack pointer to the bottom.
+    Move stack pointer towards the bottom.
     """
     global istack
     if istack == 0:
@@ -76,7 +76,7 @@ def down():
 
 def up():
     """
-    Move stack pointer to the top.
+    Move stack pointer towards the top.
     """
     global stack, istack
     assert istack <= len(stack)
