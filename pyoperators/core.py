@@ -1137,7 +1137,8 @@ class CompositionOperator(CompositeOperator):
                 # input and output must be different
                 memory.up()
                 #i = do_direct(op, i, sizeout, shapeout, output.dtype)
-                o = memory.get(sizeout, shapeout, output.dtype, self.__name__).view(output.dtype).reshape(shapeout)
+                o = memory.get(sizeout, shapeout, output.dtype, self.__name__) \
+                          .view(output.dtype).reshape(shapeout)
                 op.direct(i, o)
                 i = o
                 memory.down()
