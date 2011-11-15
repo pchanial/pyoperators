@@ -53,6 +53,12 @@ def allocate_like(a, b, description):
     """ Return an array of same shape and dtype as a given array. """
     return allocate(a.shape, a.dtype, b, description)
 
+def clear():
+    """ Clear the memory stack. """
+    global stack, istack
+    stack = []
+    istack = 0
+
 def down():
     """
     Move stack pointer towards the bottom.
