@@ -2039,7 +2039,7 @@ class ReductionOperator(PartitionBaseOperator):
         dest = 0
         for op, n in zip(self.operands, self.partitionin):
             self.slicein[self.axisin] = slice(dest, dest + n)
-            op(input[self.slicein], output)
+            op.direct(input[self.slicein], output)
             work += output
             dest += n
         output[...] = work
