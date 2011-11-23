@@ -302,12 +302,10 @@ class Operator(object):
         cls = input.__class__ if isinstance(input, np.ndarray) else np.ndarray
         attr = input.__dict__.copy() if hasattr(input, '__dict__') else {}
         cls = self.propagate_attributes(cls, attr)
-        print 'XXX', cls, attr, input.__class__
         if cls is np.ndarray and len(attr) > 0:
             cls = ndarraywrap
         if output is None:
             output = o
-        print 'XXY', output.__class__
         if type(output) is np.ndarray:
             if cls is np.ndarray:
                 return output
@@ -316,6 +314,7 @@ class Operator(object):
             output.__class__ = cls
             if output.__array_finalize__ is not None:
                 output.__array_finalize__()
+
         # we cannot simply update __dict__, because of properties.
         # the iteration is sorted by key, so that attributes beginning with an
         # underscore are set first.
