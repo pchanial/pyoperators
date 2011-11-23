@@ -10,6 +10,25 @@ class ndarraywrap(np.ndarray):
     pass
 
 
+def first_is_not(l, v):
+    """
+    Return first item in list which is not the specified value.
+    If all items are the specified value, return it.
+    """
+    for a in l:
+        if a is not v:
+            return a
+    return v
+
+
+def isclassattr(cls, a):
+    """Test if an attribute is a class attribute."""
+    for c in cls.__mro__:
+        if a in c.__dict__:
+            return True
+    return False
+
+
 def isscalar(data):
     """Hack around np.isscalar oddity"""
     if isinstance(data, (list, tuple, scipy.sparse.base.spmatrix)):
@@ -19,14 +38,11 @@ def isscalar(data):
     return True
 
 
-def tointtuple(data):
-    """Return input as a tuple of int."""
-    if data is None:
-        return data
-    try:
-        return tuple(None if d is None else int(d) for d in data)
-    except:
-        return (int(data),)
+def openmp_num_threads():
+    n = os.getenv('OMP_NUM_THREADS')
+    if n is not None:
+        return int(n)
+    return multiprocessing.cpu_count()
 
 
 def strenum(choices, last='or'):
@@ -92,8 +108,11 @@ def strshape(shape):
     return str(shape).replace(' ', '')
 
 
-def openmp_num_threads():
-    n = os.getenv('OMP_NUM_THREADS')
-    if n is not None:
-        return int(n)
-    return multiprocessing.cpu_count()
+def tointtuple(data):
+    """Return input as a tuple of int."""
+    if data is None:
+        return data
+    try:
+        return tuple(None if d is None else int(d) for d in data)
+    except:
+        return (int(data),)
