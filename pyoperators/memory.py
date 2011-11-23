@@ -32,7 +32,7 @@ def allocate(shape, dtype, buf, description):
         if utils.isscalar(buf):
             buf = buf.reshape(1)
         buf = buf.ravel().view(np.int8)[:requested].view(dtype).reshape(shape)
-        return wrap_ndarray(buf), False
+        return buf, False
 
     if verbose:
         if requested < 1024:
@@ -56,7 +56,7 @@ def allocate(shape, dtype, buf, description):
         gc.collect()
         buf = np.empty(shape, dtype)
 
-    return wrap_ndarray(buf), True
+    return buf, True
 
 
 def allocate_like(a, b, description):
@@ -137,23 +137,13 @@ def get(nbytes, shape, dtype, description):
 
     v = None
     try:
-        v = np.empty(nbytes, dtype=np.int8).view(utils.ndarraywrap)
+        v = np.empty(nbytes, dtype=np.int8)
     except MemoryError:
         gc.collect()
-        v = np.empty(nbytes, dtype=np.int8).view(utils.ndarraywrap)
+        v = np.empty(nbytes, dtype=np.int8)
 
     stack[istack] = v
     return v
-
-
-def wrap_ndarray(array):
-    """
-    Make an input ndarray an instance of a heap class so that we can
-    change its class and attributes.
-    """
-    if type(array) is np.ndarray:
-        array = array.view(utils.ndarraywrap)
-    return array
 
 
 def manager(array):
@@ -167,7 +157,7 @@ def manager(array):
         def __enter__(self):
             global stack, istack
             if array.flags.contiguous:
-                stack.insert(0, array.ravel().view(np.int8, utils.ndarraywrap))
+                stack.insert(0, array.ravel().view(np.int8))
                 istack = 0
             else:
                 stack.insert(0, None)
