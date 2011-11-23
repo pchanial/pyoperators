@@ -16,7 +16,8 @@ import types
 
 from collections import namedtuple
 from . import memory
-from .utils import isscalar, ndarraywrap, tointtuple, strenum, strshape
+from .utils import (first_is_not, isclassattr, isscalar, ndarraywrap,
+                    strenum, strshape, tointtuple)
 from .decorators import (real, idempotent, involutary, orthogonal, square,
                          symmetric, inplace)
 
@@ -206,8 +207,9 @@ class Operator(object):
     def __init__(self, direct=None, transpose=None, adjoint=None,
                  conjugate_=None, inverse=None, inverse_transpose=None,
                  inverse_adjoint=None, inverse_conjugate=None, shapein=None,
-                 shapeout=None, reshapein=None, reshapeout=None, dtype=None,
-                 flags=None):
+                 shapeout=None, reshapein=None, reshapeout=None,
+                 attrin=None, attrout=None, classin=None, classout=None,
+                 dtype=None, flags=None):
             
         for method, name in zip( \
             (direct, transpose, adjoint, conjugate_, inverse, inverse_transpose,
@@ -240,7 +242,8 @@ class Operator(object):
         self._set_flags(self, flags)
         self._set_rules()
         self._set_name()
-        self._set_inout(shapein, shapeout, reshapein, reshapeout)
+        self._set_inout(shapein, shapeout, reshapein, reshapeout,
+                        attrin, attrout, classin, classout)
 
         if isinstance(self.direct, (types.FunctionType, types.MethodType)):
             if isinstance(self.direct, types.MethodType):
@@ -249,8 +252,13 @@ class Operator(object):
                 d = self.direct
             self.inplace_reduction = 'operation' in d.func_code.co_varnames
 
+    attrin = {}
+    attrout = {}
+    classin = None
+    classout = None
     shapein = None
     shapeout = None
+    
     dtype = None
     flags = OperatorFlags(*9*(False,))
     inplace = False
@@ -286,23 +294,34 @@ class Operator(object):
                            .view(o.dtype).reshape(o.shape)
             else:
                 o_ = o
-            #o_.__dict__ = i.__dict__.copy()
             self.direct(i, o_)
             if not self.inplace and self.same_data(i, o):
                 memory.down()
                 o[...] = o_
-                #o.__dict__ = o_.__dict__
 
-        #o.__class__ = i.__class__ if type(o_) is ndarraywrap else o_.__class__
-        if type(o) is ndarraywrap:
-            if len(o.__dict__) == 0:
-                o = o.base
-       # elif o.__array_finalize__ is not None:
-       #     d = o.__dict__.copy()
-       #     o.__array_finalize__(None)
-       #     for k, v in d.iteritems():
-       #         setattr(o, k, v)
-        return o
+        cls = input.__class__ if isinstance(input, np.ndarray) else np.ndarray
+        attr = input.__dict__.copy() if hasattr(input, '__dict__') else {}
+        cls = self.propagate_attributes(cls, attr)
+        print 'XXX', cls, attr, input.__class__
+        if cls is np.ndarray and len(attr) > 0:
+            cls = ndarraywrap
+        if output is None:
+            output = o
+        print 'XXY', output.__class__
+        if type(output) is np.ndarray:
+            if cls is np.ndarray:
+                return output
+            output = output.view(cls)
+        elif type(output) is not cls:
+            output.__class__ = cls
+            if output.__array_finalize__ is not None:
+                output.__array_finalize__()
+        # we cannot simply update __dict__, because of properties.
+        # the iteration is sorted by key, so that attributes beginning with an
+        # underscore are set first.
+        for k in sorted(attr.keys()):
+            setattr(output, k, attr[k])
+        return output
 
     @property
     def shape(self):
@@ -351,7 +370,7 @@ class Operator(object):
                              "ein' keyword.")
         shapeout = self.reshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
-        d = np.empty((n,m), self.dtype).view(ndarraywrap)
+        d = np.empty((n,m), self.dtype)
         v = np.zeros(n, self.dtype)
         for i in range(n):
             v[i] = 1
@@ -359,8 +378,6 @@ class Operator(object):
             with memory.manager(o):
                 self.direct(v.reshape(shapein), o)
             v[i] = 0
-        if len(d.__dict__) == 0:
-            d = d.view(np.ndarray)
         return d.T
 
     def matvec(self, v, output=None):
@@ -447,7 +464,23 @@ class Operator(object):
     def conjugate(self):
         """Return the complex-conjugate of the operator. Same as '.C'"""
         return self.C
-        
+
+    def propagate_attributes(self, cls, attr):
+        """
+        Propagate attributes according to operator's output attributes.
+        If the class changes, class attributes are removed if they are
+        not class attributes of the new class.
+        """
+        if None not in (self.classout, cls) and self.classout is not cls:
+            for a in attr.keys():
+                if isclassattr(cls, a) and not isclassattr(self.classout, a):
+                    del attr[a]
+        if isinstance(self.attrout, dict):
+            attr.update(self.attrout)
+        else:
+            self.attrout(attr)
+        return self.classout or cls
+            
     def reshapein(self, shapein):
         """Return operator's output shape."""
         shapein = tointtuple(shapein)
@@ -511,8 +544,10 @@ class Operator(object):
             T = ops['T']
         else:
             T = Operator(self.transpose, shapein=self.shapeout, shapeout= \
-                         self.shapein, reshapein=self._reshapeout, reshapeout=\
-                         self._reshapein, dtype=self.dtype, flags=self.flags)
+                         self.shapein, reshapein=self._reshapeout, reshapeout= \
+                         self._reshapein, attrin=self.attrout, attrout= \
+                         self.attrin, classin=self.classout, classout= \
+                         self.classin, dtype=self.dtype, flags=self.flags)
             T.toshapein, T.toshapeout = self.toshapeout, self.toshapein
             T.__name__ = self.__name__ + '.T'
 
@@ -527,7 +562,9 @@ class Operator(object):
         else:
             H = Operator(self.adjoint, shapein=self.shapeout, shapeout= \
                          self.shapein, reshapein=self._reshapeout, reshapeout=\
-                         self._reshapein, dtype=self.dtype, flags=self.flags)
+                         self._reshapein, attrin=self.attrout, attrout= \
+                         self.attrin, classin=self.classout, classout= \
+                         self.classin, dtype=self.dtype, flags=self.flags)
             H.toshapein, H.toshapeout = self.toshapeout, self.toshapein
             H.__name__ = self.__name__ + '.H'
 
@@ -542,7 +579,9 @@ class Operator(object):
         else:
             I = Operator(self.inverse, shapein=self.shapeout, shapeout= \
                          self.shapein, reshapein=self._reshapeout, reshapeout=\
-                         self._reshapein, dtype=self.dtype, flags=self.flags)
+                         self._reshapein, attrin=self.attrout, attrout= \
+                         self.attrin, classin=self.classout, classout= \
+                         self.classin, dtype=self.dtype, flags=self.flags)
             I.toshapein, I.toshapeout = self.toshapeout, self.toshapein
             I.__name__ = self.__name__ + '.I'
 
@@ -559,8 +598,9 @@ class Operator(object):
         else:
             IC = Operator(self.inverse_conjugate, shapein=self.shapeout,
                           shapeout=self.shapein, reshapein=self._reshapeout,
-                          reshapeout=self._reshapein, dtype=self.dtype,
-                          flags=self.flags)
+                          reshapeout=self._reshapein, attrin=self.attrout,
+                          attrout=self.attrin, classin=self.classout, classout=\
+                          self.classin, dtype=self.dtype, flags=self.flags)
             IC.toshapein, IC.toshapeout = self.toshapeout, self.toshapein
             IC.__name__ = self.__name__ + '.I.C'
 
@@ -577,8 +617,9 @@ class Operator(object):
         else:
             IT = Operator(self.inverse_transpose, shapein=self.shapein,
                           shapeout=self.shapeout, reshapein=self._reshapein,
-                          reshapeout=self._reshapeout, dtype=self.dtype,
-                          flags=self.flags)
+                          reshapeout=self._reshapein, attrin=self.attrout,
+                          attrout=self.attrin, classin=self.classout, classout=\
+                          self.classin, dtype=self.dtype, flags=self.flags)
             IT.__name__ = self.__name__ + '.I.T'
 
         if self.flags.UNITARY:
@@ -598,8 +639,9 @@ class Operator(object):
         else:
             IH = Operator(self.inverse_adjoint, shapein=self.shapein,
                           shapeout=self.shapeout, reshapein=self._reshapein,
-                          reshapeout=self._reshapeout, dtype=self.dtype,
-                          flags=self.flags)
+                          reshapeout=self._reshapein, attrin=self.attrout,
+                          attrout=self.attrin, classin=self.classout, classout=\
+                          self.classin, dtype=self.dtype, flags=self.flags)
             IH.__name__ = self.__name__ + '.I.H'
 
         # once all the associated operators are instanciated, we set all their
@@ -684,7 +726,8 @@ class Operator(object):
         if self.flags.INVOLUTARY:
             self.add_rule('..', '1')
 
-    def _set_inout(self, shapein, shapeout, reshapein, reshapeout):
+    def _set_inout(self, shapein, shapeout, reshapein, reshapeout,
+                   attrin, attrout, classin, classout):
         """
         Set methods and attributes dealing with the input and output handling.
         """
@@ -702,6 +745,15 @@ class Operator(object):
             self.reshapeout = lambda v: Operator.reshapeout(self, v)
         if reshapeout is not None:
             self._reshapeout = reshapeout
+
+        if attrin is not None:
+            self.attrin = attrin
+        if attrout is not None:
+            self.attrout = attrout
+        if classin is not None:
+            self.classin = classin
+        if classout is not None:
+            self.classout = classout
 
         if shapein is shapeout is None:
             shapeout = self.reshapein(None)
@@ -750,15 +802,15 @@ class Operator(object):
         self.__name__ = name
 
     def _validate_input(self, input, output):
-        """Return the input as ndarray subclass and allocate the output
-        if necessary."""
+        """
+        Return the input and output as ndarray instances.
+        If required, allocate the output.
+        """
         input = np.array(input, copy=False, subok=True)
-        if type(input) is np.ndarray:
-            input = input.view(ndarraywrap)
 
         shapeout = self.reshapein(input.shape)
         dtype = self._find_common_type([input.dtype, self.dtype])
-        input = np.array(input, dtype=dtype, subok=True, copy=False)
+        input = np.array(input, dtype=dtype, subok=False, copy=False)
         if output is not None:
             if output.dtype != dtype:
                 raise ValueError("The output has an invalid dtype '{0}'. Expect"
@@ -766,7 +818,7 @@ class Operator(object):
             if output.shape != shapeout:
                 raise ValueError("The output has an invalid shape '{0}'. Expect"
                     "ed shape is '{1}'.".format(output.shape, shapeout))
-            output = output.view(ndarraywrap)
+            output = output.view(np.ndarray)
         else:
             output = memory.allocate(shapeout, dtype, None, self.__name__)[0]
         return input, output
@@ -907,9 +959,15 @@ class CompositeOperator(Operator):
         return instance
 
     def __init__(self, operands, *args, **keywords):
-        dtype = self._find_common_type([op.dtype for op in self.operands])
-        Operator.__init__(self, dtype=dtype, **keywords)
+        dtype = self._find_common_type([o.dtype for o in self.operands])
+        classin = first_is_not([o.classin for o in self.operands], None)
+        classout = first_is_not([o.classout for o in self.operands], None)
+        Operator.__init__(self, dtype=dtype, classin=classin, classout=classout,
+                          **keywords)
 
+    def propagate_attributes(self, cls, attr):
+        return self.operands[0].propagate_attributes(cls, attr)
+            
     @classmethod
     def _apply_rules(cls, ops):
         return ops
@@ -961,12 +1019,6 @@ class AdditionOperator(CompositeOperator):
     reduction.
     """
     def __init__(self, operands):
-        try:
-            index = [o.inplace_reduction for o in operands].index(False)
-            o = operands.pop(index)
-            operands.insert(0, o)
-        except ValueError:
-            pass
         flags = {
             'LINEAR':all([op.flags.LINEAR for op in self.operands]),
             'REAL':all([op.flags.REAL for op in self.operands]),
@@ -974,7 +1026,8 @@ class AdditionOperator(CompositeOperator):
                 self.shapein == self.shapeout or \
                 all([op.flags.SQUARE for op in self.operands])}
         CompositeOperator.__init__(self, operands, flags=flags)
-        self.need_temporary = any(not o.inplace_reduction for o in operands[1:])
+        self.classin = first_is_not([o.classin for o in self.operands], None)
+        self.classout = first_is_not([o.classout for o in self.operands], None)
 
     def associated_operators(self):
         return { 'T' : AdditionOperator([m.T for m in self.operands]),
@@ -983,10 +1036,18 @@ class AdditionOperator(CompositeOperator):
                }
 
     def direct(self, input, output):
-        operands = self.operands
+        operands = list(self.operands)
         assert len(operands) > 1
 
-        if self.need_temporary:
+        try:
+            ir = [o.inplace_reduction for o in operands]
+            index = ir.index(False)
+            operands[0], operands[index] = operands[index], operands[0]
+            need_temporary = ir.count(False) > 1
+        except ValueError:
+            need_temporary = False
+
+        if need_temporary:
             memory.up()
             buf = memory.get(output.nbytes, output.shape, output.dtype,
                       self.__name__).view(output.dtype).reshape(output.shape)
@@ -1000,9 +1061,13 @@ class AdditionOperator(CompositeOperator):
                 op.direct(input, buf)
                 output += buf
 
-        if self.need_temporary:
+        if need_temporary:
             memory.down()
 
+    def propagate_attributes(self, cls, attr):
+        for op in self.operands:
+            cls = op.propagate_attributes(cls, attr)
+        return cls
 
     def reshapein(self, shapein):
         shapeout = None
@@ -1089,6 +1154,9 @@ class CompositionOperator(CompositeOperator):
                 (self.shapein == self.shapeout) or \
                 all([op.flags.SQUARE for op in self.operands])}
         CompositeOperator.__init__(self, operands, flags=flags)
+        self.classin = first_is_not([o.classin for o in reversed(
+                                     self.operands)], None)
+        self.classout = first_is_not([o.classout for o in self.operands], None)
         self.inplace_reduction = self.operands[0].inplace_reduction
         self._info = {}
 
@@ -1110,7 +1178,6 @@ class CompositionOperator(CompositeOperator):
             input.shape, output.nbytes, output.dtype, inplace_composition and \
             operation is None)
         noutplaces = outplaces.count(True)
-        #new_class = None
 
         nswaps = 0
         if not reuse_output:
@@ -1119,24 +1186,12 @@ class CompositionOperator(CompositeOperator):
              not inplace_composition and noutplaces % 2 == 0:
             memory.swap()
             nswaps += 1
-        
-        #def do_direct(op, i, sizeout, shapeout, dtype):
-        #    o = memory.get(sizeout, shapeout, dtype, self.__name__).view(dtype).reshape(shapeout)
-        #    o.__dict__ = output.__dict__
-        #    op.direct(i, o)
-        #    if o.__class__ is not ndarraywrap:
-        #        new_class = o.__class__
-        #        print 'changing class', new_class
-        #        o.__class__ = ndarraywrap
-        #    return o, new_class
 
         i = input
         for iop, (op, shapeout, sizeout, outplace) in enumerate(
             zip(self.operands, shapeouts, sizeouts, outplaces)[:0:-1]):
             if outplace and iop > 0:
-                # input and output must be different
                 memory.up()
-                #i = do_direct(op, i, sizeout, shapeout, output.dtype)
                 o = memory.get(sizeout, shapeout, output.dtype, self.__name__) \
                           .view(output.dtype).reshape(shapeout)
                 op.direct(i, o)
@@ -1146,7 +1201,6 @@ class CompositionOperator(CompositeOperator):
                 nswaps += 1
             else:
                 # we keep reusing the same stack element for inplace operators
-                #i = do_direct(op, i, sizeout, shapeout, output.dtype)
                 o = memory.get(sizeout, shapeout, output.dtype, self.__name__) \
                           .view(output.dtype).reshape(shapeout)
                 op.direct(i, o)
@@ -1158,10 +1212,6 @@ class CompositionOperator(CompositeOperator):
             self.operands[0].direct(i, output, operation=operation)
         else:
             self.operands[0].direct(i, output)
-        #print 'new_class', new_class
-        #print 'output.__class__', output.__class__
-       # if new_class is not None and output.__class__ is ndarraywrap:
-       #     output.__class__ = new_class
         if outplaces[0]:
             memory.down()
             memory.swap()
@@ -1172,6 +1222,11 @@ class CompositionOperator(CompositeOperator):
 
         if not reuse_output:
             memory.down()
+
+    def propagate_attributes(self, cls, attr):
+        for op in reversed(self.operands):
+            cls = op.propagate_attributes(cls, attr)
+        return cls
 
     def reshapein(self, shape):
         for op in reversed(self.operands):
@@ -1678,12 +1733,7 @@ class PartitionOperator(PartitionBaseOperator):
         for op, nin, nout in zip(self.operands, self.partitionin, partitionout):
             self.slicein[self.axisin] = slice(destin, destin + nin)
             self.sliceout[self.axisout] = slice(destout, destout + nout)
-            input_ = input[self.slicein]
-            output_ = output[self.sliceout]
-            #output_.__dict__ = output.__dict__
-            op.direct(input_, output_)
-            #if output_.__class__ is not ndarraywrap:
-            #    output.__class__ = output_.__class__
+            op.direct(input[self.slicein], output[self.sliceout])
             destin += nin
             destout += nout
 

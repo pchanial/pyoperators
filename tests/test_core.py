@@ -1,7 +1,6 @@
 import nose
-from nose.plugins.skip import SkipTest
-from nose.tools import (eq_, ok_, assert_is_none, assert_is_not_none, assert_is,
-                        assert_is_not, assert_not_in, assert_is_instance)
+from nose.tools import (eq_, ok_, assert_is, assert_is_not, assert_not_in,
+                        assert_is_instance)
 import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
@@ -51,17 +50,20 @@ class ndarray4(np.ndarray):
 
 @square
 class Op2(Operator):
+    attrout = {'newattr':True}
     def direct(self, input, output):
-        output.newattr = True
+        pass
     def transpose(self, input, output):
         pass            
 
 @square
 class Op3(Operator):
+    classout = ndarray3
+    classin = ndarray4
     def direct(self, input, output):
-        output.__class__ = ndarray3
+        pass
     def transpose(self, input, output):
-        output.__class__ = ndarray4
+        pass
 
 def test_shape_is_inttuple():
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
@@ -226,7 +228,6 @@ def test_scalar_reduction3():
             for idin in (None, 100, 200):
                 if opin is not None and idin is not None and opin != idin:
                     continue
-                print opout, opin, idin
                 p = Operator(shapeout=opout, shapein=opin,
                     flags={'LINEAR':True}) * IdentityOperator(shapein=idin)
 
@@ -243,28 +244,33 @@ def test_scalar_reduction3():
                     yield assert_equal, n, 1, str((opout,opin,idin,p))
 
 
-def test_propagation_attribute():
-    raise SkipTest
+def test_propagation_attribute1():
     @square
     class AddAttribute(Operator):
+        attrout = {'newattr_direct':True}
+        attrin = {'newattr_transpose':True}
         def direct(self, input, output):
-            output.newattr_direct = True
+            pass
         def transpose(self, input, output):
-            output.newattr_transpose = True
+            pass
 
     @square
     class AddAttribute2(Operator):
+        attrout = {'newattr_direct':False}
+        attrin = {'newattr_transpose':False}
         def direct(self, input, output):
-            output.newattr_direct = False
+            pass
         def transpose(self, input, output):
-            output.newattr_transpose = False
+            pass
 
     @square
     class AddAttribute3(Operator):
+        attrout = {'newattr3_direct':True}
+        attrin = {'newattr3_transpose':True}
         def direct(self, input, output):
-            output.newattr3_direct = True
+            pass
         def transpose(self, input, output):
-            output.newattr3_transpose = True
+            pass
 
     inputs = [np.ones(5), np.ones(5).view(ndarray2)]
     for i in inputs:
@@ -305,20 +311,140 @@ def test_propagation_attribute():
         yield ok_, o.newattr_transpose
         yield ok_, o.newattr3_transpose
 
+
+def test_propagation_attribute2():
+    class Op(Operator):
+        attrin = {'attr_class':1, 'attr_instance':2, 'attr_other':3}
+        attrout = {'attr_class':4, 'attr_instance':5, 'attr_other':6}
+        def direct(self, input, output):
+            pass
+        def transpose(self, input, output):
+            pass
+    class ndarray2(np.ndarray):
+        attr_class = 10
+        def __new__(cls, data):
+            result = np.ndarray(data).view(cls)
+            result.attr_instance = 11
+            return result
+
+    op = Op()
+    output = op(ndarray2(1))
+    assert output.__dict__ == op.attrout
+    output = op.T(ndarray2(1))
+    assert output.__dict__ == op.attrin
+
+
+def test_propagation_attribute3():
+    class ndarraybase(np.ndarray):
+        attr_class = None
+        def __new__(cls, data):
+            result = np.array(data).view(cls)
+            return result
+        def __array_finalize__(self, array):
+            self.attr_class = 0
+            self.attr_instance = 10
+    class ndarray1(ndarraybase):
+        attr_class1 = None
+        def __new__(cls, data):
+            result = ndarraybase(data).view(cls)
+            return result
+        def __array_finalize__(self, array):
+            ndarraybase.__array_finalize__(self, array)
+            self.attr_class1 = 1
+            self.attr_instance1 = 11
+    class ndarray2(ndarraybase):
+        attr_class2 = None
+        def __new__(cls, data):
+            result = ndarraybase(data).view(cls)
+            return result
+        def __array_finalize__(self, array):
+            ndarraybase.__array_finalize__(self, array)
+            self.attr_class2 = 2
+            self.attr_instance2 = 12
+    class Op(Operator):
+        classin = ndarray1
+        classout = ndarray2
+        def direct(self, input, output):
+            pass
+        def transpose(self, input, output):
+            pass
+
+    op = Op()
+    input = ndarray1(1)
+    input.attr_class = 30
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':10, 'attr_instance1':11,
+        'attr_instance2':12, 'attr_class':30, 'attr_class2':2}
+    input = ndarray2(1)
+    input.attr_class = 30
+    input.attr_class2 = 32
+    input.attr_instance = 40
+    input.attr_instance2 = 42
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':40, 'attr_instance2':42,
+                               'attr_class':30, 'attr_class2':32}
+
+    op = Op().T
+    input = ndarray1(1)
+    input.attr_class = 30
+    input.attr_class1 = 31
+    input.attr_instance = 40
+    input.attr_instance1 = 41
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':40, 'attr_instance1':41,
+                               'attr_class':30, 'attr_class1':31}
+    input = ndarray2(1)
+    input.attr_class = 30
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':10, 'attr_instance2':12,
+        'attr_instance1':11, 'attr_class':30, 'attr_class1':1}
+
+    op = Op().T * Op() # -> ndarray2 -> ndarray1
+    input = ndarray1(1)
+    input.attr_class = 30
+    input.attr_class1 = 31
+    input.attr_instance = 40
+    input.attr_instance1 = 41
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':40, 'attr_instance1':41,
+                               'attr_class':30, 'attr_class1':1}
+    input = ndarray2(1)
+    input.attr_class = 30
+    input.attr_class2 = 32
+    input.attr_instance = 40
+    input.attr_instance2 = 42
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':40, 'attr_instance1':11,
+        'attr_instance2':42, 'attr_class':30, 'attr_class1':1}
+
+    op = Op() * Op().T # -> ndarray1 -> ndarray2
+    input = ndarray1(1)
+    input.attr_class = 30
+    input.attr_class1 = 31
+    input.attr_instance = 40
+    input.attr_instance1 = 41
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':40, 'attr_instance2':12,
+        'attr_instance1':41, 'attr_class':30, 'attr_class2':2}
+    input = ndarray2(1)
+    input.attr_class = 30
+    input.attr_class2 = 32
+    input.attr_instance = 40
+    input.attr_instance2 = 42
+    output = op(input)
+    assert output.__dict__ == {'attr_instance':40, 'attr_instance2':42,
+                               'attr_class':30, 'attr_class2':2}    
+    
 def check_propagation_class(op, i, c):
-    raise SkipTest
     o = op(i)
-    assert_is(o.__class__, c)
+    assert_is(type(o), c)
 
 def check_propagation_class_inplace(op, i, c):
-    raise SkipTest
     i = i.copy()
-    t = type(i)
     op(i,i)
-    assert_is(t, type(i))
+    assert_is(type(i), c)
 
 def test_propagation_class():
-    raise SkipTest
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
     ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
     results = [[np.ndarray, ndarray2],
@@ -331,20 +457,18 @@ def test_propagation_class():
             yield check_propagation_class, op, i, c
 
 def test_propagation_class_inplace():
-    raise SkipTest
-    inputs = [np.ones(2), np.ones(2).view(ndarray2)]
+    inputs = [np.ones(2), np.ones(2).view(ndarray2), np.ones(2).view(ndarray3)]
     ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
-    results = [[np.ndarray, ndarray2],
-               [ndarraywrap, ndarray2],
-               [ndarray3, ndarray3],
-               [ndarray3, ndarray3]]
+    results = [[np.ndarray, ndarray2, ndarray3],
+               [np.ndarray, ndarray2, ndarray3],
+               [np.ndarray, ndarray3, ndarray3],
+               [np.ndarray, ndarray3, ndarray3]]
 
     for op, results_ in zip(ops, results):
         for i, c in zip(inputs, results_):
             yield check_propagation_class_inplace, op, i, c
 
 def test_propagation_classT():
-    raise SkipTest
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
     ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
     resultsT = [[np.ndarray, ndarray2],
@@ -357,26 +481,22 @@ def test_propagation_classT():
             yield check_propagation_class, op.T, i, c
 
 def test_propagation_classT_inplace():
-    raise SkipTest
-    inputs = [np.ones(2), np.ones(2).view(ndarray2)]
+    inputs = [np.ones(2), np.ones(2).view(ndarray2), np.ones(2).view(ndarray4)]
     ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
-    resultsT = [[np.ndarray, ndarray2],
-                [np.ndarray, ndarray2],
-                [ndarray4, ndarray4],
-                [ndarray4, ndarray4]]
+    resultsT = [[np.ndarray, ndarray2, ndarray4],
+                [np.ndarray, ndarray2, ndarray4],
+                [np.ndarray, ndarray4, ndarray4],
+                [np.ndarray, ndarray4, ndarray4]]
 
     for op, results_ in zip(ops, resultsT):
         for i, c in zip(inputs, results_):
             yield check_propagation_class_inplace, op.T, i, c
 
 def test_propagation_class_nested():
-    raise SkipTest
-    @square
     class O1(Operator):
+        classout = ndarray2
         def direct(self, input, output):
             output[...] = input
-            output.__class__ = ndarray2            
-    @square
     class O2(Operator):
         def direct(self, input, output):
             output[...] = input
@@ -389,9 +509,9 @@ def test_propagation_class_nested():
 
     o1 = O1()
     o2 = O2()
-    ops1 = [I, 2, o2, 2 + o2]
-    ops2 = [1+o1, 2*o1, o1+o2, o2+o1, 1+2*o1, 1+o1+o2, 1+o2+o1, o1+1+o2,
-            o1+o2+1, o2+o1+1, o2+1+o1]
+    ops1 = [I, 2*I, o2, 2*I+o2]
+    ops2 = [I+o1, 2*o1, o1+o2, o2+o1, I+2*o1, I+o1+o2, I+o2+o1, o1+I+o2,
+            o1+o2+I, o2+o1+I, o2+I+o1]
     for op1 in ops1:
         for op2 in ops2:
             yield func2, op1, op2, ndarray2
