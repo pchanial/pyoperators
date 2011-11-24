@@ -862,7 +862,12 @@ def test_addition():
     assert_equal(len(memory.stack), 2)
 
 
-def test_composition():
+def test_composition1():
+    s1 = ScalarOperator(2)
+    s2 = ScalarOperator(3)
+    assert s1(s2).data == 6
+
+def test_composition2():
     @square
     @inplace
     class Op(Operator):
