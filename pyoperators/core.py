@@ -1842,7 +1842,6 @@ class ReductionOperator(PartitionBaseOperator):
 
 
 @real
-@orthogonal
 @inplace
 class ReshapeOperator(Operator):
     """
@@ -1870,6 +1869,7 @@ class ReshapeOperator(Operator):
         if np.product(shapein) != np.product(shapeout):
             raise ValueError('The total size of the output must be unchanged.')
         Operator.__init__(self, shapein=shapein, shapeout=shapeout)
+        self.add_rule('.T.', '1')
 
     def direct(self, input, output):
         if self.same_data(input, output):
