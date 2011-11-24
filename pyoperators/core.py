@@ -474,6 +474,8 @@ class Operator(object):
             for a in attr.keys():
                 if isclassattr(cls, a) and not isclassattr(self.classout, a):
                     del attr[a]
+        if 'shape_global' in attr:
+            del attr['shape_global']
         if isinstance(self.attrout, dict):
             attr.update(self.attrout)
         else:
