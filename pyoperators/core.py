@@ -353,6 +353,10 @@ class Operator(object):
         output[...] = output.conjugate()
 
     def __call__(self, input, output=None):
+
+        if isinstance(input, Operator):
+            return CompositionOperator([self, input])
+
         if self.direct is None:
             raise NotImplementedError(
                 'Call to ' + self.__name__ + ' is not imp' 'lemented.'
