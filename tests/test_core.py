@@ -1235,7 +1235,7 @@ def test_partition2():
     ):
         for axisr in (0, 1, 2, 3):
             op = PartitionOperator(3 * [Op(axisr)], partitionin=p, axisin=axisp)
-            yield assert_array_equal, op(i), Op(axisr)(i), 'axis={},{}'.format(
+            yield assert_array_equal, op(i), Op(axisr)(i), 'axis={0},{1}'.format(
                 axisp, axisr
             )
 
