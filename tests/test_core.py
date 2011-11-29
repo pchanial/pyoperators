@@ -5,9 +5,9 @@ import numpy as np
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 
 from pyoperators import memory
-from pyoperators.core import (Operator, AdditionOperator, CompositionOperator,
-         PartitionOperator, ExpansionOperator, ReductionOperator,
-         ScalarOperator, asoperator)
+from pyoperators.core import (Operator, AdditionOperator,
+         MultiplicationOperator, CompositionOperator, PartitionOperator,
+         ExpansionOperator, ReductionOperator, ScalarOperator, asoperator)
 from pyoperators.decorators import symmetric, square, inplace
 from pyoperators.linear import I, O, DiagonalOperator, IdentityOperator
 from pyoperators.utils import ndarraywrap
@@ -859,6 +859,41 @@ def test_addition():
     assert_array_equal(op(input, output), 7)
     assert_array_equal(input, 7)
     assert_array_equal(output, 7)
+    assert_equal(len(memory.stack), 2)
+
+
+def test_multiplication():
+    @square
+    class Op(Operator):
+        def __init__(self, v, **keywords):
+            self.v = v
+            Operator.__init__(self, **keywords)
+        def direct(self, input, output):
+            np.multiply(input, self.v, output)
+
+    memory.stack = []
+    op = MultiplicationOperator([Op(v) for v in [1]])
+    yield assert_is, op.__class__, Op
+
+    op = MultiplicationOperator([Op(v) for v in [1,2]])
+    assert_equal(op.__class__, MultiplicationOperator)
+    assert_array_equal(op(1), 2)
+    assert_equal(len(memory.stack), 1)
+
+    op = MultiplicationOperator([Op(v) for v in [1,2,4]])
+    assert_is(op.__class__, MultiplicationOperator)
+
+    input = np.array(1, int)
+    output = np.array(0, int)
+    assert_array_equal(op(input, output), 8)
+    assert_array_equal(input, 1)
+    assert_array_equal(output, 8)
+    assert_equal(len(memory.stack), 1)
+
+    output = input
+    assert_array_equal(op(input, output), 8)
+    assert_array_equal(input, 8)
+    assert_array_equal(output, 8)
     assert_equal(len(memory.stack), 2)
 
 
