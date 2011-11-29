@@ -1,15 +1,8 @@
-import nose
-from nose.tools import (
-    eq_,
-    ok_,
-    assert_is,
-    assert_is_not,
-    assert_not_in,
-    assert_is_instance,
-)
 import numpy as np
-from numpy.testing import assert_equal, assert_array_equal, assert_raises
+import nose
 
+from nose.tools import eq_, ok_
+from numpy.testing import assert_equal, assert_array_equal, assert_raises
 from pyoperators import memory
 from pyoperators.core import (
     Operator,
@@ -25,6 +18,7 @@ from pyoperators.core import (
 from pyoperators.decorators import symmetric, square, inplace
 from pyoperators.linear import I, O, DiagonalOperator, IdentityOperator
 from pyoperators.utils import ndarraywrap
+from .utils import assert_is, assert_is_not, assert_not_in, assert_is_instance
 
 np.seterr(all='raise')
 
