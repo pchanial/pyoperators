@@ -3,7 +3,7 @@ from nose.tools import eq_
 
 from pyoperators import Operator, IdentityOperator, ScalarOperator
 from pyoperators.core import OperatorRule
-from .utils import assert_is, assert_is_none, assert_is_not_none, assert_is_instance
+from pyoperators.utils import assert_is, assert_is_none, assert_is_not_none, assert_is_instance
 
 op = Operator()
 
