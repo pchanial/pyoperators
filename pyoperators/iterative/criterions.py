@@ -125,7 +125,7 @@ class Norm(object):
     def __mul__(self, x):
         # returns a norm with modified _call and _diff
         if np.isscalar(x):
-            kwargs = {k: self.__dict__[k] for k in self.__dict__.keys() if k[0] != '_'}
+            kwargs = dict((k, v) for k, v in self.__dict__.items() if k[0] != '_')
             N = type(self)(kwargs)
             N._call = _scalar_mul(self._call, x)
             N._diff = _scalar_mul(self._diff, x)
