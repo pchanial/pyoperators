@@ -7,6 +7,7 @@ from scipy.sparse.linalg import eigsh
 from .decorators import flags, linear, real, idempotent, symmetric, inplace
 from .core import (
     Operator,
+    AdditionOperator,
     ScalarOperator,
     IdentityOperator,
     BroadcastingOperator,
@@ -147,13 +148,17 @@ class DiagonalOperator(BroadcastingOperator):
     def __init__(self, data, broadcast='disabled', shapein=None, dtype=None):
         BroadcastingOperator.__init__(self, data, broadcast, shapein, dtype)
         self.add_rule(
-            '{DiagonalOperator}.', lambda o: self._rule_diagonal(o, np.add), 'addition'
+            '{DiagonalOperator}.',
+            lambda o: self._rule_diagonal(o, np.add),
+            AdditionOperator,
         )
         self.add_rule(
             '{DiagonalOperator}.', lambda o: self._rule_diagonal(o, np.multiply)
         )
         self.add_rule(
-            '{ScalarOperator}.', lambda o: self._rule_scalar(o, np.add), 'addition'
+            '{ScalarOperator}.',
+            lambda o: self._rule_scalar(o, np.add),
+            AdditionOperator,
         )
         self.add_rule('{ScalarOperator}.', lambda o: self._rule_scalar(o, np.multiply))
 

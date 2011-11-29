@@ -25,20 +25,13 @@ from .utils import (
     strshape,
     tointtuple,
 )
-from .decorators import (
-    real,
-    idempotent,
-    involutary,
-    orthogonal,
-    square,
-    symmetric,
-    inplace,
-)
+from .decorators import real, idempotent, involutary, square, symmetric, inplace
 
 __all__ = [
     'Operator',
     'OperatorFlags',
     'AdditionOperator',
+    'MultiplicationOperator',
     'BroadcastingOperator',
     'CompositionOperator',
     'ExpansionOperator',
@@ -476,14 +469,18 @@ class Operator(object):
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
 
-    def add_rule(self, subject, predicate, operation='composition'):
+    def add_rule(self, subject, predicate, operation=None):
         """
         Add a rule to the rule list, taking care of duplicates.
         Rules matching classes have a lower priority than the others.
         """
-        if operation == 'addition' and subject[-1] == '.':
+        if operation is None:
+            operation = CompositionOperator
+        if issubclass(operation, CommutativeCompositeOperator) and subject[-1] == '.':
             subject = '.' + subject[:-1]
         rule = OperatorRule(self, subject, predicate)
+        if operation not in self.rules:
+            self.rules[operation] = []
         rules = self.rules[operation]
         ids = [r._str_subject for r in rules]
         try:
@@ -864,7 +861,7 @@ class Operator(object):
 
     def _set_rules(self):
         """Translate flags into rules."""
-        self.rules = {'addition': [], 'composition': []}
+        self.rules = {}
         if self.flags.IDEMPOTENT:
             self.add_rule('..', '.')
         if self.flags.ORTHOGONAL:
@@ -1195,33 +1192,17 @@ class CompositeOperator(Operator):
         return r
 
 
-class AdditionOperator(CompositeOperator):
+class CommutativeCompositeOperator(CompositeOperator):
     """
-    Class for operator addition
-
-    If at least one of the input already is the result of an addition,
-    a flattened list of operators is created by associativity, to simplify
-    reduction.
+    Class for commutative operator, such as addition or multiplication
     """
 
-    def __init__(self, operands):
-        flags = {
-            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
-            'REAL': all([op.flags.REAL for op in self.operands]),
-            'SQUARE': self.shapein is not None
-            and self.shapein == self.shapeout
-            or all([op.flags.SQUARE for op in self.operands]),
-        }
-        CompositeOperator.__init__(self, operands, flags=flags)
-        self.classin = first_is_not([o.classin for o in self.operands], None)
-        self.classout = first_is_not([o.classout for o in self.operands], None)
+    def __new__(cls, operands, operation, *args, **keywords):
+        return CompositeOperator.__new__(cls, operands, *args, **keywords)
 
-    def associated_operators(self):
-        return {
-            'T': AdditionOperator([m.T for m in self.operands]),
-            'H': AdditionOperator([m.H for m in self.operands]),
-            'C': AdditionOperator([m.conjugate() for m in self.operands]),
-        }
+    def __init__(self, operands, operation, *args, **keywords):
+        CompositeOperator.__init__(self, operands, *args, **keywords)
+        self.operation = operation
 
     def direct(self, input, output):
         operands = list(self.operands)
@@ -1247,10 +1228,10 @@ class AdditionOperator(CompositeOperator):
 
         for op in operands[1:]:
             if op.inplace_reduction:
-                op.direct(input, output, operation=operator.__iadd__)
+                op.direct(input, output, operation=self.operation)
             else:
                 op.direct(input, buf)
-                output += buf
+                self.operation(output, buf)
 
         if need_temporary:
             memory.down()
@@ -1292,17 +1273,20 @@ class AdditionOperator(CompositeOperator):
                 )
         return shapein
 
-    @staticmethod
-    def _apply_rules(ops):
+    @classmethod
+    def _apply_rules(cls, ops):
         if len(ops) <= 1:
             return ops
         i = 0
         while i < len(ops):
+            if cls not in ops[i].rules:
+                i += 1
+                continue
             j = 0
             consumed = False
             while j < len(ops):
                 if j != i:
-                    for rule in ops[i].rules['addition']:
+                    for rule in ops[i].rules[cls]:
                         new_ops = rule(ops[j])
                         if new_ops is None:
                             continue
@@ -1329,6 +1313,70 @@ class AdditionOperator(CompositeOperator):
             if ops[0].data == 0 and len(ops) > 1:
                 del ops[0]
         return ops
+
+
+class AdditionOperator(CommutativeCompositeOperator):
+    """
+    Class for operator addition
+
+    If at least one of the input already is the result of an addition,
+    a flattened list of operators is created by associativity, to simplify
+    reduction.
+    """
+
+    def __new__(cls, operands):
+        return CommutativeCompositeOperator.__new__(cls, operands, operator.__iadd__)
+
+    def __init__(self, operands):
+        flags = {
+            'LINEAR': all([op.flags.LINEAR for op in self.operands]),
+            'REAL': all([op.flags.REAL for op in self.operands]),
+            'SQUARE': self.shapein is not None
+            and self.shapein == self.shapeout
+            or all([op.flags.SQUARE for op in self.operands]),
+        }
+        CommutativeCompositeOperator.__init__(
+            self, operands, operator.__iadd__, flags=flags
+        )
+        self.classin = first_is_not([o.classin for o in self.operands], None)
+        self.classout = first_is_not([o.classout for o in self.operands], None)
+
+    def associated_operators(self):
+        return {
+            'T': AdditionOperator([m.T for m in self.operands]),
+            'H': AdditionOperator([m.H for m in self.operands]),
+            'C': AdditionOperator([m.conjugate() for m in self.operands]),
+        }
+
+
+class MultiplicationOperator(CommutativeCompositeOperator):
+    """
+    Class for operator element-wise multiplication
+
+    If at least one of the input already is the result of an multiplication,
+    a flattened list of operators is created by associativity, to simplify
+    reduction.
+    """
+
+    def __new__(cls, operands):
+        return CommutativeCompositeOperator.__new__(cls, operands, operator.__imul__)
+
+    def __init__(self, operands):
+        flags = {
+            'LINEAR': False,
+            'REAL': all([op.flags.REAL for op in self.operands]),
+            'SQUARE': self.shapein is not None
+            and self.shapein == self.shapeout
+            or all([op.flags.SQUARE for op in self.operands]),
+        }
+        CommutativeCompositeOperator.__init__(
+            self, operands, operator.__imul__, flags=flags
+        )
+        self.classin = first_is_not([o.classin for o in self.operands], None)
+        self.classout = first_is_not([o.classout for o in self.operands], None)
+
+    def associated_operators(self):
+        return {'C': MultiplicationOperator([m.conjugate() for m in self.operands])}
 
 
 @inplace
@@ -1447,8 +1495,8 @@ class CompositionOperator(CompositeOperator):
             shape = op.reshapeout(shape)
         return shape
 
-    @staticmethod
-    def _apply_rules(ops):
+    @classmethod
+    def _apply_rules(cls, ops):
         if len(ops) <= 1:
             return ops
         i = len(ops) - 1
@@ -1457,8 +1505,8 @@ class CompositionOperator(CompositeOperator):
 
             # inspect operators on the right
             consumed = False
-            if i < len(ops) - 1:
-                for rule in ops[i].rules['composition']:
+            if i < len(ops) - 1 and cls in ops[i].rules:
+                for rule in ops[i].rules[cls]:
                     if rule.reflected:
                         continue
                     new_ops = rule(ops[i + 1])
@@ -1476,8 +1524,8 @@ class CompositionOperator(CompositeOperator):
                 continue
 
             # inspect operators on the left
-            if i > 0:
-                for rule in ops[i].rules['composition']:
+            if i > 0 and cls in ops[i].rules:
+                for rule in ops[i].rules[cls]:
                     if not rule.reflected:
                         continue
                     new_ops = rule(ops[i - 1])
@@ -1621,8 +1669,8 @@ class PartitionBaseOperator(CompositeOperator):
         else:
             self.__class__ = PartitionOperator
         CompositeOperator.__init__(self, operands, flags=flags)
-        self.add_rule('.{Operator}', self._rule_operator_add, 'addition')
-        self.add_rule('.{self}', self._rule_add, 'addition')
+        self.add_rule('.{Operator}', self._rule_operator_add, AdditionOperator)
+        self.add_rule('.{self}', self._rule_add, AdditionOperator)
         self.add_rule('.{Operator}', self._rule_operator_comp_right)
         self.add_rule('{Operator}.', self._rule_operator_comp_left)
         self.add_rule('.{PartitionBaseOperator}', self._rule_comp_right)
@@ -2225,7 +2273,7 @@ class ScalarOperator(Operator):
         self.data = data
         self.add_rule('{Operator}.', self._rule_linear)
         self.add_rule('{ScalarOperator}.', self._rule_mul)
-        self.add_rule('{ScalarOperator}.', self._rule_add, 'addition')
+        self.add_rule('{ScalarOperator}.', self._rule_add, AdditionOperator)
 
     def associated_operators(self):
         return {
