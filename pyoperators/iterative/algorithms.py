@@ -361,15 +361,14 @@ class HuberConjugateGradient(ConjugateGradient):
         ConjugateGradient.__init__(self, criterion, **kwargs)
  
 # for backward compatibility
-
 def define_stop_condition(**kwargs):
     defaults = {'maxiter':None, 'tol':TOL, 'gtol':GTOL, 'cond':np.any}
-    new_kwargs = {key:kwargs.get(key, defaults[key]) for key in defaults.keys()}
+    new_kwargs = dict((k,kwargs.get(k,v)) for k,v in defaults.items())
     return StopCondition(**new_kwargs)
 
 def define_callback(**kwargs):
     defaults = {'verbose':False, 'savefile':None, 'shape':()}
-    new_kwargs = {key:kwargs.get(key, defaults[key]) for key in defaults.keys()}
+    new_kwargs = dict((k,kwargs.get(k,v)) for k,v in defaults.items())
     return Callback(**new_kwargs)
 
 def acg(model, data, priors=[], hypers=[], covariances=None, return_algo=False,
