@@ -31,13 +31,13 @@ __all__ = [
     'Operator',
     'OperatorFlags',
     'AdditionOperator',
-    'MultiplicationOperator',
+    'BlockColumnOperator',
+    'BlockDiagonalOperator',
+    'BlockRowOperator',
     'BroadcastingOperator',
     'CompositionOperator',
-    'ExpansionOperator',
     'IdentityOperator',
-    'PartitionOperator',
-    'ReductionOperator',
+    'MultiplicationOperator',
     'ReshapeOperator',
     'ScalarOperator',
     'asoperator',
@@ -1165,17 +1165,17 @@ class CompositeOperator(Operator):
     def __str__(self):
         if isinstance(self, AdditionOperator):
             op = ' + '
-        elif isinstance(self, PartitionOperator):
+        elif isinstance(self, BlockDiagonalOperator):
             op = ' ⊕ '
         else:
             op = ' * '
         operands = [
             '({0})'.format(o)
-            if isinstance(o, (AdditionOperator, PartitionOperator))
+            if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
             else str(o)
             for o in self.operands
         ]
-        if isinstance(self, PartitionOperator):
+        if isinstance(self, BlockDiagonalOperator):
             if len(operands) > 2:
                 operands = [operands[0], '...', operands[-1]]
         return op.join(operands)
@@ -1625,10 +1625,10 @@ class CompositionOperator(CompositeOperator):
         return outplaces, reuse_output
 
 
-class PartitionBaseOperator(CompositeOperator):
+class BlockOperator(CompositeOperator):
     """
-    Abstract base class for PartitionOperator, ExpansionOperator and
-    ReductionOperator.
+    Abstract base class for BlockDiagonalOperator, BlockColumnOperator and
+    BlockRowOperator.
     """
 
     def __init__(
@@ -1663,18 +1663,18 @@ class PartitionBaseOperator(CompositeOperator):
         self.slicein = self._get_slice(axisin)
         self.sliceout = self._get_slice(axisout)
         if partitionin is None:
-            self.__class__ = ExpansionOperator
+            self.__class__ = BlockColumnOperator
         elif partitionout is None:
-            self.__class__ = ReductionOperator
+            self.__class__ = BlockRowOperator
         else:
-            self.__class__ = PartitionOperator
+            self.__class__ = BlockDiagonalOperator
         CompositeOperator.__init__(self, operands, flags=flags)
         self.add_rule('.{Operator}', self._rule_operator_add, AdditionOperator)
         self.add_rule('.{self}', self._rule_add, AdditionOperator)
         self.add_rule('.{Operator}', self._rule_operator_comp_right)
         self.add_rule('{Operator}.', self._rule_operator_comp_left)
-        self.add_rule('.{PartitionBaseOperator}', self._rule_comp_right)
-        self.add_rule('{PartitionBaseOperator}.', self._rule_comp_left)
+        self.add_rule('.{BlockOperator}', self._rule_comp_right)
+        self.add_rule('{BlockOperator}.', self._rule_comp_left)
 
     def reshapein(self, shapein):
         if shapein is None:
@@ -1897,7 +1897,7 @@ class PartitionBaseOperator(CompositeOperator):
     def _rule_operator_add(self, op):
         if op.shapein is not None:
             return None
-        return PartitionBaseOperator(
+        return BlockOperator(
             [o + op for o in self.operands],
             partitionin=self.partitionin,
             axisin=self.axisin,
@@ -1910,7 +1910,7 @@ class PartitionBaseOperator(CompositeOperator):
         if partitionin is partitionout is None:
             return None
         operands = [o1 + o2 for o1, o2 in zip(p.operands, self.operands)]
-        return PartitionBaseOperator(
+        return BlockOperator(
             operands,
             partitionin=partitionin,
             axisin=self.axisin,
@@ -1927,7 +1927,7 @@ class PartitionBaseOperator(CompositeOperator):
         partitionout = self._get_partitionout(
             n * [op], self.partitionout, self.axisout, self.axisout
         )
-        return PartitionBaseOperator(
+        return BlockOperator(
             [op * o for o in self.operands],
             partitionin=self.partitionin,
             axisin=self.axisin,
@@ -1944,7 +1944,7 @@ class PartitionBaseOperator(CompositeOperator):
         partitionin = self._get_partitionin(
             n * [op], self.partitionin, self.axisin, self.axisin
         )
-        return PartitionBaseOperator(
+        return BlockOperator(
             [o * op for o in self.operands],
             partitionin=partitionin,
             axisin=self.axisin,
@@ -1967,7 +1967,7 @@ class PartitionBaseOperator(CompositeOperator):
         operands = [o1 * o2 for o1, o2 in zip(p1.operands, p2.operands)]
         if partitionin is partitionout is None:
             return AdditionOperator(operands)
-        return PartitionBaseOperator(
+        return BlockOperator(
             operands,
             partitionin=partitionin,
             axisin=axisin,
@@ -1976,7 +1976,7 @@ class PartitionBaseOperator(CompositeOperator):
         )
 
 
-class PartitionOperator(PartitionBaseOperator):
+class BlockDiagonalOperator(BlockOperator):
     """
     Block diagonal operator with more stringent conditions.
 
@@ -2003,7 +2003,7 @@ class PartitionOperator(PartitionBaseOperator):
     Example
     -------
     o1, o2 = Operator(shapein=(16,4)), Operator(shapein=(16,3))
-    p = PartitionOperator([o1, o2], axis=-1)
+    p = BlockDiagonalOperator([o1, o2], axis=-1)
     print(p.shapein)
     (16,7)
 
@@ -2019,7 +2019,7 @@ class PartitionOperator(PartitionBaseOperator):
         partitionin = tointtuple(partitionin)
         partitionout = self._get_partitionout(operands, partitionin, axisin, axisout)
 
-        PartitionBaseOperator.__init__(
+        BlockOperator.__init__(
             self,
             operands,
             partitionin=partitionin,
@@ -2030,25 +2030,25 @@ class PartitionOperator(PartitionBaseOperator):
 
     def associated_operators(self):
         return {
-            'C': PartitionOperator(
+            'C': BlockDiagonalOperator(
                 [op.C for op in self.operands],
                 self.partitionin,
                 self.axisin,
                 self.axisout,
             ),
-            'T': PartitionOperator(
+            'T': BlockDiagonalOperator(
                 [op.T for op in self.operands],
                 self.partitionout,
                 self.axisout,
                 self.axisin,
             ),
-            'H': PartitionOperator(
+            'H': BlockDiagonalOperator(
                 [op.H for op in self.operands],
                 self.partitionout,
                 self.axisout,
                 self.axisin,
             ),
-            'I': PartitionOperator(
+            'I': BlockDiagonalOperator(
                 [op.I for op in self.operands],
                 self.partitionout,
                 self.axisout,
@@ -2074,14 +2074,14 @@ class PartitionOperator(PartitionBaseOperator):
             destout += nout
 
 
-class ExpansionOperator(PartitionBaseOperator):
+class BlockColumnOperator(BlockOperator):
     """
     Block column operator with more stringent conditions.
 
     Example
     -------
     >>> I = IdentityOperator(shapein=3)
-    >>> op = ExpansionOperator([I,2*I])
+    >>> op = BlockColumnOperator([I,2*I])
     >>> op.todense()
 
     array([[ 1.,  0.,  0.],
@@ -2100,19 +2100,19 @@ class ExpansionOperator(PartitionBaseOperator):
             )
         partitionout = tointtuple(partitionout)
 
-        PartitionBaseOperator.__init__(
+        BlockOperator.__init__(
             self, operands, partitionout=partitionout, axisout=axisout
         )
 
     def associated_operators(self):
         return {
-            'C': ExpansionOperator(
+            'C': BlockColumnOperator(
                 [op.C for op in self.operands], self.partitionout, self.axisout
             ),
-            'T': ReductionOperator(
+            'T': BlockRowOperator(
                 [op.T for op in self.operands], self.partitionout, self.axisout
             ),
-            'H': ReductionOperator(
+            'H': BlockRowOperator(
                 [op.H for op in self.operands], self.partitionout, self.axisout
             ),
         }
@@ -2133,14 +2133,14 @@ class ExpansionOperator(PartitionBaseOperator):
         return '[ ' + ' '.join(operands) + ' ]'
 
 
-class ReductionOperator(PartitionBaseOperator):
+class BlockRowOperator(BlockOperator):
     """
     Block row operator with more stringent conditions.
 
     Example
     -------
     >>> I = IdentityOperator(shapein=3)
-    >>> op = ReductionOperator([I,2*I])
+    >>> op = BlockRowOperator([I,2*I])
     >>> op.todense()
 
     array([[ 1.,  0.,  0., 2., 0., 0.],
@@ -2154,19 +2154,17 @@ class ReductionOperator(PartitionBaseOperator):
             partitionin = self._get_partition([op.shapein for op in operands], axisin)
         partitionin = tointtuple(partitionin)
 
-        PartitionBaseOperator.__init__(
-            self, operands, partitionin=partitionin, axisin=axisin
-        )
+        BlockOperator.__init__(self, operands, partitionin=partitionin, axisin=axisin)
 
     def associated_operators(self):
         return {
-            'C': ReductionOperator(
+            'C': BlockRowOperator(
                 [op.C for op in self.operands], self.partitionin, self.axisin
             ),
-            'T': ExpansionOperator(
+            'T': BlockColumnOperator(
                 [op.T for op in self.operands], self.partitionin, self.axisin
             ),
-            'H': ExpansionOperator(
+            'H': BlockColumnOperator(
                 [op.H for op in self.operands], self.partitionin, self.axisin
             ),
         }

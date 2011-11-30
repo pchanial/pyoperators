@@ -9,9 +9,9 @@ from pyoperators.core import (
     AdditionOperator,
     MultiplicationOperator,
     CompositionOperator,
-    PartitionOperator,
-    ExpansionOperator,
-    ReductionOperator,
+    BlockDiagonalOperator,
+    BlockColumnOperator,
+    BlockRowOperator,
     ScalarOperator,
     asoperator,
 )
@@ -1190,7 +1190,7 @@ def test_partition1():
         ((o1, o2, o3), (I, o2, o3), (o1, 2 * I, o3), (o1, o2, 3 * I)),
         (None, (1, 2, 3), (1, 2, 3), (1, 2, 3)),
     ):
-        op = PartitionOperator(ops, partitionin=p)
+        op = BlockDiagonalOperator(ops, partitionin=p)
         yield assert_array_equal, op.todense(6), r, str(op)
 
 
@@ -1239,7 +1239,7 @@ def test_partition2():
         ),
     ):
         for axisr in (0, 1, 2, 3):
-            op = PartitionOperator(3 * [Op(axisr)], partitionin=p, axisin=axisp)
+            op = BlockDiagonalOperator(3 * [Op(axisr)], partitionin=p, axisin=axisp)
             yield assert_array_equal, op(i), Op(axisr)(i), 'axis={0},{1}'.format(
                 axisp, axisr
             )
@@ -1259,22 +1259,22 @@ def test_partition4():
         pass
 
     op = Op()
-    p = PartitionOperator([o1, o2, o3])
+    p = BlockDiagonalOperator([o1, o2, o3])
 
     r = (op + p + op) * p
-    assert isinstance(r, PartitionOperator)
+    assert isinstance(r, BlockDiagonalOperator)
 
 
 def test_expansion1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, ExpansionOperator, [I2, 2 * I3])
+    assert_raises(ValueError, BlockColumnOperator, [I2, 2 * I3])
 
 
 def test_expansion2():
     p = np.matrix([[1, 0], [0, 2], [1, 0]])
     o = asoperator(np.matrix(p))
-    e = ExpansionOperator([o, 2 * o])
+    e = BlockColumnOperator([o, 2 * o])
     assert_array_equal(e.todense(), np.vstack([p, 2 * p]))
     assert_array_equal(e.T.todense(), e.todense().T)
 
@@ -1282,13 +1282,13 @@ def test_expansion2():
 def test_reduction1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, ReductionOperator, [I2, 2 * I3])
+    assert_raises(ValueError, BlockRowOperator, [I2, 2 * I3])
 
 
 def test_reduction2():
     p = np.matrix([[1, 0], [0, 2], [1, 0]])
     o = asoperator(np.matrix(p))
-    r = ReductionOperator([o, 2 * o])
+    r = BlockRowOperator([o, 2 * o])
     assert_array_equal(r.todense(), np.hstack([p, 2 * p]))
     assert_array_equal(r.T.todense(), r.todense().T)
 
