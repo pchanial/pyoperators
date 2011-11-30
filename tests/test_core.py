@@ -5,8 +5,8 @@ from nose.tools import eq_, ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 from pyoperators import memory
 from pyoperators.core import (Operator, AdditionOperator,
-         MultiplicationOperator, CompositionOperator, PartitionOperator,
-         ExpansionOperator, ReductionOperator, ScalarOperator, asoperator)
+         MultiplicationOperator, CompositionOperator, BlockDiagonalOperator,
+         BlockColumnOperator, BlockRowOperator, ScalarOperator, asoperator)
 from pyoperators.decorators import symmetric, square, inplace
 from pyoperators.linear import I, O, DiagonalOperator, IdentityOperator
 from pyoperators.utils import ndarraywrap, assert_is, assert_is_not, assert_not_in, assert_is_instance
@@ -991,7 +991,7 @@ def test_partition1():
     r = DiagonalOperator([1,2,2,3,3,3]).todense()
     for ops, p in zip(((o1,o2,o3), (I,o2,o3), (o1,2*I,o3), (o1,o2,3*I)),
                       (None, (1,2,3), (1,2,3), (1,2,3))):
-        op = PartitionOperator(ops, partitionin=p)
+        op = BlockDiagonalOperator(ops, partitionin=p)
         yield assert_array_equal, op.todense(6), r, str(op)
 
 def test_partition2():
@@ -1021,7 +1021,8 @@ def test_partition2():
     i = np.arange(3*4*5*6).reshape(3,4,5,6)
     for axisp,p in zip((0,1,2,3,-1,-2,-3), ((1,1,1),(1,2,1),(2,2,1),(2,3,1),(2,3,1),(2,2,1),(1,2,1),(1,1,1))):
         for axisr in (0,1,2,3):
-            op = PartitionOperator(3*[Op(axisr)], partitionin=p, axisin=axisp)
+            op = BlockDiagonalOperator(3*[Op(axisr)], partitionin=p,
+                                       axisin=axisp)
             yield assert_array_equal, op(i), Op(axisr)(i), 'axis={0},{1}'.format(
                 axisp,axisr)
 
@@ -1037,32 +1038,32 @@ def test_partition4():
     class Op(Operator):
         pass
     op=Op()
-    p=PartitionOperator([o1,o2,o3])
+    p=BlockDiagonalOperator([o1,o2,o3])
     
     r = (op + p + op) * p
-    assert isinstance(r, PartitionOperator)
+    assert isinstance(r, BlockDiagonalOperator)
 
 def test_expansion1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, ExpansionOperator, [I2, 2*I3])
+    assert_raises(ValueError, BlockColumnOperator, [I2, 2*I3])
 
 def test_expansion2():
     p = np.matrix([[1,0], [0,2], [1,0]])
     o = asoperator(np.matrix(p))
-    e = ExpansionOperator([o, 2*o])
+    e = BlockColumnOperator([o, 2*o])
     assert_array_equal(e.todense(), np.vstack([p,2*p]))
     assert_array_equal(e.T.todense(), e.todense().T)
 
 def test_reduction1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, ReductionOperator, [I2, 2*I3])
+    assert_raises(ValueError, BlockRowOperator, [I2, 2*I3])
 
 def test_reduction2():
     p = np.matrix([[1,0], [0,2], [1,0]])
     o = asoperator(np.matrix(p))
-    r = ReductionOperator([o, 2*o])
+    r = BlockRowOperator([o, 2*o])
     assert_array_equal(r.todense(), np.hstack([p,2*p]))
     assert_array_equal(r.T.todense(), r.todense().T)
 
