@@ -2,7 +2,7 @@ import nose
 import numpy as np
 from numpy.testing import assert_, assert_array_equal
 
-from pyoperators import RoundOperator
+from pyoperators import NumexprOperator, RoundOperator
 
 
 def test_rounding():
@@ -33,6 +33,12 @@ def test_rounding():
     # yield assert_array_equal, result[mask], [-3,-3,-2,0,0,1,1]
     # yield assert_, result[2] in (-3,-2)
     # yield assert_, result[-3] in (0,1)
+
+
+def test_numexpr():
+    d = 7.0
+    op = NumexprOperator('2.*exp(input)+d', {'d': d})
+    assert op(3.0) == 2 * np.exp(3.0) + d
 
 
 if __name__ == "__main__":

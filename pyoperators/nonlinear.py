@@ -1,9 +1,15 @@
-import numpy as np
+try:
+    import numexpr
+except ImportError:
+    pass
 
+import numpy as np
 from .decorators import square, inplace
 from .core import Operator
 
 __all__ = ['ClipOperator', 'MaximumOperator', 'MinimumOperator', 'RoundOperator']
+if numexpr:
+    __all__ += ['NumexprOperator']
 
 
 @square
@@ -94,6 +100,47 @@ class MinimumOperator(Operator):
         np.minimum
         """
         Operator.__init__(self, lambda i, o: np.minimum(i, value, o), **keywords)
+
+
+if numexpr:
+
+    @inplace
+    @square
+    class NumexprOperator(Operator):
+        """
+        Return an operator evaluating an expression using numexpr.
+
+        Parameters
+        ----------
+        expr : string
+            The numexp expression to be evaluated. It must contain the 'input'
+            variable name.
+        global_dict : dict
+            A dictionary of global variables that are passed to numexpr's 'evaluate'
+            method.
+
+        Example
+        -------
+        >>> k = 1.2
+        >>> op = NumexprOperator('exp(input+k)', {'k':k})
+        >>> print op(1) == np.exp(2.2)
+        True
+        """
+
+        def __init__(self, expr, global_dict=None, dtype=float, **keywords):
+            self.expr = expr
+            self.global_dict = global_dict
+            Operator.__init__(self, dtype=dtype, **keywords)
+
+        if numexpr.__version__ >= 2.0:
+
+            def direct(self, input, output):
+                numexpr.evaluate(self.expr, global_dict=self.global_dict, out=output)
+
+        else:
+
+            def direct(self, input, output):
+                output[...] = numexpr.evaluate(self.expr, global_dict=self.global_dict)
 
 
 @square
