@@ -110,6 +110,38 @@ class Op3(Operator):
         pass
 
 
+class Stretch(Operator):
+    """Stretch input array by replicating it by a factor of 2."""
+
+    def __init__(self, axis, **keywords):
+        self.axis = axis
+        if self.axis < 0:
+            self.slice = [Ellipsis] + (-self.axis) * [slice(None)]
+        else:
+            self.slice = (self.axis + 1) * [slice(None)] + [Ellipsis]
+        Operator.__init__(self, **keywords)
+
+    def direct(self, input, output):
+        self.slice[self.axis] = slice(0, None, 2)
+        output[self.slice] = input
+        self.slice[self.axis] = slice(1, None, 2)
+        output[self.slice] = input
+
+    def reshapein(self, shape):
+        if shape is None:
+            return None
+        shape_ = list(shape)
+        shape_[self.axis] *= 2
+        return shape_
+
+    def reshapeout(self, shape):
+        if shape is None:
+            return None
+        shape_ = list(shape)
+        shape_[self.axis] //= 2
+        return shape_
+
+
 def test_shape_is_inttuple():
     for shapein in (
         3,
@@ -1190,40 +1222,13 @@ def test_partition1():
         ((o1, o2, o3), (I, o2, o3), (o1, 2 * I, o3), (o1, o2, 3 * I)),
         (None, (1, 2, 3), (1, 2, 3), (1, 2, 3)),
     ):
-        op = BlockDiagonalOperator(ops, partitionin=p)
+        op = BlockDiagonalOperator(ops, partitionin=p, axisin=0)
         yield assert_array_equal, op.todense(6), r, str(op)
 
 
 def test_partition2():
-    class Op(Operator):
-        def __init__(self, axis, **keywords):
-            self.axis = axis
-            if self.axis < 0:
-                self.slice = [Ellipsis] + (-self.axis) * [slice(None)]
-            else:
-                self.slice = (self.axis + 1) * [slice(None)] + [Ellipsis]
-            Operator.__init__(self, **keywords)
-
-        def direct(self, input, output):
-            self.slice[self.axis] = slice(0, None, 2)
-            output[self.slice] = input
-            self.slice[self.axis] = slice(1, None, 2)
-            output[self.slice] = input
-
-        def reshapein(self, shape):
-            if shape is None:
-                return None
-            shape_ = list(shape)
-            shape_[self.axis] *= 2
-            return shape_
-
-        def reshapeout(self, shape):
-            if shape is None:
-                return None
-            shape_ = list(shape)
-            shape_[self.axis] //= 2
-            return shape_
-
+    # in some cases in this test, partitionout cannot be inferred from
+    # partitionin, because the former depends on the input rank
     i = np.arange(3 * 4 * 5 * 6).reshape(3, 4, 5, 6)
     for axisp, p in zip(
         (0, 1, 2, 3, -1, -2, -3),
@@ -1238,10 +1243,12 @@ def test_partition2():
             (1, 1, 1),
         ),
     ):
-        for axisr in (0, 1, 2, 3):
-            op = BlockDiagonalOperator(3 * [Op(axisr)], partitionin=p, axisin=axisp)
-            yield assert_array_equal, op(i), Op(axisr)(i), 'axis={0},{1}'.format(
-                axisp, axisr
+        for axiss in (0, 1, 2, 3):
+            op = BlockDiagonalOperator(
+                3 * [Stretch(axiss)], partitionin=p, axisin=axisp
+            )
+            yield assert_array_equal, op(i), Stretch(axiss)(i), 'axis={0},{1}'.format(
+                axisp, axiss
             )
 
 
@@ -1259,36 +1266,89 @@ def test_partition4():
         pass
 
     op = Op()
-    p = BlockDiagonalOperator([o1, o2, o3])
+    p = BlockDiagonalOperator([o1, o2, o3], axisin=0)
 
     r = (op + p + op) * p
     assert isinstance(r, BlockDiagonalOperator)
 
 
-def test_expansion1():
+def test_block1():
+    ops = [ScalarOperator(i, shapein=(2, 2)) for i in range(1, 4)]
+    for axis, s in zip(
+        range(-3, 3), ((3, 2, 2), (2, 3, 2), (2, 2, 3), (3, 2, 2), (2, 3, 2), (2, 2, 3))
+    ):
+        op = BlockDiagonalOperator(ops, new_axisin=axis)
+        yield assert_equal, op.shapein, s
+        yield assert_equal, op.shapeout, s
+
+
+def test_block2():
+    shape = (3, 4, 5, 6)
+    i = np.arange(np.product(shape)).reshape(shape)
+    for axisp in (0, 1, 2, 3, -1, -2, -3):
+        for axiss in (0, 1, 2):
+            op = BlockDiagonalOperator(
+                shape[axisp] * [Stretch(axiss)], new_axisin=axisp
+            )
+            axisp_ = axisp if axisp >= 0 else axisp + 4
+            axiss_ = axiss if axisp_ > axiss else axiss + 1
+            yield assert_array_equal, op(i), Stretch(axiss_)(i), 'axis={0},{1}'.format(
+                axisp, axiss
+            )
+
+
+def test_block3():
+    # test new_axisin != new_axisout...
+    pass
+
+
+def test_block4():
+    o1 = ScalarOperator(1, shapein=2)
+    o2 = ScalarOperator(2, shapein=2)
+    o3 = ScalarOperator(3, shapein=2)
+
+    class Op(Operator):
+        pass
+
+    op = Op()
+    p = BlockDiagonalOperator([o1, o2, o3], new_axisin=0)
+
+    r = (op + p + op) * p
+    assert isinstance(r, BlockDiagonalOperator)
+
+
+def test_block_column1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, BlockColumnOperator, [I2, 2 * I3])
+    assert_raises(ValueError, BlockColumnOperator, [I2, 2 * I3], axisout=0)
+    assert_raises(ValueError, BlockColumnOperator, [I2, 2 * I3], new_axisout=0)
 
 
-def test_expansion2():
+def test_block_column2():
     p = np.matrix([[1, 0], [0, 2], [1, 0]])
     o = asoperator(np.matrix(p))
-    e = BlockColumnOperator([o, 2 * o])
+    e = BlockColumnOperator([o, 2 * o], axisout=0)
+    assert_array_equal(e.todense(), np.vstack([p, 2 * p]))
+    assert_array_equal(e.T.todense(), e.todense().T)
+    e = BlockColumnOperator([o, 2 * o], new_axisout=0)
     assert_array_equal(e.todense(), np.vstack([p, 2 * p]))
     assert_array_equal(e.T.todense(), e.todense().T)
 
 
-def test_reduction1():
+def test_block_row1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, BlockRowOperator, [I2, 2 * I3])
+    assert_raises(ValueError, BlockRowOperator, [I2, 2 * I3], axisin=0)
+    assert_raises(ValueError, BlockRowOperator, [I2, 2 * I3], new_axisin=0)
 
 
-def test_reduction2():
+def test_block_row2():
     p = np.matrix([[1, 0], [0, 2], [1, 0]])
     o = asoperator(np.matrix(p))
-    r = BlockRowOperator([o, 2 * o])
+    r = BlockRowOperator([o, 2 * o], axisin=0)
+    assert_array_equal(r.todense(), np.hstack([p, 2 * p]))
+    assert_array_equal(r.T.todense(), r.todense().T)
+    r = BlockRowOperator([o, 2 * o], new_axisin=0)
     assert_array_equal(r.todense(), np.hstack([p, 2 * p]))
     assert_array_equal(r.T.todense(), r.todense().T)
 
