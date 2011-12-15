@@ -145,6 +145,11 @@ def strplural(name, n, prepend=True, s=''):
         return (str(n) + ' ' if prepend else '') + name + 's' + s
 
 def strshape(shape):
+    """ Helper function to convert shapes or list of shapes into strings. """
+    if shape is None or len(shape) == 0:
+        return str(shape)
+    if isinstance(shape[0], tuple):
+        return ', '.join(strshape(s) for s in shape)
     if len(shape) == 1:
         return str(shape[0])
     return str(shape).replace(' ','')
