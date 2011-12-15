@@ -492,7 +492,22 @@ class Operator(object):
         return self.classout or cls
             
     def reshapein(self, shapein):
-        """Return operator's output shape."""
+        """
+        Return the operator's output shape.
+        
+        If the operator has not an explicit output shape, the specified input
+        shape is used to deduce it.
+
+        Parameter
+        ---------
+        shapein : tuple
+            The input shape.
+
+        Returns
+        -------
+        shapeout : tuple
+            The output shape, consistent with the input shape
+        """
         shapein = tointtuple(shapein)
         if None not in (self.shapein, shapein) and self.shapein != shapein:
             raise ValueError("The input shape '{0}' is incompatible with that o"
@@ -507,7 +522,22 @@ class Operator(object):
         return None
 
     def reshapeout(self, shapeout):
-        """Return operator's input shape."""
+        """
+        Return the operator's input shape.
+        
+        If the operator has not an explicit input shape, the specified output
+        shape is used to deduce it.
+
+        Parameter
+        ---------
+        shapeout : tuple
+            The output shape.
+
+        Returns
+        -------
+        shapein : tuple
+            The input shape, consistent with the output shape
+        """
         shapeout = tointtuple(shapeout)
         if None not in (self.shapeout, shapeout)  and self.shapeout != shapeout:
             raise ValueError("The output shape '{0}' is incompatible with that "
@@ -1168,7 +1198,7 @@ class AdditionOperator(CommutativeCompositeOperator):
 
 class MultiplicationOperator(CommutativeCompositeOperator):
     """
-    Class for operator element-wise multiplication
+    Class for Hadamard (element-wise) multiplication of operators.
 
     If at least one of the input already is the result of an multiplication,
     a flattened list of operators is created by associativity, to simplify
