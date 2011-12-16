@@ -16,9 +16,8 @@ import numpy as np
 from .algorithms import Algorithm, default_callback, StopCondition
 from .criterions import norm2, Norm2
 from .optimize import FminNCG
-from ..linear import (DiagonalOperator, TridiagonalOperator,
-                      EigendecompositionOperator)
-from ..core import IdentityOperator, asoperator1d
+from ..core import DiagonalOperator, IdentityOperator, asoperator1d
+from ..linear import TridiagonalOperator, EigendecompositionOperator
 
 default_stop = StopCondition(maxiter=5)
 

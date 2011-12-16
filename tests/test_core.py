@@ -4,11 +4,11 @@ import nose
 from nose.tools import eq_, ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 from pyoperators import memory
-from pyoperators.core import (Operator, AdditionOperator,
-         MultiplicationOperator, CompositionOperator, BlockDiagonalOperator,
-         BlockColumnOperator, BlockRowOperator, ScalarOperator, asoperator)
-from pyoperators.decorators import symmetric, square, inplace
-from pyoperators.linear import I, O, DiagonalOperator, IdentityOperator
+from pyoperators.core import (Operator, AdditionOperator, BlockColumnOperator,
+         BlockDiagonalOperator, BlockRowOperator, CompositionOperator,
+         DiagonalOperator, IdentityOperator, MultiplicationOperator,
+         ScalarOperator, ZeroOperator, asoperator, I, O)
+from pyoperators.decorators import inplace, linear, symmetric, square
 from pyoperators.utils import ndarraywrap, assert_is, assert_is_not, assert_not_in, assert_is_instance
 
 np.seterr(all='raise')
@@ -1113,6 +1113,112 @@ def test_block_row2():
     assert_array_equal(r.todense(), np.hstack([p,2*p]))
     assert_array_equal(r.T.todense(), r.todense().T)
 
+def test_diagonal1():
+    d = DiagonalOperator([1.,2.,3.])
+    yield ok_, isinstance(2*d, DiagonalOperator)
+    yield ok_, d*d is not d
+    yield ok_, isinstance(d*d, DiagonalOperator)
+    yield ok_, isinstance(3+2*d*3.*d+2*d+2, DiagonalOperator)
+
+def test_zero1():
+    z = ZeroOperator()
+    o = Operator()
+    yield ok_, isinstance(z*o, ZeroOperator)
+    yield ok_, not isinstance(o*z, ZeroOperator)
+
+def test_zero2():
+    z = ZeroOperator()
+    o = Operator(shapein=3, shapeout=6)
+    zo = z*o
+    yield ok_, isinstance(zo, ZeroOperator)
+    yield ok_, zo.shapein == o.shapein and zo.shapeout == o.shapeout
+
+def test_zero3():
+    z = ZeroOperator(shapein=3, shapeout=6)
+    o = Operator()
+    zo = z*o
+    yield ok_, isinstance(zo, ZeroOperator)
+    yield ok_, zo.shapein == z.shapein and zo.shapeout == z.shapeout
+
+def test_zero4():
+    z = ZeroOperator()
+    o = Operator(flags={'LINEAR':True})
+    yield ok_, isinstance(z*o, ZeroOperator)
+    yield ok_, isinstance(o*z, ZeroOperator)
+
+def test_zero5():
+    z = ZeroOperator()
+    o = Operator(shapein=3, shapeout=6, flags={'LINEAR':True})
+    zo = z*o
+    oz = o*z
+    yield ok_, isinstance(zo, ZeroOperator)
+    yield ok_, zo.shapein == o.shapein and zo.shapeout == o.shapeout
+    yield ok_, isinstance(oz, ZeroOperator)
+    yield ok_, oz.shapein == o.shapein and oz.shapeout == o.shapeout
+
+def test_zero6():
+    z = ZeroOperator(shapein=3, shapeout=6)
+    o = Operator(flags={'LINEAR':True})
+    zo = z*o
+    oz = o*z
+    yield ok_, isinstance(zo, ZeroOperator)
+    yield ok_, zo.shapein == z.shapein and zo.shapeout == z.shapeout
+    yield ok_, isinstance(oz, ZeroOperator)
+    yield ok_, oz.shapein == z.shapein and oz.shapeout == z.shapeout
+
+def test_zero7():
+    z = ZeroOperator()
+    @linear
+    class Op(Operator):
+        def direct(self, input, output):
+            output[:] = np.concatenate([input, 2*input])
+        def transpose(self, input, output):
+            output[:] = input[0:output.size]
+        def reshapein(self, shapein):
+            if shapein is None: return None
+            s = list(shapein)
+            s[0] *= 2
+            return s
+        def reshapeout(self, shapeout):
+            if shapeout is None: return None
+            s = list(shapeout)
+            s[0] //= 2
+            return s
+    o = Op()
+    zo = z*o
+    oz = o*z
+    v = np.ones(4)
+    yield assert_array_equal, zo(v), z(o(v))
+    yield assert_array_equal, oz(v), o(z(v))
+
+def test_zero7b():
+    z = ZeroOperator()
+    @linear
+    class Op(Operator):
+        def direct(self, input, output):
+            output[:] = np.concatenate([input, 2*input])
+        def transpose(self, input, output):
+            output[:] = input[0:output.size]
+        def reshapein(self, shapein):
+            if shapein is None: return None
+            s = list(shapein)
+            s[0] *= 2
+            return s
+        def reshapeout(self, shapeout):
+            if shapeout is None: return None
+            s = list(shapeout)
+            s[0] //= 2
+            return s
+    o = Op()
+    zo = z*o
+    oz = o*z
+    v = np.ones(4)
+    yield assert_array_equal, zo.T(v), o.T(z.T(v))
+    yield assert_array_equal, oz.T(v), z.T(o.T(v))
+    
+def test_zero8():
+    z = ZeroOperator()
+    yield ok_, z*z is z
 
 if __name__ == "__main__":
     nose.run(argv=['', __file__])
