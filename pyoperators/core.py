@@ -1475,15 +1475,15 @@ class BlockOperator(CompositeOperator):
 
         if new_axisin is not None:
             if partitionin is None:
-                partitionin = len(operands) * (1,)
-            elif partitionin != len(operands) * (1,):
+                partitionin = len(self.operands) * (1,)
+            elif partitionin != len(self.operands) * (1,):
                 raise ValueError('If the block operator input shape has one mor'
                                  'e dimension than its blocks, the input partit'
                                  'ion must be a tuple of ones.')
         if new_axisout is not None:
             if partitionout is None:
-                partitionout = len(operands) * (1,)
-            elif partitionout != len(operands) * (1,):
+                partitionout = len(self.operands) * (1,)
+            elif partitionout != len(self.operands) * (1,):
                 raise ValueError('If the block operator output shape has one mo'
                                  're dimension than its blocks, the output part'
                                  'ition must be a tuple of ones.')
@@ -1498,11 +1498,11 @@ class BlockOperator(CompositeOperator):
         if partitionin is partitionout is None:
             raise ValueError('No partition is provided.')
         if partitionin is not None:
-            if len(partitionin) != len(operands):
+            if len(partitionin) != len(self.operands):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the input partition.')
         if partitionout is not None:
-            if len(partitionout) != len(operands):
+            if len(partitionout) != len(self.operands):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the output partition.')
         flags = {
@@ -1910,8 +1910,8 @@ class BlockDiagonalOperator(BlockOperator):
             new_axisout = new_axisin
 
         if partitionin is None:
-            partitionin = self._get_partition([op.shapein for op in operands],
-                                              axisin, new_axisin)
+            partitionin = self._get_partition([op.shapein \
+                for op in self.operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
         partitionout = self._get_partitionout(operands, partitionin, axisin,
                                               axisout, new_axisin, new_axisout)
@@ -1988,8 +1988,8 @@ class BlockColumnOperator(BlockOperator):
         if axisout is None and new_axisout is None:
             new_axisout = 0
         if partitionout is None:
-            partitionout = self._get_partition([op.shapeout for op in operands],
-                                               axisout, new_axisout)
+            partitionout = self._get_partition([op.shapeout \
+                for op in self.operands], axisout, new_axisout)
         partitionout = tointtuple(partitionout)
 
         BlockOperator.__init__(self, operands, partitionout=partitionout,
@@ -2050,8 +2050,8 @@ class BlockRowOperator(BlockOperator):
         if axisin is None and new_axisin is None:
             new_axisin = 0
         if partitionin is None:
-            partitionin = self._get_partition([op.shapein for op in operands],
-                                              axisin, new_axisin)
+            partitionin = self._get_partition([op.shapein \
+                for op in self.operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
 
         BlockOperator.__init__(self, operands, partitionin=partitionin,
