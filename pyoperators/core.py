@@ -791,12 +791,17 @@ class Operator(object):
         if reshapeout is not None:
             self._reshapeout = reshapeout
 
-        if not isinstance(attrin, dict) or not isinstance(attrout, dict):
+        if isinstance(attrin, (dict, types.FunctionType, types.MethodType)):
+            if not isinstance(attrin, dict) or len(attrin) > 0:
+                self.attrin = attrin
+        else:
             raise TypeError('Attributes should be given as a dictionary.')
-        if len(attrin) > 0:
-            self.attrin = attrin
-        if len(attrout) > 0:
-            self.attrout = attrout
+        if isinstance(attrout, (dict, types.FunctionType, types.MethodType)):
+            if not isinstance(attrout, dict) or len(attrout) > 0:
+                self.attrout = attrout
+        else:
+            raise TypeError('Attributes should be given as a dictionary.')
+            
         if classin is not None:
             self.classin = classin
         if classout is not None:
