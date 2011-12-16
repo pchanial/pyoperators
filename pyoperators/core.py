@@ -18,7 +18,8 @@ from collections import namedtuple
 from . import memory
 from .utils import (first_is_not, isclassattr, isscalar, ndarraywrap,
                     strenum, strshape, tointtuple)
-from .decorators import real, idempotent, involutary, square, symmetric, inplace
+from .decorators import (flags, real, idempotent, involutary, square, symmetric,
+                         inplace)
 
 __all__ = [
     'Operator',
@@ -29,11 +30,15 @@ __all__ = [
     'BlockRowOperator',
     'BroadcastingOperator',
     'CompositionOperator',
+    'DiagonalOperator',
     'IdentityOperator',
     'MultiplicationOperator',
     'ReshapeOperator',
     'ScalarOperator',
+    'ZeroOperator',
     'asoperator',
+    'I',
+    'O',
 ]
 
 class OperatorFlags(namedtuple('OperatorFlags',
@@ -2125,6 +2130,181 @@ class ReshapeOperator(Operator):
         return strshape(self.shapeout) + '←' + strshape(self.shapein)
 
 
+@square
+class BroadcastingOperator(Operator):
+    """
+    Abstract class for operators that operate on a data array and
+    the input array, and for which broadcasting of the data array across
+    the input array is required.
+    """
+    def __init__(self, data, broadcast='disabled', shapein=None, dtype=None,
+                 **keywords):
+        if data is None:
+            raise ValueError('The data array is None.')
+
+        if dtype is None:
+            data = np.asarray(data)
+            dtype = data.dtype
+        self.data = np.array(data, dtype, copy=False, order='c', ndmin=1)
+
+        broadcast = broadcast.lower()
+        values = ('fast', 'slow', 'disabled')
+        if broadcast not in values:
+            raise ValueError("Invalid value '{0}' for the broadcast keyword. Ex"
+                "pected values are {1}.".format(broadcast, strenum(values)))
+        if broadcast == 'disabled':
+            if shapein not in (None, self.data.shape):
+                raise ValueError("The input shapein is incompatible with the da"
+                                 "ta shape.")
+            shapein = self.data.shape
+        self.broadcast = broadcast
+
+        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
+
+    def reshapein(self, shape):
+        if shape is None:
+            return None
+        n = self.data.ndim
+        if len(shape) < n:
+            raise ValueError("Invalid number of dimensions.")
+        
+        if self.broadcast == 'fast':
+            it = zip(shape[:n], self.data.shape[:n])
+        else:
+            it = zip(shape[-n:], self.data.shape[-n:])
+        for si, sd in it:
+            if sd != 1 and sd != si:
+                raise ValueError("The data array cannot be broadcast across the"
+                                 " input.")
+        return shape
+
+    def toshapein(self, v):
+        if self.shapein is not None:
+            return v.reshape(self.shapein)
+        if self.data.ndim < 2:
+            return v
+
+        sd = list(self.data.shape)
+        n = sd.count(1)
+        if n > 1:
+            raise ValueError('Ambiguous broadcasting.')
+        if n == 0:
+            if self.broadcast == 'fast':
+                sd.append(-1)
+            else:
+                sd.insert(0, -1)
+        else:
+            sd[sd.index(1)] = -1
+        
+        try:
+            v = v.reshape(sd)
+        except ValueError:
+            raise ValueError("Invalid broadcasting.")
+
+        return v
+
+
+@symmetric
+@inplace
+class DiagonalOperator(BroadcastingOperator):
+
+    def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None):
+        """
+        Subclass of BroadcastingOperator.
+
+        Arguments
+        ---------
+
+        data : ndarray
+          The diagonal coefficients
+
+        broadcast : 'fast' or 'disabled' (default 'disabled')
+          If broadcast == 'fast', the diagonal is broadcasted along the fast
+          axis.
+
+        Exemple
+        -------
+        >>> A = DiagonalOperator(arange(1, 6, 2))
+        >>> A.todense()
+
+        array([[1, 0, 0],
+               [0, 3, 0],
+               [0, 0, 5]])
+
+        >>> A = DiagonalOperator(arange(1, 3), broadcast='fast', shapein=(2, 2))
+        >>> A.todense()
+
+        array([[1, 0, 0, 0],
+               [0, 1, 0, 0],
+               [0, 0, 2, 0],
+               [0, 0, 0, 2]])
+        """
+
+        data = np.array(data, dtype, copy=False)
+        if shapein is None and broadcast == 'disabled' and data.ndim > 0:
+            shapein = data.shape
+        if np.all(data == 1):
+            return IdentityOperator(shapein, dtype)
+        elif np.all(data == 0):
+            return ZeroOperator(shapein, dtype)
+        return BroadcastingOperator.__new__(cls, data, broadcast=broadcast,
+            shapein=shapein, dtype=dtype)
+
+    def __init__(self, data, broadcast='disabled', shapein=None, dtype=None):
+        BroadcastingOperator.__init__(self, data, broadcast, shapein, dtype)
+        self.add_rule('{DiagonalOperator}.',
+                      lambda o: self._rule_diagonal(o,np.add), AdditionOperator)
+        self.add_rule('{DiagonalOperator}.',
+                      lambda o: self._rule_diagonal(o, np.multiply))
+        self.add_rule('{ScalarOperator}.',
+                      lambda o: self._rule_scalar(o, np.add), AdditionOperator)
+        self.add_rule('{ScalarOperator}.',
+                      lambda o: self._rule_scalar(o, np.multiply))
+
+    def direct(self, input, output):
+        if self.broadcast == 'fast':
+            np.multiply(input.T, self.data.T, output.T)
+        else:
+            np.multiply(input, self.data, output)
+
+    def conjugate_(self, input, output):
+        if self.broadcast == 'fast':
+            np.multiply(input.T, np.conjugate(self.data).T, output.T)
+        else:
+            np.multiply(input, np.conjugate(self.data), output)
+
+    def inverse(self, input, output):
+        if self.broadcast == 'fast':
+            np.divide(input.T, self.data.T, output.T)
+        else:
+            np.divide(input, self.data, output)
+
+    def inverse_conjugate(self, input, output):
+        if self.broadcast == 'fast':
+            np.divide(input.T, np.conjugate(self.data).T, output.T)
+        else:
+            np.divide(input, np.conjugate(self.data), output)
+
+    def _rule_scalar(self, s, operation):
+        return DiagonalOperator(operation(s.data, self.data), self.broadcast,
+            shapein=self.shapein, dtype=self._find_common_type([self.dtype,
+            s.dtype]))
+
+    def _rule_diagonal(self, d, operation):
+        if set([self.broadcast, d.broadcast]) == set(['fast', 'slow']):
+            raise ValueError('Fast and slow broadcast cannot be combined.')
+        if self.broadcast == d.broadcast:
+            broadcast = self.broadcast
+        else:
+            broadcast = 'disabled'
+        if self.broadcast == 'fast' or d.broadcast == 'fast':
+            data = (operation(self.data.T, d.data.T)).T
+        else:
+            data = operation(self.data, d.data)
+        return DiagonalOperator(data, broadcast, self.shapein or d.shapein,
+            dtype=self._find_common_type([self.dtype, d.dtype]))
+
+
 @symmetric
 @inplace
 class ScalarOperator(Operator):
@@ -2237,76 +2417,57 @@ class IdentityOperator(ScalarOperator):
     def _rule_identity(self, operator):
         if self.shapein is None or operator.shapeout is not None:
             return operator
-        
-@square
-class BroadcastingOperator(Operator):
+
+
+@real
+@flags(SQUARE=False, SYMMETRIC=False)
+@inplace
+class ZeroOperator(ScalarOperator):
     """
-    Abstract class for operators that operate on a data array and
-    the input array, and for which broadcasting of the data array across
-    the input array is required.
+    A subclass of ScalarOperator with value=0.
+    All __init__ keyword arguments are passed to the
+    ScalarOperator __init__.
     """
-    def __init__(self, data, broadcast='disabled', shapein=None, dtype=None,
-                 **keywords):
-        if data is None:
-            raise ValueError('The data array is None.')
+    def __init__(self, shapein=None, shapeout=None, dtype=None, reshapein=None,
+                 reshapeout=None):
+        if shapein is not None and shapein == shapeout or reshapein is None and\
+           reshapeout is None:
+            flags = {'SQUARE':True, 'SYMMETRIC': True, 'IDEMPOTENT': True}
+        else:
+            flags = None
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout, reshapein= \
+            reshapein, reshapeout=reshapeout, dtype=dtype, flags=flags)
+        self.data = np.array(0)
+        self.add_rule('.{Operator}', self._rule_zero_times)
+        self.add_rule('{Operator}.', self._rule_times_zero)
 
-        if dtype is None:
-            data = np.asarray(data)
-            dtype = data.dtype
-        self.data = np.array(data, dtype, copy=False, order='c', ndmin=1)
+    def associated_operators(self):
+        return {
+            'T' : ZeroOperator(shapein=self.shapeout, shapeout=self.shapein,
+                      reshapein=self._reshapeout, reshapeout=self._reshapein,
+                      dtype=self.dtype)
+        }
 
-        broadcast = broadcast.lower()
-        values = ('fast', 'slow', 'disabled')
-        if broadcast not in values:
-            raise ValueError("Invalid value '{0}' for the broadcast keyword. Ex"
-                "pected values are {1}.".format(broadcast, strenum(values)))
-        if broadcast == 'disabled':
-            if shapein not in (None, self.data.shape):
-                raise ValueError("The input shapein is incompatible with the da"
-                                 "ta shape.")
-            shapein = self.data.shape
-        self.broadcast = broadcast
+    def direct(self, input, output):
+        output[...] = 0
 
-        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
+    def _combine_operators(self, o1, o2):
+        result = ZeroOperator(shapein=o2.shapein or o2.reshapeout(o1.shapein),
+            shapeout=o1.shapeout or o2.shapeout,
+            reshapein=lambda s: o1.reshapein(o2.reshapein(s)),
+            reshapeout=lambda s: o2.reshapeout(o1.reshapeout(s)),
+            dtype=self._find_common_type([o1.dtype, o2.dtype]))
+        result.toshapein = lambda v: o2.toshapein(v)
+        return result
 
-    def reshapein(self, shape):
-        if shape is None:
+    def _rule_zero_times(self, op):
+        return self._combine_operators(self, op)
+
+    def _rule_times_zero(self, op):
+        if not op.flags.LINEAR:
             return None
-        n = self.data.ndim
-        if len(shape) < n:
-            raise ValueError("Invalid number of dimensions.")
+        return self._combine_operators(op, self)
         
-        if self.broadcast == 'fast':
-            it = zip(shape[:n], self.data.shape[:n])
-        else:
-            it = zip(shape[-n:], self.data.shape[-n:])
-        for si, sd in it:
-            if sd != 1 and sd != si:
-                raise ValueError("The data array cannot be broadcast across the"
-                                 " input.")
-        return shape
-
-    def toshapein(self, v):
-        if self.shapein is not None:
-            return v.reshape(self.shapein)
-        if self.data.ndim < 2:
-            return v
-
-        sd = list(self.data.shape)
-        n = sd.count(1)
-        if n > 1:
-            raise ValueError('Ambiguous broadcasting.')
-        if n == 0:
-            if self.broadcast == 'fast':
-                sd.append(-1)
-            else:
-                sd.insert(0, -1)
-        else:
-            sd[sd.index(1)] = -1
         
-        try:
-            v = v.reshape(sd)
-        except ValueError:
-            raise ValueError("Invalid broadcasting.")
-
-        return v
+I = IdentityOperator()
+O = ZeroOperator()

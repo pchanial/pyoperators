@@ -9,8 +9,7 @@ their __call__ and diff methods and their shapein attribute.
 
 import copy
 import numpy as np
-from ..core import Operator
-from ..linear import I
+from ..core import Operator, I
 
 __all__ = [
     'norm2',
