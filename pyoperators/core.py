@@ -208,7 +208,7 @@ class Operator(object):
                  conjugate_=None, inverse=None, inverse_transpose=None,
                  inverse_adjoint=None, inverse_conjugate=None, shapein=None,
                  shapeout=None, reshapein=None, reshapeout=None,
-                 attrin=None, attrout=None, classin=None, classout=None,
+                 attrin={}, attrout={}, classin=None, classout=None,
                  dtype=None, flags=None):
             
         for method, name in zip( \
@@ -786,9 +786,11 @@ class Operator(object):
         if reshapeout is not None:
             self._reshapeout = reshapeout
 
-        if attrin is not None:
+        if not isinstance(attrin, dict) or not isinstance(attrout, dict):
+            raise TypeError('Attributes should be given as a dictionary.')
+        if len(attrin) > 0:
             self.attrin = attrin
-        if attrout is not None:
+        if len(attrout) > 0:
             self.attrout = attrout
         if classin is not None:
             self.classin = classin
@@ -922,7 +924,10 @@ class Operator(object):
                 continue
             nargs = len(vars) - (len(defaults) if defaults is not None else 0)
             if ivar >= nargs:
-                if val is defaults[ivar - nargs]:
+                if isinstance(val, (dict, tuple, list)):
+                    if val == defaults[ivar - nargs]:
+                        continue
+                elif val is defaults[ivar - nargs]:
                     continue
             if isinstance(val, Operator):
                 s = 'Operator()'
