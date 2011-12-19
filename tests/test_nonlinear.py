@@ -32,7 +32,7 @@ def test_rounding():
     # result = r(a)
     # yield assert_array_equal, result[mask], [-3,-3,-2,0,0,1,1]
     # yield assert_, result[2] in (-3,-2)
-    # yield assert_, result[-3] in (0,1)
+    # yield assert_, result[-4] in (0,1)
 
 
 def test_numexpr():
