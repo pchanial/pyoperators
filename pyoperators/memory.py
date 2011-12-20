@@ -2,6 +2,10 @@
 This module handles the allocation of memory.
 
 The stack is by construction a list of contiguous int8 vectors.
+In addition to temporary arrays that are used for intermediate operations,
+the stack may contain the array that will be the output of the operator.
+Care has been taken to ensure that the latter is released from the stack
+to avoid side effects.
 """
 from __future__ import division
 
@@ -146,24 +150,29 @@ def get(nbytes, shape, dtype, description):
     return v
 
 
-def manager(array):
+def push_and_pop(array):
     """
-    Context manager. On entering, put the input array on top of the stack,
-    if it is contiguous. and pop it on exiting.
+    Return a context manager.
+    If the input array is contiguous, push it on top of the stack on entering
+    and pop it on exiting.
     """
-    global stack, istack
 
     class MemoryManager(object):
         def __enter__(self):
             global stack, istack
             if array.flags.contiguous:
-                stack.insert(0, array.ravel().view(np.int8))
-                istack = 0
+                array_ = array.ravel().view(np.int8)
+                self.id = id(array_)
+                stack.insert(istack, array_)
             else:
-                stack.insert(0, None)
-                istack = 1
+                istack += 1
 
         def __exit__(self, *excinfo):
-            stack.pop(0)
+            global stack, istack
+            if array.flags.contiguous:
+                assert self.id == id(stack[istack])
+                stack.pop(istack)
+            else:
+                istack -= 1
 
     return MemoryManager()
