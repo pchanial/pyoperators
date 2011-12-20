@@ -1692,7 +1692,6 @@ class BlockOperator(CompositeOperator):
                     pout.append(shapeout[axisout])
                 except IndexError:
                     continue
-            print pout
             if len(pout) == 0 or any([p != pout[0] for p in pout]):
                 continue
             partitionout[i] = pout[0]
@@ -1707,7 +1706,6 @@ class BlockOperator(CompositeOperator):
             shape_ = list(shape)
             del shape_[new_axis]
             shapes = len(partition) * (tuple(shape_),)
-            print 'shapes', shapes
             return shapes
         shapes = []
         for p in partition:
