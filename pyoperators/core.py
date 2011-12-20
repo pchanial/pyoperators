@@ -2299,7 +2299,7 @@ class DiagonalOperator(BroadcastingOperator):
 
     def _rule_diagonal(self, d, operation):
         if set([self.broadcast, d.broadcast]) == set(['fast', 'slow']):
-            raise ValueError('Fast and slow broadcast cannot be combined.')
+            return None
         if self.broadcast == d.broadcast:
             broadcast = self.broadcast
         else:
