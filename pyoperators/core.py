@@ -296,7 +296,7 @@ class Operator(object):
             raise NotImplementedError('Call to ' + self.__name__ + ' is not imp'
                                       'lemented.')
         i, o = self._validate_input(input, output)
-        with memory.manager(o):
+        with memory.push_and_pop(o):
             if not self.inplace and self.same_data(i, o):
                 memory.up()
                 o_ = memory.get(o.nbytes, o.shape, o.dtype, self.__name__) \
@@ -383,7 +383,7 @@ class Operator(object):
         for i in range(n):
             v[i] = 1
             o = d[i,:].reshape(shapeout)
-            with memory.manager(o):
+            with memory.push_and_pop(o):
                 self.direct(v.reshape(shapein), o)
             v[i] = 0
         return d.T
@@ -393,7 +393,7 @@ class Operator(object):
         if output is not None:
             output = self.toshapeout(output)
         input, output = self._validate_input(v, output)
-        with memory.manager(output):
+        with memory.push_and_pop(output):
             self.direct(input, output)
         return output.view(np.ndarray).ravel()
 
@@ -1956,7 +1956,9 @@ class BlockDiagonalOperator(BlockOperator):
                 self.sliceout[self.new_axisout] = destout
             else:
                 self.sliceout[self.axisout] = slice(destout, destout + nout)
-            op.direct(input[self.slicein], output[self.sliceout])
+            o = output[self.sliceout]
+            with memory.push_and_pop(o):
+                op.direct(input[self.slicein], o)
             destin += nin
             destout += nout
 
@@ -2016,7 +2018,9 @@ class BlockColumnOperator(BlockOperator):
                 self.sliceout[self.new_axisout] = dest
             else:
                 self.sliceout[self.axisout] = slice(dest, dest + n)
-            op.direct(input, output[self.sliceout])
+            o = output[self.sliceout]
+            with memory.push_and_pop(o):
+                op.direct(input, o)
             dest += n
 
     def __str__(self):
