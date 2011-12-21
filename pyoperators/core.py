@@ -14,7 +14,7 @@ import operator
 import scipy.sparse.linalg
 import types
 
-from collections import namedtuple
+from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
 from .utils import (first_is_not, isclassattr, isscalar, ndarraywrap,
                     strenum, strshape, tointtuple)
@@ -491,7 +491,13 @@ class Operator(object):
         if 'shape_global' in attr:
             del attr['shape_global']
         if isinstance(self.attrout, dict):
-            attr.update(self.attrout)
+            for k, v in self.attrout.items():
+                if isinstance(v, (MutableMapping, MutableSequence, MutableSet)):
+                    if hasattr(v, 'copy'):
+                        v = v.copy()
+                    elif type(v) is list:
+                        v = list(v)
+                attr[k] = v
         else:
             self.attrout(attr)
         return self.classout or cls
