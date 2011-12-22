@@ -158,9 +158,7 @@ class OperatorRule(object):
             if other_ == 'self':
                 if not isinstance(other, self.reference.__class__):
                     return None
-            elif other.__class__.__name__ != other_ and all(
-                b.__name__ != other_ for b in other.__class__.__bases__
-            ):
+            elif other_ not in (c.__name__ for c in other.__class__.__mro__):
                 return None
         elif other is not other_:
             return None
