@@ -525,10 +525,10 @@ class Operator(object):
                 strshape(self.shapein)))
         if self.shapeout is not None:
             return self.shapeout
-        if self._reshapein is not None:
-            return tointtuple(self._reshapein(shapein))
         if self.flags.SQUARE:
             return shapein
+        if self._reshapein is not None:
+            return tointtuple(self._reshapein(shapein))
         return None
 
     def reshapeout(self, shapeout):
@@ -557,9 +557,9 @@ class Operator(object):
             return self.shapein
         if self.flags.SQUARE:
             return shapeout
-        if self._reshapeout is None:
-            return None
-        return tointtuple(self._reshapeout(shapeout))
+        if self._reshapeout is not None:
+            return tointtuple(self._reshapeout(shapeout))
+        return None
 
     @staticmethod
     def _find_common_type(dtypes):
@@ -667,9 +667,9 @@ class Operator(object):
         else:
             IT = Operator(self.inverse_transpose, shapein=self.shapein,
                           shapeout=self.shapeout, reshapein=self._reshapein,
-                          reshapeout=self._reshapein, attrin=self.attrout,
-                          attrout=self.attrin, classin=self.classout, classout=\
-                          self.classin, dtype=self.dtype, flags=self.flags)
+                          reshapeout=self._reshapeout, attrin=self.attrin,
+                          attrout=self.attrout, classin=self.classin, classout=\
+                          self.classout, dtype=self.dtype, flags=self.flags)
             IT.__name__ = self.__name__ + '.I.T'
 
         if self.flags.UNITARY:
@@ -689,9 +689,9 @@ class Operator(object):
         else:
             IH = Operator(self.inverse_adjoint, shapein=self.shapein,
                           shapeout=self.shapeout, reshapein=self._reshapein,
-                          reshapeout=self._reshapein, attrin=self.attrout,
-                          attrout=self.attrin, classin=self.classout, classout=\
-                          self.classin, dtype=self.dtype, flags=self.flags)
+                          reshapeout=self._reshapeout, attrin=self.attrin,
+                          attrout=self.attrout, classin=self.classin, classout=\
+                          self.classout, dtype=self.dtype, flags=self.flags)
             IH.__name__ = self.__name__ + '.I.H'
 
         # once all the associated operators are instanciated, we set all their
@@ -786,13 +786,13 @@ class Operator(object):
 
         if self.__class__.reshapein != Operator.reshapein:
             reshapein = self.reshapein
-            self.reshapein = lambda v: Operator.reshapein(self, v)
+            self.reshapein = Operator.reshapein.__get__(self, self.__class__)
         if reshapein is not None:
             self._reshapein = reshapein
 
         if self.__class__.reshapeout != Operator.reshapeout:
             reshapeout = self.reshapeout
-            self.reshapeout = lambda v: Operator.reshapeout(self, v)
+            self.reshapeout = Operator.reshapeout.__get__(self, self.__class__)
         if reshapeout is not None:
             self._reshapeout = reshapeout
 
@@ -812,39 +812,54 @@ class Operator(object):
         if classout is not None:
             self.classout = classout
 
+        if shapein is None and self._reshapeout is not None:
+            shapein = tointtuple(self._reshapeout(shapeout))
+        if shapeout is None and self._reshapein is not None:
+            shapeout = tointtuple(self._reshapein(shapein))
+
         if shapein is shapeout is None:
             shapeout = self.reshapein(None)
             if shapeout is None and self._reshapein is None:
                 self.flags = self.flags._replace(SQUARE=True)
             shapein = self.reshapeout(None)
-        elif shapeout is not None and self._reshapein is not None:
+        
+        if shapeout is not None and self._reshapein is not None:
             shapeout_ = tointtuple(self._reshapein(shapein))
             if shapeout_ is not None and shapeout_ != shapeout:
                 raise ValueError("The specified output shape '{0}' is incompati"
                         "ble with that given by reshapein '{1}'.".format(
                         strshape(shapeout), strshape(shapeout_)))
-        elif shapein is not None and self._reshapeout is not None:
+
+        if shapein is not None and self._reshapeout is not None:
             shapein_ = tointtuple(self._reshapeout(shapeout))
             if shapein_ is not None and shapein_ != shapein:
                 raise ValueError("The specified input shape '{0}' is incompati"
                         "ble with that given by reshapeout '{1}'.".format(
                         strshape(shapein), strshape(shapein_)))
-        elif shapein and shapeout is None and self._reshapein is None:
-            self.flags = self.flags._replace(SQUARE=True)
-
-        if self._reshapeout is not None:
-            shapein = shapein or tointtuple(self._reshapeout(shapeout))
-        if self._reshapein is not None:
-            shapeout = shapeout or tointtuple(self._reshapein(shapein))
-
-        if shapein is not None and shapein == shapeout:
+        
+        if shapein is not None and (shapein == shapeout or \
+           shapeout is None and self._reshapein is None):
             self.flags = self.flags._replace(SQUARE=True)
 
         if self.flags.SQUARE:
-            shapeout = shapein
-            self.reshapeout = self.reshapein
-            self._reshapeout = self._reshapein
-            self.toshapeout = self.toshapein
+            if shapein is not None:
+                shapeout = shapein
+            else:
+                shapein = shapeout
+            cls = self.__class__
+            if self.__class__.reshapein != Operator.reshapein:
+                self.reshapein = Operator.reshapein.__get__(self, cls)
+            if self.__class__.reshapeout != Operator.reshapeout:
+                self.reshapeout = Operator.reshapeout.__get__(self, cls)
+            if '_reshapein' in self.__dict__:
+                del self._reshapein
+            if '_reshapeout' in self.__dict__:
+                del self._reshapeout
+            if self.__class__.toshapein is not Operator.toshapein:
+                self.toshapeout = self.toshapein
+            else:
+                self.toshapein = self.toshapeout
+
         self.shapein = shapein
         self.shapeout = shapeout
                     
