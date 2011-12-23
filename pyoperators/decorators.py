@@ -35,8 +35,7 @@ def hermitian(cls):
     return cls
 
 def idempotent(cls):
-    cls._set_flags(cls, {'SQUARE':True,
-                         'IDEMPOTENT':True})
+    cls._set_flags(cls, {'IDEMPOTENT':True})
     return cls
 
 def orthogonal(cls):
