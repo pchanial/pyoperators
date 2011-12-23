@@ -1,7 +1,7 @@
 try:
     import numexpr
 except ImportError:
-    pass
+    numexpr = None
 
 import numpy as np
 from .decorators import square, inplace
@@ -104,8 +104,8 @@ class MinimumOperator(Operator):
 
 if numexpr:
 
-    @inplace
     @square
+    @inplace
     class NumexprOperator(Operator):
         """
         Return an operator evaluating an expression using numexpr.
