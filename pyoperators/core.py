@@ -2496,22 +2496,18 @@ class ReshapeOperator(Operator):
     (3, 2)
     """
 
-    def __new__(cls, shapein, shapeout):
+    def __init__(self, shapein, shapeout, **keywords):
         if shapein is None:
             raise ValueError('The input shape is None.')
         if shapeout is None:
             raise ValueError('The output shape is None.')
-        shapein = tointtuple(shapein)
-        shapeout = tointtuple(shapeout)
-        if shapein == shapeout:
-            return IdentityOperator(shapein)
-        inst = super(ReshapeOperator, cls).__new__(cls)
-        return inst
-
-    def __init__(self, shapein, shapeout):
         if np.product(shapein) != np.product(shapeout):
             raise ValueError('The total size of the output must be unchanged.')
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout)
+        if shapein == shapeout:
+            self.__class__ = IdentityOperator
+            self.__init__(shapein, **keywords)
+            return
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
         self.add_rule('.T.', '1')
 
     def direct(self, input, output):
@@ -2538,33 +2534,31 @@ class BroadcastingOperator(Operator):
         self, data, broadcast='disabled', shapein=None, dtype=None, **keywords
     ):
         if data is None:
-            raise ValueError('The data array is None.')
-
+            raise ValueError('The input data is None.')
+        data = np.asarray(data)
         if dtype is None:
-            data = np.asarray(data)
-            dtype = data.dtype
-        self.data = np.array(data, dtype, copy=False, order='c', ndmin=1)
-
+            dtype = np.find_common_type([data.dtype, float], [])
+        data = np.array(data, dtype, order='c', copy=False)
         broadcast = broadcast.lower()
-        values = ('fast', 'slow', 'disabled')
+        values = ('fast', 'slow', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError(
                 "Invalid value '{0}' for the broadcast keyword. Ex"
                 "pected values are {1}.".format(broadcast, strenum(values))
             )
         if broadcast == 'disabled':
-            if shapein not in (None, self.data.shape):
+            if shapein not in (None, data.shape):
                 raise ValueError(
                     "The input shapein is incompatible with the da" "ta shape."
                 )
-            shapein = self.data.shape
+            shapein = data.shape
         self.broadcast = broadcast
-
+        self.data = data
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
     def reshapein(self, shape):
-        if shape is None:
-            return None
+        if shape is None or self.data.size == 1:
+            return shape
         n = self.data.ndim
         if len(shape) < n:
             raise ValueError("Invalid number of dimensions.")
@@ -2609,51 +2603,44 @@ class BroadcastingOperator(Operator):
 @symmetric
 @inplace
 class DiagonalOperator(BroadcastingOperator):
-    def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None):
-        """
-        Subclass of BroadcastingOperator.
+    """
+    Diagonal operator.
 
-        Arguments
-        ---------
+    Arguments
+    ---------
 
-        data : ndarray
-          The diagonal coefficients
+    data : ndarray
+      The diagonal coefficients
 
-        broadcast : 'fast' or 'disabled' (default 'disabled')
-          If broadcast == 'fast', the diagonal is broadcasted along the fast
-          axis.
+    broadcast : 'fast' or 'disabled' (default 'disabled')
+      If broadcast == 'fast', the diagonal is broadcasted along the fast
+      axis.
 
-        Exemple
-        -------
-        >>> A = DiagonalOperator(arange(1, 6, 2))
-        >>> A.todense()
+    Exemple
+    -------
+    >>> A = DiagonalOperator(arange(1, 6, 2))
+    >>> A.todense()
 
-        array([[1, 0, 0],
-               [0, 3, 0],
-               [0, 0, 5]])
+    array([[1, 0, 0],
+           [0, 3, 0],
+           [0, 0, 5]])
 
-        >>> A = DiagonalOperator(arange(1, 3), broadcast='fast', shapein=(2, 2))
-        >>> A.todense()
+    >>> A = DiagonalOperator(arange(1, 3), broadcast='fast', shapein=(2, 2))
+    >>> A.todense()
 
-        array([[1, 0, 0, 0],
-               [0, 1, 0, 0],
-               [0, 0, 2, 0],
-               [0, 0, 0, 2]])
-        """
+    array([[1, 0, 0, 0],
+           [0, 1, 0, 0],
+           [0, 0, 2, 0],
+           [0, 0, 0, 2]])
+    """
 
-        data = np.array(data, dtype, copy=False)
-        if shapein is None and broadcast == 'disabled' and data.ndim > 0:
-            shapein = data.shape
-        if np.all(data == 1):
-            return IdentityOperator(shapein, dtype)
-        elif np.all(data == 0):
-            return ZeroOperator(shapein, dtype)
-        return BroadcastingOperator.__new__(
-            cls, data, broadcast=broadcast, shapein=shapein, dtype=dtype
-        )
-
-    def __init__(self, data, broadcast='disabled', shapein=None, dtype=None):
-        BroadcastingOperator.__init__(self, data, broadcast, shapein, dtype)
+    def __init__(self, data, broadcast='disabled', **keywords):
+        data = np.asarray(data)
+        if not isinstance(self, ScalarOperator) and np.all(data == data.flat[0]):
+            self.__class__ = ScalarOperator
+            self.__init__(data.flat[0], **keywords)
+            return
+        BroadcastingOperator.__init__(self, data, broadcast, **keywords)
         self.add_rule(
             '{DiagonalOperator}.',
             lambda o: self._rule_diagonal(o, np.add),
@@ -2662,12 +2649,6 @@ class DiagonalOperator(BroadcastingOperator):
         self.add_rule(
             '{DiagonalOperator}.', lambda o: self._rule_diagonal(o, np.multiply)
         )
-        self.add_rule(
-            '{ScalarOperator}.',
-            lambda o: self._rule_scalar(o, np.add),
-            AdditionOperator,
-        )
-        self.add_rule('{ScalarOperator}.', lambda o: self._rule_scalar(o, np.multiply))
 
     def direct(self, input, output):
         if self.broadcast == 'fast':
@@ -2693,74 +2674,57 @@ class DiagonalOperator(BroadcastingOperator):
         else:
             np.divide(input, np.conjugate(self.data), output)
 
-    def _rule_scalar(self, s, operation):
-        return DiagonalOperator(
-            operation(s.data, self.data),
-            self.broadcast,
-            shapein=self.shapein,
-            dtype=self._find_common_type([self.dtype, s.dtype]),
-        )
-
     def _rule_diagonal(self, d, operation):
-        if set([self.broadcast, d.broadcast]) == set(['fast', 'slow']):
+        b = set([self.broadcast, d.broadcast])
+        if 'slow' in b and 'fast' in b:
             return None
-        if self.broadcast == d.broadcast:
-            broadcast = self.broadcast
-        else:
+        if 'disabled' in b:
             broadcast = 'disabled'
-        if self.broadcast == 'fast' or d.broadcast == 'fast':
-            data = (operation(self.data.T, d.data.T)).T
+        elif 'slow' in b:
+            broadcast = 'slow'
+        elif 'fast' in b:
+            broadcast = 'fast'
+        else:
+            broadcast = 'scalar'
+        if 'fast' in b:
+            data = operation(self.data.T, d.data.T).T
         else:
             data = operation(self.data, d.data)
+        shapein = self.shapein if self.shapein is not None else d.shapein
         return DiagonalOperator(
             data,
             broadcast,
-            self.shapein or d.shapein,
+            shapein=shapein,
             dtype=self._find_common_type([self.dtype, d.dtype]),
         )
 
 
-@symmetric
 @inplace
-class ScalarOperator(Operator):
+class ScalarOperator(DiagonalOperator):
     """
     Multiplication by a scalar.
 
     """
 
-    def __init__(self, data, shapein=None, dtype=None):
-        if data is None:
-            raise ValueError('Scalar value is None.')
-        if (
-            not hasattr(data, '__add__')
-            or not hasattr(data, '__mul__')
-            or not hasattr(data, '__cmp__')
-            and not hasattr(data, '__eq__')
-        ):
-            raise ValueError("Invalid scalar value '{0}'.".format(data))
+    def __init__(self, data, **keywords):
         data = np.asarray(data)
-        if dtype is None:
-            dtype = np.find_common_type([data.dtype, float], [])
-            data = np.array(data, dtype=dtype)
+        if data.size != 1:
+            raise ValueError(
+                "Invalid data size '{0}' for ScalarOperator.".format(data.size)
+            )
+        if not isinstance(self, ZeroOperator) and data == 0:
+            self.__class__ = ZeroOperator
+            self.__init__(**keywords)
+            return
+        if not isinstance(self, IdentityOperator) and data == 1:
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+        if data == -1:
+            keywords['flags'] = {'INVOLUTARY': True}
 
-        if data == 0:
-            flags = {'IDEMPOTENT': True}
-        elif data in (1, -1):
-            flags = {'IDEMPOTENT': True, 'INVOLUTARY': True}
-        else:
-            flags = None
-
-        Operator.__init__(
-            self,
-            lambda i, o: np.multiply(i, data, o),
-            shapein=shapein,
-            dtype=dtype,
-            flags=flags,
-        )
-        self.data = data
+        DiagonalOperator.__init__(self, data, 'scalar', **keywords)
         self.add_rule('{Operator}.', self._rule_linear)
-        self.add_rule('{ScalarOperator}.', self._rule_mul)
-        self.add_rule('{ScalarOperator}.', self._rule_add, AdditionOperator)
 
     def associated_operators(self):
         return {
@@ -2789,25 +2753,14 @@ class ScalarOperator(Operator):
         if not operator.flags.LINEAR:
             return None
         if self.shapein is None or operator.shapein is not None:
+            # XXX this case should not happen
+            if isinstance(operator, ScalarOperator):
+                return None
             return (self, operator)
         return (
             ScalarOperator(self.data, dtype=self.dtype),
             operator,
             IdentityOperator(self.shapein),
-        )
-
-    def _rule_add(self, s):
-        return ScalarOperator(
-            self.data + s.data,
-            shapein=self.shapein or s.shapein,
-            dtype=self._find_common_type([self.dtype, s.dtype]),
-        )
-
-    def _rule_mul(self, s):
-        return ScalarOperator(
-            self.data * s.data,
-            shapein=self.shapein or s.shapein,
-            dtype=self._find_common_type([self.dtype, s.dtype]),
         )
 
 
@@ -2817,9 +2770,7 @@ class ScalarOperator(Operator):
 @inplace
 class IdentityOperator(ScalarOperator):
     """
-    A subclass of ScalarOperator with value=1.
-    All __init__ keyword arguments are passed to the
-    ScalarOperator __init__.
+    A subclass of ScalarOperator with data = 1.
 
     Exemple
     -------
@@ -2837,17 +2788,14 @@ class IdentityOperator(ScalarOperator):
 
     """
 
-    def __init__(self, shapein=None, dtype=None):
-        ScalarOperator.__init__(self, 1, shapein=shapein, dtype=dtype)
+    def __init__(self, shapein=None, **keywords):
+        ScalarOperator.__init__(self, 1, shapein=shapein, **keywords)
         self.add_rule('.{Operator}', self._rule_identity)
 
     def direct(self, input, output):
         if self.same_data(input, output):
             pass
         output[...] = input
-
-    def toshapein(self, v):
-        return v.reshape(self.shapein)
 
     def _rule_linear(self, operator):
         if not operator.flags.LINEAR:
@@ -2865,13 +2813,17 @@ class IdentityOperator(ScalarOperator):
 @inplace
 class ZeroOperator(ScalarOperator):
     """
-    A subclass of ScalarOperator with value=0.
-    All __init__ keyword arguments are passed to the
-    ScalarOperator __init__.
+    A subclass of ScalarOperator with data = 0.
     """
 
     def __init__(
-        self, shapein=None, shapeout=None, dtype=None, reshapein=None, reshapeout=None
+        self,
+        shapein=None,
+        shapeout=None,
+        dtype=None,
+        reshapein=None,
+        reshapeout=None,
+        **keywords,
     ):
         if (
             shapein is not None
@@ -2882,16 +2834,17 @@ class ZeroOperator(ScalarOperator):
             flags = {'SQUARE': True, 'SYMMETRIC': True, 'IDEMPOTENT': True}
         else:
             flags = None
-        Operator.__init__(
+        ScalarOperator.__init__(
             self,
+            0,
             shapein=shapein,
             shapeout=shapeout,
             reshapein=reshapein,
             reshapeout=reshapeout,
             dtype=dtype,
             flags=flags,
+            **keywords,
         )
-        self.data = np.array(0)
         self.add_rule('.{Operator}', self._rule_zero_times)
         self.add_rule('{Operator}.', self._rule_times_zero)
 

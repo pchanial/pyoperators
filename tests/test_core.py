@@ -1193,7 +1193,14 @@ def test_composition2():
     assert_equal(len(memory.stack), 0)
 
 
-def test_scalar_operator():
+def test_scalar_operator1():
+    data = (0.0, 1.0, 2)
+    expected = (ZeroOperator, IdentityOperator, ScalarOperator)
+    for d, e in zip(data, expected):
+        yield assert_is, ScalarOperator(d).__class__, e
+
+
+def test_scalar_operator2():
     s = ScalarOperator(1)
     yield ok_, s.C is s.T is s.H is s.I is s
 
@@ -1358,11 +1365,53 @@ def test_block_row2():
 
 
 def test_diagonal1():
-    d = DiagonalOperator([1.0, 2.0, 3.0])
-    yield ok_, isinstance(2 * d, DiagonalOperator)
-    yield ok_, d * d is not d
-    yield ok_, isinstance(d * d, DiagonalOperator)
-    yield ok_, isinstance(3 + 2 * d * 3.0 * d + 2 * d + 2, DiagonalOperator)
+    data = (0.0, 1.0, [0, 0], [1, 1], 2, [2, 2], [1, 2])
+    expected = (
+        ZeroOperator,
+        IdentityOperator,
+        ZeroOperator,
+        IdentityOperator,
+        ScalarOperator,
+        ScalarOperator,
+        DiagonalOperator,
+    )
+    for d, e in zip(data, expected):
+        yield assert_is, DiagonalOperator(d).__class__, e
+
+
+def test_diagonal2():
+    ops = (
+        DiagonalOperator([1.0, 2], broadcast='fast'),
+        DiagonalOperator([[2.0, 3, 4], [5, 6, 7]], broadcast='fast'),
+        DiagonalOperator([1.0, 2, 3, 4, 5], broadcast='slow'),
+        DiagonalOperator(np.arange(20.0).reshape(4, 5), broadcast='slow'),
+        DiagonalOperator(np.arange(120.0).reshape(2, 3, 4, 5)),
+        ScalarOperator(7.0),
+        IdentityOperator(),
+    )
+    for op in (np.add, np.multiply):
+        for i in range(7):
+            d1 = ops[i]
+            for j in range(i, 7):
+                d2 = ops[j]
+                if set((d1.broadcast, d2.broadcast)) == set(('slow', 'fast')):
+                    continue
+                d = op(d1, d2)
+                if type(d1) is DiagonalOperator:
+                    yield assert_is, type(d), DiagonalOperator
+                elif type(d1) is ScalarOperator:
+                    yield assert_is, type(d), ScalarOperator
+                elif op is np.multiply:
+                    yield assert_is, type(d), IdentityOperator
+                else:
+                    yield assert_is, type(d), ScalarOperator
+
+                data = (
+                    op(d1.data.T, d2.data.T).T
+                    if 'fast' in (d1.broadcast, d2.broadcast)
+                    else op(d1.data, d2.data)
+                )
+                yield assert_array_equal, d.data, data, str(d1) + ' and ' + str(d2)
 
 
 def test_zero1():
@@ -1486,7 +1535,3 @@ def test_zero7b():
 def test_zero8():
     z = ZeroOperator()
     yield ok_, z * z is z
-
-
-if __name__ == "__main__":
-    nose.run(argv=['', __file__])
