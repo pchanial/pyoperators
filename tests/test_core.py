@@ -1,5 +1,4 @@
 import numpy as np
-import nose
 
 from nose.tools import eq_, ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
@@ -47,7 +46,7 @@ def assert_flags_false(operator, flags, msg=''):
     if isinstance(flags, str):
         flags = [f.replace(' ', '') for f in flags.split(',')]
     for f in flags:
-        assert not getattr(operator.flags, f), 'Operator {0} is not {1}.'.format(
+        assert not getattr(operator.flags, f), 'Operator {0} is {1}.'.format(
             operator, f
         ) + (' ' + msg if msg else '')
 
@@ -56,6 +55,15 @@ def assert_is_inttuple(shape, msg=''):
     msg = '{0} is not an int tuple.'.format(shape) + (' ' + msg if msg else '')
     assert type(shape) is tuple, msg
     assert all([isinstance(s, int) for s in shape]), msg
+
+
+def assert_square(op, msg=''):
+    assert_flags(op, 'SQUARE', msg)
+    assert op.shapeout == op.shapein, msg
+    assert op.reshapein.im_func is Operator.reshapein.im_func
+    assert op.reshapeout.im_func is Operator.reshapeout.im_func
+    assert op._reshapein is op._reshapeout is None, msg
+    assert op.toshapein == op.toshapeout, msg
 
 
 dtypes = [
@@ -77,6 +85,8 @@ dtypes = [
         np.complex256,
     )
 ]
+
+shapes = (None, (), (1,), (2, 3))
 
 
 class ndarray2(np.ndarray):
@@ -230,29 +240,100 @@ def test_shape_implicit():
         yield assert_equal, o.reshapeout(shapeout), ein, 'reshapeout:' + str(o)
 
 
-def test_shape_cornercases():
-    op = Operator()
-    assert_flags(op, 'SQUARE')
-    op = Operator(shapein=2)
-    assert_flags(op, 'SQUARE')
-    assert op.shapeout == op.shapein
+def test_shapeout_implicit1():
+    for shape in shapes:
+        op = Operator(shapein=shape)
+        yield assert_square, op
 
+
+def test_shapeout_implicit2():
     class Op(Operator):
         def reshapein(self, shape):
             if shape is None:
                 return None
-            return shape[0] * 2
+            return shape + (2,)
 
-    op = Op()
-    assert_flags_false(op, 'SQUARE')
-    op = Op(shapein=2)
-    assert_flags_false(op, 'SQUARE')
-    assert op.shapeout == (4,)
+    def func(op, shapein):
+        assert_flags_false(op, 'SQUARE')
+        assert op.shapein == shapein
+        if shapein is None:
+            assert op.shapeout is None
+        else:
+            assert op.shapeout == shapein + (2,)
 
+    for shapein in shapes:
+        op = Op(shapein=shapein)
+        yield func, op, shapein
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
 
-    op = Op(shapein=2) * Operator(shapein=4, shapeout=2)
-    assert_flags(op, 'SQUARE')
+
+def test_shapein_implicit1():
+    for shape in shapes[1:]:
+        op = Operator(shapeout=shape)
+        yield assert_is, op.shapein, None
+
+
+def test_shapein_implicit2():
+    class Op(Operator):
+        def reshapeout(self, shape):
+            if shape is None:
+                return None
+            return shape + (2,)
+
+    def func(op, shapeout):
+        assert_flags_false(op, 'SQUARE')
+        assert op.shapeout == shapeout
+        assert op.shapein == shapeout + (2,)
+
+    for shape in shapes[1:]:
+        op = Op(shapeout=shape)
+        yield func, op, shape
+    assert_raises(ValueError, Op, shapein=3, shapeout=11)
+
+
+def test_shapein_implicit3():
+    @square
+    class Op1(Operator):
+        pass
+
+    @square
+    class Op2(Operator):
+        def reshapein(self, shape):
+            return shape
+
+        def toshapein(self, v):
+            return v
+
+    @square
+    class Op3(Operator):
+        def reshapeout(self, shape):
+            return shape
+
+        def toshapeout(self, v):
+            return v
+
+    @square
+    class Op4(Operator):
+        def reshapein(self, shape):
+            return shape
+
+        def reshapeout(self, shape):
+            return shape
+
+        def toshapein(self, v):
+            return v
+
+        def toshapeout(self, v):
+            return v
+
+    def func(op, shape):
+        assert_square(op)
+        assert_equal(op.shapein, shape)
+
+    for shape in shapes[1:]:
+        for cls in (Op1, Op2, Op3, Op4):
+            op = cls(shapeout=shape)
+            yield func, op, shape
 
 
 def test_dtype1():
@@ -1127,12 +1208,48 @@ def test_multiplication():
 
 
 def test_composition1():
-    s1 = ScalarOperator(2)
-    s2 = ScalarOperator(3)
-    assert s1(s2).data == 6
+    def func(op, shapein, shapeout):
+        assert_equal(op.shapein, shapein)
+        assert_equal(op.shapeout, shapeout)
+        if shapein == shapeout:
+            assert_flags(op, 'SQUARE')
+
+    for shapein in shapes:
+        for shapemid in shapes:
+            if shapemid is None and shapein is not None:
+                continue
+            op1 = Operator(shapein=shapein, shapeout=shapemid)
+            for shapeout in shapes:
+                if shapeout is None and shapemid is not None:
+                    continue
+                op2 = Operator(shapein=shapemid, shapeout=shapeout)
+                op = op2 * op1
+                yield func, op, shapein, shapeout
 
 
 def test_composition2():
+    class Op(Operator):
+        def reshapein(self, shapein):
+            if shapein is None:
+                return None
+            return 2 * shapein
+
+    def func(op, shape):
+        assert op.shapein is None
+        assert op.shapeout == (2 * shape if shape is not None else None)
+        assert_flags_false(op, 'SQUARE')
+
+    for shape in shapes:
+        op = Op() * Operator(shapeout=shape)
+        yield func, op, shape
+
+    op = Op() * Op()
+    assert op.shapein is None
+    assert op.shapeout is None
+    assert_flags_false(op, 'SQUARE')
+
+
+def test_composition3():
     @square
     @inplace
     class Op(Operator):
