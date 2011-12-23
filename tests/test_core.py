@@ -2,7 +2,7 @@ import numpy as np
 
 from nose.tools import eq_, ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
-from pyoperators import memory
+from pyoperators import memory, decorators
 from pyoperators.core import (
     Operator,
     AdditionOperator,
@@ -19,7 +19,6 @@ from pyoperators.core import (
     I,
     O,
 )
-from pyoperators.decorators import inplace, linear, symmetric, square
 from pyoperators.utils import (
     ndarraywrap,
     assert_is,
@@ -101,7 +100,7 @@ class ndarray4(np.ndarray):
     pass
 
 
-@square
+@decorators.square
 class Op2(Operator):
     attrout = {'newattr': True}
 
@@ -112,7 +111,7 @@ class Op2(Operator):
         pass
 
 
-@square
+@decorators.square
 class Op3(Operator):
     classout = ndarray3
     classin = ndarray4
@@ -292,11 +291,11 @@ def test_shapein_implicit2():
 
 
 def test_shapein_implicit3():
-    @square
+    @decorators.square
     class Op1(Operator):
         pass
 
-    @square
+    @decorators.square
     class Op2(Operator):
         def reshapein(self, shape):
             return shape
@@ -304,7 +303,7 @@ def test_shapein_implicit3():
         def toshapein(self, v):
             return v
 
-    @square
+    @decorators.square
     class Op3(Operator):
         def reshapeout(self, shape):
             return shape
@@ -312,7 +311,7 @@ def test_shapein_implicit3():
         def toshapeout(self, v):
             return v
 
-    @square
+    @decorators.square
     class Op4(Operator):
         def reshapein(self, shape):
             return shape
@@ -339,7 +338,7 @@ def test_shapein_implicit3():
 def test_dtype1():
     value = 2.5
 
-    @square
+    @decorators.square
     class Op(Operator):
         def __init__(self, dtype):
             Operator.__init__(self, dtype=dtype)
@@ -362,7 +361,7 @@ def test_dtype1():
 
 
 def test_dtype2():
-    @square
+    @decorators.square
     class Op(Operator):
         def direct(self, input, output):
             np.multiply(input, input, output)
@@ -382,7 +381,7 @@ def test_dtype2():
 def test_symmetric():
     mat = np.matrix([[2, 1], [1, 2]])
 
-    @symmetric
+    @decorators.symmetric
     class Op(Operator):
         def __init__(self):
             Operator.__init__(self, shapein=(2,), dtype=mat.dtype)
@@ -446,7 +445,7 @@ def test_scalar_reduction3():
 
 
 def test_propagation_attribute1():
-    @square
+    @decorators.square
     class AddAttribute(Operator):
         attrout = {'newattr_direct': True}
         attrin = {'newattr_transpose': True}
@@ -457,7 +456,7 @@ def test_propagation_attribute1():
         def transpose(self, input, output):
             pass
 
-    @square
+    @decorators.square
     class AddAttribute2(Operator):
         attrout = {'newattr_direct': False}
         attrin = {'newattr_transpose': False}
@@ -468,7 +467,7 @@ def test_propagation_attribute1():
         def transpose(self, input, output):
             pass
 
-    @square
+    @decorators.square
     class AddAttribute3(Operator):
         attrout = {'newattr3_direct': True}
         attrin = {'newattr3_transpose': True}
@@ -811,7 +810,7 @@ def test_propagation_class_nested():
 def test_inplace1():
     memory.stack = []
 
-    @square
+    @decorators.square
     class NotInplace(Operator):
         def direct(self, input, output):
             output[...] = 0
@@ -1136,7 +1135,7 @@ def test_inplace_cannot_use_output():
 
 
 def test_addition():
-    @square
+    @decorators.square
     class Op(Operator):
         def __init__(self, v, **keywords):
             self.v = v
@@ -1172,7 +1171,7 @@ def test_addition():
 
 
 def test_multiplication():
-    @square
+    @decorators.square
     class Op(Operator):
         def __init__(self, v, **keywords):
             self.v = v
@@ -1250,8 +1249,8 @@ def test_composition2():
 
 
 def test_composition3():
-    @square
-    @inplace
+    @decorators.square
+    @decorators.inplace
     class Op(Operator):
         def __init__(self, v, **keywords):
             self.v = v
@@ -1586,7 +1585,7 @@ def test_zero6():
 def test_zero7():
     z = ZeroOperator()
 
-    @linear
+    @decorators.linear
     class Op(Operator):
         def direct(self, input, output):
             output[:] = np.concatenate([input, 2 * input])
@@ -1619,7 +1618,7 @@ def test_zero7():
 def test_zero7b():
     z = ZeroOperator()
 
-    @linear
+    @decorators.linear
     class Op(Operator):
         def direct(self, input, output):
             output[:] = np.concatenate([input, 2 * input])
