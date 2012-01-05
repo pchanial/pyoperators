@@ -51,9 +51,7 @@ def orthogonal(cls):
 
 
 def unitary(cls):
-    cls._set_flags(
-        cls, {'REAL': False, 'LINEAR': True, 'SQUARE': True, 'UNITARY': True}
-    )
+    cls._set_flags(cls, {'LINEAR': True, 'SQUARE': True, 'UNITARY': True})
     return cls
 
 
