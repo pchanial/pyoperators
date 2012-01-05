@@ -48,9 +48,9 @@ class OperatorFlags(namedtuple('OperatorFlags',
                                 'SYMMETRIC',  # o.T = o
                                 'HERMITIAN',  # o.H = o
                                 'IDEMPOTENT', # o * o = o
+                                'INVOLUTARY', # o * o = I
                                 'ORTHOGONAL', # o * o.T = I
                                 'UNITARY',    # o * o.H = I
-                                'INVOLUTARY', # o * o = I
                                 ])):
     """Informative flags about the operator."""
     def __str__(self):
@@ -722,7 +722,15 @@ class Operator(object):
             if isinstance(flags, tuple):
                 op.flags = flags
             elif isinstance(flags, dict):
+                flags = dict((k.upper(),v) for k,v in flags.iteritems())
                 op.flags = op.flags._replace(**flags)
+                if 'SYMMETRIC' in flags or 'HERMITIAN' in flags or \
+                   'ORTHOGONAL' in flags or 'UNITARY' in flags:
+                    op.flags = op.flags._replace(LINEAR=True, SQUARE=True)
+                if 'ORTHOGONAL' in flags:
+                    op.flags = op.flags._replace(REAL=True)
+                if 'IDEMPOTENT' in flags or 'INVOLUTARY' in flags:
+                    op.flags = op.flags._replace(SQUARE=True)
             else:
                 raise ValueError('Invalid input flags.')
 
