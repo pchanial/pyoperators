@@ -37,17 +37,16 @@ array([[ 2.,  0.],
 
 Operators do not have to be linear, but if they are not, they cannot be seen
 as matrices. Some operators are already predefined, such as the
-IdentityOperator, the DiagonalOperator or the nonlinear
-ClippingOperator.
+``IdentityOperator``, the ``DiagonalOperator`` or the nonlinear
+``ClippingOperator``.
 
 The previous ``A`` matrix could be defined more easily like this :
 
->>> A = 2 * operators.I
+>>> A = 2 * pyoperators.I
 
 where ``I`` is the identity operator with no explicit shape.
 
-Operators can be combined together by addition or by operator
-multiplication (composition of functions) :
+Operators can be combined together by addition, element-wise multiplication or composition (note that the ``*`` sign stands for composition):
 
 >>> B = 2 * operators.I + operators.DiagonalOperator(arange(3))
 >>> B.todense()
@@ -60,10 +59,12 @@ Requirements
 ============
 
 List of requirements:
+
 - python 2.6
 - numpy >= 1.6
 - scipy >= 0.9
 
 Optional requirements:
+
 - numexpr (>= 2.0 is better)
 - PyWavelets : wavelet transforms
