@@ -123,7 +123,7 @@ def test_shape_explicit():
     o4 = Operator(shapeout=o1.shapeout)
     o5 = Operator(flags={'SQUARE':True})
 
-    o1 = Operator(shapein=(13,2))
+    o1 = Operator(shapein=(13,2), flags={'SQUARE':True})
     for o in [o1+I, I+o1, o1+o4, o1+I+o5+o4, I+o5+o1]:
         yield assert_equal, o.shapein, o1.shapein, '+shapein:'+str(o)
         yield assert_equal, o.shapeout, o1.shapeout, '+shapeout:'+str(o)
@@ -155,12 +155,26 @@ def test_shape_implicit():
         yield assert_equal, o.reshapein(shapein), eout, 'reshapein:'+str(o)
         yield assert_equal, o.reshapeout(shapeout), ein, 'reshapeout:'+str(o)
 
-def test_shapeout_implicit1():
+def test_shapeout_unconstrained1():
     for shape in shapes:
         op = Operator(shapein=shape)
-        yield assert_square, op
+        yield assert_is, op.shapeout, None
 
-def test_shapeout_implicit2():
+def test_shapeout_unconstrained2():
+    class Op(Operator):
+        def direct(self, input, output):
+            output[...] = 4
+    def func(s1, s2):
+        op = IdentityOperator(shapein=s1) * Op(shapein=s2)
+        if s1 is not None:
+            assert op.shapeout == s1
+        else:
+            assert op.shapeout is None
+    for s1 in shapes:
+        for s2 in shapes:
+            yield func, s1, s2
+
+def test_shapeout_implicit():
     class Op(Operator):
         def reshapein(self, shape):
             if shape is None: return None
@@ -177,12 +191,12 @@ def test_shapeout_implicit2():
         yield func, op, shapein
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
 
-def test_shapein_implicit1():
+def test_shapein_unconstrained1():
     for shape in shapes[1:]:
         op = Operator(shapeout=shape)
         yield assert_is, op.shapein, None
 
-def test_shapein_implicit2():
+def test_shapein_unconstrained2():
     class Op(Operator):
         def reshapeout(self, shape):
             if shape is None: return None
@@ -196,7 +210,7 @@ def test_shapein_implicit2():
         yield func, op, shape
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
 
-def test_shapein_implicit3():
+def test_shapein_unconstrained3():
     @decorators.square
     class Op1(Operator):
         pass
@@ -399,6 +413,7 @@ def test_propagation_attribute1():
 
 
 def test_propagation_attribute2():
+    @decorators.square
     class Op(Operator):
         attrin = {'attr_class':1, 'attr_instance':2, 'attr_other':3}
         attrout = {'attr_class':4, 'attr_instance':5, 'attr_other':6}
@@ -447,6 +462,7 @@ def test_propagation_attribute3():
             ndarraybase.__array_finalize__(self, array)
             self.attr_class2 = 2
             self.attr_instance2 = 12
+    @decorators.square
     class Op(Operator):
         classin = ndarray1
         classout = ndarray2
@@ -579,10 +595,12 @@ def test_propagation_classT_inplace():
             yield check_propagation_class_inplace, op.T, i, c
 
 def test_propagation_class_nested():
+    @decorators.square
     class O1(Operator):
         classout = ndarray2
         def direct(self, input, output):
             output[...] = input
+    @decorators.square
     class O2(Operator):
         def direct(self, input, output):
             output[...] = input
@@ -653,7 +671,7 @@ def test_inplace_can_use_output():
         def reshapein(self, shape):
             if shape is None:
                 return None
-            return (shape[0]+1)
+            return (shape[0]+1,)
 
     def show_stack():
         return ''.join([ids[s.__array_interface__['data'][0]] \
@@ -796,7 +814,7 @@ def test_inplace_cannot_use_output():
         def reshapein(self, shape):
             if shape is None:
                 return None
-            return (shape[0]-1)
+            return (shape[0]-1,)
 
     def show_stack():
         return ''.join([ids[s.__array_interface__['data'][0]] \
@@ -986,7 +1004,7 @@ def test_composition1():
     def func(op, shapein, shapeout):
         assert_equal(op.shapein, shapein)
         assert_equal(op.shapeout, shapeout)
-        if shapein == shapeout:
+        if shapein is not None and shapein == shapeout:
             assert_flags(op, 'SQUARE')
     for shapein in shapes:
         for shapemid in shapes:
