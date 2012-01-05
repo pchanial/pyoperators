@@ -2,21 +2,21 @@
 Pyoperators
 =========
 
-The pyoperators package defines Operators which are functions with a
-shape and dtype, and linear Operators which behave like matrices
+The pyoperators package defines operators which are functions with a
+shape and dtype, and linear operators which behave like matrices
 with a sparse storage footprint.
 
 Getting started
 ===============
 
-To define an @Operator@ one needs to define a direct function
+To define an ``Operator`` one needs to define a direct function
 which will replace the usual matrix-vector operation:
 
 >>> def f(x, out):
 ...     out[...] = 2 *x
 ...
 
-Then, you can instantiate an @Operator@:
+Then, you can instantiate an ``Operator``:
 
 >>> A = pyoperators.Operator(direct=f, flags={"LINEAR":True, "SYMMETRIC":True})
 
@@ -29,22 +29,22 @@ array([ 2.,  2.,  2.,  2.,  2.])
 Info: Allocating (2,) float64 = 16 bytes in Operator.
 array([ 2.,  2.])
 
-To output a corresponding dense matrix, one needs a linear operator and a shape:
+To output a corresponding dense matrix, one needs to specify the input shape:
 
 >>> A.todense(shapein=2)
 array([[ 2.,  0.],
 [ 0.,  2.]])
 
-Operators do not have to be linear. If they are not, they cannot be seen
+Operators do not have to be linear, but if they are not, they cannot be seen
 as matrices. Some operators are already predefined, such as the
 IdentityOperator, the DiagonalOperator or the nonlinear
 ClippingOperator.
 
-The previous $A$ matrix could be defined more easily like this :
+The previous ``A`` matrix could be defined more easily like this :
 
 >>> A = 2 * operators.I
 
-where I is the identity Operator with no explicit shape.
+where ``I`` is the identity operator with no explicit shape.
 
 Operators can be combined together by addition or by operator
 multiplication (composition of functions) :
