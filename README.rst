@@ -48,12 +48,17 @@ where ``I`` is the identity operator with no explicit shape.
 
 Operators can be combined together by addition, element-wise multiplication or composition (note that the ``*`` sign stands for composition):
 
->>> B = 2 * operators.I + operators.DiagonalOperator(arange(3))
+>>> B = 2 * pyoperators.I + pyoperators.DiagonalOperator(arange(3))
 >>> B.todense()
-Info: Allocating (3,) float64 = 24 bytes in AdditionOperator.
 array([[ 2.,  0.,  0.],
        [ 0.,  3.,  0.],
        [ 0.,  0.,  4.]])
+
+Algebraic rules are used to simplify an operator and speed up the execution:
+
+>>> B
+DiagonalOperator(array([ 2.,  3.,  4.]))
+
 
 Requirements
 ============
