@@ -961,8 +961,6 @@ class Operator(object):
 
         if shapein is shapeout is None:
             shapeout = self.reshapein(None)
-            if shapeout is None and self._reshapein is None:
-                self.flags = self.flags._replace(SQUARE=True)
             shapein = self.reshapeout(None)
 
         if shapeout is not None and self._reshapein is not None:
@@ -985,9 +983,7 @@ class Operator(object):
                     )
                 )
 
-        if shapein is not None and (
-            shapein == shapeout or shapeout is None and self._reshapein is None
-        ):
+        if shapein is not None and shapein == shapeout:
             self.flags = self.flags._replace(SQUARE=True)
 
         if self.flags.SQUARE:
@@ -1030,6 +1026,8 @@ class Operator(object):
         input = np.array(input, copy=False, subok=True)
 
         shapeout = self.reshapein(input.shape)
+        if shapeout is None:
+            shapeout = input.shape
         dtype = self._find_common_type([input.dtype, self.dtype])
         input = np.array(input, dtype=dtype, subok=False, copy=False)
         if output is not None:
@@ -1483,7 +1481,7 @@ class CompositionOperator(CompositeOperator):
         inplace_composition = self.same_data(input, output)
         shapeouts, sizeouts, outplaces, reuse_output = self._get_info(
             input.shape,
-            output.nbytes,
+            output.shape,
             output.dtype,
             inplace_composition and operation is None,
         )
@@ -1550,14 +1548,10 @@ class CompositionOperator(CompositeOperator):
         return cls
 
     def reshapein(self, shape):
-        for op in reversed(self.operands):
-            shape = op.reshapein(shape)
-        return shape
+        return self._get_shapes(shape, None, self.operands)[0]
 
     def reshapeout(self, shape):
-        for op in self.operands:
-            shape = op.reshapeout(shape)
-        return shape
+        return self._get_shapes(None, shape, self.operands)[-1]
 
     @classmethod
     def _apply_rules(cls, ops):
@@ -1618,33 +1612,56 @@ class CompositionOperator(CompositeOperator):
 
         return ops
 
-    def _get_info(self, shape, nbytes, dtype, inplace):
+    def _get_info(self, shapein, shapeout, dtype, inplace):
         try:
-            return self._info[(shape, nbytes, dtype, inplace)]
+            return self._info[(shapein, shapeout, dtype, inplace)]
         except KeyError:
             pass
-        shapeouts = self._get_shapeouts(shape)
+        shapeouts = self._get_shapes(shapein, shapeout, self.operands)[:-1]
+        if None in shapeouts:
+            raise ValueError(
+                "The composition of an unconstrained input shape o"
+                "perator by an unconstrained output shape operator"
+                " is ambiguous."
+            )
         sizeouts = self._get_sizeouts(shapeouts)
+        nbytes = reduce(lambda x, y: x * y, shapeout, 1) * dtype.itemsize
         outplaces, reuse_output = self._get_outplaces(nbytes, inplace, sizeouts)
         v = shapeouts, sizeouts, outplaces, reuse_output
-        self._info[(shape, nbytes, dtype, inplace)] = v
+        self._info[(shapein, shapeout, dtype, inplace)] = v
         return v
 
-    def _get_shapeouts(self, shapein):
-        if shapein is None:
-            shapein = self.shapein
-        shapeouts = []
-        for op in reversed(self.operands):
-            shapein = op.reshapein(shapein)
-            if shapein is None:
-                return None
-            shapeouts.insert(0, shapein)
-        return shapeouts
+    @staticmethod
+    def _get_shapes(shapein, shapeout, operands):
+        """
+        Return the output, intermediate and input shapes of the composed
+        operands as a list.
+        """
+        n = len(operands)
+        shapes = [shapeout] + (n - 1) * [None] + [shapein]
+
+        # scanning from the innermost to the outermost operand
+        for i in range(n - 1, -1, -1):
+            op = operands[i]
+            s = op.reshapein(shapes[i + 1])
+            if i == 0 and None not in (shapes[0], s) and s != shapes[0]:
+                raise ValueError("Incompatible shape in composition.")
+            if s is not None:
+                shapes[i] = s
+
+        # scanning from the outermost to the innermost operand
+        for i in range(n):
+            op = operands[i]
+            s = op.reshapeout(shapes[i])
+            if None not in (shapes[i + 1], s) and s != shapes[i + 1]:
+                raise ValueError("Incompatible shape in composition.")
+            if s is not None:
+                shapes[i + 1] = s
+
+        return shapes
 
     def _get_sizeouts(self, shapeouts):
         # assuming input's dtype is float64
-        if shapeouts is None:
-            return None
         sizeouts = []
         dtype = np.dtype(np.float64)
         for op, shapeout in reversed(zip(self.operands, shapeouts)):
@@ -1790,9 +1807,9 @@ class BlockOperator(CompositeOperator):
                 )
             ]
         if None in shapeouts and shapein is not None:
-            raise ValueError(
-                "The 'reshapein' method of implicit-shape operator"
-                "s must not return None for an explicit input shape."
+            raise NotImplementedError(
+                "Unconstrained output shape operators are"
+                " not handled in block operators."
             )
         shapeout = self._validate_shapes(
             shapeouts, self.partitionout, self.axisout, self.new_axisout
@@ -1825,9 +1842,9 @@ class BlockOperator(CompositeOperator):
                 )
             ]
         if None in shapeins and shapeout is not None:
-            raise ValueError(
-                "The 'reshapeout' method of implicit-shape operato"
-                "rs must not return None for an explicit output shape."
+            raise NotImplementedError(
+                "Unconstrained input shape operators are "
+                "not handled in block operators."
             )
         shapein = self._validate_shapes(
             shapeins, self.partitionin, self.axisin, self.new_axisin
