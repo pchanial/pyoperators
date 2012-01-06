@@ -57,7 +57,7 @@ def assert_is_inttuple(shape, msg=''):
 
 
 def assert_square(op, msg=''):
-    assert_flags(op, 'SQUARE', msg)
+    assert_flags(op, 'square', msg)
     assert op.shapeout == op.shapein, msg
     assert op.reshapein.im_func is Operator.reshapein.im_func
     assert op.reshapeout.im_func is Operator.reshapeout.im_func
@@ -197,9 +197,9 @@ def test_shape_explicit():
     yield assert_raises, ValueError, CompositionOperator, [o3, I, o1]
 
     o4 = Operator(shapeout=o1.shapeout)
-    o5 = Operator(flags={'SQUARE': True})
+    o5 = Operator(flags='square')
 
-    o1 = Operator(shapein=(13, 2), flags={'SQUARE': True})
+    o1 = Operator(shapein=(13, 2), flags='square')
     for o in [o1 + I, I + o1, o1 + o4, o1 + I + o5 + o4, I + o5 + o1]:
         yield assert_equal, o.shapein, o1.shapein, '+shapein:' + str(o)
         yield assert_equal, o.shapeout, o1.shapeout, '+shapeout:' + str(o)
@@ -270,7 +270,7 @@ def test_shapeout_implicit():
             return shape + (2,)
 
     def func(op, shapein):
-        assert_flags_false(op, 'SQUARE')
+        assert_flags_false(op, 'square')
         assert op.shapein == shapein
         if shapein is None:
             assert op.shapeout is None
@@ -297,7 +297,7 @@ def test_shapein_unconstrained2():
             return shape + (2,)
 
     def func(op, shapeout):
-        assert_flags_false(op, 'SQUARE')
+        assert_flags_false(op, 'square')
         assert op.shapeout == shapeout
         assert op.shapein == shapeout + (2,)
 
@@ -407,7 +407,7 @@ def test_symmetric():
             output[...] = np.dot(mat, input)
 
     op = Op()
-    assert_flags(op, 'LINEAR,SQUARE,REAL,SYMMETRIC')
+    assert_flags(op, 'linear,square,real,symmetric')
     assert_equal(op.shape, (2, 2))
     assert_equal(op.shapeout, (2,))
     assert op is op.C
@@ -444,7 +444,7 @@ def test_scalar_reduction3():
                 if opin is not None and idin is not None and opin != idin:
                     continue
                 p = Operator(
-                    shapeout=opout, shapein=opin, flags={'LINEAR': True}
+                    shapeout=opout, shapein=opin, flags='linear'
                 ) * IdentityOperator(shapein=idin)
 
                 n = len(p.operands) if isinstance(p, CompositionOperator) else 1
@@ -1232,7 +1232,7 @@ def test_composition1():
         assert_equal(op.shapein, shapein)
         assert_equal(op.shapeout, shapeout)
         if shapein is not None and shapein == shapeout:
-            assert_flags(op, 'SQUARE')
+            assert_flags(op, 'square')
 
     for shapein in shapes:
         for shapemid in shapes:
@@ -1257,7 +1257,7 @@ def test_composition2():
     def func(op, shape):
         assert op.shapein is None
         assert op.shapeout == (2 * shape if shape is not None else None)
-        assert_flags_false(op, 'SQUARE')
+        assert_flags_false(op, 'square')
 
     for shape in shapes:
         op = Op() * Operator(shapeout=shape)
@@ -1266,7 +1266,7 @@ def test_composition2():
     op = Op() * Op()
     assert op.shapein is None
     assert op.shapeout is None
-    assert_flags_false(op, 'SQUARE')
+    assert_flags_false(op, 'square')
 
 
 def test_composition3():
@@ -1576,14 +1576,14 @@ def test_zero3():
 
 def test_zero4():
     z = ZeroOperator()
-    o = Operator(flags={'LINEAR': True})
+    o = Operator(flags='linear')
     yield ok_, isinstance(z * o, ZeroOperator)
     yield ok_, isinstance(o * z, ZeroOperator)
 
 
 def test_zero5():
     z = ZeroOperator()
-    o = Operator(shapein=3, shapeout=6, flags={'LINEAR': True})
+    o = Operator(shapein=3, shapeout=6, flags='linear')
     zo = z * o
     oz = o * z
     yield ok_, isinstance(zo, ZeroOperator)
@@ -1594,7 +1594,7 @@ def test_zero5():
 
 def test_zero6():
     z = ZeroOperator(shapein=3, shapeout=6)
-    o = Operator(flags={'LINEAR': True})
+    o = Operator(flags='linear')
     zo = z * o
     oz = o * z
     yield ok_, isinstance(zo, ZeroOperator)
