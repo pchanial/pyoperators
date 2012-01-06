@@ -24,9 +24,12 @@ body {
 h1, h2, h3, h4, h5, h6 {
   font-family: "Rosario", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: bold;
-  margin: 20px 0px;
   line-height: 150%;
   text-align: left;
+}
+
+h2, h3, h4 {
+  margin: 20px 0px;
 }
 
 h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
@@ -80,6 +83,15 @@ blockquote {
   font-style: italic;
 }
 
+hr {
+  clear:both;
+  visibility: hidden;
+}
+
+hr.right {
+  clear: right;
+}
+
 div#outer {
   margin: 3em 12%;
 }
@@ -100,21 +112,6 @@ div#header {
   font-size: 1em;
 }
 
-#header > h1 {
-  -moz-border-radius: 5px;
-  -moz-box-shadow: 0 1px 0 #fff;
-  -webkit-border-radius: 5px;
-  -webkit-box-shadow: 0 1px 0 #fff;
-  background-color: #333;
-  border-radius: 5px;
-  box-shadow: 0 1px 0 #fff;
-  color: #fff;
-  float: left;
-  text-shadow: 0 1px 0 #888;
-  padding: 10px;
-  margin: 0px;
-}
-
 div#header ul {
   margin: 0px;
   float: right;
@@ -128,6 +125,63 @@ div#header li {
 div#header li form input {
   width: 5em;
   font-size: 1em; /* required by firefox 5.0 */
+}
+
+div#menu {
+  -moz-border-radius:5px;
+  -moz-box-shadow:0 1px 0 #fff;
+  -webkit-border-radius:5px;
+  -webkit-box-shadow:0 1px 0 #fff;
+  background-color:#222;
+  border-radius:5px;
+  box-shadow:0 1px 0 #fff;
+  color:#fff;
+  display:inline;
+  float:left;
+  font-weight:400;
+  line-height:150%;
+  padding:10px;
+  text-shadow: 0 1px 0 #000;
+  text-align: center;
+  width: 7em;
+}
+
+div#menu span {
+  position: absolute;
+  display: none;
+  color: inherit;
+  background-color: inherit;
+  margin: 0px -10px;
+  padding: 0px 10px 10px 10px;
+  border-radius: inherit;
+  -moz-border-radius: inherit;
+  -webkit-border-radius: inherit;
+  box-shadow: inherit;
+  -moz-box-shadow: inherit;
+  -webkit-box-shadow: inherit;
+  text-shadow: inherit;
+  text-align: inherit;
+  width: inherit;
+}
+
+div#menu:hover span {
+  display: block;
+}
+
+div#menu a
+{
+  color: inherit;
+  font-weight:inherit;
+}
+
+div#menu a:hover {
+  color: #aaa;
+}
+
+div#menu hr {
+  visibility: visible;
+  color: inherit;
+  background-color: #fff;
 }
 
 div.content img {
@@ -188,15 +242,6 @@ ul.columns {
 
 #footnote > a:hover {
   color: #eee;
-}
-
-hr {
-  clear:both;
-  visibility: hidden;
-}
-
-hr.right {
-  clear: right;
 }
 
 div.notice {

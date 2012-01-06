@@ -28,6 +28,6 @@ Already up-to-date.
 This method is also required if you are to test pyoperators' development branch.
 
 
-Once the package has been retrieved, you may proceed to the "installation":/pyoperators/installation.
+Once the package has been retrieved, you may proceed to the "installation":{{site.baseurl}}/installation.
 
 </div>
