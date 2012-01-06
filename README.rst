@@ -7,7 +7,7 @@ The pyoperators package defines operators and solvers for high-performance compu
 Getting started
 ===============
 
-To define an ``Operator`` one needs to define a direct function
+To define an operator, one needs to define a direct function
 which will replace the usual matrix-vector operation:
 
 >>> def f(x, out):
