@@ -12,12 +12,21 @@ To define an ``Operator`` one needs to define a direct function
 which will replace the usual matrix-vector operation:
 
 >>> def f(x, out):
-...     out[...] = 2 *x
-...
+...     out[...] = 2 * x
 
 Then, you can instantiate an ``Operator``:
 
 >>> A = pyoperators.Operator(direct=f, flags='symmetric')
+
+An alternative way to define an operator is to define a subclass:
+
+>>> from pyoperators import decorators, Operator
+... @decorators.symmetric
+... class MyOperator(Operator):
+...     def direct(x, out):
+...         out[...] = 2 * x
+...
+... A = MyOperator()
 
 This operator does not have an explicit shape, it can handle inputs of any shape:
 
