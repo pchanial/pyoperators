@@ -18,7 +18,7 @@ from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
 from .utils import (first_is_not, isclassattr, isscalar, ndarraywrap,
                     strenum, strshape, tointtuple)
-from .decorators import (flags, real, idempotent, involutary, square, symmetric,
+from .decorators import (real, idempotent, involutary, square, symmetric,
                          inplace)
 
 __all__ = [
@@ -42,20 +42,20 @@ __all__ = [
 ]
 
 class OperatorFlags(namedtuple('OperatorFlags',
-                               ['LINEAR',
-                                'SQUARE',     # shapein == shapeout
-                                'REAL',       # o.C = o
-                                'SYMMETRIC',  # o.T = o
-                                'HERMITIAN',  # o.H = o
-                                'IDEMPOTENT', # o * o = o
-                                'INVOLUTARY', # o * o = I
-                                'ORTHOGONAL', # o * o.T = I
-                                'UNITARY',    # o * o.H = I
+                               ['linear',
+                                'square',     # shapein == shapeout
+                                'real',       # o.C = o
+                                'symmetric',  # o.T = o
+                                'hermitian',  # o.H = o
+                                'idempotent', # o * o = o
+                                'involutary', # o * o = I
+                                'orthogonal', # o * o.T = I
+                                'unitary',    # o * o.H = I
                                 ])):
     """Informative flags about the operator."""
     def __str__(self):
         n = max([len(f) for f in self._fields])
-        fields = [ '  ' + f.ljust(n) + ' : ' for f in self._fields]
+        fields = [ '  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
         return '\n'.join([f + str(v) for f,v in zip(fields,self)])
 
     def __repr__(self):
@@ -369,7 +369,7 @@ class Operator(object):
           If a shapein is not already associated with the Operator,
           it must me passed to the todense method.
         """
-        if not self.flags.LINEAR:
+        if not self.flags.linear:
             raise TypeError('The operator is not linear.')
         shapein = shapein or self.shapein
         if shapein is None:
@@ -525,7 +525,7 @@ class Operator(object):
                 strshape(self.shapein)))
         if self.shapeout is not None:
             return self.shapeout
-        if self.flags.SQUARE:
+        if self.flags.square:
             return shapein
         if self._reshapein is not None:
             return tointtuple(self._reshapein(shapein))
@@ -555,7 +555,7 @@ class Operator(object):
                 strshape(self.shapeout)))
         if self.shapein is not None:
             return self.shapein
-        if self.flags.SQUARE:
+        if self.flags.square:
             return shapeout
         if self._reshapeout is not None:
             return tointtuple(self._reshapeout(shapeout))
@@ -578,7 +578,7 @@ class Operator(object):
             raise ValueError("Invalid associated operators. Expected operators "
                              "are '{0}'".format(','.join(names)))
 
-        if self.flags.REAL:
+        if self.flags.real:
             C = self
         elif 'C' in ops:
             C = ops['C']
@@ -588,7 +588,7 @@ class Operator(object):
                          self._reshapeout, dtype=self.dtype, flags=self.flags)
             C.__name__ = self.__name__ + '.C'
 
-        if self.flags.SYMMETRIC:
+        if self.flags.symmetric:
             T = self
         elif 'T' in ops:
             T = ops['T']
@@ -601,13 +601,13 @@ class Operator(object):
             T.toshapein, T.toshapeout = self.toshapeout, self.toshapein
             T.__name__ = self.__name__ + '.T'
 
-        if self.flags.HERMITIAN:
+        if self.flags.hermitian:
             H = self
         elif 'H' in ops:
             H = ops['H']
-        elif self.flags.REAL:
+        elif self.flags.real:
             H = T
-        elif self.flags.SYMMETRIC:
+        elif self.flags.symmetric:
             H = C
         else:
             H = Operator(self.adjoint, shapein=self.shapeout, shapeout= \
@@ -618,13 +618,13 @@ class Operator(object):
             H.toshapein, H.toshapeout = self.toshapeout, self.toshapein
             H.__name__ = self.__name__ + '.H'
 
-        if self.flags.INVOLUTARY:
+        if self.flags.involutary:
             I = self
         elif 'I' in ops:
             I = ops['I']
-        elif self.flags.ORTHOGONAL:
+        elif self.flags.orthogonal:
             I = T
-        elif self.flags.UNITARY:
+        elif self.flags.unitary:
             I = H
         else:
             I = Operator(self.inverse, shapein=self.shapeout, shapeout= \
@@ -635,15 +635,15 @@ class Operator(object):
             I.toshapein, I.toshapeout = self.toshapeout, self.toshapein
             I.__name__ = self.__name__ + '.I'
 
-        if self.flags.REAL:
+        if self.flags.real:
             IC = I
         elif 'IC' in ops:
             IC = ops['IC']
-        elif self.flags.ORTHOGONAL:
+        elif self.flags.orthogonal:
             IC = H
-        elif self.flags.UNITARY:
+        elif self.flags.unitary:
             IC = T
-        elif self.flags.INVOLUTARY:
+        elif self.flags.involutary:
             IC = C
         else:
             IC = Operator(self.inverse_conjugate, shapein=self.shapeout,
@@ -654,13 +654,13 @@ class Operator(object):
             IC.toshapein, IC.toshapeout = self.toshapeout, self.toshapein
             IC.__name__ = self.__name__ + '.I.C'
 
-        if self.flags.ORTHOGONAL:
+        if self.flags.orthogonal:
             IT = self
-        elif self.flags.SYMMETRIC:
+        elif self.flags.symmetric:
             IT = I
-        elif self.flags.UNITARY:
+        elif self.flags.unitary:
             IT = C
-        elif self.flags.INVOLUTARY:
+        elif self.flags.involutary:
             IT = T
         elif 'IT' in ops:
             IT = ops['IT']
@@ -672,17 +672,17 @@ class Operator(object):
                           self.classout, dtype=self.dtype, flags=self.flags)
             IT.__name__ = self.__name__ + '.I.T'
 
-        if self.flags.UNITARY:
+        if self.flags.unitary:
             IH = self
-        elif self.flags.HERMITIAN:
+        elif self.flags.hermitian:
             IH = I
-        elif self.flags.ORTHOGONAL:
+        elif self.flags.orthogonal:
             IH = C
-        elif self.flags.INVOLUTARY:
+        elif self.flags.involutary:
             IH = H
-        elif self.flags.SYMMETRIC:
+        elif self.flags.symmetric:
             IH = IC
-        elif self.flags.REAL:
+        elif self.flags.real:
             IH = IT
         elif 'IH' in ops:
             IH = ops['IH']
@@ -708,80 +708,92 @@ class Operator(object):
         IH._C, IH._T, IH._H, IH._I = IT, IC, I, H
 
     def _set_dtype(self, dtype):
-        """A non-complex dtype sets the REAL flag to true"""
+        """A non-complex dtype sets the real flag to true"""
         if dtype is not None:
             dtype = np.dtype(dtype)
         self.dtype = dtype
         if self.dtype is None or self.dtype.kind != 'c':
-            self.flags = self.flags._replace(REAL=True)
+            self.flags = self.flags._replace(real=True)
 
     @staticmethod
     def _set_flags(op, flags):
-        """Sets class or instance flags."""
-        if flags is not None:
-            if isinstance(flags, tuple):
-                op.flags = flags
+        """ Set flags to an Operator class or instance. """
+        if isinstance(flags, OperatorFlags):
+            op.flags = flags
+        elif isinstance(flags, (dict, list, tuple, str)):
+            if isinstance(flags, str):
+                flags = flags.split(',')
             elif isinstance(flags, dict):
-                flags = dict((k.upper(),v) for k,v in flags.iteritems())
-                op.flags = op.flags._replace(**flags)
-                if 'SYMMETRIC' in flags or 'HERMITIAN' in flags or \
-                   'ORTHOGONAL' in flags or 'UNITARY' in flags:
-                    op.flags = op.flags._replace(LINEAR=True, SQUARE=True)
-                if 'ORTHOGONAL' in flags:
-                    op.flags = op.flags._replace(REAL=True)
-                if 'IDEMPOTENT' in flags or 'INVOLUTARY' in flags:
-                    op.flags = op.flags._replace(SQUARE=True)
-            else:
-                raise ValueError('Invalid input flags.')
+                flags = tuple(f for f,v in flags.iteritems() if v)
+            elif isscalar(flags):
+                flags = (flags,)
+            if any(not isinstance(f, str) for f in flags):
+                raise TypeError("Invalid type for the operator flags: {0}." \
+                                .format(flags))
+            flags = tuple(f.strip() for f in flags)
+            if any(f not in OperatorFlags._fields for f in flags):
+                raise ValueError("Invalid operator flags '{0}'. The properties "
+                    "must be one of the following: ".format(flags) + strenum(
+                    OperatorFlags._fields) + '.')
+            op.flags = op.flags._replace(**dict((f,True) for f in flags))
+            if 'symmetric' in flags or 'hermitian' in flags or \
+               'orthogonal' in flags or 'unitary' in flags:
+                op.flags = op.flags._replace(linear=True, square=True)
+            if 'orthogonal' in flags:
+                op.flags = op.flags._replace(real=True)
+            if 'idempotent' in flags or 'involutary' in flags:
+                op.flags = op.flags._replace(square=True)
+        elif flags is not None:
+            raise TypeError("Invalid input flags: '{0}'.".format(flags))
 
-        if op.flags.REAL:
-            if op.flags.SYMMETRIC:
-                op.flags = op.flags._replace(HERMITIAN=True)
-            if op.flags.HERMITIAN:
-                op.flags = op.flags._replace(SYMMETRIC=True)
-            if op.flags.ORTHOGONAL:
-                op.flags = op.flags._replace(UNITARY=True)
-            if op.flags.UNITARY:
-                op.flags = op.flags._replace(ORTHOGONAL=True)
+        if op.flags.real:
+            if op.flags.symmetric:
+                op.flags = op.flags._replace(hermitian=True)
+            if op.flags.hermitian:
+                op.flags = op.flags._replace(symmetric=True)
+            if op.flags.orthogonal:
+                op.flags = op.flags._replace(unitary=True)
+            if op.flags.unitary:
+                op.flags = op.flags._replace(orthogonal=True)
 
-        if op.flags.ORTHOGONAL:
-            if op.flags.IDEMPOTENT:
-                op.flags = op.flags._replace(SYMMETRIC=True)
-            if op.flags.SYMMETRIC:
-                op.flags = op.flags._replace(IDEMPOTENT=True)
+        if op.flags.orthogonal:
+            if op.flags.idempotent:
+                op.flags = op.flags._replace(symmetric=True)
+            if op.flags.symmetric:
+                op.flags = op.flags._replace(idempotent=True)
 
-        if op.flags.UNITARY:
-            if op.flags.IDEMPOTENT:
-                op.flags = op.flags._replace(HERMITIAN=True)
-            if op.flags.HERMITIAN:
-                op.flags = op.flags._replace(IDEMPOTENT=True)
+        if op.flags.unitary:
+            if op.flags.idempotent:
+                op.flags = op.flags._replace(hermitian=True)
+            if op.flags.hermitian:
+                op.flags = op.flags._replace(idempotent=True)
 
-        if op.flags.INVOLUTARY:
-            if op.flags.SYMMETRIC:
-                op.flags = op.flags._replace(ORTHOGONAL=True)
-            if op.flags.ORTHOGONAL:
-                op.flags = op.flags._replace(SYMMETRIC=True)
-            if op.flags.HERMITIAN:
-                op.flags = op.flags._replace(UNITARY=True)
-            if op.flags.UNITARY:
-                op.flags = op.flags._replace(HERMITIAN=True)
+        if op.flags.involutary:
+            if op.flags.symmetric:
+                op.flags = op.flags._replace(orthogonal=True)
+            if op.flags.orthogonal:
+                op.flags = op.flags._replace(symmetric=True)
+            if op.flags.hermitian:
+                op.flags = op.flags._replace(unitary=True)
+            if op.flags.unitary:
+                op.flags = op.flags._replace(hermitian=True)
 
-        if op.flags.IDEMPOTENT:
-            if any([op.flags.ORTHOGONAL, op.flags.UNITARY,
-                    op.flags.INVOLUTARY]):
-                op.flags = op.flags._replace(ORTHOGONAL=True, UNITARY=True,
-                                             INVOLUTARY=True)
+        if op.flags.idempotent:
+            if any([op.flags.orthogonal, op.flags.unitary,
+                    op.flags.involutary]):
+                op.flags = op.flags._replace(orthogonal=True, unitary=True,
+                                             involutary=True)
 
     def _set_rules(self):
         """ Translate flags into rules. """
         self.rules = {}
-        if self.flags.IDEMPOTENT:
+        if self.flags.idempotent:
             self.add_rule('..', '.')
-        if self.flags.ORTHOGONAL:
+        if self.flags.orthogonal:
             self.add_rule('.T.', '1')
-        if self.flags.UNITARY:
+        if self.flags.unitary:
             self.add_rule('.H.', '1')
-        if self.flags.INVOLUTARY:
+        if self.flags.involutary:
             self.add_rule('..', '1')
 
     def _set_inout(self, shapein, shapeout, reshapein, reshapeout,
@@ -844,9 +856,9 @@ class Operator(object):
                         strshape(shapein), strshape(shapein_)))
         
         if shapein is not None and shapein == shapeout:
-            self.flags = self.flags._replace(SQUARE=True)
+            self.flags = self.flags._replace(square=True)
 
-        if self.flags.SQUARE:
+        if self.flags.square:
             if shapein is not None:
                 shapeout = shapein
             else:
@@ -939,7 +951,7 @@ class Operator(object):
 
     def __str__(self):
         if self.shapein is not None:
-            if self.flags.SQUARE and len(self.shapein) > 1:
+            if self.flags.square and len(self.shapein) > 1:
                 s = strshape(self.shapein) + '²'
             else:
                 s = strshape(self.shapeout) + 'x' + strshape(self.shapein)
@@ -1011,7 +1023,7 @@ def asoperator(operator, shapein=None, shapeout=None):
                         shapein=shapein or operator.shape[1],
                         shapeout=shapeout or operator.shape[0],
                         dtype=operator.dtype,
-                        flags={'LINEAR':True})
+                        flags='linear')
     
     if isscalar(operator):
         return ScalarOperator(operator)
@@ -1221,11 +1233,11 @@ class AdditionOperator(CommutativeCompositeOperator):
 
     def __init__(self, operands):
         flags = {
-            'LINEAR':all([op.flags.LINEAR for op in self.operands]),
-            'REAL':all([op.flags.REAL for op in self.operands]),
-            'SQUARE':self.shapein is not None and \
+            'linear':all([op.flags.linear for op in self.operands]),
+            'real':all([op.flags.real for op in self.operands]),
+            'square':self.shapein is not None and \
                 self.shapein == self.shapeout or \
-                all([op.flags.SQUARE for op in self.operands])}
+                all([op.flags.square for op in self.operands])}
         CommutativeCompositeOperator.__init__(self, operands, operator.__iadd__,
                                               flags=flags)
         self.classin = first_is_not([o.classin for o in self.operands], None)
@@ -1252,11 +1264,11 @@ class MultiplicationOperator(CommutativeCompositeOperator):
 
     def __init__(self, operands):
         flags = {
-            'LINEAR':False,
-            'REAL':all([op.flags.REAL for op in self.operands]),
-            'SQUARE':self.shapein is not None and \
+            'linear':False,
+            'real':all([op.flags.real for op in self.operands]),
+            'square':self.shapein is not None and \
                 self.shapein == self.shapeout or \
-                all([op.flags.SQUARE for op in self.operands])}
+                all([op.flags.square for op in self.operands])}
         CommutativeCompositeOperator.__init__(self, operands, operator.__imul__,
                                               flags=flags)
         self.classin = first_is_not([o.classin for o in self.operands], None)
@@ -1279,11 +1291,11 @@ class CompositionOperator(CompositeOperator):
 
     def __init__(self, operands):
         flags = {
-            'LINEAR':all([op.flags.LINEAR for op in self.operands]),
-            'REAL':all([op.flags.REAL for op in self.operands]),
-            'SQUARE':self.shapein is not None and \
+            'linear':all([op.flags.linear for op in self.operands]),
+            'real':all([op.flags.real for op in self.operands]),
+            'square':self.shapein is not None and \
                 (self.shapein == self.shapeout) or \
-                all([op.flags.SQUARE for op in self.operands])}
+                all([op.flags.square for op in self.operands])}
         CompositeOperator.__init__(self, operands, flags=flags)
         self.classin = first_is_not([o.classin for o in reversed(
                                      self.operands)], None)
@@ -1556,11 +1568,11 @@ class BlockOperator(CompositeOperator):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the output partition.')
         flags = {
-            'LINEAR':all([op.flags.LINEAR for op in self.operands]),
-            'REAL':all([op.flags.REAL for op in self.operands])}
+            'linear':all([op.flags.linear for op in self.operands]),
+            'real':all([op.flags.real for op in self.operands])}
 
         if partitionin is not None and partitionout is not None:
-            flags['SQUARE'] = all([op.flags.SQUARE for op in self.operands])
+            flags['square'] = all([op.flags.square for op in self.operands])
 
         self.partitionin = partitionin
         self.partitionout = partitionout
@@ -2361,7 +2373,7 @@ class ScalarOperator(DiagonalOperator):
             self.__init__(**keywords)
             return
         if data == -1:
-            keywords['flags'] = {'INVOLUTARY':True}
+            keywords['flags'] = {'involutary':True}
 
         DiagonalOperator.__init__(self, data, 'scalar', **keywords)
         self.add_rule('{Operator}.', self._rule_linear)
@@ -2384,7 +2396,7 @@ class ScalarOperator(DiagonalOperator):
         return str(data)
 
     def _rule_linear(self, operator):
-        if not operator.flags.LINEAR:
+        if not operator.flags.linear:
             return None
         if self.shapein is None or operator.shapein is not None:
             #XXX this case should not happen
@@ -2428,7 +2440,7 @@ class IdentityOperator(ScalarOperator):
         output[...] = input
 
     def _rule_linear(self, operator):
-        if not operator.flags.LINEAR:
+        if not operator.flags.linear:
             return None
         if self.shapein is None or operator.shapein is not None:
             return operator
@@ -2439,7 +2451,6 @@ class IdentityOperator(ScalarOperator):
 
 
 @real
-@flags(SQUARE=False, SYMMETRIC=False)
 @inplace
 class ZeroOperator(ScalarOperator):
     """
@@ -2449,7 +2460,7 @@ class ZeroOperator(ScalarOperator):
                  reshapeout=None, **keywords):
         if shapein is not None and shapein == shapeout or reshapein is None and\
            reshapeout is None:
-            flags = {'SQUARE':True, 'SYMMETRIC': True, 'IDEMPOTENT': True}
+            flags = 'square, symmetric, idempotent'
         else:
             flags = None
         ScalarOperator.__init__(self, 0, shapein=shapein, shapeout=shapeout,
@@ -2481,7 +2492,7 @@ class ZeroOperator(ScalarOperator):
         return self._combine_operators(self, op)
 
     def _rule_times_zero(self, op):
-        if not op.flags.LINEAR:
+        if not op.flags.linear:
             return None
         return self._combine_operators(op, self)
         

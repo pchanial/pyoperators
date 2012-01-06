@@ -18,7 +18,7 @@ which will replace the usual matrix-vector operation:
 
 Then, you can instantiate an ``Operator``:
 
->>> A = pyoperators.Operator(direct=f, flags={"LINEAR":True, "SYMMETRIC":True})
+>>> A = pyoperators.Operator(direct=f, flags='symmetric')
 
 This operator does not have an explicit shape, it can handle inputs of any shape:
 
@@ -29,11 +29,16 @@ array([ 2.,  2.,  2.,  2.,  2.])
 Info: Allocating (2,) float64 = 16 bytes in Operator.
 array([ 2.,  2.])
 
+By setting the 'symmetric' flag, we ensure that A's transpose is A:
+
+>>> A.T is A
+True
+
 To output a corresponding dense matrix, one needs to specify the input shape:
 
 >>> A.todense(shapein=2)
 array([[ 2.,  0.],
-[ 0.,  2.]])
+       [ 0.,  2.]])
 
 Operators do not have to be linear, but if they are not, they cannot be seen
 as matrices. Some operators are already predefined, such as the
@@ -54,7 +59,7 @@ array([[ 2.,  0.,  0.],
        [ 0.,  3.,  0.],
        [ 0.,  0.,  4.]])
 
-Algebraic rules are used to simplify an operator and speed up the execution:
+Algebraic rules are used to simplify an expression involving operators, so to speed up its execution:
 
 >>> B
 DiagonalOperator(array([ 2.,  3.,  4.]))
