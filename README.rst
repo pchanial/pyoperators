@@ -2,9 +2,8 @@
 Pyoperators
 =========
 
-The pyoperators package defines operators which are functions with a
-shape and dtype, and linear operators which behave like matrices
-with a sparse storage footprint.
+The pyoperators package defines operators for high-performance computing.
+They are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
 
 Getting started
 ===============
@@ -25,9 +24,10 @@ This operator does not have an explicit shape, it can handle inputs of any shape
 >>> A(ones(5))
 Info: Allocating (5,) float64 = 40 bytes in Operator.
 array([ 2.,  2.,  2.,  2.,  2.])
->>> A(ones(2))
-Info: Allocating (2,) float64 = 16 bytes in Operator.
-array([ 2.,  2.])
+>>> A(ones((2,3)))
+Info: Allocating (2,3) float64 = 48 bytes in Operator.
+array([[ 2.,  2.,  2.],
+       [ 2.,  2.,  2.]])
 
 By setting the 'symmetric' flag, we ensure that A's transpose is A:
 
