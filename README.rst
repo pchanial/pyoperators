@@ -71,6 +71,12 @@ Algebraic rules are used to simplify an expression involving operators, so to sp
 
 >>> B
 DiagonalOperator(array([ 2.,  3.,  4.]))
+>>> C = pyoperators.Operator(flags='idempotent')
+>>> C * C is C
+True
+>>> D = pyoperators.Operator(flags='involutary')
+>>> D * D
+IdentityOperator()
 
 
 Requirements
