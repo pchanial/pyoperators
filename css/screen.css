@@ -1,0 +1,232 @@
+@import url(http://fonts.googleapis.com/css?family=Rosario);
+
+html {
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+
+body {
+  background-attachment: fixed;
+  background-image: url('../images/background.jpg');
+  background-position: center;
+  -moz-background-size: 100% auto;
+  -o-background-size: 100% auto;
+  -webkit-background-size: 100% auto;
+  background-size: 100% auto;
+  color: #333;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 100%;
+  line-height: 150%;
+  text-shadow: 0 1px 0 #fff;
+  text-align: justify;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Rosario", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-weight: bold;
+  margin: 20px 0px;
+  line-height: 150%;
+  text-align: left;
+}
+
+h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+  color: #333;
+}
+
+h2 {
+  font-size: 3.375em;
+}
+
+h3 {
+  font-size: 2.25em;
+}
+
+h4 {
+  font-size: 1.5em;
+}
+
+p {
+  margin: 20px 0px;
+}
+
+a, strong {
+  font-weight: 900;
+}
+
+a {
+  color: #000;
+  text-decoration:none;
+}
+
+a:hover {
+  color: #666;
+}
+
+a img {
+  vertical-align: middle;
+}
+
+pre {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+em {
+  font-style: italic;
+}
+
+blockquote {
+  padding: 0px 0px 0px 10px;
+  font-style: italic;
+}
+
+div#outer {
+  margin: 3em 12%;
+}
+
+div.container {
+  -moz-box-shadow: 0px 0px 5px 10px #eee;
+  -webkit-box-shadow: 0px 0px 5px 10px #eee;
+  box-shadow: 0px 0px 5px 10px #eee;
+  opacity: 0.85;
+  background-color: #eee;
+  position: relative;
+  z-index: 1;
+  margin: 0px 0px 30px;
+  padding: 1.5em;
+}
+
+div#header {
+  font-size: 1em;
+}
+
+#header > h1 {
+  -moz-border-radius: 5px;
+  -moz-box-shadow: 0 1px 0 #fff;
+  -webkit-border-radius: 5px;
+  -webkit-box-shadow: 0 1px 0 #fff;
+  background-color: #333;
+  border-radius: 5px;
+  box-shadow: 0 1px 0 #fff;
+  color: #fff;
+  float: left;
+  text-shadow: 0 1px 0 #888;
+  padding: 10px;
+  margin: 0px;
+}
+
+div#header ul {
+  margin: 0px;
+  float: right;
+}
+
+div#header li {
+  padding: 10px 0px 10px 10px;
+  float: left;
+}
+
+div#header li form input {
+  width: 5em;
+  font-size: 1em; /* required by firefox 5.0 */
+}
+
+div.content img {
+  -moz-border-radius: 5px;
+  -moz-box-shadow: 0 1px 0 #fff;
+  -webkit-border-radius: 5px;
+  -webkit-box-shadow: 0 1px 0 #fff;
+  border: 5px #333 solid;
+  width: 440px;
+}
+
+code, pre {
+  font-family: "Monaco", "Courier New", monospace;
+  line-height: 100%;
+}
+
+div.content pre {
+  -moz-border-radius: 5px;
+  -moz-box-shadow: 0 -1px 0 #333;
+  -webkit-border-radius: 5px;
+  -webkit-box-shadow: 0 -1px 0 #333;
+  background-color: #333;
+  color: #fff;
+  font-size: 1em;
+  padding: 1em;
+  text-shadow: 0 1px 0 #000;
+  margin: 2em;
+}
+
+div.content ul {
+  margin: 0 0 0 3em;
+}
+
+div.content ul li {
+  list-style-type: disc;
+}
+
+ul.columns {
+  -moz-column-gap: 20px;
+  -moz-column-width: 215px;
+  -webkit-column-gap: 20px;
+  -webkit-column-width: 215px;
+  column-gap: 20px;
+  column-width: 215px;
+}
+
+#footnote {
+  font-size: 1em;
+  font-weight: bold;
+  text-shadow: none;
+  color: #eee;
+  opacity: 0.75;
+}
+
+#footnote > a {
+  color: #666;
+}
+
+#footnote > a:hover {
+  color: #eee;
+}
+
+hr {
+  clear:both;
+  visibility: hidden;
+}
+
+hr.right {
+  clear: right;
+}
+
+div.notice {
+  -moz-border-radius: 5px;
+  -moz-box-shadow: 0 -1px 0 #fffddd;
+  -webkit-border-radius: 5px;
+  -webkit-box-shadow: 0 -1px 0 #fffddd;
+  background-color: #fffbbb;
+  padding: 20px;
+  text-shadow: 0 1px 0 #dddaaa;
+  margin: 0px 0px 5px -40px;
+}
+
+.date {
+  -moz-border-radius: 5px;
+  -moz-box-shadow: 1px 1px 0 #888;
+  -webkit-border-radius: 5px;
+  -webkit-box-shadow: 1px 1px 0 #888;
+  background-color: #ddd;
+  border-radius: 5px;
+  box-shadow: 1px 1px 0 #888;
+  color: #000;
+  text-shadow: 0 1px 0 #888, 1px 0 0 #888;
+  padding: 10px;
+  font-size: 50%;
+  line-height: 100%;
+  margin: 0;
+  float: left;
+}
+
+img#feed {
+    height: 1.5em;
+}

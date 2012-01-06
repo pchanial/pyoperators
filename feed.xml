@@ -1,0 +1,28 @@
+---
+layout: nil
+---
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+ 
+ <title>PyOperators</title>
+ <link href="http://pchanial.github.com/pyoperators/feed/" rel="self"/>
+ <link href="http://pchanial.github.com/pyoperators/"/>
+ <updated>{{ site.time | date_to_xmlschema }}</updated>
+ <id>http://pchanial.github.com/pyoperators/</id>
+ <author>
+   <name>PyOperators</name>
+   <email></email>
+ </author>
+
+ {% for post in site.posts %}
+ <entry>
+   <title>{{ post.title }}</title>
+   <link href="http://pchanial.github.com/pyoperators{{ post.url }}"/>
+   <updated>{{ post.date | date_to_xmlschema }}</updated>
+   <id>http://pchanial.github.com/pyoperators{{ post.id }}</id>
+   <content type="html">{{ post.content | xml_escape }}</content>
+ </entry>
+ {% endfor %}
+ 
+</feed>
+

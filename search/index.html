@@ -1,0 +1,17 @@
+---
+layout: default
+title: Search results
+---
+
+<script src="/pyoperators/js/jquery-tapir.min.js"></script>
+
+<div id="content">
+  <img src="/pyoperators/images/loading.gif" style="border:none; margin:auto; width:32px; height:32px; box-shadow:none; display: block;"/>
+</div>
+
+<script>
+  $('#content').tapir({
+    token: '4e296bfe3f61b07a1000002e',
+    complete: function(){ $('#content img').remove() }
+  });
+</script>

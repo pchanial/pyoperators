@@ -1,0 +1,16 @@
+---
+layout: default
+title: Installation
+excerpt: The easiest way to install this package is by using easy_install.
+multiplecontainer: true
+---
+
+<div class="container">
+  <div class="content">
+    {% for post in site.categories.installation-dependencies %}
+    <h3>{{ post.title }}</h3>
+    {{ post.content }}
+    {% endfor %}
+  </div>
+</div>
+

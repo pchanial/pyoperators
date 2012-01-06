@@ -1,0 +1,56 @@
+---
+layout: none
+---
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+   <url>
+      <loc>http://pchanial.github.com/pyoperators/</loc>
+      <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>1</priority>
+   </url>
+
+   <url>
+      <loc>http://pchanial.github.com/pyoperators/download/</loc>
+      <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+
+   <url>
+      <loc>http://pchanial.github.com/pyoperators/installation/</loc>
+      <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+
+   <url>
+      <loc>http://pchanial.github.com/pyoperators/faq/</loc>
+      <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.7</priority>
+   </url>
+
+   <url>
+      <loc>http://pchanial.github.com/pyoperators/contact/</loc>
+      <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.1</priority>
+   </url>
+
+   <url>
+      <loc>http://pchanial.github.com/pyoperators/archive</loc>
+      <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>daily</changefreq>
+      <priority>0.1</priority>
+   </url>
+{% for post in site.posts %}
+   <url>
+      <loc>http://pchanial.github.com/pyoperators{{ post.url }}/</loc>
+      <lastmod>{{ post.date | date: '%Y-%m-%d' }}</lastmod>
+      <changefreq>weekly</changefreq>
+      <priority>0.8</priority>
+   </url>
+{% endfor %}
+</urlset>

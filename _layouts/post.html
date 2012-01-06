@@ -1,0 +1,15 @@
+---
+layout: default
+---
+
+<h3>
+  {% if page.category == "blog" %}
+  <time class="date" datetime="{{ page.date | date: "%Y-%m-%d" }}">{{ page.date | date: "<small>%d %b</small><br>%Y" }}</time>                               
+  &nbsp;
+  {% endif %}
+  {{ page.title }}
+</h3>
+
+<div class="content">
+  {{ content }}
+</div>

@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta name="viewport" content="width=550, maximum-scale=1.0" />
+  <meta name="keywords" content="Pierre Chanial, Nicolas Barbey, Inverse problem, Signal Processing, Astrophysics" />
+  <meta name="description" content="{{ page.excerpt }}" />
+  <base href="/pyoperators"/>
+  <title>
+    {{ page.title }} - PyOperators
+  </title>
+  <link rel="stylesheet" href="/css/reset.css" type="text/css" />
+  {{ page.head }}
+  <link rel="stylesheet" href="/css/screen.css" type="text/css" />
+  <link rel="stylesheet" href="/css/syntax.css" type="text/css" />
+  <script src="/js/jquery.js" type="text/javascript"></script>
+</head>
+<body>
+  <div id="outer">
+    <div class="container">
+      <div id="header">
+        <h1> PyOperators </h1>
+        <ul>
+          <li>
+            <a href="/">What's new</a>
+          </li>
+          <li>
+            <a href="/download">Download</a>
+          </li>
+          <li>
+            <a href="/installation">Installation</a>
+          </li>
+          <li>
+            <a href="/faq">FAQ</a>
+          </li>
+          <li>
+            <a href="/contact">Contact</a>
+          </li>
+          <li>
+            <form action="/search" method="get">
+              <input type="search" name="query" placeholder="Search"/>
+            </form>
+          </li>
+          <li>
+            <a href="http://feeds.feedburner.com/tamasismap">
+              <img id="feed" src="/images/feed.png"/>
+            </a>
+          </li>
+        </ul>
+        <hr class="right"/>
+      </div>
+      {% unless page.multiplecontainer %}
+      {{ content }}
+      {% else %}
+      <h3> {{ page.title }} </h3>
+      {{ page.excerpt }}
+      {% endunless %}
+    </div>
+    {% if page.multiplecontainer %}
+    {{ content }}
+    {% endif %}
+  </div>
+</body>
+</html>
