@@ -2,7 +2,7 @@
 The pyoperator package contains the following modules or packages:
 
 - core : defines the Operator class
-- linear : defines standard linear operators (can be seen as matrices)
+- linear : defines standard linear operators
 - nonlinear : defines non-linear operators (such as thresholding or rounding)
 - iterative : defines iterative algorithms working with operators
 
@@ -16,9 +16,8 @@ from .iterative import *
 
 # try to import pywt
 try:
-    import pywt
+    from .pywt_operators import *
 except (ImportError):
     pass
 
-if "pywt" in locals():
-    from .pywt_operators import *
+__version__ = '0.8'
