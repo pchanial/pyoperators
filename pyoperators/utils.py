@@ -1,5 +1,6 @@
 from __future__ import division
 
+import collections
 import multiprocessing
 import numpy as np
 import os
@@ -87,10 +88,12 @@ def isclassattr(cls, a):
 
 def isscalar(data):
     """Hack around np.isscalar oddity"""
-    if isinstance(data, (list, tuple, scipy.sparse.base.spmatrix)):
-        return False
     if isinstance(data, np.ndarray):
         return data.ndim == 0
+    if isinstance(data, (str, unicode)):
+        return True
+    if isinstance(data, (collections.Container, scipy.sparse.base.spmatrix)):
+        return False
     return True
 
 
