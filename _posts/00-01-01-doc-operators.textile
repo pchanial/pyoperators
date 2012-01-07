@@ -1,0 +1,129 @@
+---
+layout: post
+title: The Operator class
+published: true
+category: doc
+---
+
+An @Operator@ can handle inputs with
+   - explicit shape,
+   - unconstrained shape.
+and outputs with
+   - explicit shape,
+   - implicit shape,
+   - unconstrained shape.
+
+.h4 Explicit shape
+The shape of the operator's output (input) is explicit when the operator can only return (apply over) arrays of a specified shape.
+
+.h4 Implicit shape
+The shape of the operator's output is implicit if its shape can be obtained from the input shape by using the method @reshapein@.
+
+.h4 Unconstrained shape
+The shape of the operator's output (input) is unconstrained if it does not depend on the input shape (if any input shape can be handled by the operator). In this case, the @shapeout@ (@shapein@) attribute is None and the method @reshapein@ (@reshapeout@) applied over the input (output) shape returns None.
+
+If the input (output) shape is explicit, the operator's attribute @shapein@ (@shapeout@) is equal to that tuple. Otherwise, this attribute is equal to None.
+
+.h3 Examples
+
+.h4 Explicit input shape and explicit output shape.
+{% highlight python %}
+>>>class Op(Operator):
+       def __init__(self, value):
+           Operator.__init__(self, shapein=3, shapeout=4)
+           self.value = value
+       def direct(self, input, output):
+           output[0:3] = input
+           output[3] = self.value
+>>> op = Op(0.)
+>>> op.shapein, op.shapeout
+((3,), (4,))
+>>> op([3., 2. ,1.])
+array([3., 2., 1., 0.])
+{% endhighlight %}
+
+
+.h4 Unconstrained input shape and explicit output shape.
+{% highlight python %}
+>>>class Op(Operator):
+       def __init__(self):
+           Operator.__init__(self, shapeout=2)
+       def direct(self, input, output):
+           output[0] = np.sum(input)
+           output[1] = np.product(input)
+>>> op = Op()
+>>> op.shapein, op.shapeout
+(None, (4,))
+>>> op([1,2,3])
+array([ 5.,  6.])
+
+
+
+
+
+
+
+
+
+
+
+
+.h4 Explicit input shape and implicit output shape
+This case does not happen because the explicit output shape can be obtained from the explicit input shape and the 'reshapein' method.
+
+
+.h4 Unconstrained input shape and implicit output shape
+>>>class Op(Operator):
+       def __init__(self):
+           Operator.__init__(self)
+       def direct(self, input, output):
+           output[::2] = input.T[0]
+           output[1::2] = input.T[0]
+       def reshapein(self, shapein):
+           if shapein is None: return None
+           return (2*shapein[0],)
+>>> op = Op()
+>>> op.shapein, op.shapeout
+(None, None)
+>>> op.reshapein((2,3))
+(4,)
+>>> op([[1,2,3],[2,3,4]])
+array([1,1,2,2])
+
+
+
+
+
+
+
+
+
+
+.h4 Explicit input shape and unconstrained output shape
+>>>class Op(Operator):
+       def __init__(self):
+           Operator.__init__(self, shapein=2)
+       def direct(self, input, output):
+           output[...] = input[0] * np.arange(output.size).reshape(output.shape) + input[1]
+>>> op = Op()
+>>> op.shapein, op.shapeout
+(None, None)
+>>> output = np.empty((2,2))
+>>> op([2,1], output)
+array([[0,3],[5,7]])
+
+
+.h4 Unconstrained input shape and unconstrained output shape
+>>>class Op(Operator):
+       def __init__(self):
+           Operator.__init__(self)
+       def direct(self, input, output):
+           output[...] = np.sum(input)
+>>> op = Op()
+>>> op.shapein, op.shapeout
+(None, None)
+>>> output = np.empty((2,2))
+>>> op([2,1], output)
+array([[3., 3.], [3., 3.]])
+
+
