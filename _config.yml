@@ -3,6 +3,6 @@ auto: true
 server: true
 pygments: true
 baseurl: /pyoperators
-package: PyOperator
+package: PyOperators
 meta_keywords: Pierre Chanial, Nicolas Barbey, Inverse problem, Signal Processing, High-performance computing, HPC, Python, Operator, Linear Operator, Simulators, Acquisition models, Astrophysics
 menu: <a href="http://pchanial.github.com/tamasis-map">Tamasis/PACS</a>
