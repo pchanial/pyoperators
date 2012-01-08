@@ -71,7 +71,7 @@ array([ 10., 24.])
 
 h5. Explicit input shape and implicit output shape
 
-This case does not happen because the explicit output shape can be obtained from the explicit input shape and the 'reshapein' method.
+This case does not happen because the output shape can be obtained from the explicit input shape and the 'reshapein' method.
 
 
 h5. Unconstrained input shape and implicit output shape
@@ -81,19 +81,22 @@ h5. Unconstrained input shape and implicit output shape
         def __init__(self):
             Operator.__init__(self)
         def direct(self, input, output):
-            output[::2] = input.T[0]
-            output[1::2] = input.T[0]
+            output[::2,...] = input
+            output[1::2,...] = input
         def reshapein(self, shapein):
             if shapein is None:
                 return None
-            return (2*shapein[0],)
+            return (2*shapein[0],) + shapein[1:]
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
 >>> op.reshapein((2,3))
-(4,)
+(4,3)
 >>> op([[1,2,3],[2,3,4]])
-array([1,1,2,2])
+array([[1, 2, 3],
+       [1, 2, 3],
+       [2, 3, 4],
+       [2, 3, 4]])
 {% endhighlight %}
 
 
