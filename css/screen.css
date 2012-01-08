@@ -211,8 +211,12 @@ div.content pre {
   margin: 2em;
 }
 
-div.content ul {
+div.content ul, div.content ol {
   margin: 0 0 0 3em;
+}
+
+ol > li {
+  list-style-type: decimal;
 }
 
 div.content ul li {

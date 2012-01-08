@@ -1,0 +1,23 @@
+---
+layout: default
+title: Documentation
+excerpt: Documentation
+---
+
+h3. {{ page.title }}
+
+<div class="content">
+
+# "Getting started":{{ site.baseurl }}/2000/doc-using-operators/
+# "Operators":{{ site.baseurl }}/2000/doc-operators/
+## "Manipulating operators":{{ site.baseurl }}/2000/doc-operators/
+## "Creating a new operator":{{ site.baseurl }}/2000/doc-operators/
+## "Operator's input and output shapes":{{ site.baseurl }}/2000/doc-operators/
+## "Operator's data type":{{ site.baseurl }}/2000/doc-operators/
+## "Inplace operations":{{ site.baseurl }}/2000/doc-operators/
+## "Inplace reductions":{{ site.baseurl }}/2000/doc-operators/
+## "Block operators":{{ site.baseurl }}/2000/doc-block-operators/
+## "List of available operators":{{ site.baseurl }}/2000/doc-operators/
+# "Solvers":{{ site.baseurl }}/2000/doc-solvers/
+
+</div>
