@@ -32,6 +32,7 @@ If the input (output) shape is explicit, the operator's attribute @shapein@ (@sh
 h5. Operator with explicit input shape and explicit output shape.
 
 Such operator is obtained by setting the @shapein@ and @shapeout@ keywords.
+
 {% highlight python %}
 >>> class Op(Operator):
         def __init__(self, value):
