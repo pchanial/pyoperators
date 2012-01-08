@@ -55,12 +55,12 @@ array([3., 2., 1., 0.])
 h5. Unconstrained input shape and explicit output shape.
 
 {% highlight python %}
->>>class Op(Operator):
-       def __init__(self):
-           Operator.__init__(self, shapeout=2)
-       def direct(self, input, output):
-           output[0] = np.sum(input)
-           output[1] = np.product(input)
+>>> class Op(Operator):
+        def __init__(self):
+            Operator.__init__(self, shapeout=2)
+        def direct(self, input, output):
+            output[0] = np.sum(input)
+            output[1] = np.product(input)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, (2,))
@@ -77,15 +77,15 @@ This case does not happen because the explicit output shape can be obtained from
 h5. Unconstrained input shape and implicit output shape
 
 {% highlight python %}
->>>class Op(Operator):
-       def __init__(self):
-           Operator.__init__(self)
-       def direct(self, input, output):
-           output[::2] = input.T[0]
-           output[1::2] = input.T[0]
-       def reshapein(self, shapein):
-           if shapein is None: return None
-           return (2*shapein[0],)
+>>> class Op(Operator):
+        def __init__(self):
+            Operator.__init__(self)
+        def direct(self, input, output):
+            output[::2] = input.T[0]
+            output[1::2] = input.T[0]
+        def reshapein(self, shapein):
+            if shapein is None: return None
+            return (2*shapein[0],)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
@@ -99,11 +99,12 @@ array([1,1,2,2])
 h5. Explicit input shape and unconstrained output shape
 
 {% highlight python %}
->>>class Op(Operator):
-       def __init__(self):
-           Operator.__init__(self, shapein=2)
-       def direct(self, input, output):
-           output[...] = input[0] * np.arange(output.size).reshape(output.shape) + input[1]
+>>> class Op(Operator):
+        def __init__(self):
+            Operator.__init__(self, shapein=2)
+        def direct(self, input, output):
+            output[...] = input[0] * np.arange(output.size).reshape(
+                output.shape) + input[1]
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
@@ -116,11 +117,11 @@ array([[0,3],[5,7]])
 h5. Unconstrained input shape and unconstrained output shape
 
 {% highlight python %}
->>>class Op(Operator):
-       def __init__(self):
-           Operator.__init__(self)
-       def direct(self, input, output):
-           output[...] = np.sum(input)
+>>> class Op(Operator):
+        def __init__(self):
+            Operator.__init__(self)
+        def direct(self, input, output):
+            output[...] = np.sum(input)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
