@@ -84,7 +84,8 @@ h5. Unconstrained input shape and implicit output shape
             output[::2] = input.T[0]
             output[1::2] = input.T[0]
         def reshapein(self, shapein):
-            if shapein is None: return None
+            if shapein is None:
+                return None
             return (2*shapein[0],)
 >>> op = Op()
 >>> op.shapein, op.shapeout
@@ -103,14 +104,13 @@ h5. Explicit input shape and unconstrained output shape
         def __init__(self):
             Operator.__init__(self, shapein=2)
         def direct(self, input, output):
-            output[...] = input[0] * np.arange(output.size).reshape(
-                output.shape) + input[1]
+            output[...] = input[0] + input[1] * np.arange(output.size).reshape(output.shape)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
 >>> output = np.empty((2,2))
->>> op([2,1], output)
-array([[0,3],[5,7]])
+>>> op([1,2], output)
+array([[1,3],[5,7]])
 {% endhighlight %}
 
 
