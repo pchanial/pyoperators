@@ -14,6 +14,7 @@ h4. 2.3. Operator's input and output shapes
 The @Operator@ class has a flexible way to deal with inputs and outputs. In particular, it can handle:
 
    - inputs with explicit and unconstrained shapes
+
    - and outputs with explicit, implicit and unconstrained shapes.
 
 *Explicit shape:* The shape of the operator's output (input) is explicit when the operator can only return (apply over) arrays of a specified shape.
