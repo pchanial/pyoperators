@@ -63,9 +63,9 @@ h5. Unconstrained input shape and explicit output shape.
            output[1] = np.product(input)
 >>> op = Op()
 >>> op.shapein, op.shapeout
-(None, (4,))
->>> op([1,2,3])
-array([ 5.,  6.])
+(None, (2,))
+>>> op([1., 2., 3., 4.])
+array([ 10., 24.])
 {% endhighlight %}
 
 
