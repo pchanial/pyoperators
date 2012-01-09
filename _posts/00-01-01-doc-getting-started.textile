@@ -17,16 +17,16 @@ To define an operator, one needs to define a direct function which will replace 
 Then, you can instantiate an @Operator@:
 
 {% highlight python %}
->>> A = pyoperators.Operator(direct=f, flags='symmetric')
+>>> A = Operator(direct=f, flags='symmetric')
 {% endhighlight %}
 
 This operator does not have an explicit shape, it can handle inputs of any shape:
 
 {% highlight python %}
->>> A(ones(5))
+>>> A(np.ones(5))
 Info: Allocating (5,) float64 = 40 bytes in Operator.
 array([ 2.,  2.,  2.,  2.,  2.])
->>> A(ones((2,3)))
+>>> A(np.ones((2,3)))
 Info: Allocating (2,3) float64 = 48 bytes in Operator.
 array([[ 2.,  2.,  2.],
        [ 2.,  2.,  2.]])
@@ -52,7 +52,7 @@ Operators do not have to be linear, but if they are not, they cannot be seen as 
 The previous @A@ matrix could be defined more easily like this :
 
 {% highlight python %}
->>> A = 2 * pyoperators.I
+>>> A = 2 * I
 {% endhighlight %}
 
 where @I@ is the identity operator with no explicit shape.
@@ -60,7 +60,7 @@ where @I@ is the identity operator with no explicit shape.
 Operators can be combined together by addition, element-wise multiplication or composition (note that the @*@ sign stands for composition):
 
 {% highlight python %}
->>> B = 2 * pyoperators.I + pyoperators.DiagonalOperator(arange(3))
+>>> B = 2 * I + DiagonalOperator(np.arange(3))
 >>> B.todense()
 array([[ 2.,  0.,  0.],
        [ 0.,  3.,  0.],
