@@ -21,18 +21,6 @@ Then, you can instantiate an @Operator@:
 >>> A = pyoperators.Operator(direct=f, flags='symmetric')
 {% endhighlight %}
 
-An alternative way to define an operator is to define a subclass:
-
-{% highlight python %}
->>> from pyoperators import decorators, Operator
-... @decorators.symmetric
-... class MyOperator(Operator):
-...     def direct(x, out):
-...         out[...] = 2 * x
-...
-... A = MyOperator()
-{% endhighlight %}
-
 This operator does not have an explicit shape, it can handle inputs of any shape:
 
 {% highlight python %}

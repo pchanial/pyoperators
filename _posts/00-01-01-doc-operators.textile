@@ -9,8 +9,7 @@ h4. 2.1. Manipulating operators
 
 h4. 2.2. Creating a new operator
 
-To define an operator, one needs to define a direct function
-which will replace the usual matrix-vector operation:
+Operators can be created in two ways. The first way is to define a direct function which will replace the usual matrix-vector operation:
 
 {% highlight python %}
 >>> def f(x, out):
@@ -23,14 +22,16 @@ Then, an @Operator@ can be instantiated:
 >>> A = Operator(direct=f)
 {% endhighlight %}
 
-An alternative way to define an operator is to define a subclass:
+The alternative way is more flexible, it consists in subclassing the @Operator@ class:
 
 {% highlight python %}
 >>> class MyOperator(Operator):
-...     def direct(x, out):
-...         out[...] = 2 * x
+...     def __init__(self, coef):
+...         self.coef = coef          
+...     def direct(self, x, out):
+...         out[...] = self.coef * x
 ...
-... A = MyOperator()
+... A = MyOperator(2)
 {% endhighlight %}
 
 h4. 2.3. Operator's input and output shapes
@@ -134,7 +135,7 @@ Such operator is obtained by only setting the @shapein@ keyword.
 ...         output[...] = input[0] + input[1] * np.arange(output.size).reshape(output.shape)
 >>> op = Op()
 >>> op.shapein, op.shapeout
-(None, None)
+((2,), None)
 >>> output = np.empty((2,2))
 >>> op([1,2], output)
 array([[1,3],[5,7]])
