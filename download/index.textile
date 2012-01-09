@@ -8,26 +8,24 @@ h3. {{ page.title }}
 
 <div class="content">
 
-The current version of the pyoperators package is 0.1, and it is still beta.
-The project is hosted at "github":https://github.com/pchanial/pyoperators/ and there are two ways to obtain it.
-  
-* Either by retrieving an archive
-    - as a "tar file":https://github.com/pchanial/pyoperators/tarball/v0.1/
-    - or a "zip file":https://github.com/pchanial/pyoperators/zipball/v0.1/.
-<br/>
-* Alternatively, by cloning the project, using the version control system "Git":http://git-scm.com/:
+The current version of the pyoperators package is 0.1, and it is still beta stage.
+
+h4. The easy way
+
+The easiest way to download and install the pyoperators package is by using the easy_install utility:
+
+bc. sudo easy_install pyoperators
+
+h4. The Git way
+
+The project is hosted at "github":https://github.com/pchanial/pyoperators/ you can download it by cloning the project, using the version control system "Git":http://git-scm.com/:
 
 bc. $ git clone git://github.com/pchanial/pyoperators.git
 
-The second method is more convenient to make updates (if you've just cloned the repository, you will obviously not get anything new)
+This method is convenient to test pyoperators' development branch. The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
 
 bc. $ cd pyoperators.git
 $ git pull
 Already up-to-date.
-
-This method is also required if you are to test pyoperators' development branch.
-
-
-Once the package has been retrieved, you may proceed to the "installation":{{ site.baseurl }}/installation.
 
 </div>
