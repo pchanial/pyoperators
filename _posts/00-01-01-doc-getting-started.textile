@@ -15,7 +15,7 @@ which will replace the usual matrix-vector operation:
 ...     out[...] = 2 * x
 {% endhighlight %}
 
-Then, you can instantiate an ``Operator``:
+Then, you can instantiate an @Operator@:
 
 {% highlight python %}
 >>> A = pyoperators.Operator(direct=f, flags='symmetric')
@@ -62,18 +62,18 @@ array([[ 2.,  0.],
 
 Operators do not have to be linear, but if they are not, they cannot be seen
 as matrices. Some operators are already predefined, such as the
-``IdentityOperator``, the ``DiagonalOperator`` or the nonlinear
-``ClippingOperator``.
+@IdentityOperator@, the @DiagonalOperator@ or the nonlinear
+@ClippingOperator@.
 
-The previous ``A`` matrix could be defined more easily like this :
+The previous @A@ matrix could be defined more easily like this :
 
 {% highlight python %}
 >>> A = 2 * pyoperators.I
 {% endhighlight %}
 
-where ``I`` is the identity operator with no explicit shape.
+where @I@ is the identity operator with no explicit shape.
 
-Operators can be combined together by addition, element-wise multiplication or composition (note that the ``*`` sign stands for composition):
+Operators can be combined together by addition, element-wise multiplication or composition (note that the @*@ sign stands for composition):
 
 {% highlight python %}
 >>> B = 2 * pyoperators.I + pyoperators.DiagonalOperator(arange(3))
