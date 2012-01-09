@@ -26,6 +26,7 @@ Info: Allocating (1024,) complex128 = 0.015625 MiB in FftOperator.
 By using the operator in such a way, a no-side-effect policy is enforced: it is garanteed that the input array will not be modified and as a consequence, a new buffer would be allocated every time the operator is called.
 
 Similarly to ufuncs, such behaviour can be changed by providing the output array:
+
 {% highlight python %}
 >>> output = np.empty(1024, dtype=complex)
 >>> A(input, output)
