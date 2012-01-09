@@ -443,3 +443,6 @@ h5. Non-linear operators
 * MinimumOperator
 * NumexprOperator
 * RoundOperator
+
+More operators can be found in the project "Tamasis/PACS":http://pchanial.github.com/tamasis-map , such as complex and real fft operators, convolution, projection, discrete differences, compression, downsampling, MPI operators, etc.
+There is an on-going work consisting in migrating the most generic ones into the pyoperators package.
