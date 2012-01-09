@@ -358,7 +358,74 @@ TBD
 
 
 h4. <a name="partition"></a> 2.11. Operator partition
-TBD
+
+Currently, there are two ways to partition operators, depending on whether the partitioning is done in an already existing dimension or not.
+
+<div class="definition">
+*Stack partition:* outputs are stacked along a new dimension.
+*Chunk partition:* outputs are concatenated along an existing dimension.
+</div>
+<hr>
+
+*Stack partition*.
+
+A stack partition operator is the operator @BlockRowOperator@, initialised with the @new_axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @new_axisin@ or @new_axisout@ or the operator @BlockColumnOperator@, initialised with the @new_axisout@ keyword. There is a strong constraint on the input and output shapes of the blocks, since they must be the same for all blocks.
+
+The partition along the specified axis is always explicit and is equal to a tuple of ones with as many elements as the number of blocks.
+
+In the following example is shown a stack partition block column operator:
+
+{% highlight python %}
+>>> C = BlockColumnOperator([I, 2*I, 3*I], new_axisout=0)
+>>> C(np.ones(2))
+array([[ 1.,  1.],
+       [ 2.,  2.],
+       [ 3.,  3.]])
+{% endhighlight %}
+
+The outputs of the blocks are stacked along the dimension specified by @new_axisout@ keyword, i.e the first one.
+
+The following example shows a stack partition block diagonal operator:
+
+{% highlight python %}
+>>> D = BlockDiagonalOperator([I, 2*I, 3*I], new_axisin=-1)
+>>> x = np.arange(2*3).reshape((2,3))
+>>> x
+array([[0, 1, 2],
+       [3, 4, 5]])
+>>> D(x)
+array([[ 0,  2,  6],
+       [ 3,  8, 15]])
+{% endhighlight %}
+
+It can be seen that the first block @I@ is applied over @x[:,0]@, the second block @2*I@ over @x[:,1]@, and the third block @3*I@ over @x[:,2]@.
+
+*Chunk partition*.
+
+A chunk partition operator is the operator @BlockRowOperator@, initialised with the @axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @axisin@ or @axisout@ or the operator @BlockColumnOperator@, initialised with the @axisout@ keyword. There is a lesser constraint on the shapes of the partitioned input and output of the blocks: all dimensions must be same except along the partitioned dimension(s).
+
+The partition along the specified axis can be implicit or explicit, in which case the keywords @partitionin@ or @partitionout@ are set to this explicit partition.
+
+The following example shows a block diagonal chunk partition operator with an explicit partition
+
+{% highlight python %}
+>>> D = BlockDiagonalOperator([I, 2*I, 3*I], axisin=-1, partitionin=(2,3,2))
+>>> D(np.ones(7))
+array([ 1.,  1.,  2.,  2.,  2.,  3.,  3.])
+{% endhighlight %}
+
+in which each block is an homothety. It can be seen that the first block @I@ is applied over the two first elements, the second block @2*I@ over the three following elements, and the third block @3*I@ over the last two elements.
+
+Block row and block column chunk partition operators can handle implicit partitions:
+
+{% highlight python %}
+>>> C = BlockColumnOperator([I, 2*I, 3*I], axisout=-1)
+>>> C(np.ones((2,2)))
+array([[ 1.,  1.,  2.,  2.,  3.,  3.],
+       [ 1.,  1.,  2.,  2.,  3.,  3.]])
+{% endhighlight %}
+
+Likewise, the outputs of the blocks are concatenated along the dimension specified by @axisout@ keyword, i.e the last one.
 
 
 
