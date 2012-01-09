@@ -9,16 +9,11 @@ h4. 2.1. Manipulating operators
 
 h4. 2.2. Creating a new operator
 
-Operators can be created in two ways. The first way is to define a direct function which will replace the usual matrix-vector operation:
+Operators can be created in two ways. The first way is to define a direct function which will replace the usual matrix-vector operation and to instantiate the @Operator@ class:
 
 {% highlight python %}
 >>> def f(x, out):
 ...     out[...] = 2 * x
-{% endhighlight %}
-
-Then, an @Operator@ can be instantiated:
-
-{% highlight python %}
 >>> A = Operator(direct=f)
 {% endhighlight %}
 
