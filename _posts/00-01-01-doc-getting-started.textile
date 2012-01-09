@@ -7,8 +7,7 @@ category: doc
 
 The pyoperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
 
-To define an operator, one needs to define a direct function
-which will replace the usual matrix-vector operation:
+To define an operator, one needs to define a direct function which will replace the usual matrix-vector operation:
 
 {% highlight python %}
 >>> def f(x, out):
@@ -73,10 +72,4 @@ Algebraic rules are used to simplify an expression involving operators, so to sp
 {% highlight python %}
 >>> B
 DiagonalOperator(array([ 2.,  3.,  4.]))
->>> C = pyoperators.Operator(flags='idempotent')
->>> C * C is C
-True
->>> D = pyoperators.Operator(flags='involutary')
->>> D * D
-IdentityOperator()
 {% endhighlight %}
