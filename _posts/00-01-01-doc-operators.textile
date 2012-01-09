@@ -7,15 +7,13 @@ category: doc
 
 h4. 2.1. <a name="using"></a> Using operators
 
-The @Operator@ class and its subclasses are function factories. It means that @Operator@ instances are functions (Python callables) and they take "numpy":http://numpy.scipy.org/ 's N-dimensional array object as inputs and outputs.
-
-As a consequence, to perform computations using an operator class, we first need to create an instance of it:
+The @Operator@ class and its subclasses are function factories. It means that in order to perform computations using an operator class, we first need to create an instance of it
 
 {% highlight python %}
 A = FftOperator(1024)
 {% endhighlight %}
 
-The object @A@ is a Python callable, and can be applied over arrays:
+and then use the instance as a function. The object @A@ is a Python callable and takes "numpy":http://numpy.scipy.org/ 's N-dimensional array object as inputs and outputs:
 
 {% highlight python %}
 >>> input = np.arange(1024, dtype=complex)
