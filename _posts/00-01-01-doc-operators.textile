@@ -328,7 +328,7 @@ It is used to determine the output data type, as being the common type of the op
 >>> a = DiagonalOperator([1,2])
 >>> a.dtype
 dtype('int64')
->>> a([complex(1,0), complex(0,1)]).dtype
+>>> a([1, 1j]).dtype
 dtype('complex128')
 >>> a(np.array([2,2], np.uint8)).dtype
 dtype('int64')
