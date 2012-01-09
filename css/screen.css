@@ -227,10 +227,10 @@ div.definition {
   -moz-box-shadow: 0 0 1px #333;
   -webkit-border-radius: 5px;
   -webkit-box-shadow: 0 0 1px #333;
-  display: block;
+  float:left;
   background-color:#fffbbb;
   color: #000;
-  float: left;
+  width: auto;
   text-shadow:0;
   font-size: 1em;
   padding: 0.25em 1em;
@@ -241,6 +241,10 @@ div.definition p {
   padding: 0.25em 0;
 }
   
+div.definition + hr {
+  margin:0;
+}
+
 div.content ul, div.content ol {
   margin: 0 0 0 3em;
 }
