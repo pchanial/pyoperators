@@ -37,9 +37,7 @@ In this documentation, the same term __operator__ will be used for the @Operator
 
 h4. 2.2. <a name="manipulation"></a> Manipulating operators
 
-Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, elementwise (Hadamard) multiplication or "partition":#partition.
-
-The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not elementwise multiplication), following the convention for linear operators.
+Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, elementwise (Hadamard) multiplication or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not elementwise multiplication), following the convention for linear operators.
 
 {% highlight python %}
 >>> o1 = DiagonalOperator([1.,2.])
@@ -63,14 +61,14 @@ array([ 2.,  4.])
 </div>
 <hr>
 
-The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform elementwise multiplication is to call the composite operator:
+ The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform elementwise multiplication is to call the composite operator:
 
 {% highlight python %}
 >>> MultiplicationOperator([o1,o2])([2., 2.])
 array([ 4.,  8.])
 {% endhighlight %}
 
-The conjugate, transpose, adjoint and inverse operators, when defined, can be obtained by using the following attributes:
+ The conjugate, transpose, adjoint and inverse operators, when defined, can be obtained by using the following attributes:
 
 <div class="definition">
 | *conjugate* | @.C@ |
@@ -80,7 +78,7 @@ The conjugate, transpose, adjoint and inverse operators, when defined, can be ob
 </div>
 <hr>
 
-For example:
+ For example:
 
 {% highlight python %}
 >>> o = Operator()
@@ -94,7 +92,7 @@ True
 
 h4. 2.3. <a name="creation"></a> Creating a new operator
 
-Operators can be created in two ways. The first one is to define a direct function which will replace the usual matrix-vector operation and to instantiate the @Operator@ class:
+ Operators can be created in two ways. The first one is to define a direct function which will replace the usual matrix-vector operation and to instantiate the @Operator@ class:
 
 {% highlight python %}
 >>> def f(x, out):
@@ -102,13 +100,13 @@ Operators can be created in two ways. The first one is to define a direct functi
 >>> P = Operator(direct=f)
 {% endhighlight %}
 
-Transforming a single-argument "ufunc":http://docs.scipy.org/doc/numpy/reference/ufuncs.html into an @Operator@ instance is straightforward:
+ Transforming a single-argument "ufunc":http://docs.scipy.org/doc/numpy/reference/ufuncs.html into an @Operator@ instance is straightforward:
 
 {% highlight python %}
 >>> sqrt = Operator(direct=numpy.sqrt)
 {% endhighlight %}
 
-The alternative way is more flexible, it consists in subclassing the @Operator@ class:
+ The alternative way is more flexible, it consists in subclassing the @Operator@ class:
 
 {% highlight python %}
 >>> class MyOperator(Operator):
@@ -126,7 +124,7 @@ The alternative way is more flexible, it consists in subclassing the @Operator@ 
 
 h4. 2.4. <a name="flags"></a> Operator's flags
 
-An operator __P__ can have the following algebraic properties, accessible with the @flag@ attribute:
+ An operator __P__ can have the following algebraic properties, accessible with the @flag@ attribute:
 
 <div class="definition">
 |  *linear*     | |
@@ -141,7 +139,7 @@ An operator __P__ can have the following algebraic properties, accessible with t
 </div>
 <hr>
 
-They can be set using the @flag@ keyword:
+ They can be set using the @flag@ keyword:
 
 {% highlight python %}
 >>> def f(x, out):
@@ -149,7 +147,7 @@ They can be set using the @flag@ keyword:
 >>> P = Operator(direct=f, flags='symmetric,involutary')
 {% endhighlight %}
 
-or by using operator decorators:
+ or by using operator decorators:
 
 {% highlight python %}
 >>> @decorators.symmetric
@@ -161,7 +159,7 @@ or by using operator decorators:
 ... P = MyOperator()
 {% endhighlight %}
 
-These flags are used to simplify expressions:
+ These flags are used to simplify expressions:
 
 {% highlight python %}
 >>> C = Operator(flags='idempotent')
@@ -189,7 +187,7 @@ TBD
 
 h4. 2.7. <a name="shapes"></a> Operator's input and output shapes
 
-The @Operator@ class has a flexible way to deal with inputs and outputs. In particular, it can handle:
+ The @Operator@ class has a flexible way to deal with inputs and outputs. In particular, it can handle:
 * inputs with explicit or unconstrained shapes
 * outputs with explicit, implicit or unconstrained shapes.
 
@@ -201,12 +199,13 @@ The @Operator@ class has a flexible way to deal with inputs and outputs. In part
 *Unconstrained shape:* The shape of the operator's output (input) is unconstrained if it does not depend on the input shape (if any input shape can be handled by the operator). In this case, the @shapeout@ (@shapein@) attribute is None and the method @reshapein@ (@reshapeout@) applied over the input (output) shape returns None.
 </div>
 
-If the input (output) shape is explicit, the operator's attribute @shapein@ (@shapeout@) is equal to that tuple. Otherwise, this attribute is equal to None.
+ If the input (output) shape is explicit, the operator's attribute @shapein@ (@shapeout@) is equal to that tuple. Otherwise, this attribute is equal to None.
 
+<hr>
 
 h5. Operator with explicit input shape and explicit output shape.
 
-The explicit shapes are specified using the the @shapein@ and @shapeout@ keywords. The following example appends a zero to a fixed-size input.
+ The explicit shapes are specified using the the @shapein@ and @shapeout@ keywords. The following example appends a zero to a fixed-size input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -226,7 +225,7 @@ array([3., 2., 1., 0.])
 
 h5. Operator with unconstrained input shape and explicit output shape.
 
-Such operator is obtained by only setting the @shapeout@ keyword. The following example returns an array of size 2 whose elements are the sum and product of the elements of the input.
+ Such operator is obtained by only setting the @shapeout@ keyword. The following example returns an array of size 2 whose elements are the sum and product of the elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -245,12 +244,12 @@ array([ 10., 24.])
 
 h5. Operator with explicit input shape and implicit output shape
 
-This case does not happen because the output shape can be obtained from the explicit input shape and the 'reshapein' method.
-
+ This case does not happen because the output shape can be obtained from the explicit input shape and the 'reshapein' method.
+<hr>
 
 h5. Operator with unconstrained input shape and implicit output shape
 
-To obtain such operator, one simply has to define a @reshapein@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
+ To obtain such operator, one simply has to define a @reshapein@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -278,7 +277,7 @@ array([[1, 2, 3],
 
 h5. Operator with explicit input shape and unconstrained output shape
 
-Such operator is obtained by only setting the @shapein@ keyword. The following example fills the output with an arithmetic progression whose coefficients are given by the two elements of the input.
+ Such operator is obtained by only setting the @shapein@ keyword. The following example fills the output with an arithmetic progression whose coefficients are given by the two elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -297,7 +296,7 @@ array([[1,3],[5,7]])
 
 h5. Operator with unconstrained input and output shape
 
-This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapein@ method. The following example fills the output with the value of the sum of the elements of the input.
+ This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapein@ method. The following example fills the output with the value of the sum of the elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -318,7 +317,7 @@ array([[3., 3.], [3., 3.]])
 
 h4. <a name="dtype"></a> 2.8. Operator's data type
 
-The operator's data type is a data type object (an instance of "numpy.dtype":http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html class). It can be set using the @dtype@ keyword.
+ The operator's data type is a data type object (an instance of "numpy.dtype":http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html class). It can be set using the @dtype@ keyword.
 
 {% highlight python %}
 >>> a = Operator(dtype=np.float32)
@@ -326,9 +325,7 @@ The operator's data type is a data type object (an instance of "numpy.dtype":htt
 dtype('float32')
 {% endhighlight %}
 
- It is used to determine the output data type, as being the common type of the operator and input data types, following the standard coercion rules. 
-
-Examples:
+ It is used to determine the output data type, as being the common type of the operator and input data types, following the standard coercion rules. Examples:
 
 {% highlight python %}
 >>> a = DiagonalOperator([1,2])
@@ -340,7 +337,7 @@ dtype('complex128')
 dtype('int64')
 {% endhighlight %}
 
-The operator's data type can be equal to None (the default), in which case the output data type is always the input data type.
+ The operator's data type can be equal to None (the default), in which case the output data type is always the input data type.
 
 
 
@@ -359,7 +356,7 @@ TBD
 
 h4. <a name="partition"></a> 2.11. Operator partition
 
-Currently, there are two ways to partition operators, depending on whether the partitioning is done in an already existing dimension or not.
+ Currently, there are two ways to partition operators, depending on whether the partitioning is done in an already existing dimension or not.
 
 <div class="definition">
 *Stack partition:* outputs are stacked along a new dimension.
@@ -369,11 +366,7 @@ Currently, there are two ways to partition operators, depending on whether the p
 
 *Stack partition*.
 
-A stack partition operator is the operator @BlockRowOperator@, initialised with the @new_axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @new_axisin@ or @new_axisout@ or the operator @BlockColumnOperator@, initialised with the @new_axisout@ keyword. There is a strong constraint on the input and output shapes of the blocks, since they must be the same for all blocks.
-
-The partition along the specified axis is always explicit and is equal to a tuple of ones with as many elements as the number of blocks.
-
-In the following example is shown a stack partition block column operator:
+ A stack partition operator is the operator @BlockRowOperator@, initialised with the @new_axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @new_axisin@ or @new_axisout@ or the operator @BlockColumnOperator@, initialised with the @new_axisout@ keyword. There is a strong constraint on the input and output shapes of the blocks, since they must be the same for all blocks. The partition along the specified axis is always explicit and is equal to a tuple of ones with as many elements as the number of blocks. In the following example is shown a stack partition block column operator:
 
 {% highlight python %}
 >>> C = BlockColumnOperator([I, 2*I, 3*I], new_axisout=0)
@@ -383,9 +376,7 @@ array([[ 1.,  1.],
        [ 3.,  3.]])
 {% endhighlight %}
 
-The outputs of the blocks are stacked along the dimension specified by @new_axisout@ keyword, i.e the first one.
-
-The following example shows a stack partition block diagonal operator:
+ The outputs of the blocks are stacked along the dimension specified by @new_axisout@ keyword, i.e the first one. The following example shows a stack partition block diagonal operator:
 
 {% highlight python %}
 >>> D = BlockDiagonalOperator([I, 2*I, 3*I], new_axisin=-1)
@@ -398,15 +389,11 @@ array([[ 0,  2,  6],
        [ 3,  8, 15]])
 {% endhighlight %}
 
-It can be seen that the first block @I@ is applied over @x[:,0]@, the second block @2*I@ over @x[:,1]@, and the third block @3*I@ over @x[:,2]@.
+ It can be seen that the first block @I@ is applied over @x[:,0]@, the second block @2*I@ over @x[:,1]@, and the third block @3*I@ over @x[:,2]@.
 
 *Chunk partition*.
 
-A chunk partition operator is the operator @BlockRowOperator@, initialised with the @axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @axisin@ or @axisout@ or the operator @BlockColumnOperator@, initialised with the @axisout@ keyword. There is a lesser constraint on the shapes of the partitioned input and output of the blocks: all dimensions must be same except along the partitioned dimension(s).
-
-The partition along the specified axis can be implicit or explicit, in which case the keywords @partitionin@ or @partitionout@ are set to this explicit partition.
-
-The following example shows a block diagonal chunk partition operator with an explicit partition
+ A chunk partition operator is the operator @BlockRowOperator@, initialised with the @axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @axisin@ or @axisout@ or the operator @BlockColumnOperator@, initialised with the @axisout@ keyword. There is a lesser constraint on the shapes of the partitioned input and output of the blocks: all dimensions must be same except along the partitioned dimension(s). The partition along the specified axis can be implicit or explicit, in which case the keywords @partitionin@ or @partitionout@ are set to this explicit partition. The following example shows a block diagonal chunk partition operator with an explicit partition
 
 {% highlight python %}
 >>> D = BlockDiagonalOperator([I, 2*I, 3*I], axisin=-1, partitionin=(2,3,2))
@@ -414,9 +401,7 @@ The following example shows a block diagonal chunk partition operator with an ex
 array([ 1.,  1.,  2.,  2.,  2.,  3.,  3.])
 {% endhighlight %}
 
-in which each block is an homothety. It can be seen that the first block @I@ is applied over the two first elements, the second block @2*I@ over the three following elements, and the third block @3*I@ over the last two elements.
-
-Block row and block column chunk partition operators can handle implicit partitions:
+ in which each block is an homothety. It can be seen that the first block @I@ is applied over the two first elements, the second block @2*I@ over the three following elements, and the third block @3*I@ over the last two elements. Block row and block column chunk partition operators can handle implicit partitions:
 
 {% highlight python %}
 >>> C = BlockColumnOperator([I, 2*I, 3*I], axisout=-1)
@@ -425,7 +410,7 @@ array([[ 1.,  1.,  2.,  2.,  3.,  3.],
        [ 1.,  1.,  2.,  2.,  3.,  3.]])
 {% endhighlight %}
 
-Likewise, the outputs of the blocks are concatenated along the dimension specified by @axisout@ keyword, i.e the last one.
+ Likewise, the outputs of the blocks are concatenated along the dimension specified by @axisout@ keyword, i.e the last one.
 
 
 
