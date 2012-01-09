@@ -7,7 +7,7 @@ category: doc
 
 h4. 2.1. <a name="manipulation"></a> Manipulating operators
 
-Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, elementwise (Hadamard) multiplication or <a href="#partition">partition</a>.
+Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, elementwise (Hadamard) multiplication or "partition":#partition.
 
 The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not elementwise multiplication), following the convention for linear operators.
 
@@ -34,7 +34,7 @@ array([ 2.,  4.])
 
 <hr>
 
-The @*@ sign may be confusing when multiplying non-linear operators, so currently, the only way to perform elementwise multiplication is to call the composite operator:
+The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform elementwise multiplication is to call the composite operator:
 
 {% highlight python %}
 >>> MultiplicationOperator([o1,o2])([2., 2.])
@@ -54,7 +54,7 @@ Operators can be created in two ways. The first one is to define a direct functi
 >>> P = Operator(direct=f)
 {% endhighlight %}
 
-Transforming a single-argument http://www.scipy.org/ufunc:@ufunc@ into an @Operator@ is straightforward:
+Transforming a single-argument "ufunc":http://docs.scipy.org/doc/numpy/reference/ufuncs.html into an @Operator@ is straightforward:
 
 {% highlight python %}
 >>> sqrt = Operator(direct=numpy.sqrt)
