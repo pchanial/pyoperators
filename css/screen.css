@@ -246,7 +246,7 @@ div.content ol > li {
 div.content table {
   margin: 0 -1em;
   border-collapse:separate;
-  border-spacing: 1em 0.5em;
+  border-spacing: 1em 0.25em;
 }
 
 #footnote {
