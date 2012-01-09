@@ -15,18 +15,20 @@ The @Operator@ class has a flexible way to deal with inputs and outputs. In part
    - inputs with explicit and unconstrained shapes
    - and outputs with explicit, implicit and unconstrained shapes.
 
+<div class="definition">
 *Explicit shape:* The shape of the operator's output (input) is explicit when the operator can only return (apply over) arrays of a specified shape.
 
 *Implicit shape:* The shape of the operator's output is implicit if its shape can be obtained from the input shape and the method @reshapein@.
 
 *Unconstrained shape:* The shape of the operator's output (input) is unconstrained if it does not depend on the input shape (if any input shape can be handled by the operator). In this case, the @shapeout@ (@shapein@) attribute is None and the method @reshapein@ (@reshapeout@) applied over the input (output) shape returns None.
+</div>
 
 If the input (output) shape is explicit, the operator's attribute @shapein@ (@shapeout@) is equal to that tuple. Otherwise, this attribute is equal to None.
 
 
 h5. Operator with explicit input shape and explicit output shape.
 
-Such operator is obtained by setting the @shapein@ and @shapeout@ keywords.
+The explicit shapes are specified using the the @shapein@ and @shapeout@ keywords.
 
 {% highlight python %}
 >>> class Op(Operator):

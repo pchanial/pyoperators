@@ -211,6 +211,21 @@ div.content pre {
   margin: 2em;
 }
 
+div.content div.definition {
+  border-radius: 5px;
+  box-shadow: 0 0 1px #333;
+  -moz-border-radius: 5px;
+  -moz-box-shadow: 0 0 1px #333;
+  -webkit-border-radius: 5px;
+  -webkit-box-shadow: 0 0 1px #333;
+  background-color:#fffbbb;
+  color: #000;
+  text-shadow:0;
+  font-size: 1em;
+  padding: 0.1em 1em;
+  margin: 2em;
+}
+
 div.content ul, div.content ol {
   margin: 0 0 0 3em;
 }
