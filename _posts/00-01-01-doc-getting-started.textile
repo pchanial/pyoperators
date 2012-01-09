@@ -60,10 +60,7 @@ array([[ 2.,  0.],
        [ 0.,  2.]])
 {% endhighlight %}
 
-Operators do not have to be linear, but if they are not, they cannot be seen
-as matrices. Some operators are already predefined, such as the
-@IdentityOperator@, the @DiagonalOperator@ or the nonlinear
-@ClippingOperator@.
+Operators do not have to be linear, but if they are not, they cannot be seen as matrices. Some operators are already predefined, such as the linear operators @IdentityOperator@ and @DiagonalOperator@ or the nonlinear operator @ClippingOperator@.
 
 The previous @A@ matrix could be defined more easily like this :
 
