@@ -413,8 +413,33 @@ Likewise, the outputs of the blocks are concatenated along the dimension specifi
 
 
 h4. <a name="list"></a> 2.12. List of available operators
-TBD
+
+h5. Linear operators
+
+* AdditionOperator
+* BandOperator
+* BlockRowOperator
+* BlockDiagonalOperator
+* BlockColumnOperator
+* CompositionOperator
+* DiagonalOperator
+* EigendecompositionOperator
+* IdentityOperator
+* MaskOperator
+* MultiplicationOperator
+* PackOperator
+* ReshapeOperator
+* ScalarOperator
+* SymmetricBandOperator
+* TridiagonalOperator
+* UnpackOperator
+* ZeroOperator
 
 
+h5. Non-linear operators
 
-
+* ClipOperator
+* MaximumOperator
+* MinimumOperator
+* NumexprOperator
+* RoundOperator
