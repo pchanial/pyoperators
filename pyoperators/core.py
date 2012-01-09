@@ -2598,7 +2598,7 @@ class BroadcastingOperator(Operator):
             raise ValueError('The input data is None.')
         data = np.asarray(data)
         if dtype is None:
-            dtype = np.find_common_type([data.dtype, float], [])
+            dtype = data.dtype
         data = np.array(data, dtype, order='c', copy=False)
         broadcast = broadcast.lower()
         values = ('fast', 'slow', 'disabled', 'scalar')
