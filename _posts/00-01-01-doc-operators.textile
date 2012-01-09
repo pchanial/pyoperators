@@ -16,6 +16,7 @@ A = FftOperator(1024)
 {% endhighlight %}
 
 The object @A@ is a Python callable, and can be applied over arrays:
+
 {% highlight python %}
 >>> input = np.arange(1024, dtype=complex)
 >>> output = A(input)
