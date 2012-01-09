@@ -1996,12 +1996,19 @@ class BlockDiagonalOperator(BlockOperator):
 
     def direct(self, input, output):
         if None in self.partitionout:
-            shapeins = self._get_shapes(input.shape, self.partitionin,
-                                        self.axisin, self.new_axisin)
-            partitionout = [op.reshapein(s)[self.axisout] \
-                            for op,s in zip(self.operands, shapeins)]
+            partitionout = list(self.partitionout)
+            for i, op in enumerate(self.operands):
+                if partitionout[i] is not None:
+                    continue
+                if self.partitionin[i] is None:
+                    raise ValueError('The shape of an operator with implicit pa'
+                        'rtition cannot be inferred.')
+                shapein = list(input.shape)
+                shapein[self.axisin] = self.partitionin[i]
+                partitionout[i] = op.reshapein(shapein)[self.axisout]
         else:
             partitionout = self.partitionout
+
         destin = 0
         destout = 0
         for op, nin, nout in zip(self.operands, self.partitionin, partitionout):
@@ -2068,9 +2075,16 @@ class BlockColumnOperator(BlockOperator):
         
     def direct(self, input, output):
         if None in self.partitionout:
-            raise NotImplementedError()
+            partitionout = list(self.partitionout)
+            for i, op in enumerate(self.operands):
+                if partitionout[i] is not None:
+                    continue
+                partitionout[i] = op.reshapein(input.shape)[self.axisout]
+        else:
+            partitionout = self.partitionout
+
         dest = 0
-        for op, n in zip(self.operands, self.partitionout):
+        for op, n in zip(self.operands, partitionout):
             if self.new_axisout is not None:
                 self.sliceout[self.new_axisout] = dest
             else:
@@ -2132,10 +2146,16 @@ class BlockRowOperator(BlockOperator):
 
     def direct(self, input, output):
         if None in self.partitionin:
-            raise NotImplementedError()
+            partitionin = list(self.partitionin)
+            for i, op in enumerate(self.operands):
+                if partitionin[i] is None:
+                    partitionin[i] = input.shape[self.axisin]
+        else:
+            partitionin = self.partitionin
+
         work = np.zeros_like(output)
         dest = 0
-        for op, n in zip(self.operands, self.partitionin):
+        for op, n in zip(self.operands, partitionin):
             if self.new_axisin is not None:
                 self.slicein[self.new_axisin] = dest
             else:
