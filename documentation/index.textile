@@ -10,6 +10,7 @@ h3. {{ page.title }}
 
 # "Getting started":{{ site.baseurl }}/2000/doc-getting-started/
 # "Operators":{{ site.baseurl }}/2000/doc-operators/
+## "Using operators":{{ site.baseurl }}/2000/doc-operators/#using
 ## "Manipulating operators":{{ site.baseurl }}/2000/doc-operators/#manipulation
 ## "Creating a new operator":{{ site.baseurl }}/2000/doc-operators/#creation
 ## "Operator's flags":{{ site.baseurl }}/2000/doc-operators/#flags
