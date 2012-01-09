@@ -86,8 +86,8 @@ For example:
 >>> o = Operator()
 >>> o.T.C is o.H
 True
->>> o = Operator(flags='symmetric')
->>> o.T is o
+>>> o = Operator(flags='real,symmetric')
+>>> o.T is o.H is o
 True
 {% endhighlight %}
 
