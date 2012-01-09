@@ -308,7 +308,7 @@ def test_scalar_reduction1():
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             o = model(i)
             yield assert_equal, o, result, str((model,i))
-            yield assert_equal, o.dtype, np.float64, str((model,i))
+            yield assert_equal, o.dtype, int, str((model,i))
 
 
 def test_scalar_reduction2():
