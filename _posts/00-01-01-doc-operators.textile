@@ -56,7 +56,7 @@ array([ 2.,  4.])
 
  Unless an algebraic simplification is possible, the resulting operator is a composite operator:
 
-<div class="definition" style="float:left;">
+<div class="definition">
 |  *addition*       | @AdditionOperator@ |
 |  *composition*    | @CompositionOperator@ |
 |  *multiplication* | @MultiplicationOperator@ |
@@ -74,7 +74,7 @@ array([ 4.,  8.])
 
 The conjugate, transpose, adjoint and inverse operators, when defined, can be obtained by using the following attributes:
 
-<div class="definition" style="float:left;">
+<div class="definition">
 | *conjugate* | @.C@ |
 | *transpose* | @.T@ |
 | *adjoint*   | @.H@ |
@@ -130,7 +130,7 @@ h4. 2.4. <a name="flags"></a> Operator's flags
 
 An operator __P__ can have the following algebraic properties, accessible with the @flag@ attribute:
 
-<div class="definition" style="float:left;">
+<div class="definition">
 |  *linear*     | |
 |  *square*     | input and output have the same shape |
 |  *real*       | conj __P__  = __P__ |
