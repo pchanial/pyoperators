@@ -303,8 +303,21 @@ array([[3., 3.], [3., 3.]])
 
 h4. <a name="dtype"></a> 2.8. Operator's data type
 
-The operator's data type is used for the output type determination.
-TBD
+The operator's data type is a data type object (an instance of "numpy.dtype":http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html class). It is used to determine the output data type, as being the common type of the operator and input data types, following the standard coercion rules. 
+
+Examples:
+
+{% highlight python %}
+>>> a=DiagonalOperator([1,2])
+>>> a.dtype
+dtype('int64')
+>>> a([complex(1,0), complex(0,1)]).dtype
+dtype('complex128')
+>>> a(np.array([2,2], np.uint8)).dtype
+dtype('int64')
+{% endhighlight %}
+
+The operator's data type can be equal to None (the default), in which case the output data type is always the input data type.
 
 
 
