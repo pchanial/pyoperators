@@ -9,7 +9,7 @@ h4. 2.1. <a name="using"></a> Using operators
 
 The @Operator@ class and its subclasses are function factories. It means that @Operator@ instances are functions (Python callables) and they take "numpy":http://numpy.scipy.org/ 's N-dimensional array object as inputs and outputs.
 
-To perform computations using an operator class, we first need to create an instance of it:
+As a consequence, to perform computations using an operator class, we first need to create an instance of it:
 
 {% highlight python %}
 A = FftOperator(1024)
@@ -32,7 +32,7 @@ Similarly to ufuncs, such behaviour can be changed by providing the output array
 >>> A(input, output)
 {% endhighlight %}
 
-"Inplace operations":#inplace can be performed by providing the input array as the output.
+"Inplace operations":#inplace can be performed in a similar way by providing the input array as the output.
 
 In this documentation, the same term __operator__ will be used for the @Operator@ class, subclasses and instances, though the context will disambiguate the meaning.
 
@@ -86,7 +86,7 @@ Operators can be created in two ways. The first one is to define a direct functi
 >>> P = Operator(direct=f)
 {% endhighlight %}
 
-Transforming a single-argument "ufunc":http://docs.scipy.org/doc/numpy/reference/ufuncs.html into an @Operator@ is straightforward:
+Transforming a single-argument "ufunc":http://docs.scipy.org/doc/numpy/reference/ufuncs.html into an @Operator@ instance is straightforward:
 
 {% highlight python %}
 >>> sqrt = Operator(direct=numpy.sqrt)
@@ -114,6 +114,7 @@ An operator __P__ can have the following algebraic properties, accessible with t
 
 <div class="definition" style="float:left;">
 |  *linear*     | |
+|  *square*     | input and output have the same shape |
 |  *real*       | conj __P__  = __P__ |
 |  *symmetric*  | __P__ ^T^   = __P__ |
 |  *hermitian*  | __P__ ^H^   = __P__ |
@@ -148,10 +149,10 @@ or by using operator decorators:
 These flags are used to simplify expressions:
 
 {% highlight python %}
->>> C = pyoperators.Operator(flags='idempotent')
+>>> C = Operator(flags='idempotent')
 >>> C * C is C
 True
->>> D = pyoperators.Operator(flags='involutary')
+>>> D = Operator(flags='involutary')
 >>> D * D
 IdentityOperator()
 {% endhighlight %}
@@ -190,7 +191,7 @@ If the input (output) shape is explicit, the operator's attribute @shapein@ (@sh
 
 h5. Operator with explicit input shape and explicit output shape.
 
-The explicit shapes are specified using the the @shapein@ and @shapeout@ keywords.
+The explicit shapes are specified using the the @shapein@ and @shapeout@ keywords. The following example appends a zero to a fixed-size input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -210,7 +211,7 @@ array([3., 2., 1., 0.])
 
 h5. Operator with unconstrained input shape and explicit output shape.
 
-Such operator is obtained by only setting the @shapeout@ keyword.
+Such operator is obtained by only setting the @shapeout@ keyword. The following example returns an array of size 2 whose elements are the sum and product of the elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -234,7 +235,7 @@ This case does not happen because the output shape can be obtained from the expl
 
 h5. Operator with unconstrained input shape and implicit output shape
 
-To obtain such operator, one only has to define a @reshapein@ method.
+To obtain such operator, one simply has to define a @reshapein@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -262,7 +263,7 @@ array([[1, 2, 3],
 
 h5. Operator with explicit input shape and unconstrained output shape
 
-Such operator is obtained by only setting the @shapein@ keyword.
+Such operator is obtained by only setting the @shapein@ keyword. The following example fills the output with an arithmetic progression whose coefficients are given by the two elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -281,7 +282,7 @@ array([[1,3],[5,7]])
 
 h5. Operator with unconstrained input and output shape
 
-This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapein@ method.
+This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapein@ method. The following example fills the output with the value of the sum of the elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
