@@ -9,6 +9,30 @@ h4. 2.1. Manipulating operators
 
 h4. 2.2. Creating a new operator
 
+To define an operator, one needs to define a direct function
+which will replace the usual matrix-vector operation:
+
+{% highlight python %}
+>>> def f(x, out):
+...     out[...] = 2 * x
+{% endhighlight %}
+
+Then, an @Operator@ can be instantiated:
+
+{% highlight python %}
+>>> A = Operator(direct=f)
+{% endhighlight %}
+
+An alternative way to define an operator is to define a subclass:
+
+{% highlight python %}
+>>> class MyOperator(Operator):
+...     def direct(x, out):
+...         out[...] = 2 * x
+...
+... A = MyOperator()
+{% endhighlight %}
+
 h4. 2.3. Operator's input and output shapes
 
 The @Operator@ class has a flexible way to deal with inputs and outputs. In particular, it can handle:
@@ -32,12 +56,12 @@ The explicit shapes are specified using the the @shapein@ and @shapeout@ keyword
 
 {% highlight python %}
 >>> class Op(Operator):
-        def __init__(self, value):
-            Operator.__init__(self, shapein=3, shapeout=4)
-            self.value = value
-        def direct(self, input, output):
-            output[0:3] = input
-            output[3] = self.value
+...     def __init__(self, value):
+...         Operator.__init__(self, shapein=3, shapeout=4)
+...         self.value = value
+...     def direct(self, input, output):
+...         output[0:3] = input
+...         output[3] = self.value
 >>> op = Op(0.)
 >>> op.shapein, op.shapeout
 ((3,), (4,))
@@ -52,11 +76,11 @@ Such operator is obtained by only setting the @shapeout@ keyword.
 
 {% highlight python %}
 >>> class Op(Operator):
-        def __init__(self):
-            Operator.__init__(self, shapeout=2)
-        def direct(self, input, output):
-            output[0] = np.sum(input)
-            output[1] = np.product(input)
+...     def __init__(self):
+...         Operator.__init__(self, shapeout=2)
+...     def direct(self, input, output):
+...         output[0] = np.sum(input)
+...         output[1] = np.product(input)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, (2,))
@@ -76,15 +100,15 @@ To obtain such operator, one only has to define a @reshapein@ method.
 
 {% highlight python %}
 >>> class Op(Operator):
-        def __init__(self):
-            Operator.__init__(self)
-        def direct(self, input, output):
-            output[::2,...] = input
-            output[1::2,...] = input
-        def reshapein(self, shapein):
-            if shapein is None:
-                return None
-            return (2*shapein[0],) + shapein[1:]
+...     def __init__(self):
+...         Operator.__init__(self)
+...     def direct(self, input, output):
+...         output[::2,...] = input
+...         output[1::2,...] = input
+...     def reshapein(self, shapein):
+...         if shapein is None:
+...             return None
+...         return (2*shapein[0],) + shapein[1:]
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
@@ -104,10 +128,10 @@ Such operator is obtained by only setting the @shapein@ keyword.
 
 {% highlight python %}
 >>> class Op(Operator):
-        def __init__(self):
-            Operator.__init__(self, shapein=2)
-        def direct(self, input, output):
-            output[...] = input[0] + input[1] * np.arange(output.size).reshape(output.shape)
+...     def __init__(self):
+...         Operator.__init__(self, shapein=2)
+...     def direct(self, input, output):
+...         output[...] = input[0] + input[1] * np.arange(output.size).reshape(output.shape)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
@@ -123,10 +147,10 @@ This kind of operator is the default: this behaviour is obtained by not setting 
 
 {% highlight python %}
 >>> class Op(Operator):
-        def __init__(self):
-            Operator.__init__(self)
-        def direct(self, input, output):
-            output[...] = np.sum(input)
+...     def __init__(self):
+...         Operator.__init__(self)
+...     def direct(self, input, output):
+...         output[...] = np.sum(input)
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
