@@ -59,7 +59,6 @@ Unless an algebraic simplification is possible, the resulting operator is a comp
 |/2.  *partition*   | @BlockOperator@, @BlockRowOperator@|
 |@BlockDiagonalOperator@, @BlockColumnOperator@|
 </div>
-<hr>
 
 The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform elementwise multiplication is to call the composite operator:
 
@@ -76,7 +75,6 @@ The conjugate, transpose, adjoint and inverse operators, when defined, can be ob
 | *adjoint*   | @.H@ |
 | *inverse*   | @.I@ |
 </div>
-<hr>
 
 For example:
 
@@ -137,7 +135,6 @@ An operator __P__ can have the following algebraic properties, accessible with t
 |  *orthogonal* | __P__ ^T^ __P__ = __I__ |
 |  *unitary*    | __P__ ^H^ __P__ = __I__ |
 </div>
-<hr>
 
 They can be set using the @flag@ keyword:
 
@@ -361,7 +358,6 @@ Currently, there are two ways to partition operators, depending on whether the p
 |*Stack partition:*| outputs are stacked along a new dimension|
 |*Chunk partition:*| outputs are concatenated along an existing dimension|
 </div>
-<hr>
 
 h5. Stack partition
 
