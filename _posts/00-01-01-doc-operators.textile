@@ -63,7 +63,6 @@ array([ 2.,  4.])
 |/2.  *partition*   | @BlockOperator@, @BlockRowOperator@|
 |@BlockDiagonalOperator@, @BlockColumnOperator@|
 </div>
-
 <hr>
 
 The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform elementwise multiplication is to call the composite operator:
@@ -73,7 +72,26 @@ The @*@ sign may be confusing when multiplying non-linear operators and currentl
 array([ 4.,  8.])
 {% endhighlight %}
 
+The conjugate, transpose, adjoint and inverse operators, when defined, can be obtained by using the following attributes:
 
+<div class="definition" style="float:left;">
+| *conjugate* | @.C@ |
+| *transpose* | @.T@ |
+| *adjoint*   | @.H@ |
+| *inverse*   | @.I@ |
+</div>
+<hr>
+
+For example:
+
+{% highlight python %}
+>>> o = Operator()
+>>> o.T.C is o.H
+True
+>>> o = Operator(flags='symmetric')
+>>> o.T is o
+True
+{% endhighlight %}
 
 
 h4. 2.3. <a name="creation"></a> Creating a new operator
@@ -123,7 +141,6 @@ An operator __P__ can have the following algebraic properties, accessible with t
 |  *orthogonal* | __P__ ^T^ __P__ = __I__ |
 |  *unitary*    | __P__ ^H^ __P__ = __I__ |
 </div>
-
 <hr>
 
 They can be set using the @flag@ keyword:
