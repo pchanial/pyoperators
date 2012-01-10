@@ -30,7 +30,7 @@ Similarly to ufuncs, such behaviour can be changed by providing the output array
 >>> A(input, output)
 {% endhighlight %}
 
-"In-place operations":#inplace can be performed in a similar way by providing the input array as the output.
+"In-place operations":#inplace_operators can be performed in a similar way by providing the input array as the output.
 
 In this documentation, the same term __operator__ will be used for the @Operator@ class, subclasses and instances, though the context will disambiguate the meaning.
 
