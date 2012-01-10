@@ -389,7 +389,7 @@ It is also possible to add or change an attribute, by setting the @attrout@ keyw
 'new_bar'
 {% endhighlight %}
 
-More flexibility is possible by passing a function, instead of a dictionary, to the @attrout@ keyword:
+More flexibility is possible by passing a function, instead of a dictionary, to the @attrout@ keyword. This function expects a dictionary whose keys are the attribute names and whose values are the attribute values (it is the output's @__dict__@@):
 
 {% highlight python %}
 >>> class I2Operator(IdentityOperator):
@@ -397,11 +397,11 @@ More flexibility is possible by passing a function, instead of a dictionary, to 
 ...         IdentityOperator.__init__(self, attrout=self.add_history)
 ...     def add_history(self, attr):
 ...         from time import ctime
-...         if not hasattr(attr, 'history'):
+...         if 'history' not in attr:
 ...             attr['history'] = []
 ...         attr['history'] += [ctime() + ' : ' + self.__class__.__name__]
 >>> I2 = I2Operator()
->>> I2(0).history
+>>> I2(I2(0)).history
 {% endhighlight %}
 
 
