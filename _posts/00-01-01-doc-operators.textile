@@ -7,7 +7,7 @@ category: doc
 
 h4. 2.1. <a name="using_operators"></a> Using operators
 
-The @Operator@ class and its subclasses are function factories. It means that in order to perform computations using an operator class, we first need to create an instance of it
+The @Operator@ class and its subclasses are function factories. It means that in order to perform computations using an operator class, we first need to create an instance of it:
 
 {% highlight python %}
 A = FftOperator(1024)
@@ -21,7 +21,7 @@ and then use the instance as a function. The object @A@ is a Python callable and
 Info: Allocating (1024,) complex128 = 0.015625 MiB in FftOperator.
 {% endhighlight %}
 
-By using the operator in such a way, a no-side-effect policy is enforced: it is garanteed that the input array will not be modified and as a consequence, a new buffer would be allocated every time the operator is called.
+By using the operator in such a way, a no-side-effect policy is enforced: it is garanteed that the input array will not be modified and as a consequence, a new buffer will be allocated every time the operator is called.
 
 Similarly to ufuncs, such behaviour can be changed by providing the output array:
 
@@ -198,7 +198,7 @@ The @Operator@ class has a flexible way to deal with inputs and outputs. In part
 
 *Implicit shape:* The shape of the operator's output is implicit if its shape can be obtained from the input shape and the method @reshapein@.
 
-*Unconstrained shape:* The shape of the operator's output (input) is unconstrained if it does not depend on the input shape (if any input shape can be handled by the operator). In this case, the @shapeout@ (@shapein@) attribute is None and the method @reshapein@ (@reshapeout@) applied over the input (output) shape returns None.
+*Unconstrained shape:* The shape of the operator's output (input) is unconstrained if it does not depend on the input shape (if any input shape can be handled by the operator). In this case, the @shapeout@ (@shapein@) attribute is @None@ and the method @reshapein@ (@reshapeout@) applied over the input (output) shape returns @None@.
 </div>
 
 If the input (output) shape is explicit, the operator's attribute @shapein@ (@shapeout@) is equal to that tuple. Otherwise, this attribute is equal to None.
@@ -252,8 +252,6 @@ To obtain such operator, one simply has to define a @reshapein@ method, which ta
 
 {% highlight python %}
 >>> class Op(Operator):
-...     def __init__(self):
-...         Operator.__init__(self)
 ...     def direct(self, input, output):
 ...         output[::2,...] = input
 ...         output[1::2,...] = input
@@ -266,7 +264,8 @@ To obtain such operator, one simply has to define a @reshapein@ method, which ta
 (None, None)
 >>> op.reshapein((2,3))
 (4,3)
->>> op([[1, 2, 3],[2, 3, 4]])
+>>> op([[1, 2, 3],
+...     [2, 3, 4]])
 array([[1, 2, 3],
        [1, 2, 3],
        [2, 3, 4],
@@ -491,7 +490,7 @@ The following steps are performed:
 * the variable @output@ is used as @o1@ 's output,
 * a temporary variable is allocated (or retrieved from the memory manager),
 * it is used as @o2@ 's output
-* and then added in-place to the @output@ variable.
+* and is then added in-place to the @output@ variable.
 
 If we now assume that the operator @o2@ can do in-place reductions, the intermediate variable is not required anymore:
 
@@ -510,7 +509,7 @@ One can enable such property by adding the keyword @operation@ to the operator's
 array([ 3.,  6.])
 {% endhighlight %}
 
-No intermediate variable is needed and all operations have been performed in-place. For the first operand, the @direct@ method of @Q@, which is an @AdditionOperator@, calls @P@ 's @direct@ method without the @operation@ keyword and consequently, the default function @assignment_function@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @__iadd__@ function from Python's @operator@ module (If @Q@ was a @MultiplicationOperator@, it would be the function @operator.__imul__@), which result in adding the input into the output argument in-place. This property is even more interesting for cache locality when an operator's output is zero, except for a few values: in such a case, the operator would only have to update the non-zero values:
+No intermediate variable is needed and all operations have been performed in-place. For the first operand, the @direct@ method of @Q@, which is an @AdditionOperator@, calls @P@ 's @direct@ method without the @operation@ keyword and consequently, the default function @assignment_function@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @__iadd__@ function from Python's @operator@ module (If @Q@ was a @MultiplicationOperator@, it would be the function @operator.__imul__@), which result in adding the input into the output argument in-place. This property is even more interesting for cache locality when an operator's output is zero, except for a few values. In such a case, the operator would only have to update the non-zero values:
 
 {% highlight python %}
 >>> @decorators.linear
@@ -543,7 +542,7 @@ Currently, there are two ways to partition operators, depending on whether the p
 
 h5. Stack partition
 
-A stack partition operator is the operator @BlockRowOperator@, initialised with the @new_axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @new_axisin@ or @new_axisout@ or the operator @BlockColumnOperator@, initialised with the @new_axisout@ keyword. There is a strong constraint on the input and output shapes of the blocks, since they must be the same for all blocks. The partition along the specified axis is always explicit and is equal to a tuple of ones with as many elements as the number of blocks. In the following example is shown a stack partition block column operator:
+A stack partition operator is an instance of @BlockRowOperator@, initialised with the @new_axisin@ keyword, @BlockDiagonalOperator@ with the keywords @new_axisin@ or @new_axisout@ or @BlockColumnOperator@, initialised with the @new_axisout@ keyword. There is a strong constraint on the input and output shapes of the blocks, since they must be the same for all blocks. The partition along the specified axis is always explicit and is equal to a tuple of ones with as many elements as the number of blocks. In the following example is shown a stack partition block column operator:
 
 {% highlight python %}
 >>> C = BlockColumnOperator([I, 2*I, 3*I], new_axisout=0)
@@ -570,7 +569,7 @@ It can be seen that the first block @I@ is applied over @x[:,0]@, the second blo
 
 h5. Chunk partition
 
-A chunk partition operator is the operator @BlockRowOperator@, initialised with the @axisin@ keyword, the operator @BlockDiagonalOperator@ with the keywords @axisin@ or @axisout@ or the operator @BlockColumnOperator@, initialised with the @axisout@ keyword. There is a lesser constraint on the shapes of the partitioned input and output of the blocks: all dimensions must be same except along the partitioned dimension(s). The partition along the specified axis can be implicit or explicit, in which case the keywords @partitionin@ or @partitionout@ are set to this explicit partition. The following example shows a block diagonal chunk partition operator with an explicit partition
+A chunk partition operator is an instance of @BlockRowOperator@, initialised with the @axisin@ keyword, @BlockDiagonalOperator@ with the keywords @axisin@ or @axisout@ or @BlockColumnOperator@, initialised with the @axisout@ keyword. There is a lesser constraint on the shapes of the partitioned input and output of the blocks: all dimensions must be same except along the partitioned dimension(s). The partition along the specified axis can be implicit or explicit, in which case the keyword @partitionin@ or @partitionout@ is set to this explicit partition. The following example shows a block diagonal chunk partition operator with an explicit partition
 
 {% highlight python %}
 >>> D = BlockDiagonalOperator([I, 2*I, 3*I], axisin=-1, partitionin=(2,3,2))
@@ -578,7 +577,7 @@ A chunk partition operator is the operator @BlockRowOperator@, initialised with 
 array([ 1.,  1.,  2.,  2.,  2.,  3.,  3.])
 {% endhighlight %}
 
-in which each block is an homothety. It can be seen that the first block @I@ is applied over the two first elements, the second block @2*I@ over the three following elements, and the third block @3*I@ over the last two elements. Block row and block column chunk partition operators can handle implicit partitions:
+It can be seen that the first block @I@ is applied over the two first elements, the second block @2*I@ over the three following elements, and the third block @3*I@ over the last two elements. Block row and block column chunk partition operators can handle implicit partitions:
 
 {% highlight python %}
 >>> C = BlockColumnOperator([I, 2*I, 3*I], axisout=-1)
