@@ -8,6 +8,8 @@ import pywt
 from .decorators import linear, real
 from .core import Operator
 
+__all__ = [ 'WaveletOperator', 'Wavelet2Operator' ]
+
 # dict of corresponding wavelets
 rwavelist = {}
 for l in pywt.wavelist():
@@ -18,11 +20,9 @@ for l in pywt.wavelist():
     else:
         rwavelist[l] = l
 
-# Operators factories :
-
 @linear
 @real
-class Wavelet(Operator):
+class WaveletOperator(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
         """
         1D wavelet decomposition and reconstruction. Wavelet coefficients
@@ -30,7 +30,7 @@ class Wavelet(Operator):
 
         Exemples
         --------
-        >>> W = Wavelet("haar", level=1, shapein=2)
+        >>> W = WaveletOperator("haar", level=1, shapein=2)
         >>> W.todense()
 
         array([[ 0.70710678,  0.70710678],
@@ -64,8 +64,8 @@ class Wavelet(Operator):
         def transpose(x, out):
             coeffs = self.vect2coeffs(x)
             out[:] = pywt.waverec(coeffs, self.rwavelet, mode=self.mode)[:self.shapein[0]]
-        super(Wavelet, self).__init__(direct=direct, transpose=transpose,
-                                      shapein=shapein, shapeout=shapeout, **kwargs)
+        Operator.__init__(self, direct=direct, transpose=transpose,
+                          shapein=shapein, shapeout=shapeout, **kwargs)
 
     def coeffs2vect(self, coeffs):
         return np.concatenate(coeffs)
@@ -76,7 +76,7 @@ class Wavelet(Operator):
 
 @linear
 @real
-class Wavelet2(Operator):
+class Wavelet2Operator(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
         """
         2D wavelet decomposition and reconstruction. Wavelet coefficients
@@ -127,8 +127,8 @@ class Wavelet2(Operator):
             coeffs = self.vect2coeffs(x)
             out[:] = pywt.waverec2(coeffs, self.rwavelet, mode=self.mode)[:shapein[0], :shapein[1]]
 
-        super(Wavelet2, self).__init__(direct=direct, transpose=transpose,
-                                       shapein=shapein, shapeout=shapeout, **kwargs)
+        Operator.__init__(self, direct=direct, transpose=transpose,
+                          shapein=shapein, shapeout=shapeout, **kwargs)
 
     def coeffs2vect(self, coeffs):
         # distinguish between approximation and details
