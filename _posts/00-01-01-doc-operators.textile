@@ -13,7 +13,7 @@ The @Operator@ class and its subclasses are function factories. It means that in
 A = FftOperator(1024)
 {% endhighlight %}
 
-and then use the instance as a function. The object @A@ is a Python callable and takes "numpy":http://numpy.scipy.org's N-dimensional array object as inputs and outputs:
+and then use the instance as a function. The object @A@ is a Python callable and takes "numpy":http://numpy.scipy.org 's N-dimensional array object as inputs and outputs:
 
 {% highlight python %}
 >>> input = np.arange(1024, dtype=complex)
