@@ -341,7 +341,7 @@ The operator's data type can be equal to None (the default), in which case the o
 
 h4. <a name="class_propagation"></a> 2.9. Class propagation
 
-An operator can propagate the class of the input array, if the latter subclasses @numpy.ndarray@:
+An operator propagates the class of the input array, if the latter subclasses @numpy.ndarray@:
 
 {% highlight python %}
 >>> class ndarray2(np.ndarray):
@@ -366,7 +366,7 @@ __main__.ndarray3
 
 h4. <a name="attribute_propagation"></a> 2.10. Attribute propagation
 
-An operator can also propagate attributes:
+An operator also propagates attributes:
 
 {% highlight python %}
 >>> class ndarray2(np.ndarray):
