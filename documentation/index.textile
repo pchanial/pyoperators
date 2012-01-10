@@ -20,8 +20,8 @@ h3. {{ page.title }}
 ## "Operator's data type":{{ site.baseurl }}/2000/doc-operators/#operator_dtype
 ## "Class propagation":{{ site.baseurl }}/2000/doc-operators/#class_propagation
 ## "Attribute propagation":{{ site.baseurl }}/2000/doc-operators/#attribute_propagation
-## "Inplace operations":{{ site.baseurl }}/2000/doc-operators/#inplace
-## "Inplace reductions":{{ site.baseurl }}/2000/doc-operators/#inplace_reductions
+## "In-place and out-of-place operators":{{ site.baseurl }}/2000/doc-operators/#inplace_operators
+## "In-place reductions":{{ site.baseurl }}/2000/doc-operators/#inplace_reductions
 ## "Operator partition":{{ site.baseurl }}/2000/doc-operators/#partition
 ## "List of available operators":{{ site.baseurl }}/2000/doc-operators/#list
 # "Solvers":{{ site.baseurl }}/2000/doc-solvers/
