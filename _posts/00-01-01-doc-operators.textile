@@ -389,7 +389,7 @@ It is also possible to add or change an attribute, by setting the @attrout@ keyw
 'new_bar'
 {% endhighlight %}
 
-More flexibility is possible by passing a function, instead of a dictionary, to the @attrout@ keyword. This function expects a dictionary whose keys are the attribute names and whose values are the attribute values (it is the output's @__dict__@@):
+More flexibility is possible by passing a function, instead of a dictionary, to the @attrout@ keyword. This function expects a dictionary whose keys are the attribute names and whose values are the attribute values (it is the output's @__dict__@):
 
 {% highlight python %}
 >>> class I2Operator(IdentityOperator):
