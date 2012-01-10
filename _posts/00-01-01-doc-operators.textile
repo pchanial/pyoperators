@@ -40,8 +40,8 @@ h4. 2.2. <a name="manipulating_operators"></a> Manipulating operators
 Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, element-wise (Hadamard) multiplication or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not element-wise multiplication), following the convention for linear operators.
 
 {% highlight python %}
->>> o1 = DiagonalOperator([1.,2.])
->>> o2 = DiagonalOperator([1.,1.])
+>>> o1 = DiagonalOperator([1., 2.])
+>>> o2 = DiagonalOperator([1., 1.])
 >>> (3*o1)([2., 2.])
 array([  6.,  12.])
 >>> (o1+o2)([2., 2.])
@@ -64,7 +64,7 @@ Unless an algebraic simplification is possible, the resulting operator is a comp
 The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform element-wise multiplication is to call the composite operator:
 
 {% highlight python %}
->>> MultiplicationOperator([o1,o2])([2., 2.])
+>>> MultiplicationOperator([o1, o2])([2., 2.])
 array([ 4.,  8.])
 {% endhighlight %}
 
@@ -266,7 +266,7 @@ To obtain such operator, one simply has to define a @reshapein@ method, which ta
 (None, None)
 >>> op.reshapein((2,3))
 (4,3)
->>> op([[1,2,3],[2,3,4]])
+>>> op([[1, 2, 3],[2, 3, 4]])
 array([[1, 2, 3],
        [1, 2, 3],
        [2, 3, 4],
@@ -307,7 +307,7 @@ This kind of operator is the default: this behaviour is obtained by not setting 
 >>> op.shapein, op.shapeout
 (None, None)
 >>> output = np.empty((2,2))
->>> op([2,1], output)
+>>> op([2, 1], output)
 array([[3., 3.], [3., 3.]])
 {% endhighlight %}
 
@@ -327,12 +327,12 @@ dtype('float32')
 It is used to determine the output data type, as being the common type of the operator and input data types, following the standard coercion rules. For example:
 
 {% highlight python %}
->>> a = DiagonalOperator([1,2])
+>>> a = DiagonalOperator([1, 2])
 >>> a.dtype
 dtype('int64')
 >>> a([1, 1j]).dtype
 dtype('complex128')
->>> a(np.array([2,2], np.uint8)).dtype
+>>> a(np.array([2, 2], np.uint8)).dtype
 dtype('int64')
 {% endhighlight %}
 
@@ -429,7 +429,7 @@ which is equivalent to:
 
 {% highlight python %}
 >>> x = np.array([0, 1])
->>> x *= [0, 2]
+>>> x *= [1, 2]
 {% endhighlight %}
 
 An in-place operator also has to handle out-of-place operations. In the following example, the operation is performed out-of-place to satisfy the no-side-effect policy:
@@ -446,7 +446,7 @@ which is equivalent to:
 
 {% highlight python %}
 >>> x = np.array([0, 1])
->>> y = x * [0, 2]
+>>> y = x * [1, 2]
 {% endhighlight %}
 
 The in-place property is useful to avoid intermediate variables. To minimise to memory-cache transfers during a composition, an algorithm has been put in place to determine the intermediate variables to be extracted from the memory manager, by maximising the temporal locality (i.e. by reusing as much as possible the same memory area). This algorithm depends on:
@@ -455,7 +455,7 @@ The in-place property is useful to avoid intermediate variables. To minimise to 
 * whether or not the input and the output of the composition point the same memory location (in-place or out-of-place composition)
 * the size of the output, and if it is large enough to be reused in the intermediate computations.
 
-As an example, let's consider the composition of an in-place operator IN by an out-of-place operator OUT. The out-of-place composition
+As an example, let's consider the composition of an in-place operator @IN@ by an out-of-place operator @OUT@. The out-of-place composition
 
 {% highlight python %}
 >>> (IN * OUT)(input, output)
@@ -506,7 +506,7 @@ One can enable such property by adding the keyword @operation@ to the operator's
 ...         operation(output, input)
 ... Q = sum(P() for k in range(0,3))
 ... output = np.empty(2)
-... Q([1.,2.], output)
+... Q([1., 2.], output)
 array([ 3.,  6.])
 {% endhighlight %}
 
