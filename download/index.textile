@@ -8,7 +8,7 @@ h3. {{ page.title }}
 
 <div class="content">
 
-The current version of the pyoperators package is 0.1, and it is still beta stage.
+The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
 
 h4. The easy way
 
