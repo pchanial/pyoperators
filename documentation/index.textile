@@ -19,7 +19,7 @@ h3. {{ page.title }}
 ## "Operator's input and output shapes":{{ site.baseurl }}/2000/doc-operators/#shapes
 ## "Operator's data type":{{ site.baseurl }}/2000/doc-operators/#dtype
 ## "Inplace operations":{{ site.baseurl }}/2000/doc-operators/#inplace
-## "Inplace reductions":{{ site.baseurl }}/2000/doc-operators/#reduction
+## "Inplace reductions":{{ site.baseurl }}/2000/doc-operators/#inplace_reductions
 ## "Operator partition":{{ site.baseurl }}/2000/doc-operators/#partition
 ## "List of available operators":{{ site.baseurl }}/2000/doc-operators/#list
 # "Solvers":{{ site.baseurl }}/2000/doc-solvers/
