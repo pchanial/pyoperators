@@ -474,7 +474,7 @@ it is not possible to avoid the use of a temporary variable, since a buffer diff
 
 
 
-h4. <a name="in-place_reductions"></a> 2.12. In-place reductions
+h4. <a name="inplace_reductions"></a> 2.12. In-place reductions
 
 <div class="definition">
 An operator that can do in-place reductions is an operator that can add, multiply (or else) its output to its output argument.
