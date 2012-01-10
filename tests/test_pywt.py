@@ -3,8 +3,7 @@ import nose
 from numpy import testing
 
 import pywt
-import pyoperators as op
-import pyoperators.pywt_operators
+from pyoperators.pywt_operators import WaveletOperator, Wavelet2Operator
 
 sizes = ((32,),)
 shapes = ((4, 4),)
@@ -15,7 +14,7 @@ levels = [
 
 
 def check_wavelet_transpose(w, l, s):
-    W = op.pywt_operators.Wavelet(w, level=l, shapein=s)
+    W = WaveletOperator(w, level=l, shapein=s)
     testing.assert_array_almost_equal(W.todense(), W.T.todense().T)
 
 
@@ -27,7 +26,7 @@ def test_wavelet_transpose():
 
 
 def check_wavelet2_transpose(w, l, s):
-    W = op.pywt_operators.Wavelet2(w, level=l, shapein=s, mode='per')
+    W = Wavelet2Operator(w, level=l, shapein=s, mode='per')
     testing.assert_array_almost_equal(W.todense(), W.T.todense().T)
 
 
