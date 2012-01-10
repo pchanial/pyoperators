@@ -363,7 +363,7 @@ One can enable such property by adding the keyword @operation@ to the operator's
 array([ 3.,  6.])
 {% endhighlight %}
 
-Note that this call has not required any memory allocation: all operations have been performed inplace. For the first operand, the @direct@ method of Q, which is an @AdditionOperator@, calls P's @direct@ method without the @operation@ keyword and consequently, the default function @assignment_function@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @__iadd__@ method from Python's operator module, which result in adding the input into the output argument inplace. This property is even more interesting for cache locality when an operator's output is almost zero, except for a few values: in such a case, the operator would only have to update the non-zero values:
+Note that this call has not required any memory allocation: all operations have been performed inplace. For the first operand, the @direct@ method of @Q@, which is an @AdditionOperator@, calls @P@'s @direct@ method without the @operation@ keyword and consequently, the default function @assignment_function@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @__iadd__@ method from Python's operator module, which result in adding the input into the output argument inplace. This property is even more interesting for cache locality when an operator's output is almost zero, except for a few values: in such a case, the operator would only have to update the non-zero values:
 
 {% highlight python %}
 >>> class Projection(Operator):
