@@ -9,6 +9,7 @@ The pyoperator package contains the following modules or packages:
 - pywt_operators : (optional) loaded if PyWavelets is present.
 """
 
+from .utils import *
 from .core import *
 from .linear import *
 from .nonlinear import *
