@@ -37,7 +37,7 @@ In this documentation, the same term __operator__ will be used for the @Operator
 
 h4. 2.2. <a name="manipulating_operators"></a> Manipulating operators
 
-Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, elementwise (Hadamard) multiplication or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not elementwise multiplication), following the convention for linear operators.
+Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, element-wise (Hadamard) multiplication or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not element-wise multiplication), following the convention for linear operators.
 
 {% highlight python %}
 >>> o1 = DiagonalOperator([1.,2.])
@@ -61,7 +61,7 @@ Unless an algebraic simplification is possible, the resulting operator is a comp
 </div>
 <hr>
 
-The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform elementwise multiplication is to call the composite operator:
+The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform element-wise multiplication is to call the composite operator:
 
 {% highlight python %}
 >>> MultiplicationOperator([o1,o2])([2., 2.])
