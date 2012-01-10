@@ -346,9 +346,41 @@ TBD
 
 
 h4. <a name="reduction"></a> 2.10. Inplace reduction
-TBD
 
+<div class="definition">
+An operator that can do inplace reductions is an operator that can add, multiply (or else) its output to its output argument.
+</div>
 
+One can enable such property by adding the keyword @operation@ to the operator's direct method.
+
+{% highlight python %}
+>>> class P(Operator):
+...     def direct(self, input, output, operation=assignment_operation):
+...         operation(output, input)
+... Q = sum(P() for k in range(0,3))
+... output = np.empty(2)
+... Q([1.,2.], output)
+array([ 3.,  6.])
+{% endhighlight %}
+
+Note that this call has not required any memory allocation: all operations have been performed inplace. For the first operand, the @direct@ method of Q, which is an @AdditionOperator@, calls P's @direct@ method without the @operation@ keyword and consequently, the default function @assignment_function@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @__iadd__@ method from Python's operator module, which result in adding the input into the output argument inplace. This property is even more interesting for cache locality when an operator's output is almost zero, except for a few values: in such a case, the operator would only have to update the non-zero values:
+
+{% highlight python %}
+>>> class Projection(Operator):
+...     def __init__(self, index):
+...          self.index = index
+...          Operator.__init__(self, shapein=1, shapeout=11)
+...     def direct(self, input, output, operation=assignment_operation):
+...         if operation is assignment_operation:
+...             output[...] = 0
+...         elif operation is not operator.__iadd__:
+...             raise NotImplementedError()
+...         output[self.index] += input
+... Q = Projection(0) + Projection(5) + Projection(10)
+... output = np.empty(11)
+... Q([2.], output)
+array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
+{% endhighlight %}
 
 
 h4. <a name="partition"></a> 2.11. Operator partition
@@ -407,7 +439,7 @@ array([[ 1.,  1.,  2.,  2.,  3.,  3.],
        [ 1.,  1.,  2.,  2.,  3.,  3.]])
 {% endhighlight %}
 
-Likewise, the outputs of the blocks are concatenated along the dimension specified by @axisout@ keyword, i.e the last one.
+Likewise, the outputs of the blocks are concatenated along the dimension specified by the @axisout@ keyword, i.e the last one.
 
 
 
