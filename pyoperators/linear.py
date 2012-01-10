@@ -16,13 +16,13 @@ from .core import (
 from .utils import isscalar
 
 __all__ = [
+    'BandOperator',
+    'EigendecompositionOperator',
     'MaskOperator',
     'PackOperator',
-    'UnpackOperator',
-    'TridiagonalOperator',
-    'BandOperator',
     'SymmetricBandOperator',
-    'EigendecompositionOperator',
+    'TridiagonalOperator',
+    'UnpackOperator',
 ]
 
 

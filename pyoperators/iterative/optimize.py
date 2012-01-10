@@ -5,6 +5,17 @@ from copy import copy
 import numpy as np
 import scipy.optimize as opt
 
+__all__ = [
+    'FminBFGS',
+    'FminCG',
+    'FminCOBYLA',
+    'FminLBFGSB',
+    'FminNCG',
+    'FminPowell',
+    'FminSLSQP',
+    'FminTNC',
+]
+
 
 class FminWrapper(object):
     """
