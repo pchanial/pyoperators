@@ -5,7 +5,7 @@ published: true
 category: doc
 ---
 
-h4. 2.1. <a name="using"></a> Using operators
+h4. 2.1. <a name="using_operators"></a> Using operators
 
 The @Operator@ class and its subclasses are function factories. It means that in order to perform computations using an operator class, we first need to create an instance of it
 
@@ -35,7 +35,7 @@ Similarly to ufuncs, such behaviour can be changed by providing the output array
 In this documentation, the same term __operator__ will be used for the @Operator@ class, subclasses and instances, though the context will disambiguate the meaning.
 
 
-h4. 2.2. <a name="manipulation"></a> Manipulating operators
+h4. 2.2. <a name="manipulating_operators"></a> Manipulating operators
 
 Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, elementwise (Hadamard) multiplication or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not elementwise multiplication), following the convention for linear operators.
 
@@ -90,7 +90,7 @@ True
 {% endhighlight %}
 
 
-h4. 2.3. <a name="creation"></a> Creating a new operator
+h4. 2.3. <a name="creating_operators"></a> Creating a new operator
 
 Operators can be created in two ways. The first one is to define a direct function which will replace the usual matrix-vector operation and to instantiate the @Operator@ class:
 
@@ -122,7 +122,7 @@ The alternative way is more flexible, it consists in subclassing the @Operator@ 
 
 
 
-h4. 2.4. <a name="flags"></a> Operator's flags
+h4. 2.4. <a name="operator_flags"></a> Operator's flags
 
 An operator __P__ can have the following algebraic properties, accessible with the @flag@ attribute:
 
@@ -173,19 +173,19 @@ IdentityOperator()
 
 
 
-h4. 2.5. <a name="rules"></a> Operator's rules
+h4. 2.5. <a name="operator_rules"></a> Operator's rules
 TBD.
 
 
 
 
-h4. 2.6. <a name="associated"></a> Operator's associated operator
+h4. 2.6. <a name="associated_operators"></a> Operator's associated operators
 TBD
 
 
 
 
-h4. 2.7. <a name="shapes"></a> Operator's input and output shapes
+h4. 2.7. <a name="operator_shapes"></a> Operator's input and output shapes
 
 The @Operator@ class has a flexible way to deal with inputs and outputs. In particular, it can handle:
 * inputs with explicit or unconstrained shapes
@@ -312,7 +312,7 @@ array([[3., 3.], [3., 3.]])
 
 
 
-h4. <a name="dtype"></a> 2.8. Operator's data type
+h4. <a name="operator_dtype"></a> 2.8. Operator's data type
 
 The operator's data type is a data type object (an instance of "numpy.dtype":http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html class). It can be set using the @dtype@ keyword.
 
@@ -339,13 +339,80 @@ The operator's data type can be equal to None (the default), in which case the o
 
 
 
-h4. <a name="inplace"></a> 2.9. Inplace operation
+h4. <a name="class_propagation"></a> 2.9. Class propagation
+
+An operator can propagate the class of the input array, if the latter subclasses @numpy.ndarray@:
+
+{% highlight python %}
+>>> class ndarray2(np.ndarray):
+...     pass
+>>> type(I(ndarray2((2,2))))
+__main__.ndarray2
+{% endhighlight %}
+
+It is possible to change the subclass too, by using the @classout@ keyword:
+
+{% highlight python %}
+>>> class ndarray3(np.ndarray):
+...     pass
+>>> I2 = IdentityOperator(classout=ndarray3)
+>>> type(I2(ndarray((2,2))))
+__main__.ndarray3
+>>> type(I2(ndarray2((2,2))))
+__main__.ndarray3
+{% endhighlight %}
+
+
+
+h4. <a name="attribute_propagation"></a> 2.10. Attribute propagation
+
+An operator can also propagate attributes:
+
+{% highlight python %}
+>>> class ndarray2(np.ndarray):
+...     pass
+>>> x = ndarray2((2,2))
+>>> x.foo = 'bar'
+>>> I(x).foo
+'bar'
+{% endhighlight %}
+
+It is also possible to add or change an attribute, by setting the @attrout@ keyword to a dictionary whose keys are the attribute names and whose values are the attribute values:
+
+{% highlight python %}
+>>> I2 = IdentityOperator(attrout={'foo':'new_bar'})
+>>> I2(x).foo
+'new_bar'
+>>> x.foo
+'bar'
+>>> I2(np.ones((2,2))).foo
+'new_bar'
+{% endhighlight %}
+
+More flexibility is possible by passing a function, instead of a dictionary, to the @attrout@ keyword:
+
+{% highlight python %}
+>>> class I2Operator(IdentityOperator):
+...     def __init__(self):
+...         IdentityOperator.__init__(self, attrout=self.add_history)
+...     def add_history(self, attr):
+...         from time import ctime
+...         if not hasattr(attr, 'history'):
+...             attr['history'] = []
+...         attr['history'] += [ctime() + ' : ' + self.__class__.__name__]
+>>> I2 = I2Operator()
+>>> I2(0).history
+{% endhighlight %}
+
+
+
+h4. <a name="inplace"></a> 2.11. Inplace operation
 TBD
 
 
 
 
-h4. <a name="inplace_reductions"></a> 2.10. Inplace reductions
+h4. <a name="inplace_reductions"></a> 2.12. Inplace reductions
 
 <div class="definition">
 An operator that can do inplace reductions is an operator that can add, multiply (or else) its output to its output argument.
@@ -384,7 +451,7 @@ array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
 {% endhighlight %}
 
 
-h4. <a name="partition"></a> 2.11. Operator partition
+h4. <a name="partition"></a> 2.13. Operator partition
 
 Currently, there are two ways to partition operators, depending on whether the partitioning is done in an already existing dimension or not.
 
@@ -445,7 +512,7 @@ Likewise, the outputs of the blocks are concatenated along the dimension specifi
 
 
 
-h4. <a name="list"></a> 2.12. List of available operators
+h4. <a name="list"></a> 2.14. List of available operators
 
 h5. Linear operators
 

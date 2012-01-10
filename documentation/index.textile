@@ -10,14 +10,16 @@ h3. {{ page.title }}
 
 # "Getting started":{{ site.baseurl }}/2000/doc-getting-started/
 # "Operators":{{ site.baseurl }}/2000/doc-operators/
-## "Using operators":{{ site.baseurl }}/2000/doc-operators/#using
-## "Manipulating operators":{{ site.baseurl }}/2000/doc-operators/#manipulation
-## "Creating a new operator":{{ site.baseurl }}/2000/doc-operators/#creation
-## "Operator's flags":{{ site.baseurl }}/2000/doc-operators/#flags
-## "Operator's rules":{{ site.baseurl }}/2000/doc-operators/#rules
-## "Operator's associated operators":{{ site.baseurl }}/2000/doc-operators/#associated
-## "Operator's input and output shapes":{{ site.baseurl }}/2000/doc-operators/#shapes
-## "Operator's data type":{{ site.baseurl }}/2000/doc-operators/#dtype
+## "Using operators":{{ site.baseurl }}/2000/doc-operators/#using_operators
+## "Manipulating operators":{{ site.baseurl }}/2000/doc-operators/#manipulating_operators
+## "Creating a new operator":{{ site.baseurl }}/2000/doc-operators/#creating_operators
+## "Operator's flags":{{ site.baseurl }}/2000/doc-operators/#operator_flags
+## "Operator's rules":{{ site.baseurl }}/2000/doc-operators/#operator_rules
+## "Operator's associated operators":{{ site.baseurl }}/2000/doc-operators/#associated_operators
+## "Operator's input and output shapes":{{ site.baseurl }}/2000/doc-operators/#operator_shapes
+## "Operator's data type":{{ site.baseurl }}/2000/doc-operators/#operator_dtype
+## "Class propagation":{{ site.baseurl }}/2000/doc-operators/#class_propagation
+## "Attribute propagation":{{ site.baseurl }}/2000/doc-operators/#attribute_propagation
 ## "Inplace operations":{{ site.baseurl }}/2000/doc-operators/#inplace
 ## "Inplace reductions":{{ site.baseurl }}/2000/doc-operators/#inplace_reductions
 ## "Operator partition":{{ site.baseurl }}/2000/doc-operators/#partition
