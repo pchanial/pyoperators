@@ -5,8 +5,6 @@ published: true
 category: doc
 ---
 
-The pyoperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
-
 To define an operator, one needs to define a direct function which will replace the usual matrix-vector operation:
 
 {% highlight python %}

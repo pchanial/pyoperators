@@ -469,7 +469,7 @@ Concerning the in-place composition:
 >>> (IN * OUT)(input, input)
 {% endhighlight %}
 
-it is not possible to avoid the use of a temporary variable, since a buffer diffrent from the @input@ variable is required for the @OUT@ operator.  The application of @IN@ is performed out-of-place because its output is the @input@ variable.
+it is not possible to avoid the use of a temporary variable, since a buffer different from the @input@ variable is required for the @OUT@ operator.  The application of the operator @IN@ is performed out-of-place because its output is the @input@ variable.
 
 
 
