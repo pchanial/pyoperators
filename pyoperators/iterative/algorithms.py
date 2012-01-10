@@ -8,6 +8,18 @@ import pylab
 from .linesearch import *
 from .criterions import *
 
+__all__ = [
+    'Algorithm',
+    'Callback',
+    'ConjugateGradient',
+    'HuberConjugateGradient',
+    'StopCondition',
+    'acg',
+    'hacg',
+    'fletcher_reeves',
+    'polak_ribiere',
+]
+
 # defaults
 TOL = 1e-6
 GTOL = 1e-6

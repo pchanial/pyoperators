@@ -9,9 +9,15 @@ from .core import (Operator, BroadcastingOperator, DiagonalOperator,
                    IdentityOperator, ZeroOperator, asoperator)
 from .utils import isscalar
 
-__all__ = [ 'MaskOperator', 'PackOperator', 'UnpackOperator',
-            'TridiagonalOperator', 'BandOperator', 'SymmetricBandOperator',
-            'EigendecompositionOperator']
+__all__ = [
+    'BandOperator',
+    'EigendecompositionOperator',
+    'MaskOperator',
+    'PackOperator',
+    'SymmetricBandOperator',
+    'TridiagonalOperator',
+    'UnpackOperator',
+]
 
 
 @real
