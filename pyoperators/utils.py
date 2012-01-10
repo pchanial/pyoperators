@@ -6,6 +6,8 @@ import numpy as np
 import os
 import scipy.sparse
 
+__all__ = ['assignment_operation']
+
 
 class ndarraywrap(np.ndarray):
     pass
@@ -65,6 +67,13 @@ def assert_is_not_none(a, msg=None):
     if a is not None:
         return
     assert False, str(a) + ' is None' + _get_msg(msg)
+
+
+def assignment_operation(a, b):
+    """
+    assignment_operation(a, b) -- Same as a[...] = b.
+    """
+    a[...] = b
 
 
 def first_is_not(l, v):
