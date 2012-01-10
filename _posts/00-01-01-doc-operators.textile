@@ -466,6 +466,8 @@ h5. Linear operators
 * SymmetricBandOperator
 * TridiagonalOperator
 * UnpackOperator
+* WaveletOperator
+* Wavelet2Operator
 * ZeroOperator
 
 
