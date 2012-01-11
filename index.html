@@ -8,11 +8,11 @@ multiplecontainer: true
 
 {% for post in site.categories.blog limit:5 %}
 <div class="container">
-  <h4>
+  <h2>
     <a href="{{ post.url }}/">
       <p class="date">{{ post.date | date_to_string }}</p>&nbsp;
       {{ post.title }}</a>
-  </h4>
+  </h2>
   {{ post.content }}
 </div>
 {% endfor %}

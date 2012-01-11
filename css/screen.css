@@ -21,46 +21,42 @@ body {
   text-align: justify;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1, h2, h3 {
   font-family: "Rosario", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-weight: bold;
   line-height: 150%;
   text-align: left;
 }
 
-h2, h3, h4 {
+h1, h2 {
   margin: 1.25em 0 0.5em 0;
 }
 
-h5 {
+h3 {
   margin: 0.625em 0 0.25em;
 }
 
-h2:first-child, h3:first-child, h4:first-child {
+h1:first-child, h2:first-child {
   margin: 0 0 0.5em 0;
 }
 
-h5:first-child {
+h3:first-child {
   margin: 0 0 0.25em;
 }
 
-h1 a, h2 a, h3 a, h4 a, h5 a, h6 a {
+h1 a, h2 a, h3 a {
   color: #333;
 }
 
-h2 {
-  font-size: 3.375em;
-}
-
-h3 {
+h1 {
   font-size: 2.25em;
 }
 
-h4 {
+h2 {
   font-size: 1.5em;
 }
 
-h5 {
+h3 {
   font-size: 1em;
 }
 

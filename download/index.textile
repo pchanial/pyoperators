@@ -4,17 +4,17 @@ title: Download
 excerpt: Download pyoperators package
 ---
 
-h3. {{ page.title }}
+h1. {{ page.title }}
 
 The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
 
-h4. The easy way
+h2. The easy way
 
 The easiest way to download and install the pyoperators package is by using the easy_install utility:
 
 bc. sudo easy_install pyoperators
 
-h4. The Git way
+h2. The Git way
 
 The project is hosted at "github":https://github.com/pchanial/pyoperators/ you can download it by cloning the project, using the version control system "Git":http://git-scm.com/:
 

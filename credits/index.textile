@@ -3,7 +3,7 @@ layout: default
 title: Credits
 ---
 
-h3. Credits
+h1. Credits
 
 To cite this package, use:
 
@@ -11,7 +11,7 @@ To cite this package, use:
 2011, PyOperators: Operators and Solvers for High-Performance Computing, P. Chanial & N. Barbey, http://pchanial.github.com/pyoperators
 </div>
 
-h3. Acknowledgements
+h1. Acknowledgements
 
 * The pyoperators package is the result of the merging of the packages "Tamasis/PACS":https://github.com/pchanial/tamasis-map (v3) by Pierre Chanial and the package "linear_operators":https://github.com/nbarbey/linear_operators by Nicolas Barbey.
 * Pierre Chanial and Nicolas Barbey thank the ASTRONET consortium for funding this work through the TAMASIS and CSH projects.

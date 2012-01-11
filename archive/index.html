@@ -5,11 +5,11 @@ excerpt: The complete archive for PyOperators.
 ---
 
 {% for post in site.posts %}
-<h4>
+<h2>
   {% if post.category == "blog" %}
   <p class="date">{{ post.date | date_to_string }}</p>&nbsp;
   {% endif %}
   <a href="{{ site.baseurl }}/{{ post.url }}/">{{ post.title }}</a>
-</h4>
+</h2>
 {% endfor %}
 
