@@ -882,7 +882,7 @@ class Operator(object):
                 op.flags = op.flags._replace(linear=True, square=True)
             if 'orthogonal' in flags:
                 op.flags = op.flags._replace(real=True)
-            if 'idempotent' in flags or 'involutary' in flags:
+            if 'involutary' in flags:
                 op.flags = op.flags._replace(square=True)
         elif flags is not None:
             raise TypeError("Invalid input flags: '{0}'.".format(flags))
