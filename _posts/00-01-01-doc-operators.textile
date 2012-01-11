@@ -611,14 +611,15 @@ h3. Linear operators
 * BlockDiagonalOperator
 * BlockColumnOperator
 * CompositionOperator
+* ConstantOperator
 * DiagonalOperator
 * EigendecompositionOperator
+* HomothetyOperator
 * IdentityOperator
 * MaskOperator
 * MultiplicationOperator
 * PackOperator
 * ReshapeOperator
-* ScalarOperator
 * SymmetricBandOperator
 * TridiagonalOperator
 * UnpackOperator
