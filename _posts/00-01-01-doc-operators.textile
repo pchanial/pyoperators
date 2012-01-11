@@ -139,7 +139,7 @@ An operator __P__ can have the following algebraic properties, accessible with t
 </div>
 <hr>
 
-They can be set using the @flag@ keyword:
+They can be set using the @flags@ keyword:
 
 {% highlight python %}
 >>> def f(x, out):
