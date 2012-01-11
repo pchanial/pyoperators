@@ -289,9 +289,10 @@ Such operator is obtained by only setting the @shapein@ keyword. The following e
 >>> op = Op()
 >>> op.shapein, op.shapeout
 ((2,), None)
->>> output = np.empty((2,2))
->>> op([1,2], output)
-array([[1,3],[5,7]])
+>>> output = np.empty((2,2), int)
+>>> op([1, 2], output)
+array([[1, 3],
+       [5, 7]])
 {% endhighlight %}
 
 
@@ -309,9 +310,10 @@ This kind of operator is the default: this behaviour is obtained by not setting 
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
->>> output = np.empty((2,2))
+>>> output = np.empty((2,2), int)
 >>> op([2, 1], output)
-array([[3., 3.], [3., 3.]])
+array([[3, 3],
+       [3, 3]])
 {% endhighlight %}
 
 
