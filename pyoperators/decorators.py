@@ -51,7 +51,7 @@ def idempotent(cls):
     """
     Decorator for idempotent operators, i.e. operators whose composition
     by themselves is equal to themselves.
-    It sets the 'square' and 'idempotent' flags.
+    It sets the 'idempotent' flags.
     """
     cls._set_flags(cls, 'idempotent')
     return cls
