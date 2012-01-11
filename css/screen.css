@@ -218,6 +218,7 @@ div.content pre {
   font-size: 1em;
   padding: 1em;
   margin: 1em 2em;
+  overflow: auto;
 }
 
 div.definition {
