@@ -1054,23 +1054,25 @@ class Operator(object):
         input = np.array(input, copy=False, subok=True)
 
         shapeout = self.reshapein(input.shape)
-        if shapeout is None:
-            shapeout = input.shape
         dtype = self._find_common_type([input.dtype, self.dtype])
         input = np.array(input, dtype=dtype, subok=False, copy=False)
         if output is not None:
+            if not isinstance(output, np.ndarray):
+                raise TypeError('The output argument is not an ndarray.')
             if output.dtype != dtype:
                 raise ValueError(
                     "The output has an invalid dtype '{0}'. Expect"
                     "ed dtype is '{1}'.".format(output.dtype, dtype)
                 )
-            if output.shape != shapeout:
+            if shapeout is not None and shapeout != output.shape:
                 raise ValueError(
                     "The output has an invalid shape '{0}'. Expect"
                     "ed shape is '{1}'.".format(output.shape, shapeout)
                 )
             output = output.view(np.ndarray)
         else:
+            if shapeout is None:
+                shapeout = input.shape
             output = memory.allocate(shapeout, dtype, None, self.__name__)[0]
         return input, output
 
