@@ -6,7 +6,7 @@ excerpt: Download pyoperators package
 
 h1. {{ page.title }}
 
-The pyoperators package is under the CECILL-B license, a BSD-like license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators.
+The pyoperators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators.
 
 The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
 
