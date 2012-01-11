@@ -454,7 +454,7 @@ which is equivalent to:
 >>> y = x * [1, 2]
 {% endhighlight %}
 
-The in-place property is useful to avoid intermediate variables. To minimise to memory-cache transfers during a composition, an algorithm has been put in place to determine the intermediate variables to be extracted from the memory manager, by maximising the temporal locality (i.e. by reusing as much as possible the same memory area). This algorithm depends on:
+The in-place property is useful to avoid intermediate variables. To minimise the memory-cache transfers during a composition, an algorithm has been put in place to determine the intermediate variables to be extracted from the memory manager, by maximising the temporal locality (i.e. by reusing as much as possible the same memory area). This algorithm depends on:
 
 * the parity of the number of out-of-place operators
 * whether or not the input and the output of the composition point the same memory location (in-place or out-of-place composition)
@@ -485,7 +485,7 @@ h2. <a name="inplace_reductions"></a> 2.12. In-place reductions
 An operator that can do in-place reductions is an operator that can add, multiply (or else) its output to its output argument.
 </div>
 
-Let see how this property can be used to remove the use of intermediate variables. First, let's assume that the operator @o2@ cannot do in-place reductions:
+Let see how this property can be used to further remove the use of intermediate variables. First, let's assume that the operator @o2@ cannot do in-place reductions:
 
 {% highlight python %}
 >>> (o1 + o2)(input, output)
