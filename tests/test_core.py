@@ -6,7 +6,7 @@ from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BlockColumnOperator,
          BlockDiagonalOperator, BlockRowOperator, CompositionOperator,
          ConstantOperator, DiagonalOperator, IdentityOperator,
-         MultiplicationOperator, ScalarOperator, ZeroOperator, asoperator, I, O)
+         MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator, I, O)
 from pyoperators.utils import ndarraywrap, assert_is, assert_is_not, assert_is_none, assert_not_in, assert_is_instance
 
 np.seterr(all='raise')
@@ -1123,37 +1123,37 @@ def test_composition3():
 
 def test_scalar_operator1():
     data = (0., 1., 2)
-    expected = (ZeroOperator, IdentityOperator, ScalarOperator)
+    expected = (ZeroOperator, IdentityOperator, HomothetyOperator)
     for d,e in zip(data, expected):
-        yield assert_is, ScalarOperator(d).__class__, e
+        yield assert_is, HomothetyOperator(d).__class__, e
 
 def test_scalar_operator2():
-    s = ScalarOperator(1)
+    s = HomothetyOperator(1)
     yield ok_, s.C is s.T is s.H is s.I is s
 
-    s = ScalarOperator(-1)
+    s = HomothetyOperator(-1)
     yield ok_, s.C is s.T is s.H is s.I is s
 
-    s = ScalarOperator(2.)
+    s = HomothetyOperator(2.)
     yield ok_, s.C is s.T is s.H is s
     yield assert_is_not, s.I, s
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
-        yield assert_is_instance, o, ScalarOperator
+        yield assert_is_instance, o, HomothetyOperator
 
-    s = ScalarOperator(complex(0,1))
+    s = HomothetyOperator(complex(0,1))
     yield assert_is, s.T, s
     yield assert_is, s.H, s.C
     yield assert_not_in, s.I, (s, s.C)
     yield assert_not_in, s.I.C, (s, s.C)
-    yield assert_is_instance, s.C, ScalarOperator
+    yield assert_is_instance, s.C, HomothetyOperator
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
-        yield assert_is_instance, o, ScalarOperator
+        yield assert_is_instance, o, HomothetyOperator
 
 
 def test_partition1():
-    o1 = ScalarOperator(1, shapein=1)
-    o2 = ScalarOperator(2, shapein=2)
-    o3 = ScalarOperator(3, shapein=3)
+    o1 = HomothetyOperator(1, shapein=1)
+    o2 = HomothetyOperator(2, shapein=2)
+    o3 = HomothetyOperator(3, shapein=3)
     
     r = DiagonalOperator([1,2,2,3,3,3]).todense()
     for ops, p in zip(((o1,o2,o3), (I,o2,o3), (o1,2*I,o3), (o1,o2,3*I)),
@@ -1177,9 +1177,9 @@ def test_partition3():
     pass
 
 def test_partition4():
-    o1 = ScalarOperator(1, shapein=1)
-    o2 = ScalarOperator(2, shapein=2)
-    o3 = ScalarOperator(3, shapein=3)
+    o1 = HomothetyOperator(1, shapein=1)
+    o2 = HomothetyOperator(2, shapein=2)
+    o3 = HomothetyOperator(3, shapein=3)
     class Op(Operator):
         pass
     op=Op()
@@ -1190,7 +1190,7 @@ def test_partition4():
 
 
 def test_block1():
-    ops = [ScalarOperator(i, shapein=(2,2)) for i in range(1,4)]
+    ops = [HomothetyOperator(i, shapein=(2,2)) for i in range(1,4)]
     for axis,s in zip(range(-3,3),
                       ((3,2,2),(2,3,2),(2,2,3),(3,2,2),(2,3,2),(2,2,3))):
         op = BlockDiagonalOperator(ops, new_axisin=axis)
@@ -1212,9 +1212,9 @@ def test_block3():
     pass
 
 def test_block4():
-    o1 = ScalarOperator(1, shapein=2)
-    o2 = ScalarOperator(2, shapein=2)
-    o3 = ScalarOperator(3, shapein=2)
+    o1 = HomothetyOperator(1, shapein=2)
+    o2 = HomothetyOperator(2, shapein=2)
+    o3 = HomothetyOperator(3, shapein=2)
     class Op(Operator):
         pass
     op=Op()
@@ -1258,7 +1258,7 @@ def test_block_row2():
 def test_diagonal1():
     data = (0., 1., [0,0], [1,1], 2, [2,2], [1,2])
     expected = (ZeroOperator, IdentityOperator, ZeroOperator, IdentityOperator,
-                ScalarOperator, ScalarOperator, DiagonalOperator)
+                HomothetyOperator, HomothetyOperator, DiagonalOperator)
     for d,e in zip(data, expected):
         yield assert_is, DiagonalOperator(d).__class__, e
 
@@ -1269,7 +1269,7 @@ def test_diagonal2():
            DiagonalOperator([1.,2,3,4,5], broadcast='slow'),
            DiagonalOperator(np.arange(20.).reshape(4,5), broadcast='slow'),
            DiagonalOperator(np.arange(120.).reshape(2,3,4,5)),
-           ScalarOperator(7.),
+           HomothetyOperator(7.),
            IdentityOperator(),
           )
     for op in (np.add, np.multiply):
@@ -1282,12 +1282,12 @@ def test_diagonal2():
                 d = op(d1, d2)
                 if type(d1) is DiagonalOperator:
                     yield assert_is, type(d), DiagonalOperator
-                elif type(d1) is ScalarOperator:
-                    yield assert_is, type(d), ScalarOperator
+                elif type(d1) is HomothetyOperator:
+                    yield assert_is, type(d), HomothetyOperator
                 elif op is np.multiply:
                     yield assert_is, type(d), IdentityOperator
                 else:
-                    yield assert_is, type(d), ScalarOperator
+                    yield assert_is, type(d), HomothetyOperator
 
                 data = op(d1.data.T, d2.data.T).T if 'fast' in (d1.broadcast,
                        d2.broadcast) else op(d1.data, d2.data)
