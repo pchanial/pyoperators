@@ -6,8 +6,6 @@ excerpt: Documentation
 
 h3. {{ page.title }}
 
-<div class="content">
-
 # "Getting started":{{ site.baseurl }}/2000/doc-getting-started/
 # "Operators":{{ site.baseurl }}/2000/doc-operators/
 ## "Using operators":{{ site.baseurl }}/2000/doc-operators/#using_operators
@@ -25,5 +23,3 @@ h3. {{ page.title }}
 ## "Operator partition":{{ site.baseurl }}/2000/doc-operators/#partition
 ## "List of available operators":{{ site.baseurl }}/2000/doc-operators/#list
 # "Solvers":{{ site.baseurl }}/2000/doc-solvers/
-
-</div>
