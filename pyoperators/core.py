@@ -39,10 +39,10 @@ __all__ = [
     'CompositionOperator',
     'ConstantOperator',
     'DiagonalOperator',
+    'HomothetyOperator',
     'IdentityOperator',
     'MultiplicationOperator',
     'ReshapeOperator',
-    'ScalarOperator',
     'ZeroOperator',
     'asoperator',
     'I',
@@ -1114,7 +1114,7 @@ class Operator(object):
         return AdditionOperator([self, -other])
 
     def __neg__(self):
-        return ScalarOperator(-1) * self
+        return HomothetyOperator(-1) * self
 
     def __str__(self):
         if self.shapein is not None:
@@ -1204,7 +1204,7 @@ def asoperator(operator, shapein=None, shapeout=None):
         )
 
     if isscalar(operator):
-        return ScalarOperator(operator)
+        return HomothetyOperator(operator)
 
     return asoperator(scipy.sparse.linalg.aslinearoperator(operator))
 
@@ -1401,7 +1401,7 @@ class CommutativeCompositeOperator(CompositeOperator):
             i += 1
 
         # move this up to avoid creations of temporaries
-        i = [i for i, o in enumerate(ops) if isinstance(o, ScalarOperator)]
+        i = [i for i, o in enumerate(ops) if isinstance(o, HomothetyOperator)]
         if len(i) > 0:
             ops.insert(0, ops[i[0]])
             del ops[i[0] + 1]
@@ -2739,10 +2739,10 @@ class DiagonalOperator(BroadcastingOperator):
 
     def __init__(self, data, broadcast='disabled', **keywords):
         data = np.asarray(data)
-        if not isinstance(self, ScalarOperator) and np.all(data == data.flat[0]):
+        if not isinstance(self, HomothetyOperator) and np.all(data == data.flat[0]):
             if broadcast == 'disabled' and data.ndim > 0:
                 keywords['shapein'] = data.shape
-            self.__class__ = ScalarOperator
+            self.__class__ = HomothetyOperator
             self.__init__(data.flat[0], **keywords)
             return
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
@@ -2816,7 +2816,7 @@ class DiagonalOperator(BroadcastingOperator):
 
 
 @inplace
-class ScalarOperator(DiagonalOperator):
+class HomothetyOperator(DiagonalOperator):
     """
     Multiplication by a scalar.
 
@@ -2826,7 +2826,7 @@ class ScalarOperator(DiagonalOperator):
         data = np.asarray(data)
         if data.ndim > 0:
             raise ValueError(
-                "Invalid data size '{0}' for ScalarOperator.".format(data.size)
+                "Invalid data size '{0}' for HomothetyOperator.".format(data.size)
             )
         if not isinstance(self, ZeroOperator) and data == 0:
             self.__class__ = ZeroOperator
@@ -2844,15 +2844,15 @@ class ScalarOperator(DiagonalOperator):
 
     def associated_operators(self):
         return {
-            'C': ScalarOperator(
+            'C': HomothetyOperator(
                 np.conjugate(self.data), shapein=self.shapein, dtype=self.dtype
             ),
-            'I': ScalarOperator(
+            'I': HomothetyOperator(
                 1 / self.data if self.data != 0 else np.nan,
                 shapein=self.shapein,
                 dtype=self.dtype,
             ),
-            'IC': ScalarOperator(
+            'IC': HomothetyOperator(
                 np.conjugate(1 / self.data) if self.data != 0 else np.nan,
                 shapein=self.shapein,
                 dtype=self.dtype,
@@ -2870,11 +2870,11 @@ class ScalarOperator(DiagonalOperator):
             return None
         if self.shapein is None or operator.shapein is not None:
             # XXX this case should not happen
-            if isinstance(operator, ScalarOperator):
+            if isinstance(operator, HomothetyOperator):
                 return None
             return (self, operator)
         return (
-            ScalarOperator(self.data, dtype=self.dtype),
+            HomothetyOperator(self.data, dtype=self.dtype),
             operator,
             IdentityOperator(self.shapein),
         )
@@ -2884,9 +2884,9 @@ class ScalarOperator(DiagonalOperator):
 @idempotent
 @involutary
 @inplace
-class IdentityOperator(ScalarOperator):
+class IdentityOperator(HomothetyOperator):
     """
-    A subclass of ScalarOperator with data = 1.
+    A subclass of HomothetyOperator with data = 1.
 
     Exemple
     -------
@@ -2905,7 +2905,7 @@ class IdentityOperator(ScalarOperator):
     """
 
     def __init__(self, shapein=None, **keywords):
-        ScalarOperator.__init__(self, 1, shapein=shapein, **keywords)
+        HomothetyOperator.__init__(self, 1, shapein=shapein, **keywords)
         self.add_rule('.{Operator}', self._rule_identity)
 
     def direct(self, input, output):

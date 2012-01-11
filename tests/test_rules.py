@@ -1,7 +1,7 @@
 import nose
 from nose.tools import eq_
 
-from pyoperators import Operator, IdentityOperator, ScalarOperator
+from pyoperators import Operator, IdentityOperator, HomothetyOperator
 from pyoperators.core import OperatorRule
 from pyoperators.utils import assert_is, assert_is_none, assert_is_not_none, assert_is_instance
 
@@ -53,9 +53,9 @@ def test_rule3():
     yield assert_is_instance, rule(op1.T), Operator3
 
 def test_rule4():
-    rule = OperatorRule(op1, '.{ScalarOperator}', p1)
+    rule = OperatorRule(op1, '.{HomothetyOperator}', p1)
     yield assert_is_none, rule(op2)
-    s = ScalarOperator(2)
+    s = HomothetyOperator(2)
     yield eq_, rule(s), (s, op1)
 
 def test_rule5():
