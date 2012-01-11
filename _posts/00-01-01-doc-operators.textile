@@ -92,7 +92,7 @@ True
 
 h4. 2.3. <a name="creating_operators"></a> Creating a new operator
 
-Operators can be created in two ways. The first one is to define a direct function which will replace the usual matrix-vector operation and to instantiate the @Operator@ class by passing it as the first argument:
+Operators can be created in two ways. The first one is to define a direct function which will replace the usual matrix-vector operation and to instantiate the @Operator@ class by passing the function as the first argument:
 
 {% highlight python %}
 >>> def f(x, out):
