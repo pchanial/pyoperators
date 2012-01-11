@@ -73,11 +73,6 @@ a img {
   vertical-align: middle;
 }
 
-pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-
 em {
   font-style: italic;
 }
