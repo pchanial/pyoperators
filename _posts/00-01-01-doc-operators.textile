@@ -116,7 +116,7 @@ The alternative way is more flexible, it consists in subclassing the @Operator@ 
 ...     def direct(self, x, out):
 ...         out[...] = self.coef * x
 ...
-... P = MyOperator(2)
+>>> P = MyOperator(2)
 {% endhighlight %}
 
 
@@ -156,7 +156,7 @@ or by using operator decorators:
 ...     def direct(self, x, out):
 ...         out[...] = -x
 ...
-... P = MyOperator()
+>>> P = MyOperator()
 {% endhighlight %}
 
 These flags are used to simplify expressions:
@@ -215,6 +215,7 @@ The explicit shapes are specified using the the @shapein@ and @shapeout@ keyword
 ...     def direct(self, input, output):
 ...         output[0:3] = input
 ...         output[3] = self.value
+...
 >>> op = Op(0.)
 >>> op.shapein, op.shapeout
 ((3,), (4,))
@@ -234,6 +235,7 @@ Such operator is obtained by only setting the @shapeout@ keyword. The following 
 ...     def direct(self, input, output):
 ...         output[0] = np.sum(input)
 ...         output[1] = np.product(input)
+...
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, (2,))
@@ -259,6 +261,7 @@ To obtain such operator, one simply has to define a @reshapein@ method, which ta
 ...         if shapein is None:
 ...             return None
 ...         return (2*shapein[0],) + shapein[1:]
+...
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
@@ -283,6 +286,7 @@ Such operator is obtained by only setting the @shapein@ keyword. The following e
 ...         Operator.__init__(self, shapein=2)
 ...     def direct(self, input, output):
 ...         output[...] = input[0] + input[1] * np.arange(output.size).reshape(output.shape)
+...
 >>> op = Op()
 >>> op.shapein, op.shapeout
 ((2,), None)
@@ -302,6 +306,7 @@ This kind of operator is the default: this behaviour is obtained by not setting 
 ...         Operator.__init__(self)
 ...     def direct(self, input, output):
 ...         output[...] = np.sum(input)
+...
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
@@ -372,6 +377,7 @@ An operator also propagates attributes:
 {% highlight python %}
 >>> class ndarray2(np.ndarray):
 ...     pass
+...
 >>> x = ndarray2((2,2))
 >>> x.foo = 'bar'
 >>> I(x).foo
@@ -401,6 +407,7 @@ More flexibility is possible by passing a function, instead of a dictionary, to 
 ...         if 'history' not in attr:
 ...             attr['history'] = []
 ...         attr['history'] += [ctime() + ' : ' + self.__class__.__name__]
+...
 >>> I2 = I2Operator()
 >>> I2(I2(0)).history
 {% endhighlight %}
@@ -503,9 +510,10 @@ One can enable such property by adding the keyword @operation@ to the operator's
 >>> class P(Operator):
 ...     def direct(self, input, output, operation=assignment_operation):
 ...         operation(output, input)
-... Q = sum(P() for k in range(0,3))
-... output = np.empty(2)
-... Q([1., 2.], output)
+...
+>>> Q = sum(P() for k in range(0,3))
+>>> output = np.empty(2)
+>>> Q([1., 2.], output)
 array([ 3.,  6.])
 {% endhighlight %}
 
@@ -523,9 +531,10 @@ No intermediate variable is needed and all operations have been performed in-pla
 ...         elif operation is not operator.__iadd__:
 ...             raise NotImplementedError()
 ...         output[self.index] += input
-... Q = Projection(0) + Projection(5) + Projection(10)
-... output = np.empty(11)
-... Q([2.], output)
+...
+>>> Q = Projection(0) + Projection(5) + Projection(10)
+>>> output = np.empty(11)
+>>> Q([2.], output)
 array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
 {% endhighlight %}
 
