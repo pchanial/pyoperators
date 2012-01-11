@@ -1,6 +1,6 @@
 import numpy as np
 
-from nose.tools import eq_, ok_
+from nose.tools import ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 from pyoperators import memory, decorators
 from pyoperators.core import (
@@ -10,6 +10,7 @@ from pyoperators.core import (
     BlockDiagonalOperator,
     BlockRowOperator,
     CompositionOperator,
+    ConstantOperator,
     DiagonalOperator,
     IdentityOperator,
     MultiplicationOperator,
@@ -23,6 +24,7 @@ from pyoperators.utils import (
     ndarraywrap,
     assert_is,
     assert_is_not,
+    assert_is_none,
     assert_not_in,
     assert_is_instance,
 )
@@ -416,8 +418,33 @@ def test_symmetric():
     assert_array_equal(op([1, 1]), np.array(mat * [[1], [1]]).ravel())
 
 
+def test_constant_reduction():
+    c = 1, np.array([1, 2]), np.array([2, 3, 4])
+    t = 'scalar', 'fast', 'slow'
+
+    for c1, t1 in zip(c, t):
+        op1 = ConstantOperator(c1, broadcast=t1)
+        for c2, t2 in zip(c, t):
+            op2 = ConstantOperator(c2, broadcast=t2)
+            op = op1 + op2
+            if set((op1.broadcast, op2.broadcast)) != set(('fast', 'slow')):
+                yield assert_is_instance, op, ConstantOperator
+            v = np.zeros((2, 3))
+            op(np.nan, v)
+            z = np.zeros((2, 3))
+            if t1 == 'fast':
+                z.T[...] += c1.T
+            else:
+                z[...] += c1
+            if t2 == 'fast':
+                z.T[...] += c2.T
+            else:
+                z[...] += c2
+            yield assert_equal, v, z
+
+
 def test_scalar_reduction1():
-    models = 1.0 + I, -I, (-2) * I, -(2 * I), 1.0 - I, 1.0 - 2 * I
+    models = 1.0 * I + I, -I, (-2) * I, -(2 * I), 1.0 * I - I, 1.0 * I - 2 * I
     results = [6, -3, -6, -6, 0, -3]
     for model, result in zip(models, results):
         for i in (np.array(3), [3], (3,), np.int(3), 3):
@@ -429,12 +456,12 @@ def test_scalar_reduction1():
 def test_scalar_reduction2():
     model = -I
     iops = '__iadd__', '__isub__', '__imul__', '__iadd__', '__imul__'
-    imodels = 2 * I, 2 * I, 2, O, O
+    imodels = 2 * I, 2 * I, 2 * I, O, O
     results = [3, -3, -6, -6, 0]
     for iop, imodel, result in zip(iops, imodels, results):
         model = getattr(model, iop)(imodel)
         for i in (np.array(3), [3], (3,), np.int(3), 3):
-            yield eq_, model(i), result, str((iop, i))
+            yield assert_equal, model(i), result, str((iop, i))
 
 
 def test_scalar_reduction3():
@@ -1562,23 +1589,25 @@ def test_zero2():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6)
     zo = z * o
-    yield ok_, isinstance(zo, ZeroOperator)
-    yield ok_, zo.shapein == o.shapein and zo.shapeout == o.shapeout
+    yield assert_is_instance, zo, ZeroOperator
+    yield assert_equal, zo.shapein, o.shapein
+    yield assert_equal, zo.shapeout, o.shapeout
 
 
 def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator()
     zo = z * o
-    yield ok_, isinstance(zo, ZeroOperator)
-    yield ok_, zo.shapein == z.shapein and zo.shapeout == z.shapeout
+    yield assert_is_instance, zo, ZeroOperator
+    yield assert_is_none, zo.shapein, 'in'
+    yield assert_equal, zo.shapeout, z.shapeout, 'out'
 
 
 def test_zero4():
     z = ZeroOperator()
     o = Operator(flags='linear')
-    yield ok_, isinstance(z * o, ZeroOperator)
-    yield ok_, isinstance(o * z, ZeroOperator)
+    yield assert_is_instance, z * o, ZeroOperator
+    yield assert_is_instance, o * z, ZeroOperator
 
 
 def test_zero5():
@@ -1586,10 +1615,12 @@ def test_zero5():
     o = Operator(shapein=3, shapeout=6, flags='linear')
     zo = z * o
     oz = o * z
-    yield ok_, isinstance(zo, ZeroOperator)
-    yield ok_, zo.shapein == o.shapein and zo.shapeout == o.shapeout
-    yield ok_, isinstance(oz, ZeroOperator)
-    yield ok_, oz.shapein == o.shapein and oz.shapeout == o.shapeout
+    yield assert_is_instance, zo, ZeroOperator, 'zo'
+    yield assert_equal, zo.shapein, o.shapein, 'zo in'
+    yield assert_equal, zo.shapeout, o.shapeout, 'zo out'
+    yield assert_is_instance, oz, ZeroOperator, 'oz'
+    yield assert_is_none, oz.shapein, 'oz, in'
+    yield assert_equal, oz.shapeout, o.shapeout, 'oz, out'
 
 
 def test_zero6():
@@ -1597,10 +1628,12 @@ def test_zero6():
     o = Operator(flags='linear')
     zo = z * o
     oz = o * z
-    yield ok_, isinstance(zo, ZeroOperator)
-    yield ok_, zo.shapein == z.shapein and zo.shapeout == z.shapeout
-    yield ok_, isinstance(oz, ZeroOperator)
-    yield ok_, oz.shapein == z.shapein and oz.shapeout == z.shapeout
+    yield assert_is_instance, zo, ZeroOperator, 'zo'
+    yield assert_is_none, zo.shapein, 'zo in'
+    yield assert_equal, zo.shapeout, z.shapeout, 'zo out'
+    yield assert_is_instance, oz, ZeroOperator, 'oz'
+    yield assert_equal, oz.shapein, z.shapein, 'oz in'
+    yield assert_equal, oz.shapeout, z.shapeout, 'oz out'
 
 
 def test_zero7():
@@ -1632,8 +1665,8 @@ def test_zero7():
     zo = z * o
     oz = o * z
     v = np.ones(4)
-    yield assert_array_equal, zo(v), z(o(v))
-    yield assert_array_equal, oz(v), o(z(v))
+    yield assert_equal, zo(v), z(o(v))
+    yield assert_equal, oz(v), o(z(v))
 
 
 def test_zero7b():
@@ -1665,10 +1698,10 @@ def test_zero7b():
     zo = z * o
     oz = o * z
     v = np.ones(4)
-    yield assert_array_equal, zo.T(v), o.T(z.T(v))
-    yield assert_array_equal, oz.T(v), z.T(o.T(v))
+    yield assert_equal, zo.T(v), o.T(z.T(v))
+    yield assert_equal, oz.T(v), z.T(o.T(v))
 
 
 def test_zero8():
     z = ZeroOperator()
-    yield ok_, z * z is z
+    yield assert_is, z * z, z
