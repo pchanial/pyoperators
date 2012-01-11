@@ -174,14 +174,14 @@ IdentityOperator()
 
 h2. 2.5. <a name="operator_rules"></a> Operator's rules
 
-Not documented. API will change in version 0.2.
+Not documented. API will change in version {{ site.version_stable | plus:'0.1' }}.
 
 
 
 
 h2. 2.6. <a name="associated_operators"></a> Operator's associated operators
 
-Not documented. API might change in version 0.2.
+Not documented. API might change in version {{ site.version_stable | plus:'0.1' }}.
 
 
 
