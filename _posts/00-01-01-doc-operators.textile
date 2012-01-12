@@ -41,11 +41,11 @@ Operators are easy to manipulate: they can be multiplied by a scalar, combined b
 {% highlight python %}
 >>> o1 = DiagonalOperator([1., 2.])
 >>> o2 = DiagonalOperator([1., 1.])
->>> (3*o1)([2., 2.])
+>>> (3 * o1)([2., 2.])
 array([  6.,  12.])
->>> (o1+o2)([2., 2.])
+>>> (o1 + o2)([2., 2.])
 array([ 4.,  6.])
->>> (o1*o2)([2., 2.])  # same as o1(o2)
+>>> (o1 * o2)([2., 2.])  # same as o1(o2)
 array([ 2.,  4.])
 {% endhighlight %}
 
