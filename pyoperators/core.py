@@ -2595,6 +2595,8 @@ class ReshapeOperator(Operator):
             raise ValueError('The input shape is None.')
         if shapeout is None:
             raise ValueError('The output shape is None.')
+        shapein = tointtuple(shapein)
+        shapeout = tointtuple(shapeout)
         if np.product(shapein) != np.product(shapeout):
             raise ValueError('The total size of the output must be unchanged.')
         if shapein == shapeout:
