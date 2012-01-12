@@ -160,7 +160,7 @@ class TridiagonalOperator(Operator):
                                              self.subdiag.dtype,
                                              self.superdiag.dtype])
         self.kwargs = kwargs
-        flags = {"SYMMETRIC":np.all(self.subdiag == self.superdiag)}
+        flags = {"symmetric":np.all(self.subdiag == self.superdiag)}
         Operator.__init__(self, shapein=shapein, dtype=self.dtype, flags=flags, **kwargs)
 
     def direct(self, input, output):
@@ -253,7 +253,7 @@ class TridiagonalOperator(Operator):
         """
         Convert the TridiagonalOperator into a BandOperator
         """
-        if not self.flags.SYMMETRIC:
+        if not self.flags.symmetric:
             kl, ku = 1, 1
             n = self.shape[1]
             ab = np.zeros((kl + ku + 1, n))
