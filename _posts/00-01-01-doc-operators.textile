@@ -423,7 +423,7 @@ h2. <a name="inplace_operators"></a> 2.11. In-place and out-of-place operators
 *out-of-place operator:* operator whose @direct@ method cannot.
 </div>
 
-Such a property is set by the @inplace@ decorator. For instance, the operator @DiagonalOperator@ is an in-place operator and the following computation is done in-place:
+Such a property is set by the @inplace@ decorator. For instance, the operator @DiagonalOperator@ is an in-place operator and the following computation
 
 {% highlight python %}
 >>> d = DiagonalOperator([1, 2])
@@ -432,7 +432,7 @@ Such a property is set by the @inplace@ decorator. For instance, the operator @D
 array([0, 2])
 {% endhighlight %}
 
-which is equivalent to:
+is done in-place and is equivalent to:
 
 {% highlight python %}
 >>> x = np.array([0, 1])
