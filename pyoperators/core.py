@@ -2592,8 +2592,8 @@ class ZeroOperator(ConstantOperator):
                       dtype=self.dtype)
         }
 
-    def direct(self, input, output):
-        output[...] = 0
+    def direct(self, input, output, operation=assignment_operation):
+        operation(output, 0)
 
     def _combine_operators(self, o1, o2):
         result = ZeroOperator(shapein=o2.shapein or o2.reshapeout(o1.shapein),
