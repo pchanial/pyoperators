@@ -3029,8 +3029,8 @@ class ZeroOperator(ConstantOperator):
             )
         }
 
-    def direct(self, input, output):
-        output[...] = 0
+    def direct(self, input, output, operation=assignment_operation):
+        operation(output, 0)
 
     def _combine_operators(self, o1, o2):
         result = ZeroOperator(
