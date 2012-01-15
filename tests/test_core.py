@@ -886,12 +886,11 @@ def test_inplace_can_use_output():
 
     class Op(Operator):
         def __init__(self, inplace, log):
-            Operator.__init__(self)
-            self.inplace = inplace
+            Operator.__init__(self, flags={'inplace': inplace})
             self.log = log
 
         def direct(self, input, output):
-            if self.inplace:
+            if self.flags.inplace:
                 tmp = input[0]
                 output[1:] = 2 * input
                 output[0] = tmp
@@ -1044,12 +1043,11 @@ def test_inplace_cannot_use_output():
 
     class Op(Operator):
         def __init__(self, inplace, log):
-            Operator.__init__(self)
-            self.inplace = inplace
+            Operator.__init__(self, flags={'inplace': inplace})
             self.log = log
 
         def direct(self, input, output):
-            if not self.inplace:
+            if not self.flags.inplace:
                 output[...] = 0
             output[:] = input[1:]
             try:

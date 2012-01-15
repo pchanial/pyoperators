@@ -4,13 +4,21 @@ their 'flags' attribute to specify properties such as linear, square etc.
 """
 
 
+def flags(cls, *arg, **keywords):
+    """
+    Decorator to set any flag.
+    """
+    base = cls.__mro__[-2]
+    base.__dict__['_set_flags'](cls, *arg, **keywords)
+    return cls
+
+
 def linear(cls):
     """
     Decorator for linear operators.
     It sets the 'linear' flags.
     """
-    cls._set_flags(cls, 'linear')
-    return cls
+    return flags(cls, 'linear')
 
 
 def square(cls):
@@ -19,8 +27,7 @@ def square(cls):
     shapes are identical.
     It sets the 'square' flags.
     """
-    cls._set_flags(cls, 'square')
-    return cls
+    return flags(cls, 'square')
 
 
 def real(cls):
@@ -29,8 +36,7 @@ def real(cls):
     their conjugate.
     It sets the 'real' flags.
     """
-    cls._set_flags(cls, 'real')
-    return cls
+    return flags(cls, 'real')
 
 
 def symmetric(cls):
@@ -39,8 +45,7 @@ def symmetric(cls):
     transpose.
     It sets the 'linear', 'square' and 'symmetric' flags.
     """
-    cls._set_flags(cls, 'symmetric')
-    return cls
+    return flags(cls, 'symmetric')
 
 
 def hermitian(cls):
@@ -49,8 +54,7 @@ def hermitian(cls):
     adjoint.
     It sets the 'linear', 'square' and 'hermitian' flags.
     """
-    cls._set_flags(cls, 'hermitian')
-    return cls
+    return flags(cls, 'hermitian')
 
 
 def idempotent(cls):
@@ -59,8 +63,7 @@ def idempotent(cls):
     by themselves is equal to themselves.
     It sets the 'idempotent' flags.
     """
-    cls._set_flags(cls, 'idempotent')
-    return cls
+    return flags(cls, 'idempotent')
 
 
 def involutary(cls):
@@ -69,8 +72,7 @@ def involutary(cls):
     by themselves is equal to the identity.
     It sets the 'square' and 'involutary' flags.
     """
-    cls._set_flags(cls, 'involutary')
-    return cls
+    return flags(cls, 'involutary')
 
 
 def orthogonal(cls):
@@ -79,8 +81,7 @@ def orthogonal(cls):
     by their transpose is equal to the identity.
     It sets the 'real', 'linear', 'square' and 'orthogonal' flags.
     """
-    cls._set_flags(cls, 'orthogonal')
-    return cls
+    return flags(cls, 'orthogonal')
 
 
 def unitary(cls):
@@ -89,8 +90,7 @@ def unitary(cls):
     by their adjoint is equal to the identity.
     It sets the 'linear', 'square' and 'unitary' flags.
     """
-    cls._set_flags(cls, 'unitary')
-    return cls
+    return flags(cls, 'unitary')
 
 
 def inplace(cls):
@@ -100,5 +100,13 @@ def inplace(cls):
     size may be different).
     It sets the 'inplace' attribute to True.
     """
-    cls.inplace = True
-    return cls
+    return flags(cls, 'inplace')
+
+
+def inplace_reduction(cls):
+    """
+    Decorator for inplace-reduction operators, i.e operators that can update
+    their output arguments with their output.
+    It sets the 'inplace_reduction' flag.
+    """
+    return flags(cls, 'inplace_reduction')
