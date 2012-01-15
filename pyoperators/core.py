@@ -56,10 +56,12 @@ class OperatorFlags(namedtuple('OperatorFlags',
                                 'unitary',    # o * o.H = I
                                 'inplace',
                                 'inplace_reduction',
+                                'shape_input',
+                                'shape_output',
                                 ])):
     """ Informative flags about the operator. """
     def __new__(cls):
-        t = 11*(False,)
+        t = 11*(False,) + ('', '')
         return super(OperatorFlags, cls).__new__(cls, *t)
 
     def __str__(self):
@@ -526,8 +528,6 @@ class Operator(object):
                 strshape(self.shapein)))
         if self.shapeout is not None:
             return self.shapeout
-        if self.flags.square:
-            return shapein
         if self._reshapein is not None:
             return tointtuple(self._reshapein(shapein))
         return None
@@ -556,8 +556,6 @@ class Operator(object):
                 strshape(self.shapeout)))
         if self.shapein is not None:
             return self.shapein
-        if self.flags.square:
-            return shapeout
         if self._reshapeout is not None:
             return tointtuple(self._reshapeout(shapeout))
         return None
@@ -849,19 +847,23 @@ class Operator(object):
                 shapeout = shapein
             else:
                 shapein = shapeout
-            cls = self.__class__
-            if self.__class__.reshapein != Operator.reshapein:
-                self.reshapein = Operator.reshapein.__get__(self, cls)
-            if self.__class__.reshapeout != Operator.reshapeout:
-                self.reshapeout = Operator.reshapeout.__get__(self, cls)
-            if '_reshapein' in self.__dict__:
-                del self._reshapein
-            if '_reshapeout' in self.__dict__:
-                del self._reshapeout
+            if shapein is None:
+                self._reshapein = lambda x: x
+                self._reshapeout = lambda x: x
+            else:
+                self._reshapein = None
+                self._reshapeout = None
+            self.reshapein = Operator.reshapein.__get__(self, type(self))
+            self.reshapeout = Operator.reshapeout.__get__(self, type(self))
             if self.__class__.toshapein is not Operator.toshapein:
                 self.toshapeout = self.toshapein
             else:
                 self.toshapein = self.toshapeout
+
+        flag_is = 'unconstrained' if shapein is None else 'explicit'
+        flag_os = 'explicit' if shapeout is not None else 'implicit' \
+                  if self._reshapein is not None else 'unconstrained'
+        self._set_flags(shape_input=flag_is, shape_output=flag_os)
 
         self.shapein = shapein
         self.shapeout = shapeout
@@ -884,20 +886,20 @@ class Operator(object):
             self.flags = flags
         elif isinstance(flags, (dict, list, tuple, str)):
             if isinstance(flags, str):
-                flags = flags.split(',')
-            elif isinstance(flags, dict):
-                flags = tuple(f for f,v in flags.iteritems() if v)
+                flags = [f.strip() for f in flags.split(',')]
             elif isscalar(flags):
                 flags = (flags,)
-            if any(not isinstance(f, str) for f in flags):
+            if isinstance(flags, (list, tuple)):
+                flags = dict((f,True) for f in flags)
+            if any(not isinstance(f, str) for f in flags.keys()):
                 raise TypeError("Invalid type for the operator flags: {0}." \
                                 .format(flags))
-            flags = tuple(f.strip() for f in flags)
             if any(f not in OperatorFlags._fields for f in flags):
                 raise ValueError("Invalid operator flags '{0}'. The properties "
-                    "must be one of the following: ".format(flags) + strenum(
-                    OperatorFlags._fields) + '.')
-            self.flags = self.flags._replace(**dict((f,True) for f in flags))
+                    "must be one of the following: ".format(flags.keys()) + \
+                    strenum(OperatorFlags._fields) + '.')
+            self.flags = self.flags._replace(**flags)
+            flags = [ f for f in flags if flags[f]]
             if 'symmetric' in flags or 'hermitian' in flags or \
                'orthogonal' in flags or 'unitary' in flags:
                 self.flags = self.flags._replace(linear=True, square=True)
