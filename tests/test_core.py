@@ -6,7 +6,8 @@ from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BlockColumnOperator,
          BlockDiagonalOperator, BlockRowOperator, CompositionOperator,
          ConstantOperator, DiagonalOperator, IdentityOperator,
-         MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator, I, O)
+         MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator,
+         I, O)
 from pyoperators.utils import ndarraywrap, assert_is, assert_is_not, assert_is_none, assert_not_in, assert_is_instance
 
 np.seterr(all='raise')
@@ -675,13 +676,13 @@ def test_inplace_can_use_output():
            C.__array_interface__['data'][0] : 'C',
            D.__array_interface__['data'][0] : 'D',
            }
+
     class Op(Operator):
         def __init__(self, inplace, log):
-            Operator.__init__(self)
-            self.inplace = inplace
+            Operator.__init__(self, flags={'inplace':inplace})
             self.log = log
         def direct(self, input, output):
-            if self.inplace:
+            if self.flags.inplace:
                 tmp = input[0]
                 output[1:] = 2 * input
                 output[0] = tmp
@@ -825,11 +826,10 @@ def test_inplace_cannot_use_output():
            }
     class Op(Operator):
         def __init__(self, inplace, log):
-            Operator.__init__(self)
-            self.inplace = inplace
+            Operator.__init__(self, flags={'inplace':inplace})
             self.log = log
         def direct(self, input, output):
-            if not self.inplace:
+            if not self.flags.inplace:
                 output[...] = 0
             output[:] = input[1:]
             try:

@@ -18,7 +18,8 @@ from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
 from .utils import (assignment_operation, first_is_not, isclassattr, isscalar,
                     ndarraywrap, strenum, strshape, tointtuple)
-from .decorators import linear, real, idempotent, involutary, symmetric, inplace
+from .decorators import (linear, real, idempotent, involutary, symmetric,
+                         inplace, inplace_reduction)
 
 __all__ = [
     'Operator',
@@ -43,7 +44,8 @@ __all__ = [
 
 
 class OperatorFlags(namedtuple('OperatorFlags',
-                               ['linear',
+                               [
+                                'linear',
                                 'square',     # shapein == shapeout
                                 'real',       # o.C = o
                                 'symmetric',  # o.T = o
@@ -52,8 +54,14 @@ class OperatorFlags(namedtuple('OperatorFlags',
                                 'involutary', # o * o = I
                                 'orthogonal', # o * o.T = I
                                 'unitary',    # o * o.H = I
+                                'inplace',
+                                'inplace_reduction',
                                 ])):
-    """Informative flags about the operator."""
+    """ Informative flags about the operator. """
+    def __new__(cls):
+        t = 11*(False,)
+        return super(OperatorFlags, cls).__new__(cls, *t)
+
     def __str__(self):
         n = max([len(f) for f in self._fields])
         fields = [ '  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
@@ -62,7 +70,7 @@ class OperatorFlags(namedtuple('OperatorFlags',
     def __repr__(self):
         n = max([len(f) for f in self._fields])
         fields = [ f.ljust(n) + '= ' for f in self._fields]
-        return self.__class__.__name__ + '(\n  ' + ',\n  '.join([f + str(v) \
+        return self.__class__.__name__ + '(\n  ' + ',\n  '.join([f + repr(v) \
             for f,v in zip(fields,self)]) + ')'
 
 
@@ -244,19 +252,12 @@ class Operator(object):
 
         self._C = self._T = self._H = self._I = None
 
-        self._set_dtype(dtype)
-        self._set_flags(self, flags)
-        self._set_rules()
-        self._set_name()
-        self._set_inout(shapein, shapeout, reshapein, reshapeout,
-                        attrin, attrout, classin, classout)
-
-        if isinstance(self.direct, (types.FunctionType, types.MethodType)):
-            if isinstance(self.direct, types.MethodType):
-                d = self.direct.im_func
-            else:
-                d = self.direct
-            self.inplace_reduction = 'operation' in d.func_code.co_varnames
+        self._init_dtype(dtype)
+        self._init_flags(flags)
+        self._init_rules()
+        self._init_name()
+        self._init_inout(shapein, shapeout, reshapein, reshapeout,
+                         attrin, attrout, classin, classout)
 
     attrin = {}
     attrout = {}
@@ -266,9 +267,7 @@ class Operator(object):
     shapeout = None
     
     dtype = None
-    flags = OperatorFlags(*9*(False,))
-    inplace = False
-    inplace_reduction = False
+    flags = OperatorFlags()
     _reshapein = None
     _reshapeout = None
 
@@ -298,14 +297,14 @@ class Operator(object):
                                       'lemented.')
         i, o = self._validate_input(input, output)
         with memory.push_and_pop(o):
-            if not self.inplace and self.same_data(i, o):
+            if not self.flags.inplace and self.same_data(i, o):
                 memory.up()
                 o_ = memory.get(o.nbytes, o.shape, o.dtype, self.__name__) \
                            .view(o.dtype).reshape(o.shape)
             else:
                 o_ = o
             self.direct(i, o_)
-            if not self.inplace and self.same_data(i, o):
+            if not self.flags.inplace and self.same_data(i, o):
                 memory.down()
                 o[...] = o_
 
@@ -709,84 +708,69 @@ class Operator(object):
         IT._C, IT._T, IT._H, IT._I = IH, I, IC, T
         IH._C, IH._T, IH._H, IH._I = IT, IC, I, H
 
-    def _set_dtype(self, dtype):
-        """A non-complex dtype sets the real flag to true"""
+    def _init_dtype(self, dtype):
+        """ A non-complex dtype sets the real flag to true. """
         if dtype is not None:
             dtype = np.dtype(dtype)
         self.dtype = dtype
         if self.dtype is None or self.dtype.kind != 'c':
-            self.flags = self.flags._replace(real=True)
+            self._set_flags('real')
 
-    @staticmethod
-    def _set_flags(op, flags):
-        """ Set flags to an Operator class or instance. """
-        if isinstance(flags, OperatorFlags):
-            op.flags = flags
-        elif isinstance(flags, (dict, list, tuple, str)):
-            if isinstance(flags, str):
-                flags = flags.split(',')
-            elif isinstance(flags, dict):
-                flags = tuple(f for f,v in flags.iteritems() if v)
-            elif isscalar(flags):
-                flags = (flags,)
-            if any(not isinstance(f, str) for f in flags):
-                raise TypeError("Invalid type for the operator flags: {0}." \
-                                .format(flags))
-            flags = tuple(f.strip() for f in flags)
-            if any(f not in OperatorFlags._fields for f in flags):
-                raise ValueError("Invalid operator flags '{0}'. The properties "
-                    "must be one of the following: ".format(flags) + strenum(
-                    OperatorFlags._fields) + '.')
-            op.flags = op.flags._replace(**dict((f,True) for f in flags))
-            if 'symmetric' in flags or 'hermitian' in flags or \
-               'orthogonal' in flags or 'unitary' in flags:
-                op.flags = op.flags._replace(linear=True, square=True)
-            if 'orthogonal' in flags:
-                op.flags = op.flags._replace(real=True)
-            if 'involutary' in flags:
-                op.flags = op.flags._replace(square=True)
-        elif flags is not None:
-            raise TypeError("Invalid input flags: '{0}'.".format(flags))
+    def _init_flags(self, flags):
 
-        if op.flags.real:
-            if op.flags.symmetric:
-                op.flags = op.flags._replace(hermitian=True)
-            if op.flags.hermitian:
-                op.flags = op.flags._replace(symmetric=True)
-            if op.flags.orthogonal:
-                op.flags = op.flags._replace(unitary=True)
-            if op.flags.unitary:
-                op.flags = op.flags._replace(orthogonal=True)
+        self._set_flags(flags)
 
-        if op.flags.orthogonal:
-            if op.flags.idempotent:
-                op.flags = op.flags._replace(symmetric=True)
-            if op.flags.symmetric:
-                op.flags = op.flags._replace(idempotent=True)
+        if self.flags.real:
+            if self.flags.symmetric:
+                self._set_flags('hermitian')
+            if self.flags.hermitian:
+                self._set_flags('symmetric')
+            if self.flags.orthogonal:
+                self._set_flags('unitary')
+            if self.flags.unitary:
+                self._set_flags('orthogonal')
 
-        if op.flags.unitary:
-            if op.flags.idempotent:
-                op.flags = op.flags._replace(hermitian=True)
-            if op.flags.hermitian:
-                op.flags = op.flags._replace(idempotent=True)
+        if self.flags.orthogonal:
+            if self.flags.idempotent:
+                self._set_flags('symmetric')
+            if self.flags.symmetric:
+                self._set_flags('idempotent')
 
-        if op.flags.involutary:
-            if op.flags.symmetric:
-                op.flags = op.flags._replace(orthogonal=True)
-            if op.flags.orthogonal:
-                op.flags = op.flags._replace(symmetric=True)
-            if op.flags.hermitian:
-                op.flags = op.flags._replace(unitary=True)
-            if op.flags.unitary:
-                op.flags = op.flags._replace(hermitian=True)
+        if self.flags.unitary:
+            if self.flags.idempotent:
+                self._set_flags('hermitian')
+            if self.flags.hermitian:
+                self._set_flags('idempotent')
 
-        if op.flags.idempotent:
-            if any([op.flags.orthogonal, op.flags.unitary,
-                    op.flags.involutary]):
-                op.flags = op.flags._replace(orthogonal=True, unitary=True,
-                                             involutary=True)
+        if self.flags.involutary:
+            if self.flags.symmetric:
+                self._set_flags('orthogonal')
+            if self.flags.orthogonal:
+                self._set_flags('symmetric')
+            if self.flags.hermitian:
+                self._set_flags('unitary')
+            if self.flags.unitary:
+                self._set_flags('hermitian')
 
-    def _set_rules(self):
+        if self.flags.idempotent:
+            if any([self.flags.orthogonal, self.flags.unitary,
+                    self.flags.involutary]):
+                self._set_flags('orthogonal, unitary, involutary')
+
+        if self.flags.inplace_reduction and self.direct is not None:
+            if isinstance(self.direct, (types.FunctionType, types.MethodType)):
+                if isinstance(self.direct, types.MethodType):
+                    d = self.direct.im_func
+                else:
+                    d = self.direct
+                if 'operation' not in d.func_code.co_varnames:
+                    raise TypeError("The direct method of an inplace-reduction "
+                        "operator must have an 'operation' keyword.")
+            else:
+                raise TypeError("Inplace reductions are not possible with a '{0"
+                    "}' direct method.".format(type(self.direct).__name__))
+
+    def _init_rules(self):
         """ Translate flags into rules. """
         self.rules = {}
         if self.flags.idempotent:
@@ -798,8 +782,8 @@ class Operator(object):
         if self.flags.involutary:
             self.add_rule('..', '1')
 
-    def _set_inout(self, shapein, shapeout, reshapein, reshapeout,
-                   attrin, attrout, classin, classout):
+    def _init_inout(self, shapein, shapeout, reshapein, reshapeout,
+                    attrin, attrout, classin, classout):
         """
         Set methods and attributes dealing with the input and output handling.
         """
@@ -858,7 +842,7 @@ class Operator(object):
                         strshape(shapein), strshape(shapein_)))
         
         if shapein is not None and shapein == shapeout:
-            self.flags = self.flags._replace(square=True)
+            self._set_flags('square')
 
         if self.flags.square:
             if shapein is not None:
@@ -882,7 +866,7 @@ class Operator(object):
         self.shapein = shapein
         self.shapeout = shapeout
                     
-    def _set_name(self):
+    def _init_name(self):
         """Set operator's __name__ attribute."""
         if self.__class__ != 'Operator':
             name = self.__class__.__name__
@@ -891,6 +875,38 @@ class Operator(object):
         else:
             name = 'Operator'
         self.__name__ = name
+
+    def _set_flags(self, flags=None, **keywords):
+        """ Set flags to an Operator. """
+        if flags is None:
+            flags = keywords
+        if isinstance(flags, OperatorFlags):
+            self.flags = flags
+        elif isinstance(flags, (dict, list, tuple, str)):
+            if isinstance(flags, str):
+                flags = flags.split(',')
+            elif isinstance(flags, dict):
+                flags = tuple(f for f,v in flags.iteritems() if v)
+            elif isscalar(flags):
+                flags = (flags,)
+            if any(not isinstance(f, str) for f in flags):
+                raise TypeError("Invalid type for the operator flags: {0}." \
+                                .format(flags))
+            flags = tuple(f.strip() for f in flags)
+            if any(f not in OperatorFlags._fields for f in flags):
+                raise ValueError("Invalid operator flags '{0}'. The properties "
+                    "must be one of the following: ".format(flags) + strenum(
+                    OperatorFlags._fields) + '.')
+            self.flags = self.flags._replace(**dict((f,True) for f in flags))
+            if 'symmetric' in flags or 'hermitian' in flags or \
+               'orthogonal' in flags or 'unitary' in flags:
+                self.flags = self.flags._replace(linear=True, square=True)
+            if 'orthogonal' in flags:
+                self.flags = self.flags._replace(real=True)
+            if 'involutary' in flags:
+                self.flags = self.flags._replace(square=True)
+        elif flags is not None:
+            raise TypeError("Invalid input flags: '{0}'.".format(flags))
 
     def _validate_input(self, input, output):
         """
@@ -1126,7 +1142,7 @@ class CommutativeCompositeOperator(CompositeOperator):
         assert len(operands) > 1
 
         try:
-            ir = [o.inplace_reduction for o in operands]
+            ir = [o.flags.inplace_reduction for o in operands]
             index = ir.index(False)
             operands[0], operands[index] = operands[index], operands[0]
             need_temporary = ir.count(False) > 1
@@ -1141,7 +1157,7 @@ class CommutativeCompositeOperator(CompositeOperator):
         operands[0].direct(input, output)
 
         for op in operands[1:]:
-            if op.inplace_reduction:
+            if op.flags.inplace_reduction:
                 op.direct(input, output, operation=self.operation)
             else:
                 op.direct(input, buf)
@@ -1314,7 +1330,8 @@ class CompositionOperator(CompositeOperator):
         self.classin = first_is_not([o.classin for o in reversed(
                                      self.operands)], None)
         self.classout = first_is_not([o.classout for o in self.operands], None)
-        self.inplace_reduction = self.operands[0].inplace_reduction
+        self._set_flags(inplace_reduction=
+                        self.operands[0].flags.inplace_reduction)
         self._info = {}
 
     def associated_operators(self):
@@ -1365,7 +1382,7 @@ class CompositionOperator(CompositeOperator):
 
         if outplaces[0]:
             memory.up()
-        if self.inplace_reduction:
+        if self.flags.inplace_reduction:
             self.operands[0].direct(i, output, operation=operation)
         else:
             self.operands[0].direct(i, output)
@@ -1506,7 +1523,7 @@ class CompositionOperator(CompositeOperator):
         return sizeouts
 
     def _get_outplaces(self, output_nbytes, inplace_composition, sizeouts):
-        outplaces = [not op.inplace for op in self.operands]
+        outplaces = [not op.flags.inplace for op in self.operands]
         if not inplace_composition:
             outplaces[-1] = True
 
@@ -2510,6 +2527,7 @@ class IdentityOperator(HomothetyOperator):
 
 @idempotent
 @inplace
+@inplace_reduction
 class ConstantOperator(BroadcastingOperator):
     """
     Non-linear constant operator.
