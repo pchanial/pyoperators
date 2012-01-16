@@ -123,11 +123,10 @@ The alternative way is more flexible, it consists in subclassing the @Operator@ 
 
 h2. 2.4. <a name="operator_flags"></a> Operator's flags
 
-An operator __P__ can have the following algebraic properties, accessible with the @flag@ attribute:
+An operator __P__ can have the following algebraic properties, accessible with the @flags@ attribute:
 
 <div class="definition">
 |  *linear*     | |
-|  *square*     | input and output have the same shape |
 |  *real*       | conj __P__  = __P__ |
 |  *symmetric*  | __P__ ^T^   = __P__ |
 |  *hermitian*  | __P__ ^H^   = __P__ |
@@ -169,6 +168,16 @@ True
 IdentityOperator()
 {% endhighlight %}
 
+Other properties are described by the @flags@ attribute:
+
+<div class="definition">
+|  *square*            | input and output have the same shape |
+|  *shape_input*       | explicit or unconstrained ("more info":#operator_shapes) |
+|  *shape_output*      | explicit, implicit or unconstrained ("more info":#operator_shapes) |
+|  *inplace*           | handle inplace operations ("more info":#inplace_operators)|
+|  *inplace_reduction* | handle inplace reductions ("more info":#inplace_reductions)|
+</div>
+<hr>
 
 
 
