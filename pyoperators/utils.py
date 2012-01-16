@@ -187,7 +187,7 @@ def tointtuple(data):
         return data
     try:
         return tuple(None if d is None else int(d) for d in data)
-    except:
+    except TypeError:
         return (int(data),)
 
 
