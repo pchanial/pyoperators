@@ -8,6 +8,7 @@ from .decorators import linear, real, idempotent, symmetric, inplace
 from .core import (
     Operator,
     BroadcastingOperator,
+    CompositionOperator,
     DiagonalOperator,
     IdentityOperator,
     ZeroOperator,
@@ -80,7 +81,7 @@ class PackOperator(Operator):
         Operator.__init__(
             self, shapein=self.mask.shape, shapeout=np.sum(self.mask), **keywords
         )
-        self.add_rule('.T.', '1')
+        self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = input[self.mask]
@@ -102,7 +103,7 @@ class UnpackOperator(Operator):
         Operator.__init__(
             self, shapein=np.sum(self.mask), shapeout=self.mask.shape, **keywords
         )
-        self.add_rule('.T.', '1')
+        self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = 0
