@@ -207,7 +207,18 @@ For instance and for a given operator @P@, the subject @'..'@ will match the pai
 |function  | callback function|
 </div>
 
-Let's have some examples for the composition operation:
+For a non-commutative operation (composition), rules of the left-hand side and right-hand side operators are combined:
+
+* if one of the operator is a subclass of the other, its rules have higher priority
+* otherwise, the rules of the right-hand side operator have higher priority
+
+Rules attached to an operators are also priorised:
+
+* newer rules have higher priority
+* non-matching-class rules have higher priority
+* matching-class rules have a priority increasing with the depth of subclassing: the more specific the rule is, the more high-priority it&nbsp;is.
+
+Let's examine some examples for the composition operation:
 
 * @'.T.'@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
 * @'..I'@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
@@ -218,9 +229,9 @@ The rules attached to an operator are stored in the @rules@ attribute. They can 
 
 * the subject
 * the predicate
-* the operation
+* the operation (AdditionOperator, CompositionOperator, MultiplicationOperator)
 
-The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Superclass rules can be deleted with the @del_rule@ method. In the following, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
+The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Superclass rules can be deleted with the @del_rule@ method. In the following example, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
 
 {% highlight python %}
 >>> @decorators.square
