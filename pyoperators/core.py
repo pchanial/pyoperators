@@ -615,7 +615,7 @@ class Operator(object):
 
     def reshapein(self, shapeout):
         """
-        Return the operator's input shape.
+        Return the operator's input shape for a given output shape.
 
         If the operator has not an explicit input shape, the specified output
         shape is used to deduce it.
@@ -646,7 +646,7 @@ class Operator(object):
 
     def reshapeout(self, shapein):
         """
-        Return the operator's output shape.
+        Return the operator's output shape for a given input shape.
 
         If the operator has not an explicit output shape, the specified input
         shape is used to deduce it.
@@ -1139,13 +1139,29 @@ class Operator(object):
                     "The output has an invalid dtype '{0}'. Expect"
                     "ed dtype is '{1}'.".format(output.dtype, dtype)
                 )
+            shapein = self.reshapein(output.shape)
+            if shapein is not None and shapein != input.shape:
+                raise ValueError(
+                    "The input has an invalid shape '{0}'. Expecte"
+                    "d shape is '{1}'.".format(strshape(input.shape), strshape(shapein))
+                )
             if shapeout is not None and shapeout != output.shape:
                 raise ValueError(
                     "The output has an invalid shape '{0}'. Expect"
-                    "ed shape is '{1}'.".format(output.shape, shapeout)
+                    "ed shape is '{1}'.".format(
+                        strshape(output.shape), strshape(shapeout)
+                    )
                 )
             output = output.view(np.ndarray)
         else:
+            if (
+                self.flags.shape_input == 'implicit'
+                and self.flags.shape_output == 'unconstrained'
+            ):
+                raise ValueError(
+                    'The output shape of an implicit input shape a'
+                    'nd unconstrained output shape operator cannot be inferred.'
+                )
             if shapeout is None:
                 shapeout = input.shape
             output = memory.allocate(shapeout, dtype, None, self.__name__)[0]
