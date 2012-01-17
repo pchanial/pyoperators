@@ -195,7 +195,7 @@ PyOperators has the ability to reduce arithmetic expressions involving operators
 |@'{self}'@| instance of the reference operator's class |
 </div>
 
-For instance and for a given operator @P@, the subject @'..'@ will match the pair (@P@, @P@), the subject @'.T.'@ the pair (@P.T@, @P@) and @'..H'@ the pair (@P@, @P.H@). When the pair of operators is matched by the rule, it is replaced by the predicate:
+For instance and for a given operator @P@, the subject @'..'@ will match the pair (@P@, @P@), the subject @'.T.'@ the pair (@P.T@, @P@) and @'..H'@ the pair (@P@, @P.H@). When the pair of operators is matched by the subject, it is replaced by the predicate:
 
 <div class="definition">
 |@'.'@     | reference operator |
