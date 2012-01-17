@@ -5,8 +5,8 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, idempotent, symmetric, inplace
-from .core import (Operator, BroadcastingOperator, DiagonalOperator,
-                   IdentityOperator, ZeroOperator, asoperator)
+from .core import (Operator, BroadcastingOperator, CompositionOperator,
+                   DiagonalOperator, IdentityOperator, ZeroOperator, asoperator)
 from .utils import isscalar
 
 __all__ = [
@@ -72,7 +72,7 @@ class PackOperator(Operator):
         self.mask = ~np.array(mask, np.bool8, copy=False)
         Operator.__init__(self, shapein=self.mask.shape,
                           shapeout=np.sum(self.mask), **keywords)
-        self.add_rule('.T.', '1')
+        self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = input[self.mask]
@@ -93,7 +93,7 @@ class UnpackOperator(Operator):
         self.mask = ~np.array(mask, np.bool8, copy=False)
         Operator.__init__(self, shapein=np.sum(self.mask),
                           shapeout=self.mask.shape, **keywords)
-        self.add_rule('.T.', '1')
+        self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = 0

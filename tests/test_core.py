@@ -3,12 +3,14 @@ import numpy as np
 from nose.tools import ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
 from pyoperators import memory, decorators
-from pyoperators.core import (Operator, AdditionOperator, BlockColumnOperator,
-         BlockDiagonalOperator, BlockRowOperator, CompositionOperator,
-         ConstantOperator, DiagonalOperator, IdentityOperator,
-         MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator,
-         I, O)
-from pyoperators.utils import ndarraywrap, assert_is, assert_is_not, assert_is_none, assert_not_in, assert_is_instance
+from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
+         BlockColumnOperator, BlockDiagonalOperator, BlockRowOperator,
+         CompositionOperator, ConstantOperator, DiagonalOperator,
+         IdentityOperator, MultiplicationOperator, HomothetyOperator,
+         ZeroOperator, asoperator, I, O)
+from pyoperators.utils import (ndarraywrap, assert_is, assert_is_not,
+         assert_is_none, assert_not_in, assert_is_instance,
+         assert_is_not_instance)
 
 np.seterr(all='raise')
 
@@ -302,7 +304,19 @@ def test_symmetric():
     assert_array_equal(op([1,1]), np.array(mat * [[1],[1]]).ravel())
 
 
-def test_constant_reduction():
+def test_broadcasting_as_strided():
+    shapes = {'slow':(2,4,3,4,2,2), 'fast':(3,2,2,3,1,2)}
+    for b in ('fast', 'slow'):
+        o = BroadcastingOperator(np.arange(6).reshape((3,1,2,1)), broadcast=b)
+        s = shapes[b]
+        if b == 'slow':
+            v = o.data*np.ones(s)
+        else:
+            v = (o.data.T * np.ones(s, int).T).T
+        yield assert_equal, o._as_strided(s), v
+
+
+def test_constant_reduction1():
     c = 1, np.array([1,2]), np.array([2,3,4])
     t = 'scalar', 'fast', 'slow'
 
@@ -325,6 +339,48 @@ def test_constant_reduction():
             else:
                 z[...] += c2
             yield assert_equal, v, z
+
+def test_constant_reduction2():
+    H = HomothetyOperator
+    C = CompositionOperator
+    D = DiagonalOperator
+    cs = (ConstantOperator(3), ConstantOperator([1,2,3], broadcast='slow'),
+          ConstantOperator(np.ones((2,3))))
+    os = (I, H(2, shapein=(2,3)) * Operator(direct=np.square, shapein=(2,3), 
+          flags='square'), H(5))
+    results = (((H, 3), (C, (H, 6)), (H, 15)),
+               ((D, [1,2,3]), (C, (D, [2,4,6])), (D, [5,10,15])),
+               ((IdentityOperator, 1), (C, (H,2)), (H, 5))
+               )
+    
+    v = np.arange(6).reshape((2,3))
+    def func(c, o, r):
+        op = MultiplicationOperator([c, o])
+        assert_equal(op(v), c.data*o(v))
+        assert_is(type(op), r[0])
+        if type(op) is CompositionOperator:
+            op = op.operands[0]
+            r = r[1]
+            assert_is(type(op), r[0])
+        assert_equal, op.data, r[1]
+    for c,rs in zip(cs, results):
+        for o, r in zip(os, rs):
+            yield func, c, o, r
+
+def _test_constant_reduction3():
+    @decorators.square
+    class Op(Operator):
+        def direct(self, input, output):
+            output[...] = input + np.arange(input.size).reshape(input.shape)
+    os = (Op(shapein=()), Op(shapein=(4)), Op(shapein=(2,3,4)))
+    cs = (ConstantOperator(2), ConstantOperator([2], broadcast='slow'),
+          ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='slow'))
+    v = 10000000
+    for o, c in zip(os, cs):
+        op = o * c
+        y_tmp = np.empty(o.shapein, int)
+        c(v, y_tmp)
+        yield assert_equal, op(v), o(y_tmp)
 
 
 def test_scalar_reduction1():
@@ -349,25 +405,23 @@ def test_scalar_reduction2():
 
 
 def test_scalar_reduction3():
-    for opout in (None, 100, 200):
-        for opin in (None, 100, 200):
-            for idin in (None, 100, 200):
-                if opin is not None and idin is not None and opin != idin:
-                    continue
-                p = Operator(shapeout=opout, shapein=opin,
-                    flags='linear') * IdentityOperator(shapein=idin)
+    @decorators.linear
+    class Op(Operator):
+        pass
+    def func(opout, opin, idin):
+        if opin is not None and idin is not None and opin != idin:
+            return
+        p = Op(shapeout=opout, shapein=opin) * IdentityOperator(shapein=idin)
 
-                n = len(p.operands) if isinstance(p, CompositionOperator) else 1
-                if idin is None:
-                    yield assert_equal, n, 1, str((opout,opin,idin,p))
-                    continue
-                if opin is None:
-                    yield assert_equal, n, 2, str((opout,opin,idin,p))
-                    yield ok_, isinstance(p.operands[1], IdentityOperator), \
-                        str((opout,opin,idin,p))
-                    continue
-                if opin == idin and opout == idin:
-                    yield assert_equal, n, 1, str((opout,opin,idin,p))
+        if idin is None:
+            idin = opin
+        assert_is_instance(p, Op)
+        assert_equal(p.shapein, idin)
+        assert_equal(p.shapeout, opout)
+    for opout in (None, (100,)):
+        for opin in (None, (100,)):
+            for idin in (None, (100,)):
+                yield func, opout, opin, idin
 
 
 def test_propagation_attribute1():
@@ -1297,8 +1351,8 @@ def test_diagonal2():
 def test_zero1():
     z = ZeroOperator()
     o = Operator()
-    yield ok_, isinstance(z*o, ZeroOperator)
-    yield ok_, not isinstance(o*z, ZeroOperator)
+    yield assert_is_instance, z*o, ZeroOperator
+    yield assert_is_not_instance, o*z, ZeroOperator
 
 def test_zero2():
     z = ZeroOperator()
@@ -1306,7 +1360,7 @@ def test_zero2():
     zo = z*o
     yield assert_is_instance, zo, ZeroOperator
     yield assert_equal, zo.shapein, o.shapein
-    yield assert_equal, zo.shapeout, o.shapeout
+    yield assert_is_none, zo.shapeout
 
 def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
@@ -1314,6 +1368,14 @@ def test_zero3():
     zo = z*o
     yield assert_is_instance, zo, ZeroOperator
     yield assert_is_none, zo.shapein, 'in'
+    yield assert_equal, zo.shapeout, z.shapeout, 'out'
+
+def test_zero3b():
+    z = ZeroOperator(shapein=3, shapeout=6)
+    o = Operator(flags='square')
+    zo = z*o
+    yield assert_is_instance, zo, ZeroOperator
+    yield assert_equal, zo.shapein, z.shapein, 'in'
     yield assert_equal, zo.shapeout, z.shapeout, 'out'
 
 def test_zero4():
@@ -1329,25 +1391,25 @@ def test_zero5():
     oz = o*z
     yield assert_is_instance, zo, ZeroOperator, 'zo'
     yield assert_equal, zo.shapein, o.shapein, 'zo in'
-    yield assert_equal, zo.shapeout, o.shapeout, 'zo out'
+    yield assert_is_none, zo.shapeout, 'zo out'
     yield assert_is_instance, oz, ZeroOperator, 'oz'
     yield assert_is_none, oz.shapein, 'oz, in'
     yield assert_equal, oz.shapeout, o.shapeout, 'oz, out'
 
 def test_zero6():
     z = ZeroOperator(shapein=3, shapeout=6)
-    o = Operator(flags='linear')
+    o = Operator(flags='linear, square')
     zo = z*o
     oz = o*z
     yield assert_is_instance, zo, ZeroOperator, 'zo'
-    yield assert_is_none, zo.shapein, 'zo in'
+    yield assert_equal, zo.shapein, z.shapein, 'zo in'
     yield assert_equal, zo.shapeout, z.shapeout, 'zo out'
     yield assert_is_instance, oz, ZeroOperator, 'oz'
     yield assert_equal, oz.shapein, z.shapein, 'oz in'
     yield assert_equal, oz.shapeout, z.shapeout, 'oz out'
 
 def test_zero7():
-    z = ZeroOperator()
+    z = ZeroOperator(flags='square')
     @decorators.linear
     class Op(Operator):
         def direct(self, input, output):
@@ -1372,7 +1434,7 @@ def test_zero7():
     yield assert_equal, oz(v), o(z(v))
 
 def test_zero7b():
-    z = ZeroOperator()
+    z = ZeroOperator(flags='square')
     @decorators.linear
     class Op(Operator):
         def direct(self, input, output):
