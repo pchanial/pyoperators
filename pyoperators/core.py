@@ -448,7 +448,7 @@ class Operator(object):
             raise ValueError(
                 "The operator has an implicit shape. Use the 'shap" "ein' keyword."
             )
-        shapeout = self.reshapein(shapein)
+        shapeout = self.reshapeout(shapein)
         m, n = np.product(shapeout), np.product(shapein)
         d = np.empty((n, m), self.dtype)
         v = np.zeros(n, self.dtype)
@@ -613,38 +613,7 @@ class Operator(object):
             self.attrout(attr)
         return self.classout or cls
 
-    def reshapein(self, shapein):
-        """
-        Return the operator's output shape.
-
-        If the operator has not an explicit output shape, the specified input
-        shape is used to deduce it.
-
-        Parameter
-        ---------
-        shapein : tuple
-            The input shape.
-
-        Returns
-        -------
-        shapeout : tuple
-            The output shape, consistent with the input shape
-        """
-        shapein = tointtuple(shapein)
-        if None not in (self.shapein, shapein) and self.shapein != shapein:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f {1}: '{2}'.".format(
-                    strshape(shapein), self.__name__, strshape(self.shapein)
-                )
-            )
-        if self.shapeout is not None:
-            return self.shapeout
-        if self._reshapein is not None:
-            return tointtuple(self._reshapein(shapein))
-        return None
-
-    def reshapeout(self, shapeout):
+    def reshapein(self, shapeout):
         """
         Return the operator's input shape.
 
@@ -671,8 +640,39 @@ class Operator(object):
             )
         if self.shapein is not None:
             return self.shapein
+        if self._reshapein is not None:
+            return tointtuple(self._reshapein(shapeout))
+        return None
+
+    def reshapeout(self, shapein):
+        """
+        Return the operator's output shape.
+
+        If the operator has not an explicit output shape, the specified input
+        shape is used to deduce it.
+
+        Parameter
+        ---------
+        shapein : tuple
+            The input shape.
+
+        Returns
+        -------
+        shapeout : tuple
+            The output shape, consistent with the input shape
+        """
+        shapein = tointtuple(shapein)
+        if None not in (self.shapein, shapein) and self.shapein != shapein:
+            raise ValueError(
+                "The input shape '{0}' is incompatible with that o"
+                "f {1}: '{2}'.".format(
+                    strshape(shapein), self.__name__, strshape(self.shapein)
+                )
+            )
+        if self.shapeout is not None:
+            return self.shapeout
         if self._reshapeout is not None:
-            return tointtuple(self._reshapeout(shapeout))
+            return tointtuple(self._reshapeout(shapein))
         return None
 
     @staticmethod
@@ -971,8 +971,8 @@ class Operator(object):
         shapein = tointtuple(shapein)
         shapeout = tointtuple(shapeout)
 
-        # if the Operator subclass has a reshapein/out method, treat it as
-        # if it were passed as the reshapein/out argument
+        # if the Operator subclass has a reshapeout/out method, treat it as
+        # if it were passed as the reshapeout/out argument
         if reshapein is None and self.reshapein.im_func != Operator.reshapein.im_func:
             reshapein = self.reshapein
         if (
@@ -980,7 +980,7 @@ class Operator(object):
             and self.reshapeout.im_func != Operator.reshapeout.im_func
         ):
             reshapeout = self.reshapeout
-        # encapsulate the reshapein/out arguments in _reshapein/out
+        # encapsulate the reshapeout/out arguments in _reshapeout/out
         if reshapein is not None:
             self.reshapein = Operator.reshapein.__get__(self, self.__class__)
             self._reshapein = reshapein
@@ -1004,17 +1004,17 @@ class Operator(object):
         if classout is not None:
             self.classout = classout
 
-        if shapein is None and self._reshapeout is not None:
-            shapein = tointtuple(self._reshapeout(shapeout))
-        if shapeout is None and self._reshapein is not None:
-            shapeout = tointtuple(self._reshapein(shapein))
+        if shapein is None and self._reshapein is not None:
+            shapein = tointtuple(self._reshapein(shapeout))
+        if shapeout is None and self._reshapeout is not None:
+            shapeout = tointtuple(self._reshapeout(shapein))
 
         if shapein is shapeout is None:
-            shapeout = self.reshapein(None)
-            shapein = self.reshapeout(None)
+            shapeout = self.reshapeout(None)
+            shapein = self.reshapein(None)
 
-        if shapeout is not None and self._reshapein is not None:
-            shapeout_ = tointtuple(self._reshapein(shapein))
+        if shapeout is not None and self._reshapeout is not None:
+            shapeout_ = tointtuple(self._reshapeout(shapein))
             if shapeout_ is not None and shapeout_ != shapeout:
                 raise ValueError(
                     "The speficied output shape '{0}' is incompati"
@@ -1023,8 +1023,8 @@ class Operator(object):
                     )
                 )
 
-        if shapein is not None and self._reshapeout is not None:
-            shapein_ = tointtuple(self._reshapeout(shapeout))
+        if shapein is not None and self._reshapein is not None:
+            shapein_ = tointtuple(self._reshapein(shapeout))
             if shapein_ is not None and shapein_ != shapein:
                 raise ValueError(
                     "The specified input shape '{0}' is incompati"
@@ -1056,14 +1056,14 @@ class Operator(object):
             'explicit'
             if shapein is not None
             else 'implicit'
-            if self._reshapeout is not None
+            if self._reshapein is not None
             else 'unconstrained'
         )
         flag_os = (
             'explicit'
             if shapeout is not None
             else 'implicit'
-            if self._reshapein is not None
+            if self._reshapeout is not None
             else 'unconstrained'
         )
         self._set_flags(shape_input=flag_is, shape_output=flag_os)
@@ -1128,7 +1128,7 @@ class Operator(object):
         """
         input = np.array(input, copy=False, subok=True)
 
-        shapeout = self.reshapein(input.shape)
+        shapeout = self.reshapeout(input.shape)
         dtype = self._find_common_type([input.dtype, self.dtype])
         input = np.array(input, dtype=dtype, subok=False, copy=False)
         if output is not None:
@@ -1416,26 +1416,10 @@ class CommutativeCompositeOperator(CompositeOperator):
             cls = op.propagate_attributes(cls, attr)
         return cls
 
-    def reshapein(self, shapein):
-        shapeout = None
-        for op in self.operands:
-            shapeout_ = op.reshapein(shapein)
-            if shapeout_ is None:
-                continue
-            if shapeout is None:
-                shapeout = shapeout_
-                continue
-            if shapeout != shapeout_:
-                raise ValueError(
-                    "Incompatible shape in operands: '{0}' and '{1"
-                    "}'.".format(shapeout, shapeout_)
-                )
-        return shapeout
-
-    def reshapeout(self, shapeout):
+    def reshapein(self, shapeout):
         shapein = None
         for op in self.operands:
-            shapein_ = op.reshapeout(shapeout)
+            shapein_ = op.reshapein(shapeout)
             if shapein_ is None:
                 continue
             if shapein is None:
@@ -1447,6 +1431,22 @@ class CommutativeCompositeOperator(CompositeOperator):
                     "}'.".format(shapein, shapein_)
                 )
         return shapein
+
+    def reshapeout(self, shapein):
+        shapeout = None
+        for op in self.operands:
+            shapeout_ = op.reshapeout(shapein)
+            if shapeout_ is None:
+                continue
+            if shapeout is None:
+                shapeout = shapeout_
+                continue
+            if shapeout != shapeout_:
+                raise ValueError(
+                    "Incompatible shape in operands: '{0}' and '{1"
+                    "}'.".format(shapeout, shapeout_)
+                )
+        return shapeout
 
     @classmethod
     def _apply_rules(cls, ops):
@@ -1726,10 +1726,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return cls
 
     def reshapein(self, shape):
-        return self._get_shapes(shape, None, self.operands)[0]
+        return self._get_shapes(None, shape, self.operands)[-1]
 
     def reshapeout(self, shape):
-        return self._get_shapes(None, shape, self.operands)[-1]
+        return self._get_shapes(shape, None, self.operands)[0]
 
     def _get_info(self, shapein, shapeout, dtype, inplace):
         try:
@@ -1762,7 +1762,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         # scanning from the innermost to the outermost operand
         for i in range(n - 1, -1, -1):
             op = operands[i]
-            s = op.reshapein(shapes[i + 1])
+            s = op.reshapeout(shapes[i + 1])
             if i == 0 and None not in (shapes[0], s) and s != shapes[0]:
                 raise ValueError("Incompatible shape in composition.")
             if s is not None:
@@ -1771,7 +1771,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         # scanning from the outermost to the innermost operand
         for i in range(n):
             op = operands[i]
-            s = op.reshapeout(shapes[i])
+            s = op.reshapein(shapes[i])
             if None not in (shapes[i + 1], s) and s != shapes[i + 1]:
                 raise ValueError("Incompatible shape in composition.")
             if s is not None:
@@ -1888,25 +1888,25 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
     @staticmethod
     def _merge_reshapein(op1, op2):
-        if any(o.flags.shape_output != 'implicit' for o in [op1, op2]):
+        if any(o.flags.shape_input != 'implicit' for o in [op1, op2]):
             return None
         if op1.flags.square and op2.flags.square:
             return op1.reshapein
 
         def reshapein(shape):
-            return op1.reshapein(op2.reshapein(shape))
+            return op2.reshapein(op1.reshapein(shape))
 
         return reshapein
 
     @staticmethod
     def _merge_reshapeout(op1, op2):
-        if any(o.flags.shape_input != 'implicit' for o in [op1, op2]):
+        if any(o.flags.shape_output != 'implicit' for o in [op1, op2]):
             return None
         if op1.flags.square and op2.flags.square:
             return op1.reshapeout
 
         def reshapeout(shape):
-            return op2.reshapeout(op1.reshapeout(shape))
+            return op1.reshapeout(op2.reshapeout(shape))
 
         return reshapeout
 
@@ -1999,47 +1999,12 @@ class BlockOperator(CompositeOperator):
             '{BlockOperator}.', self._rule_comp_blockoperator, CompositionOperator
         )
 
-    def reshapein(self, shapein):
-        if shapein is None or self.partitionin is None:
-            shapeouts = [op.reshapein(shapein) for op in self.operands]
-        else:
-            shapeouts = [
-                op.reshapein(s)
-                for op, s in zip(
-                    self.operands,
-                    self._get_shapes(
-                        shapein, self.partitionin, self.axisin, self.new_axisin
-                    ),
-                )
-            ]
-        if None in shapeouts and shapein is not None:
-            raise NotImplementedError(
-                "Unconstrained output shape operators are"
-                " not handled in block operators."
-            )
-        shapeout = self._validate_shapes(
-            shapeouts, self.partitionout, self.axisout, self.new_axisout
-        )
-        if shapein is None:
-            if shapeout is None or None in shapeouts:
-                return None
-        if self.partitionout is None:
-            return shapeout
-        if self.new_axisout is not None:
-            a = self.new_axisout
-            if self.new_axisout < 0:
-                a += len(shapeout) + 1
-            return shapeout[:a] + (len(self.operands),) + shapeout[a:]
-        shapeout = list(shapeout)
-        shapeout[self.axisout] = sum([s[self.axisout] for s in shapeouts])
-        return tointtuple(shapeout)
-
-    def reshapeout(self, shapeout):
+    def reshapein(self, shapeout):
         if shapeout is None or self.partitionout is None:
-            shapeins = [op.reshapeout(shapeout) for op in self.operands]
+            shapeins = [op.reshapein(shapeout) for op in self.operands]
         else:
             shapeins = [
-                op.reshapeout(s)
+                op.reshapein(s)
                 for op, s in zip(
                     self.operands,
                     self._get_shapes(
@@ -2068,6 +2033,41 @@ class BlockOperator(CompositeOperator):
         shapein = list(shapein)
         shapein[self.axisin] = sum([s[self.axisin] for s in shapeins])
         return tointtuple(shapein)
+
+    def reshapeout(self, shapein):
+        if shapein is None or self.partitionin is None:
+            shapeouts = [op.reshapeout(shapein) for op in self.operands]
+        else:
+            shapeouts = [
+                op.reshapeout(s)
+                for op, s in zip(
+                    self.operands,
+                    self._get_shapes(
+                        shapein, self.partitionin, self.axisin, self.new_axisin
+                    ),
+                )
+            ]
+        if None in shapeouts and shapein is not None:
+            raise NotImplementedError(
+                "Unconstrained output shape operators are"
+                " not handled in block operators."
+            )
+        shapeout = self._validate_shapes(
+            shapeouts, self.partitionout, self.axisout, self.new_axisout
+        )
+        if shapein is None:
+            if shapeout is None or None in shapeouts:
+                return None
+        if self.partitionout is None:
+            return shapeout
+        if self.new_axisout is not None:
+            a = self.new_axisout
+            if self.new_axisout < 0:
+                a += len(shapeout) + 1
+            return shapeout[:a] + (len(self.operands),) + shapeout[a:]
+        shapeout = list(shapeout)
+        shapeout[self.axisout] = sum([s[self.axisout] for s in shapeouts])
+        return tointtuple(shapeout)
 
     def toshapein(self, v):
         if self.shapein is not None:
@@ -2130,7 +2130,7 @@ class BlockOperator(CompositeOperator):
                 if new_axisout is None:
                     shapeout[axisout] = partitionout[i]
                 try:
-                    shapein = op.reshapeout(shapeout)
+                    shapein = op.reshapein(shapeout)
                     pin.append(shapein[axisin])
                 except IndexError:
                     continue
@@ -2164,7 +2164,7 @@ class BlockOperator(CompositeOperator):
                 if new_axisin is None:
                     shapein[axisin] = partitionin[i]
                 try:
-                    shapeout = op.reshapein(shapein)
+                    shapeout = op.reshapeout(shapein)
                     pout.append(shapeout[axisout])
                 except IndexError:
                     continue
@@ -2536,7 +2536,7 @@ class BlockDiagonalOperator(BlockOperator):
                     )
                 shapein = list(input.shape)
                 shapein[self.axisin] = self.partitionin[i]
-                partitionout[i] = op.reshapein(shapein)[self.axisout]
+                partitionout[i] = op.reshapeout(shapein)[self.axisout]
         else:
             partitionout = self.partitionout
 
@@ -2629,7 +2629,7 @@ class BlockColumnOperator(BlockOperator):
             for i, op in enumerate(self.operands):
                 if partitionout[i] is not None:
                     continue
-                partitionout[i] = op.reshapein(input.shape)[self.axisout]
+                partitionout[i] = op.reshapeout(input.shape)[self.axisout]
         else:
             partitionout = self.partitionout
 
@@ -2950,7 +2950,7 @@ class DiagonalOperator(BroadcastingOperator):
         else:
             np.divide(input, np.conjugate(self.data), output)
 
-    def reshapein(self, shape):
+    def reshapeout(self, shape):
         if shape is None or self.data.size == 1:
             return shape
         n = self.data.ndim
