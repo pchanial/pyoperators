@@ -183,10 +183,64 @@ Other properties are described by the @flags@ attribute:
 
 h2. 2.5. <a name="operator_rules"></a> Operator's rules
 
-Not documented. API will change in version {{ site.version_stable | plus:'0.1' }}.
+PyOperators has the ability to reduce arithmetic expressions involving operators. This is achieved by means of binary rules which are applied to pairs of operators. Such a rule is specific to an operation (addition, multiplication or composition). It is binary and has the form 'subject &rarr; predicate'. The subject is a pair of properties that will be matched against the pair of operators. The properties are represented by a string. One of them stands for the reference operator, it is the operator to which the rule is attached.
 
+<div class="definition">
+|@'.'@     | reference operator |
+|@'.C'@    | reference operator's conjugate|
+|@'.T'@    | reference operator's transpose|
+|@'.H'@    | reference operator's ajoint|
+|@'.I'@    | reference operator's inverse|
+|@'{...}'@ | instance of the class '...'|
+|@'{self}'@| instance of the reference operator's class |
+</div>
 
+For instance and for a given operator @P@, the subject @'..'@ will match the pair (@P@, @P@), the subject @'.T.'@ the pair (@P.T@, @P@) and @'..H'@ the pair (@P@, @P.H@). When the pair of operators is matched by the rule, it is replaced by the predicate:
 
+<div class="definition">
+|@'.'@     | reference operator |
+|@'.C'@    | reference operator's conjugate|
+|@'.T'@    | reference operator's transpose|
+|@'.H'@    | reference operator's ajoint|
+|@'.I'@    | reference operator's inverse|
+|@'1'@     | identity |
+|function  | callback function|
+</div>
+
+Let's have some examples for the composition operation:
+
+* @'.T.'@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
+* @'..I'@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
+* @'.{IdentityOperator}'@ &rarr; @'.'@: if @P@ is composed by an instance of the identity operator,  the pair will be replaced by @P@
+* @'.{self}'@ &rarr; @myfunc()@: if @P@ is composed by an instance of its class, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
+
+The rules attached to an operator are stored in the @rules@ attribute. They can be added by using the @set_rule@ method, which has 3 arguments:
+
+* the subject
+* the predicate
+* the operation
+
+The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Superclass rules can be deleted with the @del_rule@ method. In the following, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
+
+{% highlight python %}
+>>> @decorators.square
+... class Power(Operator):
+...     def __init__(self, exponent):
+...         Operator.__init__(self)
+...         self.exponent = exponent
+...         self.set_rule('.{Power}', self.rule_power, CompositionOperator)
+...     def direct(input, output):
+...         output[...] = input ** self.exponent
+...     @staticmethod
+...     def rule_power(p1, p2):
+...         return Power(p1.exponent * p2.exponent)
+...
+>>> p1 = Power(2)
+>>> p2 = Power(3)
+>>> p = p1(p2)
+>>> p.exponent
+6
+{% endhighlight %}
 
 h2. 2.6. <a name="associated_operators"></a> Operator's associated operators
 
