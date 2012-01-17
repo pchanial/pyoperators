@@ -562,8 +562,7 @@ class Operator(object):
         shapeout = tointtuple(shapeout)
         if None not in (self.shapeout, shapeout)  and self.shapeout != shapeout:
             raise ValueError("The output shape '{0}' is incompatible with that "
-                "of {1}: '{2}'.".format(strshape(shapeout), self.__name__,
-                strshape(self.shapeout)))
+                "of {1}: '{2}'.".format(shapeout, self.__name__, self.shapeout))
         if self.shapein is not None:
             return self.shapein
         if self._reshapein is not None:
@@ -590,8 +589,7 @@ class Operator(object):
         shapein = tointtuple(shapein)
         if None not in (self.shapein, shapein) and self.shapein != shapein:
             raise ValueError("The input shape '{0}' is incompatible with that o"
-                "f {1}: '{2}'.".format(strshape(shapein), self.__name__,
-                strshape(self.shapein)))
+                "f {1}: '{2}'.".format(shapein, self.__name__, self.shapein))
         if self.shapeout is not None:
             return self.shapeout
         if self._reshapeout is not None:
@@ -871,15 +869,15 @@ class Operator(object):
             shapeout_ = tointtuple(self._reshapeout(shapein))
             if shapeout_ is not None and shapeout_ != shapeout:
                 raise ValueError("The speficied output shape '{0}' is incompati"
-                        "ble with the implicit one '{1}'.".format(
-                        strshape(shapeout), strshape(shapeout_)))
+                        "ble with the implicit one '{1}'.".format(shapeout,
+                        shapeout_))
 
         if shapein is not None and self._reshapein is not None:
             shapein_ = tointtuple(self._reshapein(shapeout))
             if shapein_ is not None and shapein_ != shapein:
                 raise ValueError("The specified input shape '{0}' is incompati"
-                        "ble with the implicit one '{1}'.".format(
-                        strshape(shapein), strshape(shapein_)))
+                        "ble with the implicit one '{1}'.".format(shapein,
+                        shapein_))
         
         if shapein is not None and shapein == shapeout:
             self._set_flags('square')
@@ -970,12 +968,10 @@ class Operator(object):
             shapein = self.reshapein(output.shape)
             if shapein is not None and shapein != input.shape:
                 raise ValueError("The input has an invalid shape '{0}'. Expecte"
-                    "d shape is '{1}'.".format(strshape(input.shape),
-                    strshape(shapein)))
+                    "d shape is '{1}'.".format(input.shape, shapein))
             if shapeout is not None and shapeout != output.shape:
                 raise ValueError("The output has an invalid shape '{0}'. Expect"
-                    "ed shape is '{1}'.".format(strshape(output.shape),
-                    strshape(shapeout)))
+                    "ed shape is '{1}'.".format(output.shape, shapeout))
             output = output.view(np.ndarray)
         else:
             if self.flags.shape_input == 'implicit' and \
@@ -2001,16 +1997,16 @@ class BlockOperator(CompositeOperator):
         if p is None or new_axis is not None:
             if any([s != shape for s in explicit]):
                 raise ValueError("The operands have incompatible shapes: '{0}'"
-                                 ".".format(strshape(shapes)))
+                                 ".".format(shapes))
             return shape
         rank = len(shape)
         if any([len(s) != rank for s in explicit]):
             raise ValueError("The blocks do not have the same number of dimensi"
-                "ons: '{0}'.".format(strshape(shapes)))
+                "ons: '{0}'.".format(shapes))
         if any([shapes[i] is not None and shapes[i][axis] != p[i] \
                 for i in range(len(p)) if p[i] is not None]):
             raise ValueError("The blocks have shapes '{0}' incompatible with th"
-                "e partition {1}.".format(strshape(shapes), strshape(p)))
+                "e partition {1}.".format(shapes, p))
         if len(explicit) == 1:
             return shape
         ok = [all([s is None or s[i] == shape[i] for s in shapes]) \
@@ -2019,7 +2015,7 @@ class BlockOperator(CompositeOperator):
         if not all(ok):
             raise ValueError("The dimensions of the blocks '{0}' are not the sa"
                 "me along axes other than that of the partition '{1}'.".format(
-                strshape(shapes), strshape(p)))
+                shapes, p))
         return shape
 
     @staticmethod
