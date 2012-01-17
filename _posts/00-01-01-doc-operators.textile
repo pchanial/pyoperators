@@ -352,6 +352,7 @@ array([[1, 3],
 h3. Operator with implicit input shape and unconstrained output shape
 
 This kind of operator is of limited interest and is shown here for completeness. Since there is no way to compute the output shape from the input, the "output argument":#output_argument must be provided. The operator in this example returns the input from which the last element has been removed.
+
 {% highlight python %}
 >>> class Op(Operator):
 ...     def direct(self, input, output):
@@ -370,6 +371,7 @@ ValueError: The output shape of an implicit input shape and unconstrained output
 >>> op([1.,2.,3.,4.,5.], output)
 array([ 1.,  2.,  3.,  4.])
 >>> op(np.arange(4.), output)
+ValueError: The input has an invalid shape '(4,)'. Expected shape is '(5,)'.
 {% endhighlight %}
 
 h3. Operator with unconstrained input and output shape
