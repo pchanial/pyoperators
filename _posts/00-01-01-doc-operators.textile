@@ -288,7 +288,7 @@ The operator's flags record this information in the @shape_input@ and @shape_out
 
 * explicit: the operator's attribute @shapeout@(@in@) is equal to that tuple. The @reshapeout@(@in@) method does not need to be defined.
 * implicit: the attribute @shapeout@(@in@) is @None@ and the method @reshapeout@(@in@) applied over the input (output) shape must return the output (input) shape.
-* unconstrained: the attribute @shapeout@(@in@) is None.  The @reshapeout@(@in@) method returns @None@.
+* unconstrained: the attribute @shapeout@(@in@) is @None@.  The @reshapeout@(@in@) method returns @None@.
 
 h3. Operator with explicit input and output shape.
 
@@ -486,7 +486,7 @@ dtype('complex128')
 dtype('int64')
 {% endhighlight %}
 
-The operator's data type can be equal to None (the default), in which case the output data type is always the input data type.
+The operator's data type can be equal to @None@ (the default), in which case the output data type is always the input data type.
 
 
 
