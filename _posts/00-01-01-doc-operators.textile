@@ -22,7 +22,7 @@ Info: Allocating (1024,) complex128 = 0.015625 MiB in FftOperator.
 
 When using the operator in such a way, a no-side-effect policy is enforced: it is garanteed that the input array will not be modified and as a consequence, a new buffer will be allocated every time the operator is called.
 
-Similarly to ufuncs, such behaviour can be changed by providing the output array:
+<a name="output_argument"></a>Similarly to ufuncs, such behaviour can be changed by providing the output array:
 
 {% highlight python %}
 >>> output = np.empty(1024, dtype=complex)
@@ -172,7 +172,7 @@ Other properties are described by the @flags@ attribute:
 
 <div class="definition">
 |  *square*            | input and output have the same shape |
-|  *shape_input*       | explicit or unconstrained ("more info":#operator_shapes) |
+|  *shape_input*       | explicit, implicit or unconstrained ("more info":#operator_shapes) |
 |  *shape_output*      | explicit, implicit or unconstrained ("more info":#operator_shapes) |
 |  *inplace*           | handle inplace operations ("more info":#inplace_operators)|
 |  *inplace_reduction* | handle inplace reductions ("more info":#inplace_reductions)|
@@ -197,23 +197,35 @@ Not documented. API might change in version {{ site.version_stable | plus:'0.1' 
 
 h2. 2.7. <a name="operator_shapes"></a> Operator's input and output shapes
 
-The @Operator@ class has a flexible way to deal with inputs and outputs. In particular, it can handle:
-* inputs with explicit or unconstrained shapes
-* outputs with explicit, implicit or unconstrained shapes.
+The @Operator@ class has a flexible way to deal with inputs and outputs. Its output shape can be:
 
 <div class="definition">
-*Explicit shape:* The shape of the operator's output (input) is explicit when the operator can only return (apply over) arrays of a specified shape.
+*explicit:* the operator can only return arrays of a specified shape.
 
-*Implicit shape:* The shape of the operator's output is implicit if its shape can be obtained from the input shape and the method @reshapein@.
+*implicit:* the output shape can be derived from the input shape through the method @reshapeout@.
 
-*Unconstrained shape:* The shape of the operator's output (input) is unconstrained if it does not depend on the input shape (if any input shape can be handled by the operator). In this case, the @shapeout@ (@shapein@) attribute is @None@ and the method @reshapein@ (@reshapeout@) applied over the input (output) shape returns @None@.
+*unconstrained:* the output shape does not depend on the input shape.
 </div>
 
-If the input (output) shape is explicit, the operator's attribute @shapein@ (@shapeout@) is equal to that tuple. Otherwise, this attribute is equal to None.
+Likewise, its input shape can be:
 
-h3. Operator with explicit input shape and explicit output shape.
+<div class="definition">
+*explicit:* the operator can only apply over arrays of a specified shape.
 
-The explicit shapes are specified using the the @shapein@ and @shapeout@ keywords. The following example appends a zero to a fixed-size input.
+*implicit:* the operator can only apply over arrays whose shape is derived from the output shape through the method @reshapein@.
+
+*unconstrained:* any input shape can be handled by the operator.
+</div>
+
+The operator's flags record this information in the @shape_input@ and @shape_output@ attributes. If the output (input) shape is
+
+* explicit: the operator's attribute @shapeout@(@in@) is equal to that tuple. The @reshapeout@(@in@) method does not need to be defined.
+* implicit: the attribute @shapeout@(@in@) is @None@ and the method @reshapeout@(@in@) applied over the input (output) shape must return the output (input) shape.
+* unconstrained: the attribute @shapeout@(@in@) is None.  The @reshapeout@(@in@) method returns @None@.
+
+h3. Operator with explicit input and output shape.
+
+The explicit shapes are specified using the @shapein@ and @shapeout@ keywords. The following example appends a zero to a fixed-size input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -231,10 +243,13 @@ The explicit shapes are specified using the the @shapein@ and @shapeout@ keyword
 array([3., 2., 1., 0.])
 {% endhighlight %}
 
+h3. Operator with implicit input shape and explicit output shape.
+
+This case does not happen because the input shape can be obtained from the explicit output shape and the @reshapein@ method.
 
 h3. Operator with unconstrained input shape and explicit output shape.
 
-Such operator is obtained by only setting the @shapeout@ keyword. The following example returns an array of size 2 whose elements are the sum and product of the elements of the input.
+Such operator is obtained by only setting the @shapeout@ keyword. The following example returns an array of size 2 whose elements are the sum and product of the input elements.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -254,18 +269,48 @@ array([ 10., 24.])
 
 h3. Operator with explicit input shape and implicit output shape
 
-This case does not happen because the output shape can be obtained from the explicit input shape and the 'reshapein' method.
+This case does not happen because the output shape can be obtained from the explicit input shape and the @reshapeout@ method.
+
+h3. Operator with implicit input and output shape
+
+This operator defines a @reshapein@ and @reshapeout@ method. @Square@-decorated operators are examples of this kind of operators: their @reshapein@ and @reshapeout@ methods simply are @lambda x:x@. The interest for an implicit output shape operator of also handling implicit input shapes arises when a reverse operator such as @.T@ or @.H@ is defined, for which the @reshapein@(@out@) methods are swapped. The operator in the following example adds a zero to its input.
+
+{% highlight python %}
+>>> @decorators.linear
+... class Op(Operator):
+...     def direct(self, input, output):
+...         output[:-1] = input
+...         output[-1] = 0
+...     def transpose(self, input, output):
+...         output[...] = input[:-1]
+...     def reshapeout(self, shapein):
+...         if shapein is None: return None
+...         return (shapein[0]+1,)
+...     def reshapein(self, shapeout):
+...         if shapeout is None: return None
+...         return (shapeout[0]-1,)
+...
+>>> op = Op()
+>>> op.shapein, op.shapeout
+(None, None)
+>>> op([1,2,3])
+array([1, 2, 3, 0])
+>>> op.T([1, 2, 3, 0])
+array([1, 2, 3])
+>>> np.array_equal(op.T.todense(4), op.todense(3).T)
+True
+{% endhighlight %}
 
 h3. Operator with unconstrained input shape and implicit output shape
 
-To obtain such operator, one simply has to define a @reshapein@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
+This operator can handle arbitrary inputs and its output dimensions are derived from those of the input. To obtain such operator, one simply has to define a @reshapeout@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
 
 {% highlight python %}
 >>> class Op(Operator):
 ...     def direct(self, input, output):
 ...         output[::2,...] = input
 ...         output[1::2,...] = input
-...     def reshapein(self, shapein):
+...     def reshapeout(self, shapein):
 ...         if shapein is None:
 ...             return None
 ...         return (2*shapein[0],) + shapein[1:]
@@ -273,7 +318,7 @@ To obtain such operator, one simply has to define a @reshapein@ method, which ta
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
->>> op.reshapein((2,3))
+>>> op.reshapeout((2,3))
 (4,3)
 >>> op([[1, 2, 3],
 ...     [2, 3, 4]])
@@ -304,10 +349,33 @@ array([[1, 3],
        [5, 7]])
 {% endhighlight %}
 
+h3. Operator with implicit input shape and unconstrained output shape
+
+This kind of operator is of limited interest and is shown here for completeness. Since there is no way to compute the output shape from the input, the "output argument":#output_argument must be provided. The operator in this example returns the input from which the last element has been removed.
+{% highlight python %}
+>>> class Op(Operator):
+...     def direct(self, input, output):
+...         output[...] = input[:-1]
+...     def reshapein(self, shapeout):
+...         if shapeout is None:
+...             return None
+...         return (shapeout[0] + 1,)
+...
+>>> op = Op()
+>>> op.shapein, op.shapeout
+(None, None)
+>>> op([1,2,3])
+ValueError: The output shape of an implicit input shape and unconstrained output shape operator cannot be inferred.
+>>> output = np.empty(4)
+>>> op([1.,2.,3.,4.,5.], output)
+array([ 1.,  2.,  3.,  4.])
+>>> op(np.arange(4.), output)
+ValueError: The input has an invalid shape '(4,)'. Expected shape is '(5,)'.
+{% endhighlight %}
 
 h3. Operator with unconstrained input and output shape
 
-This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapein@ method. The following example fills the output with the value of the sum of the elements of the input.
+This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapeout@ method. @ConstantOperator@ is an example of such an operator. If the output is not provided as argument, it is assumed that the output shape is that of the input. The following example fills the output with the value of the sum of the elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
