@@ -36,19 +36,16 @@ class ImplImpl(Operator):
         output[0:input.size] = 3*input
         output[-1] = 30
     def reshapein(self, shapein):
-        if shapein is None: return None
-        return (shapein[0] - 1,)
-    def reshapeout(self, shapein):
-        if shapein is None: return None
         return (shapein[0] + 1,)
+    def reshapeout(self, shapeout):
+        return (shapeout[0] - 1,)
 class UncoImpl(Operator):
     def __init__(self):
         Operator.__init__(self, classout=ndarray1, attrout=attr1)
     def direct(self, input, output):
         output[0:output.size-1] = 4*input
         output[-1] = 40
-    def reshapein(self, shapeout):
-        if shapeout is None: return None
+    def reshapeout(self, shapeout):
         return (shapeout[0] - 1,)
 class ExplUnco(Operator):
     def __init__(self):
@@ -62,8 +59,7 @@ class ImplUnco(Operator):
     def direct(self, input, output):
         output[0:input.size] = 6*input
         output[-1] = 60
-    def reshapeout(self, shapein):
-        if shapein is None: return None
+    def reshapein(self, shapein):
         return (shapein[0] + 1,)
 class UncoUnco(Operator):
     def __init__(self):

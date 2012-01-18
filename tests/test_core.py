@@ -37,11 +37,10 @@ def assert_is_inttuple(shape, msg=''):
 
 def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
-    assert op.shapeout == op.shapein, msg
-    assert op.reshapein.im_func is Operator.reshapein.im_func
-    assert op.reshapeout.im_func is Operator.reshapeout.im_func
-    assert op._reshapeout is op._reshapein is None, msg
-    assert op.toshapein == op.toshapeout, msg
+    assert_equal(op.shapein, op.shapeout)
+    assert_equal(op.reshapein, op.reshapeout)
+    assert_equal(op.toshapein, op.toshapeout)
+    assert_equal(op.validatein, op.validateout)
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
@@ -90,14 +89,12 @@ class Stretch(Operator):
         self.slice[self.axis] = slice(1,None,2)
         output[self.slice] = input
     def reshapein(self, shape):
-        if shape is None: return None
-        shape_ = list(shape)
-        shape_[self.axis] //= 2
-        return shape_
-    def reshapeout(self, shape):
-        if shape is None: return None
         shape_ = list(shape)
         shape_[self.axis] *= 2
+        return shape_
+    def reshapeout(self, shape):
+        shape_ = list(shape)
+        shape_[self.axis] //= 2
         return shape_
 
 def test_shape_is_inttuple():
@@ -141,11 +138,9 @@ def test_shape_implicit():
             self.factor = factor
             Operator.__init__(self)
         def reshapein(self, shape):
-            if shape is None: return None
-            return shape[0]/self.factor
-        def reshapeout(self, shape):
-            if shape is None: return None
             return shape[0]*self.factor
+        def reshapeout(self, shape):
+            return shape[0]/self.factor
         def __str__(self):
             return super(Op, self).__str__() + ' {0}'.format(self.factor)
     o1, o2, o3 = (Op(2), Op(3), Op(4))
@@ -155,8 +150,8 @@ def test_shape_implicit():
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((6,),(12,),(24,)),
                             ((4,),(2,),(1,))):
-        yield assert_equal, o.reshapeout(shapein), eout, 'reshapeout:'+str(o)
-        yield assert_equal, o.reshapein(shapeout), ein, 'reshapein:'+str(o)
+        yield assert_equal, o.validatereshapein(shapein), eout, 'in:'+str(o)
+        yield assert_equal, o.validatereshapeout(shapeout), ein, 'out:'+str(o)
 
 def test_shapeout_unconstrained1():
     for shape in shapes:
@@ -179,8 +174,7 @@ def test_shapeout_unconstrained2():
 
 def test_shapeout_implicit():
     class Op(Operator):
-        def reshapeout(self, shape):
-            if shape is None: return None
+        def reshapein(self, shape):
             return shape + (2,)
     def func(op, shapein):
         assert_flags_false(op, 'square')
@@ -201,8 +195,7 @@ def test_shapein_unconstrained1():
 
 def test_shapein_unconstrained2():
     class Op(Operator):
-        def reshapein(self, shape):
-            if shape is None: return None
+        def reshapeout(self, shape):
             return shape + (2,)
     def func(op, shapeout):
         assert_flags_false(op, 'square')
@@ -219,13 +212,13 @@ def test_shapein_unconstrained3():
         pass
     @decorators.square
     class Op2(Operator):
-        def reshapeout(self, shape):
+        def reshapein(self, shape):
             return shape
         def toshapein(self, v):
             return v
     @decorators.square
     class Op3(Operator):
-        def reshapein(self, shape):
+        def reshapeout(self, shape):
             return shape
         def toshapeout(self, v):
             return v
@@ -290,7 +283,7 @@ def test_symmetric():
     @decorators.symmetric
     class Op(Operator):
         def __init__(self):
-            Operator.__init__(self, shapein=(2,), dtype=mat.dtype)
+            Operator.__init__(self, shapein=2, dtype=mat.dtype)
         def direct(self, input, output):
             output[...] = np.dot(mat, input)
 
@@ -748,9 +741,7 @@ def test_inplace_can_use_output():
                 self.log.insert(0, ids[output.__array_interface__['data'][0]])
             except KeyError:
                 self.log.insert(0, 'unknown')
-        def reshapeout(self, shape):
-            if shape is None:
-                return None
+        def reshapein(self, shape):
             return (shape[0]+1,)
 
     def show_stack():
@@ -890,9 +881,7 @@ def test_inplace_cannot_use_output():
                 self.log.insert(0, ids[output.__array_interface__['data'][0]])
             except KeyError:
                 self.log.insert(0, 'unknown')
-        def reshapeout(self, shape):
-            if shape is None:
-                return None
+        def reshapein(self, shape):
             return (shape[0]-1,)
 
     def show_stack():
@@ -1099,8 +1088,7 @@ def test_composition1():
 
 def test_composition2():
     class Op(Operator):
-        def reshapeout(self, shapein):
-            if shapein is None: return None
+        def reshapein(self, shapein):
             return 2*shapein
 
     def func(op, shape):
@@ -1416,13 +1404,11 @@ def test_zero7():
             output[:] = np.concatenate([input, 2*input])
         def transpose(self, input, output):
             output[:] = input[0:output.size]
-        def reshapeout(self, shapein):
-            if shapein is None: return None
+        def reshapein(self, shapein):
             s = list(shapein)
             s[0] *= 2
             return s
-        def reshapein(self, shapeout):
-            if shapeout is None: return None
+        def reshapeout(self, shapeout):
             s = list(shapeout)
             s[0] //= 2
             return s
@@ -1441,15 +1427,13 @@ def test_zero7b():
             output[:] = np.concatenate([input, 2*input])
         def transpose(self, input, output):
             output[:] = input[0:output.size]
-        def reshapein(self, shapeout):
-            if shapeout is None: return None
-            s = list(shapeout)
-            s[0] //= 2
-            return s
-        def reshapeout(self, shapein):
-            if shapein is None: return None
+        def reshapein(self, shapein):
             s = list(shapein)
             s[0] *= 2
+            return s
+        def reshapeout(self, shapeout):
+            s = list(shapeout)
+            s[0] //= 2
             return s
     o = Op()
     zo = z*o
