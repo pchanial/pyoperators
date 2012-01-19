@@ -632,9 +632,7 @@ class Operator(object):
         elif 'C' in ops:
             C = ops['C']
         else:
-            C = Operator(self.conjugate_, shapein=self.shapein, shapeout= \
-                         self.shapeout, reshapein=self.reshapein, reshapeout= \
-                         self.reshapeout, dtype=self.dtype, flags=self.flags)
+            C = DirectOperatorFactory(Operator, self, direct=self.conjugate_)
             C.__name__ = self.__name__ + '.C'
 
         if self.flags.symmetric:
@@ -642,12 +640,7 @@ class Operator(object):
         elif 'T' in ops:
             T = ops['T']
         else:
-            T = Operator(self.transpose, shapein=self.shapeout, shapeout= \
-                         self.shapein, reshapein=self.reshapeout, reshapeout= \
-                         self.reshapein, attrin=self.attrout, attrout= \
-                         self.attrin, classin=self.classout, classout= \
-                         self.classin, dtype=self.dtype, flags=self.flags)
-            T.toshapein, T.toshapeout = self.toshapeout, self.toshapein
+            T = ReverseOperatorFactory(Operator, self, direct=self.transpose)
             T.__name__ = self.__name__ + '.T'
 
         if self.flags.hermitian:
@@ -659,12 +652,7 @@ class Operator(object):
         elif self.flags.symmetric:
             H = C
         else:
-            H = Operator(self.adjoint, shapein=self.shapeout, shapeout= \
-                         self.shapein, reshapein=self.reshapeout, reshapeout=\
-                         self.reshapein, attrin=self.attrout, attrout= \
-                         self.attrin, classin=self.classout, classout= \
-                         self.classin, dtype=self.dtype, flags=self.flags)
-            H.toshapein, H.toshapeout = self.toshapeout, self.toshapein
+            H = ReverseOperatorFactory(Operator, self, direct=self.adjoint)
             H.__name__ = self.__name__ + '.H'
 
         if self.flags.involutary:
@@ -676,12 +664,7 @@ class Operator(object):
         elif self.flags.unitary:
             I = H
         else:
-            I = Operator(self.inverse, shapein=self.shapeout, shapeout= \
-                         self.shapein, reshapein=self.reshapeout, reshapeout=\
-                         self.reshapein, attrin=self.attrout, attrout= \
-                         self.attrin, classin=self.classout, classout= \
-                         self.classin, dtype=self.dtype, flags=self.flags)
-            I.toshapein, I.toshapeout = self.toshapeout, self.toshapein
+            I = ReverseOperatorFactory(Operator, self, direct=self.inverse)
             I.__name__ = self.__name__ + '.I'
 
         if self.flags.real:
@@ -695,12 +678,8 @@ class Operator(object):
         elif self.flags.involutary:
             IC = C
         else:
-            IC = Operator(self.inverse_conjugate, shapein=self.shapeout,
-                          shapeout=self.shapein, reshapein=self.reshapeout,
-                          reshapeout=self.reshapein, attrin=self.attrout,
-                          attrout=self.attrin, classin=self.classout, classout=\
-                          self.classin, dtype=self.dtype, flags=self.flags)
-            IC.toshapein, IC.toshapeout = self.toshapeout, self.toshapein
+            IC = ReverseOperatorFactory(Operator, self,
+                                        direct=self.inverse_conjugate)
             IC.__name__ = self.__name__ + '.I.C'
 
         if self.flags.orthogonal:
@@ -714,11 +693,8 @@ class Operator(object):
         elif 'IT' in ops:
             IT = ops['IT']
         else:
-            IT = Operator(self.inverse_transpose, shapein=self.shapein,
-                          shapeout=self.shapeout, reshapein=self.reshapein,
-                          reshapeout=self.reshapeout, attrin=self.attrin,
-                          attrout=self.attrout, classin=self.classin, classout=\
-                          self.classout, dtype=self.dtype, flags=self.flags)
+            IT = DirectOperatorFactory(Operator, self,
+                                       direct=self.inverse_transpose)
             IT.__name__ = self.__name__ + '.I.T'
 
         if self.flags.unitary:
@@ -736,11 +712,8 @@ class Operator(object):
         elif 'IH' in ops:
             IH = ops['IH']
         else:
-            IH = Operator(self.inverse_adjoint, shapein=self.shapein,
-                          shapeout=self.shapeout, reshapein=self.reshapein,
-                          reshapeout=self.reshapeout, attrin=self.attrin,
-                          attrout=self.attrout, classin=self.classin, classout=\
-                          self.classout, dtype=self.dtype, flags=self.flags)
+            IH = DirectOperatorFactory(Operator, self,
+                                       direct=self.inverse_adjoint)
             IH.__name__ = self.__name__ + '.I.H'
 
         # once all the associated operators are instanciated, we set all their
@@ -1066,6 +1039,26 @@ class Operator(object):
             else:
                 a += [var + '=' + s]
         return self.__name__ + '(' + ', '.join(a) + ')'
+
+
+def DirectOperatorFactory(cls, source, *args, **keywords):
+    return cls(shapein=source.shapein, shapeout=source.shapeout,
+               reshapein=source.reshapein, reshapeout=source.reshapeout,
+               toshapein=source.toshapein, toshapeout=source.toshapeout,
+               validatein=source.validatein, validateout=source.validateout,
+               attrin=source.attrin, attrout=source.attrout,
+               classin=source.classin, classout=source.classout,
+               dtype=source.dtype, flags=source.flags, *args, **keywords)
+
+
+def ReverseOperatorFactory(cls, source, *args, **keywords):
+    return cls(shapein=source.shapeout, shapeout=source.shapein,
+               reshapein=source.reshapeout, reshapeout=source.reshapein,
+               toshapein=source.toshapeout, toshapeout=source.toshapein,
+               validatein=source.validateout, validateout=source.validatein,
+               attrin=source.attrout, attrout=source.attrin,
+               classin=source.classout, classout=source.classin,
+               dtype=source.dtype, flags=source.flags, *args, **keywords)
 
 
 def asoperator(operator, shapein=None, shapeout=None):
@@ -2623,12 +2616,12 @@ class HomothetyOperator(DiagonalOperator):
 
     def associated_operators(self):
         return {
-            'C' : HomothetyOperator(np.conjugate(self.data),
-                      shapein=self.shapein, dtype=self.dtype),
-            'I' : HomothetyOperator(1/self.data if self.data != 0 else np.nan,
-                      shapein=self.shapein, dtype=self.dtype),
-            'IC' :HomothetyOperator(np.conjugate(1/self.data) if self.data != 0\
-                      else np.nan, shapein=self.shapein, dtype=self.dtype)
+            'C' : DirectOperatorFactory(HomothetyOperator, self,
+                      np.conjugate(self.data)),
+            'I' : DirectOperatorFactory(HomothetyOperator, self,
+                      1/self.data if self.data != 0 else np.nan),
+            'IC': DirectOperatorFactory(HomothetyOperator, self,
+                      np.conjugate(1/self.data) if self.data != 0 else np.nan),
         }
 
     def __str__(self):
@@ -2712,14 +2705,10 @@ class ConstantOperator(BroadcastingOperator):
 
     def associated_operators(self):
         return {
-            'C' : ConstantOperator(self.data.conjugate(),
-                      broadcast=self.broadcast, shapein=self.shapein,
-                      shapeout=self.shapeout, reshapein=self.reshapein,
-                      reshapeout=self.reshapeout, dtype=self.dtype),
-            'T' : self if self.flags.square else ConstantOperator(self.data,
-                      broadcast=self.broadcast, shapein=self.shapeout,
-                      shapeout=self.shapein, reshapein=self.reshapeout,
-                      reshapeout=self.reshapein, dtype=self.dtype),
+            'C' : DirectOperatorFactory(ConstantOperator, self,
+                      self.data.conjugate(), broadcast=self.broadcast),
+            'T' : ReverseOperatorFactory(ConstantOperator, self, self.data,
+                      broadcast=self.broadcast),
         }
 
     def direct(self, input, output, operation=assignment_operation):
