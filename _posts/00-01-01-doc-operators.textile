@@ -232,12 +232,12 @@ For instance and for a given operator @P@, the subject @'..'@ will match the pai
 |function  | callback function|
 </div>
 
-For a non-commutative operation (composition), the rules of the left-hand side and right-hand side operators are combined:
+For a non-commutative operation (composition), the rules attached to the left-hand side operator applying on a right-hand-side operator are combined to the rules of the right-hand side operators applying on a left-hand-side operator:
 
 * if one of the operator is a subclass of the other, its rules have higher priority
 * otherwise, the rules of the right-hand side operator have higher priority
 
-Rules attached to an operators are also prioritised:
+Rules attached to an operator are also prioritised:
 
 * newer rules have higher priority
 * non-matching-class rules have higher priority
@@ -247,10 +247,10 @@ Let's examine some examples for the composition operation:
 
 * @'.T.'@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
 * @'..I'@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
-* @'.{IdentityOperator}'@ &rarr; @'.'@: if @P@ is composed by an instance of the identity operator,  the pair will be replaced by @P@
-* @'.{self}'@ &rarr; @myfunc()@: if @P@ is composed by an instance of its class, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
+* @'.{Operator}'@ &rarr; @myfunc1@: every time @P@ appears as the left-hand-side operator of a pair, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
 
-The rules attached to an operator are stored in the @rules@ attribute. They can be added by using the @set_rule@ method, which has 3 arguments:
+The rules attached to an operator are stored in the @rules@ attribute. It is a dictionary whose keys can be @AdditionOperator@, @CompositionOperator@ or @MultiplicationOperator@. For the non-commutative composition operation, rules are further split according to whether the operator is matched on the left or right hand side of the pair.
+Rules are added by using the @set_rule@ method, which has 3 arguments:
 
 * the subject
 * the predicate
