@@ -1401,24 +1401,6 @@ class CommutativeCompositeOperator(CompositeOperator):
             cls = op.propagate_attributes(cls, attr)
         return cls
 
-    def validatereshapeout(self, shapeout):
-        shapein = super(CommutativeCompositeOperator, self).validatereshapeout(shapeout)
-        if shapein is not None:
-            return shapein
-        for op in self.operands:
-            shapein_ = op.validatereshapeout(shapeout)
-            if shapein_ is None:
-                continue
-            if shapein is None:
-                shapein = shapein_
-                continue
-            if shapein != shapein_:
-                raise ValueError(
-                    "Incompatible shape in operands: '{0}' and '{1"
-                    "}'.".format(shapein, shapein_)
-                )
-        return shapein
-
     def validatereshapein(self, shapein):
         shapeout = super(CommutativeCompositeOperator, self).validatereshapein(shapein)
         if shapeout is not None:
@@ -1436,6 +1418,24 @@ class CommutativeCompositeOperator(CompositeOperator):
                     "}'.".format(shapeout, shapeout_)
                 )
         return shapeout
+
+    def validatereshapeout(self, shapeout):
+        shapein = super(CommutativeCompositeOperator, self).validatereshapeout(shapeout)
+        if shapein is not None:
+            return shapein
+        for op in self.operands:
+            shapein_ = op.validatereshapeout(shapeout)
+            if shapein_ is None:
+                continue
+            if shapein is None:
+                shapein = shapein_
+                continue
+            if shapein != shapein_:
+                raise ValueError(
+                    "Incompatible shape in operands: '{0}' and '{1"
+                    "}'.".format(shapein, shapein_)
+                )
+        return shapein
 
     @classmethod
     def _apply_rules(cls, ops):
@@ -1714,17 +1714,17 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             cls = op.propagate_attributes(cls, attr)
         return cls
 
-    def validatereshapeout(self, shapeout):
-        shapein = super(CompositionOperator, self).validatereshapeout(shapeout)
-        if shapein is not None:
-            return shapein
-        return self._get_shapes(None, shapeout, self.operands)[-1]
-
     def validatereshapein(self, shapein):
         shapeout = super(CompositionOperator, self).validatereshapein(shapein)
         if shapeout is not None:
             return shapeout
         return self._get_shapes(shapein, None, self.operands)[0]
+
+    def validatereshapeout(self, shapeout):
+        shapein = super(CompositionOperator, self).validatereshapeout(shapeout)
+        if shapein is not None:
+            return shapein
+        return self._get_shapes(None, shapeout, self.operands)[-1]
 
     def _get_info(self, shapein, shapeout, dtype, inplace):
         try:
@@ -2008,44 +2008,6 @@ class BlockOperator(CompositeOperator):
             '{BlockOperator}.', self._rule_comp_blockoperator, CompositionOperator
         )
 
-    def validatereshapeout(self, shapeout):
-        shapein = super(BlockOperator, self).validatereshapeout(shapeout)
-        if shapein is not None:
-            return shapein
-        if shapeout is None or self.partitionout is None:
-            shapeins = [op.validatereshapeout(shapeout) for op in self.operands]
-        else:
-            shapeins = [
-                op.validatereshapeout(s)
-                for op, s in zip(
-                    self.operands,
-                    self._get_shapes(
-                        shapeout, self.partitionout, self.axisout, self.new_axisout
-                    ),
-                )
-            ]
-        if None in shapeins and shapeout is not None:
-            raise NotImplementedError(
-                "Unconstrained input shape operators are "
-                "not handled in block operators."
-            )
-        shapein = self._validate_shapes(
-            shapeins, self.partitionin, self.axisin, self.new_axisin
-        )
-        if shapeout is None:
-            if shapein is None or None in shapeins:
-                return None
-        if self.partitionin is None:
-            return shapein
-        if self.new_axisin is not None:
-            a = self.new_axisin
-            if self.new_axisin < 0:
-                a += len(shapein) + 1
-            return shapein[:a] + (len(self.operands),) + shapein[a:]
-        shapein = list(shapein)
-        shapein[self.axisin] = sum([s[self.axisin] for s in shapeins])
-        return tointtuple(shapein)
-
     def validatereshapein(self, shapein):
         shapeout = super(BlockOperator, self).validatereshapein(shapein)
         if shapeout is not None:
@@ -2083,6 +2045,44 @@ class BlockOperator(CompositeOperator):
         shapeout = list(shapeout)
         shapeout[self.axisout] = sum([s[self.axisout] for s in shapeouts])
         return tointtuple(shapeout)
+
+    def validatereshapeout(self, shapeout):
+        shapein = super(BlockOperator, self).validatereshapeout(shapeout)
+        if shapein is not None:
+            return shapein
+        if shapeout is None or self.partitionout is None:
+            shapeins = [op.validatereshapeout(shapeout) for op in self.operands]
+        else:
+            shapeins = [
+                op.validatereshapeout(s)
+                for op, s in zip(
+                    self.operands,
+                    self._get_shapes(
+                        shapeout, self.partitionout, self.axisout, self.new_axisout
+                    ),
+                )
+            ]
+        if None in shapeins and shapeout is not None:
+            raise NotImplementedError(
+                "Unconstrained input shape operators are "
+                "not handled in block operators."
+            )
+        shapein = self._validate_shapes(
+            shapeins, self.partitionin, self.axisin, self.new_axisin
+        )
+        if shapeout is None:
+            if shapein is None or None in shapeins:
+                return None
+        if self.partitionin is None:
+            return shapein
+        if self.new_axisin is not None:
+            a = self.new_axisin
+            if self.new_axisin < 0:
+                a += len(shapein) + 1
+            return shapein[:a] + (len(self.operands),) + shapein[a:]
+        shapein = list(shapein)
+        shapein[self.axisin] = sum([s[self.axisin] for s in shapeins])
+        return tointtuple(shapein)
 
     def toshapein(self, v):
         if self.shapein is not None:
