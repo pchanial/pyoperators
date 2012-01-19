@@ -794,6 +794,7 @@ class Operator(object):
     def _init_rules(self):
         """ Translate flags into rules. """
         self.rules = {}
+        self.set_rule('.I.', '1', CompositionOperator)
         if self.flags.idempotent:
             self.set_rule('..', '.', CompositionOperator)
         if self.flags.orthogonal:
