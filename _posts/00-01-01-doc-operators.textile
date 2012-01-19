@@ -120,8 +120,33 @@ The alternative way is more flexible, it consists in subclassing the @Operator@ 
 
 
 
+h2. <a name="operator_dtype"></a> 2.4. Operator's data type
 
-h2. 2.4. <a name="operator_flags"></a> Operator's flags
+The operator's data type is a data type object (an instance of "numpy.dtype":http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html class). It can be set using the @dtype@ keyword.
+
+{% highlight python %}
+>>> a = Operator(dtype=np.float32)
+>>> a.dtype
+dtype('float32')
+{% endhighlight %}
+
+It is used to determine the output data type, as being the common type of the operator and input data types, following the standard coercion rules. For example:
+
+{% highlight python %}
+>>> a = DiagonalOperator([1, 2])
+>>> a.dtype
+dtype('int64')
+>>> a([1, 1j]).dtype
+dtype('complex128')
+>>> a(np.array([2, 2], np.uint8)).dtype
+dtype('int64')
+{% endhighlight %}
+
+The operator's data type can be equal to @None@ (the default), in which case the output data type is always the input data type.
+
+
+
+h2. 2.5. <a name="operator_flags"></a> Operator's flags
 
 An operator __P__ can have the following algebraic properties, accessible with the @flags@ attribute:
 
@@ -181,7 +206,7 @@ Other properties are described by the @flags@ attribute:
 
 
 
-h2. 2.5. <a name="operator_rules"></a> Operator's rules
+h2. 2.6. <a name="operator_rules"></a> Operator's rules
 
 PyOperators has the ability to reduce arithmetic expressions involving operators. This is achieved by means of binary rules which are applied to pairs of operators. Such a rule is specific to an operation (addition, multiplication or composition). It is binary and has the form 'subject &rarr; predicate'. The subject is a pair of properties that will be matched against the pair of operators. The properties are represented by a string. One of them stands for the reference operator, it is the operator to which the rule is attached.
 
@@ -255,21 +280,20 @@ __main__.Power
 6
 {% endhighlight %}
 
-h2. 2.6. <a name="associated_operators"></a> Operator's associated operators
+h2. 2.7. <a name="associated_operators"></a> Operator's associated operators
 
 Not documented. API might change in version {{ site.version_stable | plus:'0.1' }}.
 
 
 
-
-h2. 2.7. <a name="operator_shapes"></a> Operator's input and output shapes
+h2. 2.8. <a name="operator_shapes"></a> Operator's input and output shapes
 
 The @Operator@ class has a flexible way to deal with inputs and outputs. Its output shape can be:
 
 <div class="definition">
 *explicit:* the operator can only return arrays of a specified shape.
 
-*implicit:* the output shape can be derived from the input shape through the method @reshapeout@.
+*implicit:* the output shape can be derived from the input shape through the method @reshapein@.
 
 *unconstrained:* the output shape does not depend on the input shape.
 </div>
@@ -279,16 +303,16 @@ Likewise, its input shape can be:
 <div class="definition">
 *explicit:* the operator can only apply over arrays of a specified shape.
 
-*implicit:* the operator can only apply over arrays whose shape is derived from the output shape through the method @reshapein@.
+*implicit:* the operator can only apply over arrays whose shape is derived from the output shape through the method @reshapeout@.
 
 *unconstrained:* any input shape can be handled by the operator.
 </div>
 
 The operator's flags record this information in the @shape_input@ and @shape_output@ attributes. If the output (input) shape is
 
-* explicit: the operator's attribute @shapeout@(@in@) is equal to that tuple. The @reshapeout@(@in@) method does not need to be defined.
-* implicit: the attribute @shapeout@(@in@) is @None@ and the method @reshapeout@(@in@) applied over the input (output) shape must return the output (input) shape.
-* unconstrained: the attribute @shapeout@(@in@) is @None@.  The @reshapeout@(@in@) method returns @None@.
+* explicit: the operator's attribute @shapeout@(@in@) is equal to that tuple. The @reshapein@(@out@) method does not need to be defined.
+* implicit: the attribute @shapeout@(@in@) is @None@ and the method @reshapein@(@out@) applied over the input (output) shape must return the output (input) shape.
+* unconstrained: the attribute @shapeout@(@in@) is @None@. The @reshapein@(@out@) must be @None@.
 
 h3. Operator with explicit input and output shape.
 
@@ -312,7 +336,7 @@ array([3., 2., 1., 0.])
 
 h3. Operator with implicit input shape and explicit output shape.
 
-This case does not happen because the input shape can be obtained from the explicit output shape and the @reshapein@ method.
+This case does not happen because the input shape can be obtained from the explicit output shape and the @reshapeout@ method.
 
 h3. Operator with unconstrained input shape and explicit output shape.
 
@@ -336,11 +360,11 @@ array([ 10., 24.])
 
 h3. Operator with explicit input shape and implicit output shape
 
-This case does not happen because the output shape can be obtained from the explicit input shape and the @reshapeout@ method.
+This case does not happen because the output shape can be obtained from the explicit input shape and the @reshapein@ method.
 
 h3. Operator with implicit input and output shape
 
-This operator defines a @reshapein@ and @reshapeout@ method. @Square@-decorated operators are examples of this kind of operators: their @reshapein@ and @reshapeout@ methods simply are @lambda x:x@. The interest for an implicit output shape operator of also handling implicit input shapes arises when a reverse operator such as @.T@ or @.H@ is defined, for which the @reshapein@(@out@) methods are swapped. The operator in the following example adds a zero to its input.
+This operator defines both @reshapein@ and @reshapeout@ methods. @Square@-decorated operators are examples of this kind of operators: their @reshapein@ and @reshapeout@ methods simply are @lambda x:x@ by default. The interest for an implicit output shape operator of also handling implicit input shapes arises when a reverse operator such as @.T@ or @.H@ is defined because in which the @reshapein@ and @reshapeout@ methods are swapped. The operator in the following example adds a zero to its input.
 
 {% highlight python %}
 >>> @decorators.linear
@@ -350,11 +374,9 @@ This operator defines a @reshapein@ and @reshapeout@ method. @Square@-decorated 
 ...         output[-1] = 0
 ...     def transpose(self, input, output):
 ...         output[...] = input[:-1]
-...     def reshapeout(self, shapein):
-...         if shapein is None: return None
+...     def reshapein(self, shapein):
 ...         return (shapein[0]+1,)
-...     def reshapein(self, shapeout):
-...         if shapeout is None: return None
+...     def reshapeout(self, shapeout):
 ...         return (shapeout[0]-1,)
 ...
 >>> op = Op()
@@ -370,22 +392,20 @@ True
 
 h3. Operator with unconstrained input shape and implicit output shape
 
-This operator can handle arbitrary inputs and its output dimensions are derived from those of the input. To obtain such operator, one simply has to define a @reshapeout@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
+This operator can handle arbitrary inputs and its output dimensions are derived from those of the input. To obtain such operator, one simply has to define a @reshapein@ method, which takes the input shape as input and returns the output shape. The following example stretches the input by a factor 2 along the first dimension.
 
 {% highlight python %}
 >>> class Op(Operator):
 ...     def direct(self, input, output):
 ...         output[::2,...] = input
 ...         output[1::2,...] = input
-...     def reshapeout(self, shapein):
-...         if shapein is None:
-...             return None
+...     def reshapein(self, shapein):
 ...         return (2*shapein[0],) + shapein[1:]
 ...
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
->>> op.reshapeout((2,3))
+>>> op.reshapein((2,3))
 (4,3)
 >>> op([[1, 2, 3],
 ...     [2, 3, 4]])
@@ -424,9 +444,7 @@ This kind of operator is of limited interest and is shown here for completeness.
 >>> class Op(Operator):
 ...     def direct(self, input, output):
 ...         output[...] = input[:-1]
-...     def reshapein(self, shapeout):
-...         if shapeout is None:
-...             return None
+...     def reshapeout(self, shapeout):
 ...         return (shapeout[0] + 1,)
 ...
 >>> op = Op()
@@ -443,7 +461,7 @@ ValueError: The input has an invalid shape '(4,)'. Expected shape is '(5,)'.
 
 h3. Operator with unconstrained input and output shape
 
-This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapeout@ method. @ConstantOperator@ is an example of such an operator. If the output is not provided as argument, it is assumed that the output shape is that of the input. The following example fills the output with the value of the sum of the elements of the input.
+This kind of operator is the default: this behaviour is obtained by not setting the @shapein@ and @shapeout@ keywords and not defining the @reshapein@ and @reshapeout@ methods. @ConstantOperator@ is an example of such an operator. If the output is not provided as argument, it is assumed that the output shape is that of the input. The following example fills the output with the value of the sum of the elements of the input.
 
 {% highlight python %}
 >>> class Op(Operator):
@@ -463,35 +481,35 @@ array([[3, 3],
 
 
 
+h2. <a name="operator_validation"></a> 2.9. Operator's input and output shape validation.
 
-h2. <a name="operator_dtype"></a> 2.8. Operator's data type
+It is possible to validate the shapes of the input or output of an operator by defining the @validatein@ or @validateout@ methods, which take the shapes of the input or output and raise a @ValueError@ exception to signal a validation failure. There are two advantages of using these methods instead of performing the validation in the @direct@ method:
 
-The operator's data type is a data type object (an instance of "numpy.dtype":http://docs.scipy.org/doc/numpy/reference/arrays.dtypes.html class). It can be set using the @dtype@ keyword.
+* validation failures can be triggered earlier than the operator actual calling, for instance when the operators are combined in an expression
+* the call to the validation methods can be optimised away when the operator is combined in an expression
 
-{% highlight python %}
->>> a = Operator(dtype=np.float32)
->>> a.dtype
-dtype('float32')
-{% endhighlight %}
-
-It is used to determine the output data type, as being the common type of the operator and input data types, following the standard coercion rules. For example:
+The following example checks the number of axes and the dimension along the axes.
 
 {% highlight python %}
->>> a = DiagonalOperator([1, 2])
->>> a.dtype
-dtype('int64')
->>> a([1, 1j]).dtype
-dtype('complex128')
->>> a(np.array([2, 2], np.uint8)).dtype
-dtype('int64')
+>>> class Op(Operator):
+...     def direct(self, input, output):
+...         output[...] = 1
+...     def validatein(self, shapein):
+...         if len(shapein) != 2:
+...             raise ValueError('The number of axes of the input is not 2.')
+...         if shapein[0] % 16 != 0 or shapein[1] % 16 != 0:
+...             raise ValueError('The input dimensions are not a multiple of 16.')
+...
+>>> op = Op()
+>>> op(np.ones(10))
+ValueError: The number of axes of the input is not 2.
+>>> op(np.ones(16,17))
+ValueError: The input dimensions are not a multiple of 16.
 {% endhighlight %}
 
-The operator's data type can be equal to @None@ (the default), in which case the output data type is always the input data type.
 
 
-
-
-h2. <a name="class_propagation"></a> 2.9. Class propagation
+h2. <a name="class_propagation"></a> 2.10. Class propagation
 
 An operator propagates the class of the input array, if the latter subclasses @numpy.ndarray@:
 
@@ -516,7 +534,7 @@ __main__.ndarray3
 
 
 
-h2. <a name="attribute_propagation"></a> 2.10. Attribute propagation
+h2. <a name="attribute_propagation"></a> 2.11. Attribute propagation
 
 An operator also propagates attributes:
 
@@ -560,7 +578,7 @@ More flexibility is possible by passing a function, instead of a dictionary, to 
 
 
 
-h2. <a name="inplace_operators"></a> 2.11. In-place and out-of-place operators
+h2. <a name="inplace_operators"></a> 2.12. In-place and out-of-place operators
 
 <div class="definition">
 *in-place operator:* operator whose @direct@ method can handle input and output arguments pointing to the same memory location.
@@ -626,7 +644,7 @@ it is not possible to avoid the use of a temporary variable, since a buffer diff
 
 
 
-h2. <a name="inplace_reductions"></a> 2.12. In-place reductions
+h2. <a name="inplace_reductions"></a> 2.13. In-place reductions
 
 <div class="definition">
 An operator that can do in-place reductions is an operator that can add, multiply (or else) its output to its output argument.
@@ -685,7 +703,7 @@ array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
 {% endhighlight %}
 
 
-h2. <a name="partition"></a> 2.13. Operator partition
+h2. <a name="partition"></a> 2.14. Operator partition
 
 Currently, there are two ways to partition operators, depending on whether the partitioning is done in an already existing dimension or not.
 
@@ -746,7 +764,7 @@ Likewise, the outputs of the blocks are concatenated along the dimension specifi
 
 
 
-h2. <a name="list"></a> 2.14. List of available operators
+h2. <a name="list"></a> 2.15. List of available operators
 
 h3. Linear operators
 
