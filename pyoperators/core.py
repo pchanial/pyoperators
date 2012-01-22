@@ -995,11 +995,14 @@ class Operator(object):
         return HomothetyOperator(-1) * self
 
     def __str__(self):
-        if self.shapein is not None:
-            if self.flags.square and len(self.shapein) > 1:
-                s = strshape(self.shapein) + '²'
+        if self.shapein is not None or self.shapeout is not None:
+            shapein = '?' if self.shapein is None else strshape(self.shapein)
+            shapeout = '?' if self.shapeout is None else strshape(self.shapeout)
+            if self.flags.square and self.shapein is not None and \
+               len(self.shapein) > 1:
+                s = shapein + '²'
             else:
-                s = strshape(self.shapeout) + 'x' + strshape(self.shapein)
+                s = shapeout + 'x' + shapein
             s += ' '
         else:
             s = ''
