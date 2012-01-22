@@ -1636,10 +1636,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     def associated_operators(self):
         return {
             'C': CompositionOperator([m.C for m in self.operands]),
-            'T': CompositionOperator([m.T for m in reversed(self.operands)]),
-            'H': CompositionOperator([m.H for m in reversed(self.operands)]),
-            'I': CompositionOperator([m.I for m in reversed(self.operands)]),
-            'IC': CompositionOperator([m.I.C for m in reversed(self.operands)]),
+            'T': CompositionOperator([m.T for m in self.operands[::-1]]),
+            'H': CompositionOperator([m.H for m in self.operands[::-1]]),
+            'I': CompositionOperator([m.I for m in self.operands[::-1]]),
+            'IC': CompositionOperator([m.I.C for m in self.operands[::-1]]),
             'IT': CompositionOperator([m.I.T for m in self.operands]),
             'IH': CompositionOperator([m.I.H for m in self.operands]),
         }
@@ -1842,6 +1842,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         validateout = op1.validateout
         op.shapein = None
         op.shapeout = None
+        op._C = op._T = op._H = op._I = None
         op._init_dtype(dtype)
         op._init_flags(flags)
         op._init_inout(
@@ -2792,7 +2793,7 @@ class ReshapeOperator(Operator):
         output.ravel()[:] = input.ravel()
 
     def associated_operators(self):
-        return {'T': ReshapeOperator(self.shapeout, self.shapein)}
+        return {'T': ReverseOperatorFactory(ReshapeOperator, self)}
 
     def __str__(self):
         return strshape(self.shapeout) + '←' + strshape(self.shapein)
@@ -3130,14 +3131,17 @@ class ConstantOperator(BroadcastingOperator):
         self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
 
     def associated_operators(self):
-        return {
+        ops = {
             'C': DirectOperatorFactory(
                 ConstantOperator, self, self.data.conjugate(), broadcast=self.broadcast
-            ),
-            'T': ReverseOperatorFactory(
-                ConstantOperator, self, self.data, broadcast=self.broadcast
-            ),
+            )
         }
+        if (
+            self.flags.shape_input == 'unconstrained'
+            and self.flags.shape_output != 'implicit'
+        ):
+            ops['T'] = self
+        return ops
 
     def direct(self, input, output, operation=assignment_operation):
         if self.broadcast == 'fast':
@@ -3151,15 +3155,15 @@ class ConstantOperator(BroadcastingOperator):
 
     @staticmethod
     def _rule_right(op, self):
-        if not op.flags.linear:
-            if self.flags.shape_output == 'explicit':
-                data = self._as_strided(self.shapeout)
-                return ConstantOperator(op(data))
-            if op.flags.shape_input == 'explicit':
-                data = self._as_strided(op.shapein)
-                return ConstantOperator(op(data))
+        if op.flags.shape_output == 'unconstrained':
             return None
-        return self.copy()
+        if self.flags.shape_output == 'explicit':
+            data = self._as_strided(self.shapeout)
+        elif op.flags.shape_input == 'explicit':
+            data = self._as_strided(op.shapein)
+        else:
+            return None
+        return ConstantOperator(op(data))
 
     @staticmethod
     def _rule_mul(self, op):
@@ -3197,8 +3201,17 @@ class ZeroOperator(ConstantOperator):
     def __init__(self, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
 
+    def associated_operators(self):
+        return {'T': ReverseOperatorFactory(ZeroOperator, self)}
+
     def direct(self, input, output, operation=assignment_operation):
         operation(output, 0)
+
+    @staticmethod
+    def _rule_right(op, self):
+        if op.flags.linear:
+            return self.copy()
+        return super(ZeroOperator, self)._rule_right(op, self)
 
     def __neg__(self):
         return self
