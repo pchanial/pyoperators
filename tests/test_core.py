@@ -1336,12 +1336,6 @@ def test_diagonal2():
                 yield assert_array_equal, d.data, data, str(d1)+' and '+str(d2)
     
 
-def test_zero1():
-    z = ZeroOperator()
-    o = Operator()
-    yield assert_is_instance, z*o, ZeroOperator
-    yield assert_is_not_instance, o*z, ZeroOperator
-
 def test_zero2():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6)
@@ -1384,18 +1378,6 @@ def test_zero5():
     yield assert_is_none, oz.shapein, 'oz, in'
     yield assert_equal, oz.shapeout, o.shapeout, 'oz, out'
 
-def test_zero6():
-    z = ZeroOperator(shapein=3, shapeout=6)
-    o = Operator(flags='linear, square')
-    zo = z*o
-    oz = o*z
-    yield assert_is_instance, zo, ZeroOperator, 'zo'
-    yield assert_equal, zo.shapein, z.shapein, 'zo in'
-    yield assert_equal, zo.shapeout, z.shapeout, 'zo out'
-    yield assert_is_instance, oz, ZeroOperator, 'oz'
-    yield assert_equal, oz.shapein, z.shapein, 'oz in'
-    yield assert_equal, oz.shapeout, z.shapeout, 'oz out'
-
 def test_zero7():
     z = ZeroOperator(flags='square')
     @decorators.linear
@@ -1405,42 +1387,15 @@ def test_zero7():
         def transpose(self, input, output):
             output[:] = input[0:output.size]
         def reshapein(self, shapein):
-            s = list(shapein)
-            s[0] *= 2
-            return s
+            return (2 * shapein[0],)
         def reshapeout(self, shapeout):
-            s = list(shapeout)
-            s[0] //= 2
-            return s
+            return (shapeout[0] // 2,)
     o = Op()
     zo = z*o
     oz = o*z
     v = np.ones(4)
-    yield assert_equal, zo(v), z(o(v))
-    yield assert_equal, oz(v), o(z(v))
-
-def test_zero7b():
-    z = ZeroOperator(flags='square')
-    @decorators.linear
-    class Op(Operator):
-        def direct(self, input, output):
-            output[:] = np.concatenate([input, 2*input])
-        def transpose(self, input, output):
-            output[:] = input[0:output.size]
-        def reshapein(self, shapein):
-            s = list(shapein)
-            s[0] *= 2
-            return s
-        def reshapeout(self, shapeout):
-            s = list(shapeout)
-            s[0] //= 2
-            return s
-    o = Op()
-    zo = z*o
-    oz = o*z
-    v = np.ones(4)
-    yield assert_equal, zo.T(v), o.T(z.T(v))
-    yield assert_equal, oz.T(v), z.T(o.T(v))
+    assert_equal(zo.T(v), o.T(z.T(v)))
+    assert_equal(oz.T(v), z.T(o.T(v)))
     
 def test_zero8():
     z = ZeroOperator()

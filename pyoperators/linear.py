@@ -174,13 +174,11 @@ class TridiagonalOperator(Operator):
         output[1:] += self.superdiag * input[:-1]
 
     def associated_operators(self):
-        return {'T' : TridiagonalOperator(self.diag,
-                                          self.superdiag,
-                                          self.subdiag),
+        return {'T' : TridiagonalOperator(self.diag, self.superdiag,
+                          self.subdiag),
                 'C' : TridiagonalOperator(np.conj(self.diag),
-                                          np.conj(self.subdiag),
-                                          np.conj(self.superdiag))
-                }
+                          np.conj(self.subdiag), np.conj(self.superdiag))
+               }
 
     def __repr__(self):
         r = [repr(self.diag), repr(self.subdiag)]
