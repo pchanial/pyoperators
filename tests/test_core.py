@@ -9,8 +9,7 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          IdentityOperator, MultiplicationOperator, HomothetyOperator,
          ZeroOperator, asoperator, I, O)
 from pyoperators.utils import (ndarraywrap, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance,
-         assert_is_not_instance)
+         assert_is_none, assert_not_in, assert_is_instance)
 
 np.seterr(all='raise')
 
