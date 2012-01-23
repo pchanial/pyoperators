@@ -2693,22 +2693,22 @@ class BlockDiagonalOperator(BlockOperator):
             '.IT',
             lambda s: BlockDiagonalOperator(
                 [op.I.T for op in s.operands],
-                s.partitionout,
-                s.axisout,
+                s.partitionin,
                 s.axisin,
-                s.new_axisout,
+                s.axisout,
                 s.new_axisin,
+                s.new_axisout,
             ),
         )
         self.set_rule(
             '.IH',
             lambda s: BlockDiagonalOperator(
                 [op.I.H for op in s.operands],
-                s.partitionout,
-                s.axisout,
+                s.partitionin,
                 s.axisin,
-                s.new_axisout,
+                s.axisout,
                 s.new_axisin,
+                s.new_axisout,
             ),
         )
 
