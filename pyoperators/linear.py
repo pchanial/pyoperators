@@ -81,14 +81,12 @@ class PackOperator(Operator):
         Operator.__init__(
             self, shapein=self.mask.shape, shapeout=np.sum(self.mask), **keywords
         )
+        # XXX .T does not share the same mask...
+        self.set_rule('.T', lambda s: UnpackOperator(~s.mask, dtype=s.dtype))
         self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = input[self.mask]
-
-    def associated_operators(self):
-        # XXX .T does not share the same mask...
-        return {'T': UnpackOperator(~self.mask, dtype=self.dtype)}
 
 
 @linear
@@ -103,15 +101,12 @@ class UnpackOperator(Operator):
         Operator.__init__(
             self, shapein=np.sum(self.mask), shapeout=self.mask.shape, **keywords
         )
+        self.set_rule('.T', lambda s: PackOperator(~s.mask, dtype=s.dtype))
         self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = 0
         output[self.mask] = input
-
-    def associated_operators(self):
-        # XXX .T does not share the same mask...
-        return {'T': PackOperator(~self.mask, dtype=self.dtype)}
 
 
 @linear
@@ -179,6 +174,15 @@ class TridiagonalOperator(Operator):
         Operator.__init__(
             self, shapein=shapein, dtype=self.dtype, flags=flags, **kwargs
         )
+        self.set_rule(
+            '.T', lambda s: TridiagonalOperator(self.diag, self.superdiag, self.subdiag)
+        )
+        self.set_rule(
+            '.C',
+            lambda s: TridiagonalOperator(
+                np.conj(self.diag), np.conj(self.subdiag), np.conj(self.superdiag)
+            ),
+        )
 
     def direct(self, input, output):
         output[:] = self.diag * input
@@ -189,14 +193,6 @@ class TridiagonalOperator(Operator):
         output = self.diag * input
         output[:-1] += self.subdiag * input[1:]
         output[1:] += self.superdiag * input[:-1]
-
-    def associated_operators(self):
-        return {
-            'T': TridiagonalOperator(self.diag, self.superdiag, self.subdiag),
-            'C': TridiagonalOperator(
-                np.conj(self.diag), np.conj(self.subdiag), np.conj(self.superdiag)
-            ),
-        }
 
     def __repr__(self):
         r = [repr(self.diag), repr(self.subdiag)]
@@ -548,6 +544,7 @@ class EigendecompositionOperator(Operator):
         self.eigenvectors = v
         self.kwargs = kwargs
         Operator.__init__(self, shapein=self.M.shapein, direct=self.M.direct, **kwargs)
+        self.set_rule('.I', lambda s: s**-1)
 
     def det(self):
         """
@@ -594,6 +591,3 @@ class EigendecompositionOperator(Operator):
         """
         nze = self.eigenvalues[self.eigenvalues != 0]
         return nze.max() / nze.min()
-
-    def associated_operators(self):
-        return {'I': self**-1}

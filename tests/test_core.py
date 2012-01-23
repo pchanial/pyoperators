@@ -28,7 +28,6 @@ from pyoperators.utils import (
     assert_is_none,
     assert_not_in,
     assert_is_instance,
-    assert_is_not_instance,
 )
 
 np.seterr(all='raise')

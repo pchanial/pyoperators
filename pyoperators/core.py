@@ -52,6 +52,8 @@ __all__ = [
     'MultiplicationOperator',
     'ReshapeOperator',
     'ZeroOperator',
+    'DirectOperatorFactory',
+    'ReverseOperatorFactory',
     'asoperator',
     'I',
     'O',
@@ -100,7 +102,134 @@ class OperatorFlags(
         )
 
 
-class OperatorBinaryRule(object):
+class OperatorRule(object):
+    """
+    Abstract class for operator rules.
+
+    A operator rule is a relation that can be expressed by the sentence
+    "'subjects' are 'predicate'". An instance of this class, when called with
+    checks if the inputs are subjects to the rule, and returns the predicate
+    if it is the case. Otherwise, it returns None.
+    """
+
+    def __init__(self, subjects, predicate):
+        if '1' in subjects:
+            raise ValueError("'1' cannot be a subject.")
+        if isinstance(predicate, str) and '{' in predicate:
+            raise ValueError("Predicate cannot be a subclass.")
+        self.subjects = self.split_subject(subjects)
+        self.predicate = predicate
+        if len(self.subjects) == 0:
+            raise ValueError('No rule subject is specified.')
+        if not isinstance(self, OperatorUnaryRule) and len(self.subjects) == 1:
+            self.__class__ = OperatorUnaryRule
+            self.__init__(self.subjects, self.predicate)
+        if not isinstance(self, OperatorBinaryRule) and len(self.subjects) == 2:
+            self.__class__ = OperatorBinaryRule
+            self.__init__(self.subjects, self.predicate)
+
+    def __eq__(self, other):
+        if not isinstance(other, OperatorRule):
+            return NotImplemented
+        return str(self) == str(other)
+
+    @staticmethod
+    def _symbol2operator(op, symbol):
+        if not isinstance(symbol, str):
+            return symbol
+        if symbol == '1':
+            return IdentityOperator()
+        if symbol[0] == '{' and symbol[-1] == '}':
+            return symbol[1:-1]
+        if symbol == '.':
+            return op
+        try:
+            return {'.C': op.C, '.T': op.T, '.H': op.H, '.I': op.I}[symbol]
+        except (KeyError):
+            raise ValueError("Invalid symbol: '{0}'.".format(symbol))
+
+    @classmethod
+    def split_subject(cls, subject):
+        if isinstance(subject, (list, tuple)):
+            return subject
+        if not isinstance(subject, str):
+            raise TypeError('The rule subject is not a string.')
+        if len(subject) == 0:
+            return []
+        associated = '.IC', '.IT', '.IH', '.C', '.T', '.H', '.I', '.'
+        for a in associated:
+            if subject[: len(a)] == a:
+                return [a] + cls.split_subject(subject[len(a) :])
+        if subject[0] == '{':
+            try:
+                pos = subject.index('}')
+            except ValueError:
+                raise ValueError("Invalid subject: no matching closing '}'.")
+            return [subject[: pos + 1]] + cls.split_subject(subject[pos + 1 :])
+
+        raise ValueError("The subject {0} is not understood.".format(subject))
+
+    def __str__(self):
+        return '{0} = {1}'.format(''.join(self.subjects), self.predicate)
+
+    __repr__ = __str__
+
+
+class OperatorUnaryRule(OperatorRule):
+    """
+    Binary rule on operators.
+
+    A operator unary rule is a relation that can be expressed by the sentence
+    "'subject' is 'predicate'".
+
+    Arguments
+    ---------
+    subject: str
+        It defines the property of the operator for which the predicate holds:
+            '.C' : the operator conjugate
+            '.T' : the operator transpose
+            '.H' : the operator adjoint
+            '.I' : the operator adjoint
+            '.IC' : the operator inverse-conjugate
+            '.IT' : the operator inverse-transpose
+            '.IH' : the operator inverse-adjoint
+
+    predicate: function or str
+        What is returned by the rule when is applies. It can be:
+            '1' : the identity operator
+            '.' : the operator itself
+            or a callable of one argument.
+
+    Example
+    -------
+    >>> rule = OperatorUnaryRule('.T', '.')
+    >>> o = Operator()
+    >>> oT = rule(o)
+    >>> oT is o
+    True
+
+    """
+
+    def __init__(self, subjects, predicate):
+        super(OperatorUnaryRule, self).__init__(subjects, predicate)
+        if len(self.subjects) != 1:
+            raise ValueError('This is not a unary rule.')
+        if self.subjects[0] == '.':
+            raise ValueError('The subject cannot be the operator itself.')
+        if callable(predicate) or predicate in ('.', '1'):
+            return
+        raise ValueError("Invalid predicate: '{0}'.".format(predicate))
+
+    def __call__(self, reference):
+        predicate = self._symbol2operator(reference, self.predicate)
+        if not isinstance(predicate, Operator) and callable(predicate):
+            predicate = predicate(reference)
+        if not isinstance(predicate, Operator):
+            raise TypeError('The predicate is not an operator.')
+        return predicate
+
+
+class OperatorBinaryRule(OperatorRule):
     """
     Binary rule on operators.
 
@@ -118,9 +247,9 @@ class OperatorBinaryRule(object):
         It defines the relationship between the two subjects that must be
         verified for the rule to apply. It is the concatenation of two
         expressions. One has to be '.' and stands for the reference subject.
-        It determines if the relation is reflected (reference operator is
-        on the right) or not (reference operator on the left). The other
-        expression constrains the other subject, which must be:
+        It determines if the the reference operator is on the right or left
+        hand side of the operator pair. The other expression constrains the
+        other subject, which must be:
             '.' : the reference operator itself.
             '.C' : the conjugate of the reference object
             '.T' : the transpose of the reference object
@@ -133,11 +262,12 @@ class OperatorBinaryRule(object):
 
     predicate: function or str
         If the two objects o1, o2, are subjects of the rule, the predicate
-        will be returned. The predicate can also be '1', '.', '.C', '.T' or '.H'
+        will be returned. The predicate can also be '1', '.', '.C', '.T', '.H'
+        of a callable of two arguments.
 
     Example
     -------
-    >>> rule = OperatorRule('..', '.')
+    >>> rule = OperatorBinaryRule('..', '.')
     >>> o = Operator()
     >>> rule(o, o) is o
     True
@@ -147,20 +277,11 @@ class OperatorBinaryRule(object):
     """
 
     def __init__(self, subjects, predicate):
-        if '1' in subjects:
-            raise ValueError("'1' cannot be a subject.")
-        if isinstance(predicate, str) and '{' in predicate:
-            raise ValueError("Predicate cannot be a subclass.")
-        if (
-            isinstance(predicate, str)
-            and predicate[0] == '{'
-            and self.predicate[-1] == '}'
-        ):
-            raise ValueError('Predicate cannot be an operator type.')
-        self.reference = 1 if subjects[-1] == '.' else 0
-        self.other = subjects[:-1] if subjects[-1] == '.' else subjects[1:]
-        self.subjects = subjects
-        self.predicate = predicate
+        super(OperatorBinaryRule, self).__init__(subjects, predicate)
+        if len(self.subjects) != 2:
+            raise ValueError('This is not a binary rule.')
+        self.reference = 1 if self.subjects[1] == '.' else 0
+        self.other = self.subjects[1 - self.reference]
 
     def __call__(self, o1, o2):
 
@@ -177,39 +298,18 @@ class OperatorBinaryRule(object):
         elif other is not subother:
             return None
 
-        if isinstance(predicate, str) and predicate == '1':
-            return IdentityOperator()
-        if isinstance(predicate, Operator):
-            return predicate
-        if callable(predicate):
-            result = predicate(o1, o2)
-            if isinstance(result, tuple) and len(result) == 1:
-                result = result[0]
-            return result
+        if not isinstance(predicate, Operator) and callable(predicate):
+            predicate = predicate(o1, o2)
+        if predicate is None:
+            return None
+        if isinstance(predicate, (list, tuple)) and len(predicate) == 1:
+            predicate = predicate[0]
+        if not isinstance(predicate, Operator) and not (
+            isinstance(predicate, (list, tuple))
+            and all([isinstance(o, Operator) for o in predicate])
+        ):
+            raise TypeError("The predicate '{0}' is not an operator.".format(predicate))
         return predicate
-
-    def __eq__(self, other):
-        if not isinstance(other, OperatorBinaryRule):
-            return NotImplemented
-        return str(self) == str(other)
-
-    @staticmethod
-    def _symbol2operator(op, symbol):
-        if not isinstance(symbol, str) or symbol == '1':
-            return symbol
-        if symbol[0] == '{' and symbol[-1] == '}':
-            return symbol[1:-1]
-        if symbol == '.':
-            return op
-        try:
-            return {'.C': op.C, '.T': op.T, '.H': op.H, '.I': op.I}[symbol]
-        except (KeyError, TypeError):
-            raise ValueError('Invalid symbol: {0}'.format(symbol))
-
-    def __str__(self):
-        return '{0} = {1}'.format(self.subjects, self.predicate)
-
-    __repr__ = __str__
 
 
 class Operator(object):
@@ -490,17 +590,27 @@ class Operator(object):
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
 
-    def set_rule(self, subjects, predicate, operation):
+    def set_rule(self, subjects, predicate, operation=None):
         """
         Add a rule to the rule list, taking care of duplicates.
         Rules matching classes have a lower priority than the others.
         """
-        if issubclass(operation, CommutativeCompositeOperator) and subjects[-1] == '.':
-            subjects = '.' + subjects[:-1]
-        rule = OperatorBinaryRule(subjects, predicate)
+        rule = OperatorRule(subjects, predicate)
+        if len(rule.subjects) > 2:
+            raise ValueError('Only unary and binary rules are allowed.')
+
+        if operation is None and len(rule.subjects) == 2:
+            raise ValueError('The operation is not specified.')
 
         # get the rule list for the specified operation
-        if issubclass(operation, CommutativeCompositeOperator):
+        if operation is None:
+            if None not in self.rules:
+                self.rules[None] = []
+            rules = self.rules[None]
+        elif issubclass(operation, CommutativeCompositeOperator):
+            if rule.subjects[-1] == '.':
+                rule.subjects = rule.subjects[::-1]
+                rule.reference = 0
             if operation not in self.rules:
                 self.rules[operation] = []
             rules = self.rules[operation]
@@ -518,7 +628,7 @@ class Operator(object):
         except ValueError:
             pass
 
-        if not rule.other.startswith('{'):
+        if len(rule.subjects) == 1 or not rule.other.startswith('{'):
             rules.insert(0, rule)
             return
 
@@ -538,39 +648,33 @@ class Operator(object):
         index2 = is_subclass.index(True)
         rules.insert(index + index2 + 1, rule)
 
-    def del_rule(self, subjects, operation):
+    def del_rule(self, subjects, operation=None):
+        """
+        Delete an operator rule.
+
+        If the rule does not exist, a ValueError exception is raised.
+        """
+        subjects = OperatorRule.split_subject(subjects)
+        if len(subjects) > 2:
+            raise ValueError('Only unary and binary rules are allowed.')
+        if operation is None and len(subjects) == 2:
+            raise ValueError('The operation is not specified.')
         if operation not in self.rules:
+            if None not in self.rules:
+                raise ValueError('There is no unary rule.')
             raise ValueError(
                 "The operation '{0}' has no rules.".format(type(operation).__name__)
             )
         rules = self.rules[operation]
-        right = subjects[-1] == '.'
-        if issubclass(operation, CommutativeCompositeOperator):
-            if right:
-                subjects = '.' + subjects[:-1]
-        else:
-            rules = rules['right' if right else 'left']
-        ids = [r.subjects for r in rules]
-        index = ids.index(subjects)
+        if operation is not None:
+            right = subjects[-1] == '.'
+            if issubclass(operation, CommutativeCompositeOperator):
+                if right:
+                    subjects = subjects[::-1]
+            else:
+                rules = rules['right' if right else 'left']
+        index = [r.subjects for r in rules].index(subjects)
         del rules[index]
-
-    def associated_operators(self):
-        """
-        By default, the operators returned by the C, T, H and I properties are
-        instanciated from the methods provided in the operator's __init__.
-        This method provides a way to override this behavior, by specifying the
-        associated operators themselves as values in a dictionary, in which
-        items are
-            - 'C' : conjugate
-            - 'T' : tranpose
-            - 'H' : adjoint
-            - 'I' : inverse
-            - 'IC' : inverse conjugate
-            - 'IT' : inverse transpose
-            - 'IH' : inverse adjoint
-
-        """
-        return {}
 
     @property
     def C(self):
@@ -710,34 +814,29 @@ class Operator(object):
     def _generate_associated_operators(self):
         """Compute at once the conjugate, transpose, adjoint and inverse
         operators of the instance and of themselves."""
-        names = ('C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
-        ops = self.associated_operators()
-        if not set(ops.keys()) <= set(names):
-            raise ValueError(
-                "Invalid associated operators. Expected operators "
-                "are '{0}'".format(','.join(names))
-            )
+
+        rules = dict((r.subjects[0], r) for r in self.rules[None])
 
         if self.flags.real:
             C = self
-        elif 'C' in ops:
-            C = ops['C']
+        elif '.C' in rules:
+            C = rules['.C'](self)
         else:
             C = DirectOperatorFactory(Operator, self, direct=self.conjugate_)
             C.__name__ = self.__name__ + '.C'
 
         if self.flags.symmetric:
             T = self
-        elif 'T' in ops:
-            T = ops['T']
+        elif '.T' in rules:
+            T = rules['.T'](self)
         else:
             T = ReverseOperatorFactory(Operator, self, direct=self.transpose)
             T.__name__ = self.__name__ + '.T'
 
         if self.flags.hermitian:
             H = self
-        elif 'H' in ops:
-            H = ops['H']
+        elif '.H' in rules:
+            H = rules['.H'](self)
         elif self.flags.real:
             H = T
         elif self.flags.symmetric:
@@ -748,8 +847,8 @@ class Operator(object):
 
         if self.flags.involutary:
             I = self
-        elif 'I' in ops:
-            I = ops['I']
+        elif '.I' in rules:
+            I = rules['.I'](self)
         elif self.flags.orthogonal:
             I = T
         elif self.flags.unitary:
@@ -760,8 +859,8 @@ class Operator(object):
 
         if self.flags.real:
             IC = I
-        elif 'IC' in ops:
-            IC = ops['IC']
+        elif '.IC' in rules:
+            IC = rules['.IC'](self)
         elif self.flags.orthogonal:
             IC = H
         elif self.flags.unitary:
@@ -780,8 +879,8 @@ class Operator(object):
             IT = C
         elif self.flags.involutary:
             IT = T
-        elif 'IT' in ops:
-            IT = ops['IT']
+        elif '.IT' in rules:
+            IT = rules['.IT'](self)
         else:
             IT = DirectOperatorFactory(Operator, self, direct=self.inverse_transpose)
             IT.__name__ = self.__name__ + '.I.T'
@@ -798,8 +897,8 @@ class Operator(object):
             IH = IC
         elif self.flags.real:
             IH = IT
-        elif 'IH' in ops:
-            IH = ops['IH']
+        elif '.IH' in rules:
+            IH = rules['.IH'](self)
         else:
             IH = DirectOperatorFactory(Operator, self, direct=self.inverse_adjoint)
             IH.__name__ = self.__name__ + '.I.H'
@@ -885,6 +984,16 @@ class Operator(object):
     def _init_rules(self):
         """Translate flags into rules."""
         self.rules = {}
+
+        if self.flags.real:
+            self.set_rule('.C', '.')
+        if self.flags.symmetric:
+            self.set_rule('.T', '.')
+        if self.flags.hermitian:
+            self.set_rule('.H', '.')
+        if self.flags.involutary:
+            self.set_rule('.I', '.')
+
         self.set_rule('.I.', '1', CompositionOperator)
         if self.flags.idempotent:
             self.set_rule('..', '.', CompositionOperator)
@@ -1516,13 +1625,9 @@ class AdditionOperator(CommutativeCompositeOperator):
         )
         self.classin = first_is_not([o.classin for o in self.operands], None)
         self.classout = first_is_not([o.classout for o in self.operands], None)
-
-    def associated_operators(self):
-        return {
-            'T': AdditionOperator([m.T for m in self.operands]),
-            'H': AdditionOperator([m.H for m in self.operands]),
-            'C': AdditionOperator([m.conjugate() for m in self.operands]),
-        }
+        self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands]))
+        self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands]))
+        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
 
 
 class MultiplicationOperator(CommutativeCompositeOperator):
@@ -1552,9 +1657,7 @@ class MultiplicationOperator(CommutativeCompositeOperator):
         )
         self.classin = first_is_not([o.classin for o in self.operands], None)
         self.classout = first_is_not([o.classout for o in self.operands], None)
-
-    def associated_operators(self):
-        return {'C': MultiplicationOperator([m.conjugate() for m in self.operands])}
+        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
 
 
 class NonCommutativeCompositeOperator(CompositeOperator):
@@ -1634,17 +1737,13 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         self.classout = first_is_not([o.classout for o in self.operands], None)
         self._set_flags(inplace_reduction=self.operands[0].flags.inplace_reduction)
         self._info = {}
-
-    def associated_operators(self):
-        return {
-            'C': CompositionOperator([m.C for m in self.operands]),
-            'T': CompositionOperator([m.T for m in self.operands[::-1]]),
-            'H': CompositionOperator([m.H for m in self.operands[::-1]]),
-            'I': CompositionOperator([m.I for m in self.operands[::-1]]),
-            'IC': CompositionOperator([m.I.C for m in self.operands[::-1]]),
-            'IT': CompositionOperator([m.I.T for m in self.operands]),
-            'IH': CompositionOperator([m.I.H for m in self.operands]),
-        }
+        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
+        self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands[::-1]]))
+        self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands[::-1]]))
+        self.set_rule('.I', lambda s: type(s)([m.I for m in s.operands[::-1]]))
+        self.set_rule('.IC', lambda s: type(s)([m.I.C for m in s.operands[::-1]]))
+        self.set_rule('.IT', lambda s: type(s)([m.I.T for m in s.operands]))
+        self.set_rule('.IH', lambda s: type(s)([m.I.H for m in s.operands]))
 
     def direct(self, input, output, operation=None):
 
@@ -2505,41 +2604,83 @@ class BlockDiagonalOperator(BlockOperator):
             new_axisout,
         )
 
-    def associated_operators(self):
-        return {
-            'C': BlockDiagonalOperator(
-                [op.C for op in self.operands],
-                self.partitionin,
-                self.axisin,
-                self.axisout,
-                self.new_axisin,
-                self.new_axisout,
+        self.set_rule(
+            '.C',
+            lambda s: BlockDiagonalOperator(
+                [op.C for op in s.operands],
+                s.partitionin,
+                s.axisin,
+                s.axisout,
+                s.new_axisin,
+                s.new_axisout,
             ),
-            'T': BlockDiagonalOperator(
-                [op.T for op in self.operands],
-                self.partitionout,
-                self.axisout,
-                self.axisin,
-                self.new_axisout,
-                self.new_axisin,
+        )
+        self.set_rule(
+            '.T',
+            lambda s: BlockDiagonalOperator(
+                [op.T for op in s.operands],
+                s.partitionout,
+                s.axisout,
+                s.axisin,
+                s.new_axisout,
+                s.new_axisin,
             ),
-            'H': BlockDiagonalOperator(
-                [op.H for op in self.operands],
-                self.partitionout,
-                self.axisout,
-                self.axisin,
-                self.new_axisout,
-                self.new_axisin,
+        )
+        self.set_rule(
+            '.H',
+            lambda s: BlockDiagonalOperator(
+                [op.H for op in s.operands],
+                s.partitionout,
+                s.axisout,
+                s.axisin,
+                s.new_axisout,
+                s.new_axisin,
             ),
-            'I': BlockDiagonalOperator(
-                [op.I for op in self.operands],
-                self.partitionout,
-                self.axisout,
-                self.axisin,
-                self.new_axisout,
-                self.new_axisin,
+        )
+        self.set_rule(
+            '.I',
+            lambda s: BlockDiagonalOperator(
+                [op.I for op in s.operands],
+                s.partitionout,
+                s.axisout,
+                s.axisin,
+                s.new_axisout,
+                s.new_axisin,
             ),
-        }
+        )
+        self.set_rule(
+            '.IC',
+            lambda s: BlockDiagonalOperator(
+                [op.I.C for op in s.operands],
+                s.partitionout,
+                s.axisout,
+                s.axisin,
+                s.new_axisout,
+                s.new_axisin,
+            ),
+        )
+        self.set_rule(
+            '.IT',
+            lambda s: BlockDiagonalOperator(
+                [op.I.T for op in s.operands],
+                s.partitionout,
+                s.axisout,
+                s.axisin,
+                s.new_axisout,
+                s.new_axisin,
+            ),
+        )
+        self.set_rule(
+            '.IH',
+            lambda s: BlockDiagonalOperator(
+                [op.I.H for op in s.operands],
+                s.partitionout,
+                s.axisout,
+                s.axisin,
+                s.new_axisout,
+                s.new_axisin,
+            ),
+        )
 
     def direct(self, input, output):
         if None in self.partitionout:
@@ -2618,28 +2759,24 @@ class BlockColumnOperator(BlockOperator):
             axisout=axisout,
             new_axisout=new_axisout,
         )
-
-    def associated_operators(self):
-        return {
-            'C': BlockColumnOperator(
-                [op.C for op in self.operands],
-                self.partitionout,
-                self.axisout,
-                self.new_axisout,
+        self.set_rule(
+            '.C',
+            lambda s: BlockColumnOperator(
+                [op.C for op in s.operands], s.partitionout, s.axisout, s.new_axisout
             ),
-            'T': BlockRowOperator(
-                [op.T for op in self.operands],
-                self.partitionout,
-                self.axisout,
-                self.new_axisout,
+        )
+        self.set_rule(
+            '.T',
+            lambda s: BlockRowOperator(
+                [op.T for op in s.operands], s.partitionout, s.axisout, s.new_axisout
             ),
-            'H': BlockRowOperator(
-                [op.H for op in self.operands],
-                self.partitionout,
-                self.axisout,
-                self.new_axisout,
+        )
+        self.set_rule(
+            '.H',
+            lambda s: BlockRowOperator(
+                [op.H for op in s.operands], s.partitionout, s.axisout, s.new_axisout
             ),
-        }
+        )
 
     def direct(self, input, output):
         if None in self.partitionout:
@@ -2708,28 +2845,24 @@ class BlockRowOperator(BlockOperator):
             axisin=axisin,
             new_axisin=new_axisin,
         )
-
-    def associated_operators(self):
-        return {
-            'C': BlockRowOperator(
-                [op.C for op in self.operands],
-                self.partitionin,
-                self.axisin,
-                self.new_axisin,
+        self.set_rule(
+            '.C',
+            lambda s: BlockRowOperator(
+                [op.C for op in s.operands], s.partitionin, s.axisin, s.new_axisin
             ),
-            'T': BlockColumnOperator(
-                [op.T for op in self.operands],
-                self.partitionin,
-                self.axisin,
-                self.new_axisin,
+        )
+        self.set_rule(
+            '.T',
+            lambda s: BlockColumnOperator(
+                [op.T for op in s.operands], s.partitionin, s.axisin, s.new_axisin
             ),
-            'H': BlockColumnOperator(
-                [op.H for op in self.operands],
-                self.partitionin,
-                self.axisin,
-                self.new_axisin,
+        )
+        self.set_rule(
+            '.H',
+            lambda s: BlockColumnOperator(
+                [op.H for op in s.operands], s.partitionin, s.axisin, s.new_axisin
             ),
-        }
+        )
 
     def direct(self, input, output):
         if None in self.partitionin:
@@ -2787,15 +2920,13 @@ class ReshapeOperator(Operator):
             self.__init__(shapein, **keywords)
             return
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
+        self.set_rule('.T', lambda s: ReverseOperatorFactory(ReshapeOperator, s))
         self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
         if self.same_data(input, output):
             pass
         output.ravel()[:] = input.ravel()
-
-    def associated_operators(self):
-        return {'T': ReverseOperatorFactory(ReshapeOperator, self)}
 
     def __str__(self):
         return strshape(self.shapeout) + '←' + strshape(self.shapein)
@@ -3036,22 +3167,25 @@ class HomothetyOperator(DiagonalOperator):
             keywords['flags'] = {'involutary': True}
 
         DiagonalOperator.__init__(self, data, 'scalar', **keywords)
-        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
-
-    def associated_operators(self):
-        return {
-            'C': DirectOperatorFactory(
-                HomothetyOperator, self, np.conjugate(self.data)
+        self.set_rule(
+            '.C',
+            lambda s: DirectOperatorFactory(HomothetyOperator, s, np.conjugate(s.data)),
+        )
+        self.set_rule(
+            '.I',
+            lambda s: DirectOperatorFactory(
+                HomothetyOperator, s, 1 / s.data if s.data != 0 else np.nan
             ),
-            'I': DirectOperatorFactory(
-                HomothetyOperator, self, 1 / self.data if self.data != 0 else np.nan
-            ),
-            'IC': DirectOperatorFactory(
+        )
+        self.set_rule(
+            '.IC',
+            lambda s: DirectOperatorFactory(
                 HomothetyOperator,
-                self,
-                np.conjugate(1 / self.data) if self.data != 0 else np.nan,
+                s,
+                np.conjugate(1 / s.data) if s.data != 0 else np.nan,
             ),
-        }
+        )
+        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
 
     def __str__(self):
         data = self.data.flat[0]
@@ -3127,23 +3261,21 @@ class ConstantOperator(BroadcastingOperator):
             self.__init__(**keywords)
             return
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
-        self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
-        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
-        self.set_rule('.{CompositionOperator}', self._rule_mul, MultiplicationOperator)
-        self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
-
-    def associated_operators(self):
-        ops = {
-            'C': DirectOperatorFactory(
-                ConstantOperator, self, self.data.conjugate(), broadcast=self.broadcast
-            )
-        }
+        self.set_rule(
+            '.C',
+            lambda s: DirectOperatorFactory(
+                ConstantOperator, s, s.data.conjugate(), broadcast=s.broadcast
+            ),
+        )
         if (
             self.flags.shape_input == 'unconstrained'
             and self.flags.shape_output != 'implicit'
         ):
-            ops['T'] = self
-        return ops
+            self.set_rule('.T', '.')
+        self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
+        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
+        self.set_rule('.{CompositionOperator}', self._rule_mul, MultiplicationOperator)
+        self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
 
     def direct(self, input, output, operation=assignment_operation):
         if self.broadcast == 'fast':
@@ -3202,9 +3334,7 @@ class ZeroOperator(ConstantOperator):
 
     def __init__(self, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
-
-    def associated_operators(self):
-        return {'T': ReverseOperatorFactory(ZeroOperator, self)}
+        self.set_rule('.T', lambda s: ReverseOperatorFactory(ZeroOperator, s))
 
     def direct(self, input, output, operation=assignment_operation):
         operation(output, 0)

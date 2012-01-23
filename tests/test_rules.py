@@ -1,10 +1,10 @@
 import numpy as np
 
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_raises
 from pyoperators import (Operator, AdditionOperator, CompositionOperator,
          MultiplicationOperator, ConstantOperator, IdentityOperator,
          HomothetyOperator, ZeroOperator)
-from pyoperators.core import OperatorBinaryRule
+from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
 from pyoperators.utils import assert_is, assert_is_none, assert_is_not_none, assert_is_instance, ndarraywrap
 
 from .test_shared import ops, ndarray2, attr2
@@ -35,7 +35,26 @@ def p1(o1, o2):
 def p2(o1, o2):
     return op3
 
-def test_rule1():
+def test_unaryrule1():
+    def func(s, p):
+        r = OperatorUnaryRule(s, p)
+        if p == '.':
+            assert_is(r(op1), op1)
+        else:
+            assert_is_instance(r(op1), IdentityOperator)
+    for s in ('.C', '.T', '.H', '.I', '.IC', '.IT', '.IH'):
+        for p in ('.', '1'):
+            yield func, s, p
+
+def test_unaryrule2():
+    assert_raises(ValueError, OperatorUnaryRule, '.', '.')
+    assert_raises(ValueError, OperatorUnaryRule, 'T', '.')
+    assert_raises(ValueError, OperatorUnaryRule, '.T', '.C')
+    assert_raises(ValueError, OperatorUnaryRule, '.T', '.T')
+    assert_raises(ValueError, OperatorUnaryRule, '.T', '.H')
+    assert_raises(ValueError, OperatorUnaryRule, '.T', '.I')
+
+def test_binaryrule1():
     for s1 in ('.', '.C', '.T', '.H', '.I'):
         o1 = eval('op'+s1) if s1 != '.' else op
         for s2 in ('.', '.C', '.T', '.H', '.I'):
@@ -55,23 +74,23 @@ def test_rule1():
                 print result, o3
                 yield assert_is, result, o3
 
-def test_rule2():
+def test_binaryrule2():
     rule = OperatorBinaryRule('..T', p1)
     yield assert_is_none, rule(op1, op2)
     yield assert_equal, rule(op1, op1.T), (op1.T, op1)
 
-def test_rule3():
+def test_binaryrule3():
     rule = OperatorBinaryRule('..T', p2)
     yield assert_is_none, rule(op1, op2)
     yield assert_is_instance, rule(op1, op1.T), Operator3
 
-def test_rule4():
+def test_binaryrule4():
     rule = OperatorBinaryRule('.{HomothetyOperator}', p1)
     yield assert_is_none, rule(op1, op2)
     s = HomothetyOperator(2)
     yield assert_equal, rule(op1, s), (s, op1)
 
-def test_rule5():
+def test_binaryrule5():
     rule = OperatorBinaryRule('.{self}', p2)
     yield assert_equal, rule(op1, op1), op3
     yield assert_is_none, rule(op1, op2)
@@ -156,19 +175,24 @@ def test_del_rule():
     class Op(Operator):
         def __init__(self):
             Operator.__init__(self)
+            self.set_rule('.T', '.')
+            self.set_rule('.C', '1')
             self.set_rule('..T', '.', CompositionOperator)
             self.set_rule('.T.', '.', CompositionOperator)
-            self.set_rule('..C', 'I', AdditionOperator)
-            self.set_rule('.H.', 'I', AdditionOperator)
-            self.set_rule('..C', 'I', MultiplicationOperator)
-            self.set_rule('.H.', 'I', MultiplicationOperator)
+            self.set_rule('..C', '.I', AdditionOperator)
+            self.set_rule('.H.', '.I', AdditionOperator)
+            self.set_rule('..C', '.I', MultiplicationOperator)
+            self.set_rule('.H.', '.I', MultiplicationOperator)
 
     op = Op()
-    nrights = len(op.rules[CompositionOperator]['right'])
-    nlefts = len(op.rules[CompositionOperator]['left'])
+    assert_equal(len(op.rules[None]), 2)
+    assert_equal(len(op.rules[CompositionOperator]['left']), 1)
+    assert_equal(len(op.rules[CompositionOperator]['right']), 2)
     assert_equal(len(op.rules[AdditionOperator]), 2)
     assert_equal(len(op.rules[MultiplicationOperator]), 2)
 
+    op.del_rule('.T')
+    op.del_rule('.C')
     op.del_rule('..T', CompositionOperator)
     op.del_rule('.T.', CompositionOperator)
     op.del_rule('.C.', AdditionOperator)
@@ -176,7 +200,8 @@ def test_del_rule():
     op.del_rule('..C', MultiplicationOperator)
     op.del_rule('.H.', MultiplicationOperator)
 
-    yield assert_equal, len(op.rules[CompositionOperator]['right']), nrights-1
-    yield assert_equal, len(op.rules[CompositionOperator]['left']), nlefts-1
-    yield assert_equal, len(op.rules[AdditionOperator]), 0
-    yield assert_equal, len(op.rules[MultiplicationOperator]), 0
+    assert_equal(len(op.rules[None]), 0)
+    assert_equal(len(op.rules[CompositionOperator]['left']), 0)
+    assert_equal(len(op.rules[CompositionOperator]['right']), 1)
+    assert_equal(len(op.rules[AdditionOperator]), 0)
+    assert_equal(len(op.rules[MultiplicationOperator]), 0)
