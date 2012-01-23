@@ -206,94 +206,14 @@ Other properties are described by the @flags@ attribute:
 
 
 
-h2. 2.6. <a name="operator_rules"></a> Operator's rules
-
-PyOperators has the ability to reduce arithmetic expressions involving operators. This is achieved by means of binary rules which are applied to pairs of operators. Such a rule is specific to an operation (addition, multiplication or composition). It is binary and has the form 'subject &rarr; predicate'. The subject is a pair of properties that will be matched against the pair of operators. The properties are represented by a string. One of them stands for the reference operator, it is the operator to which the rule is attached.
-
-<div class="definition">
-|@'.'@     | reference operator |
-|@'.C'@    | reference operator's conjugate|
-|@'.T'@    | reference operator's transpose|
-|@'.H'@    | reference operator's ajoint|
-|@'.I'@    | reference operator's inverse|
-|@'{...}'@ | instance of the class '...'|
-|@'{self}'@| instance of the reference operator's class |
-</div>
-
-For instance and for a given operator @P@, the subject @'..'@ will match the pair (@P@, @P@), the subject @'.T.'@ the pair (@P.T@, @P@) and @'..H'@ the pair (@P@, @P.H@). When the pair of operators is matched by the subject, it is replaced by the predicate:
-
-<div class="definition">
-|@'.'@     | reference operator |
-|@'.C'@    | reference operator's conjugate|
-|@'.T'@    | reference operator's transpose|
-|@'.H'@    | reference operator's ajoint|
-|@'.I'@    | reference operator's inverse|
-|@'1'@     | identity |
-|function  | callback function|
-</div>
-
-For a non-commutative operation (composition), the rules attached to the left-hand side operator applying on a right-hand-side operator are combined to the rules of the right-hand side operators applying on a left-hand-side operator:
-
-* if one of the operator is a subclass of the other, its rules have higher priority
-* otherwise, the rules of the right-hand side operator have higher priority
-
-Rules attached to an operator are also prioritised:
-
-* newer rules have higher priority
-* non-matching-class rules have higher priority
-* matching-class rules have a priority increasing with the depth of subclassing: the more specific the rule is, the higher priority it&nbsp;is.
-
-Let's examine some examples for the composition operation:
-
-* @'.T.'@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
-* @'..I'@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
-* @'.{Operator}'@ &rarr; @myfunc1@: every time @P@ appears as the left-hand-side operator of a pair, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
-
-The rules attached to an operator are stored in the @rules@ attribute. It is a dictionary whose keys can be @AdditionOperator@, @CompositionOperator@ or @MultiplicationOperator@. For the non-commutative composition operation, rules are further split according to whether the operator is matched on the left or right hand side of the pair.
-Rules are added by using the @set_rule@ method, which has 3 arguments:
-
-* the subject
-* the predicate
-* the operation (@AdditionOperator@, @CompositionOperator@, @MultiplicationOperator@)
-
-The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Rules, such as the ones set in the superclass, can be deleted with the @del_rule@ method. In the following example, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
-
-{% highlight python %}
->>> @decorators.square
-... class Power(Operator):
-...     def __init__(self, exponent):
-...         Operator.__init__(self)
-...         self.exponent = exponent
-...         self.set_rule('.{Power}', self.rule_power, CompositionOperator)
-...     def direct(input, output):
-...         output[...] = input ** self.exponent
-...     @staticmethod
-...     def rule_power(p1, p2):
-...         return Power(p1.exponent * p2.exponent)
-...
->>> p1 = Power(2)
->>> p2 = Power(3)
->>> p = p1(p2)
->>> type(p)
-__main__.Power
->>> p.exponent
-6
-{% endhighlight %}
-
-h2. 2.7. <a name="associated_operators"></a> Operator's associated operators
-
-Not documented. API might change in version {{ site.version_stable | plus:'0.1' }}.
-
-
-
-h2. 2.8. <a name="operator_shapes"></a> Operator's input and output shapes
+h2. 2.6. <a name="operator_shapes"></a> Operator's input and output shapes
 
 The @Operator@ class has a flexible way to deal with inputs and outputs. Its output shape can be:
 
 <div class="definition">
-*explicit:* the operator can only return arrays of a specified shape.
+*explicit:* the operator only returns arrays of a specified shape.
 
-*implicit:* the output shape can be derived from the input shape through the method @reshapein@.
+*implicit:* the output shape is derived from the input shape through the method @reshapein@.
 
 *unconstrained:* the output shape does not depend on the input shape.
 </div>
@@ -301,7 +221,7 @@ The @Operator@ class has a flexible way to deal with inputs and outputs. Its out
 Likewise, its input shape can be:
 
 <div class="definition">
-*explicit:* the operator can only apply over arrays of a specified shape.
+*explicit:* the operator only applies over arrays of a specified shape.
 
 *implicit:* the operator can only apply over arrays whose shape is derived from the output shape through the method @reshapeout@.
 
@@ -481,7 +401,7 @@ array([[3, 3],
 
 
 
-h2. <a name="operator_validation"></a> 2.9. Operator's input and output shape validation.
+h2. <a name="operator_validation"></a> 2.7. Operator's input and output shape validation.
 
 It is possible to validate the shapes of the input or output of an operator by defining the @validatein@ or @validateout@ methods, which take the shapes of the input or output and raise a @ValueError@ exception to signal a validation failure. There are two advantages of using these methods instead of performing the validation in the @direct@ method:
 
@@ -509,7 +429,7 @@ ValueError: The input dimensions are not a multiple of 16.
 
 
 
-h2. <a name="class_propagation"></a> 2.10. Class propagation
+h2. <a name="class_propagation"></a> 2.8. Class propagation
 
 An operator propagates the class of the input array, if the latter subclasses @numpy.ndarray@:
 
@@ -534,7 +454,7 @@ __main__.ndarray3
 
 
 
-h2. <a name="attribute_propagation"></a> 2.11. Attribute propagation
+h2. <a name="attribute_propagation"></a> 2.9. Attribute propagation
 
 An operator also propagates attributes:
 
@@ -574,6 +494,138 @@ More flexibility is possible by passing a function, instead of a dictionary, to 
 ...
 >>> I2 = I2Operator()
 >>> I2(I2(0)).history
+{% endhighlight %}
+
+
+
+h2. 2.10. <a name="unary_rules"></a> Operator's unary rules
+
+The set of operators that can be obtained by using any number of times the @'.C'@, @'.T'@, @'.H'@ and @'.I'@ attributes over a given operator is finite. The set is made of the operator itself, its conjugate, transpose, hermitian, inverse, inverse-conjugate, inverse-transpose and inverse-adjoint.
+
+It is possible to define such operators by using a unary rule of the form 'subject' is 'predicate'. The subject being
+
+<div class="definition">
+|@'.C'@    | operator's conjugate|
+|@'.T'@    | operator's transpose|
+|@'.H'@    | operator's adjoint|
+|@'.I'@    | operator's inverse|
+|@'.IC'@   | operator's inverse-conjugate|
+|@'.IT'@   | operator's inverse-transpose|
+|@'.IH'@   | operator's inverse-adjoint|
+</div>
+
+and the predicate being
+
+<div class="definition">
+|@'.'@    | the operator itself|
+|@function@ | callback function ||
+</div>
+
+For instance, the rule @'.C'@ &rarr; @'.'@ means that the operator's conjugate is the operator itself. This is how the @real@ decorator is translated internally. Likewise, the @involutary@ decorator is represented by the rule @'.I'@ &rarr; @'.'@.
+
+Unary rules are attached to an operator by using the @set_rule@ method:
+
+{% highlight python %}
+>>> @decorators.linear
+... class Op1(Operator):
+...     def __init__(self, **keywords):
+...         Operator.__init__(self, **keywords)
+...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op2, self))
+...     def direct(self, input, output):
+...         output[:-1] = input
+...         output[-1] = 0
+...     def reshapein(self, shapein):
+...         return (shapein[0]+1,)
+...
+>>> @decorators.linear
+... class Op2(Operator):
+...     def __init__(self, **keywords):
+...         Operator.__init__(self, **keywords)
+...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op1, self))
+...     def direct(self, input, output):
+...         output[...] = input[:-1]
+...     def reshapein(self, shapein):
+...         return (shapein[0]-1,)
+...
+>>> op1 = Op1()
+>>> op2 = op1.T
+>>> type(op2)
+__main__.Op2
+>>> array_equal(op1.todense(4), op2.todense(5).T)
+True
+{% endhighlight %}
+
+The @ReverseOperatorFactory@ is a convenience factory which returns a operator of the type its first argument and by swapping the attributes @attrin@(@out@), @classin@(@out@), @shapein@(@out@), @reshapein@(@out@), @toshapein@(@out@), @validatein@(@out@) from the second argument.
+
+
+h2. 2.11. <a name="binary_rules"></a> Operator's binary rules
+
+PyOperators has the ability to reduce arithmetic expressions involving operators. This is achieved by means of binary rules which are applied to pairs of operators. Such a rule is specific to an operation (addition, multiplication or composition). It is binary and has the form 'subject &rarr; predicate'. The subject is a pair of properties that will be matched against the pair of operators. The properties are represented by a string. One of them stands for the reference operator, it is the operator to which the rule is attached. In addition to those for unary rules, the following subjects can be used:
+
+<div class="definition">
+|@'.'@     | reference operator |
+|@'{...}'@ | instance of the class '...'|
+|@'{self}'@| instance of the reference operator's class |
+</div>
+
+For instance and for a given operator @P@, the subject @'..'@ will match the pair (@P@, @P@), the subject @'.T.'@ the pair (@P.T@, @P@) and @'..H'@ the pair (@P@, @P.H@). When the pair of operators is matched by the subject, it is replaced by the predicate:
+
+<div class="definition">
+|@'.'@     | reference operator |
+|@'.C'@    | reference operator's conjugate|
+|@'.T'@    | reference operator's transpose|
+|@'.H'@    | reference operator's ajoint|
+|@'.I'@    | reference operator's inverse|
+|@'1'@     | identity operator|
+|@function@  | callback function|
+</div>
+
+For a non-commutative operation (composition), the rules attached to the left-hand side operator applying on a right-hand-side operator are combined to the rules of the right-hand side operators applying on a left-hand-side operator:
+
+* if one of the operator is a subclass of the other, its rules have higher priority
+* otherwise, the rules of the right-hand side operator have higher priority
+
+Rules attached to an operator are also prioritised:
+
+* newer rules have higher priority
+* non-matching-class rules have higher priority
+* matching-class rules have a priority increasing with the depth of subclassing: the more specific the rule is, the higher priority it&nbsp;is.
+
+Let's examine some examples for the composition operation:
+
+* @'.T.'@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
+* @'..I'@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
+* @'.{Operator}'@ &rarr; @myfunc1@: every time @P@ appears as the left-hand-side operator of a pair, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
+
+The rules attached to an operator are stored in the @rules@ attribute. It is a dictionary whose keys can be @AdditionOperator@, @CompositionOperator@ or @MultiplicationOperator@. For the non-commutative composition operation, rules are further split according to whether the operator is matched on the left or right hand side of the pair.
+Rules are added by using the @set_rule@ method, which has 3 arguments:
+
+* the subject
+* the predicate
+* the operation (@AdditionOperator@, @CompositionOperator@, @MultiplicationOperator@)
+
+The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Rules, such as the ones set in the superclass, can be deleted with the @del_rule@ method. In the following example, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
+
+{% highlight python %}
+>>> @decorators.square
+... class Power(Operator):
+...     def __init__(self, exponent):
+...         Operator.__init__(self)
+...         self.exponent = exponent
+...         self.set_rule('.{Power}', self.rule_power, CompositionOperator)
+...     def direct(input, output):
+...         output[...] = input ** self.exponent
+...     @staticmethod
+...     def rule_power(p1, p2):
+...         return Power(p1.exponent * p2.exponent)
+...
+>>> p1 = Power(2)
+>>> p2 = Power(3)
+>>> p = p1(p2)
+>>> type(p)
+__main__.Power
+>>> p.exponent
+6
 {% endhighlight %}
 
 
