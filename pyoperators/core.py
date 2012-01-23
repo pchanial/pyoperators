@@ -1131,11 +1131,12 @@ class Operator(object):
                 continue
             nargs = len(vars) - (len(defaults) if defaults is not None else 0)
             if ivar >= nargs:
-                if isinstance(val, (dict, tuple, list)):
+                try:
                     if val == defaults[ivar - nargs]:
                         continue
-                elif val is defaults[ivar - nargs]:
-                    continue
+                except:
+                    if val is defaults[ivar - nargs]:
+                        continue
             if isinstance(val, Operator):
                 s = 'Operator()'
             elif var in ['shapein', 'shapeout']:
@@ -1146,6 +1147,7 @@ class Operator(object):
                 s = str(val)
             else:
                 s = repr(val)
+            #WWW shoudl be improved: test implicit
             if var == 'shapeout' and self.shapeout == self.shapein:
                 continue
             if ivar < nargs:
