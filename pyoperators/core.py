@@ -3151,7 +3151,7 @@ class DiagonalOperator(BroadcastingOperator):
     def toshapein(self, v):
         if self.shapein is not None:
             return v.reshape(self.shapein)
-        if self.data.ndim < 2:
+        if self.data.ndim < 1:
             return v
 
         sd = list(self.data.shape)
