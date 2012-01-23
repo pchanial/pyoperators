@@ -1436,15 +1436,26 @@ class CompositeOperator(Operator):
             op = ' ⊕ '
         else:
             op = ' * '
+
+        # parentheses for AdditionOperator and BlockDiagonalOperator
         operands = [
             '({0})'.format(o)
             if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
             else str(o)
             for o in self.operands
         ]
-        if isinstance(self, BlockDiagonalOperator):
-            if len(operands) > 2:
-                operands = [operands[0], '...', operands[-1]]
+
+        # some special cases
+        if isinstance(self, BlockDiagonalOperator) and len(operands) > 2:
+            operands = [operands[0], '...', operands[-1]]
+        elif isinstance(self, CompositionOperator) and isinstance(
+            self.operands[0], HomothetyOperator
+        ):
+            # remove trailing 'I'
+            operands[0] = operands[0][:-1]
+            if self.operands[0].data == -1:
+                operands[0] += '1'
+
         return op.join(operands)
 
     def __repr__(self):
@@ -3191,7 +3202,11 @@ class HomothetyOperator(DiagonalOperator):
         data = self.data.flat[0]
         if data == int(data):
             data = int(data)
-        return str(data)
+        if data == 1:
+            return 'I'
+        if data == -1:
+            return '-I'
+        return str(data) + 'I'
 
     @staticmethod
     def _rule_right(operator, self):
