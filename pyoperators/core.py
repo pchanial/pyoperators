@@ -2300,11 +2300,11 @@ class BlockDiagonalOperator(BlockOperator):
                       s.operands], s.partitionout, s.axisout, s.axisin,
                       s.new_axisout, s.new_axisin))
         self.set_rule('.IT', lambda s: BlockDiagonalOperator([op.I.T for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
+                      s.operands], s.partitionin, s.axisin, s.axisout,
+                      s.new_axisin, s.new_axisout))
         self.set_rule('.IH', lambda s: BlockDiagonalOperator([op.I.H for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
+                      s.operands], s.partitionin, s.axisin, s.axisout,
+                      s.new_axisin, s.new_axisout))
 
     def direct(self, input, output):
         if None in self.partitionout:
