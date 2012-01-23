@@ -2267,7 +2267,8 @@ class BlockDiagonalOperator(BlockOperator):
                  new_axisin=None, new_axisout=None):
    
         if axisin is None and new_axisin is None:
-            new_axisin = 0
+            raise NotImplementedError('Free partitioning not implemented yet.')
+
         if axisout is None:
             axisout = axisin
         if new_axisout is None:
@@ -2366,7 +2367,8 @@ class BlockColumnOperator(BlockOperator):
     def __init__(self, operands, partitionout=None, axisout=None,
                  new_axisout=None):
         if axisout is None and new_axisout is None:
-            new_axisout = 0
+            raise NotImplementedError('Free partitioning not implemented yet.')
+
         if partitionout is None:
             partitionout = self._get_partition([op.shapeout \
                 for op in self.operands], axisout, new_axisout)
@@ -2434,7 +2436,8 @@ class BlockRowOperator(BlockOperator):
     def __init__(self, operands, partitionin=None, axisin=None,
                  new_axisin=None):
         if axisin is None and new_axisin is None:
-            new_axisin = 0
+            raise NotImplementedError('Free partitioning not implemented yet.')
+
         if partitionin is None:
             partitionin = self._get_partition([op.shapein \
                 for op in self.operands], axisin, new_axisin)
