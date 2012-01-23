@@ -976,7 +976,7 @@ class Operator(object):
                 self.shapein = self.shapeout
             else:
                 self.shapeout = self.shapein
-            self.reshapein = lambda x: x
+            self.reshapein = (lambda x:x) if self.shapeout is None else None
             self.reshapeout = self.reshapein
             self.validatein = self.validatein or self.validateout
             self.validateout = self.validatein
@@ -986,9 +986,9 @@ class Operator(object):
             else:
                 self.toshapeout = self.toshapein
 
-        flag_is = 'explicit' if shapein is not None else 'implicit' \
+        flag_is = 'explicit' if self.shapein is not None else 'implicit' \
                   if self.reshapeout is not None else 'unconstrained'
-        flag_os = 'explicit' if shapeout is not None else 'implicit' \
+        flag_os = 'explicit' if self.shapeout is not None else 'implicit' \
                   if self.reshapein is not None else 'unconstrained'
         self._set_flags(shape_input=flag_is, shape_output=flag_os)
                     
@@ -1122,10 +1122,19 @@ class Operator(object):
     def __repr__(self):
         a = []
         init = getattr(self, '__init_original__', self.__init__)
-        vars, junk, junk, defaults = inspect.getargspec(init)
+        vars, args, keywords, defaults = inspect.getargspec(init)
+            
         for ivar, var in enumerate(vars):
             if var in ('flags', 'self'):
                 continue
+            if var == 'shapeout' and self.flags.shape_output == 'implicit':
+                continue
+            if var == 'shapein' and self.flags.shape_input == 'implicit':
+                continue
+            if var == 'reshapeout' and self.flags.square and \
+               self.flags.shape_input == 'implicit':
+                continue
+
             val = getattr(self, var, None)
             if isinstance(val, types.MethodType):
                 continue
@@ -1137,7 +1146,10 @@ class Operator(object):
                 except:
                     if val is defaults[ivar - nargs]:
                         continue
-            if isinstance(val, Operator):
+            if var == 'reshapein' and self.flags.square and \
+               self.flags.shape_output == 'implicit':
+                s = 'lambda x:x'
+            elif isinstance(val, Operator):
                 s = 'Operator()'
             elif var in ['shapein', 'shapeout']:
                 s = strshape(val)
@@ -1147,9 +1159,7 @@ class Operator(object):
                 s = str(val)
             else:
                 s = repr(val)
-            #WWW shoudl be improved: test implicit
-            if var == 'shapeout' and self.shapeout == self.shapein:
-                continue
+
             if ivar < nargs:
                 a += [ s ]
             else:
