@@ -555,7 +555,7 @@ __main__.Op2
 True
 {% endhighlight %}
 
-The @ReverseOperatorFactory@ is a convenience factory which returns a operator of the type its first argument and by swapping the attributes @attrin@(@out@), @classin@(@out@), @shapein@(@out@), @reshapein@(@out@), @toshapein@(@out@), @validatein@(@out@) from the second argument.
+The @ReverseOperatorFactory@ is a convenience factory which returns an operator of the type its first argument and by swapping the attributes @attrin@(@out@), @classin@(@out@), @shapein@(@out@), @reshapein@(@out@), @toshapein@(@out@), @validatein@(@out@) from the second argument.
 
 
 h2. 2.11. <a name="binary_rules"></a> Operator's binary rules
