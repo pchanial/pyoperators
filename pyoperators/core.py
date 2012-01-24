@@ -17,7 +17,7 @@ import types
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
 from .utils import (
-    assignment_operation,
+    operation_assignment,
     first_is_not,
     isclassattr,
     isscalar,
@@ -3313,7 +3313,7 @@ class ConstantOperator(BroadcastingOperator):
         self.set_rule('.{CompositionOperator}', self._rule_mul, MultiplicationOperator)
         self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
 
-    def direct(self, input, output, operation=assignment_operation):
+    def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'fast':
             operation(output.T, self.data.T)
         else:
@@ -3372,7 +3372,7 @@ class ZeroOperator(ConstantOperator):
         ConstantOperator.__init__(self, 0, **keywords)
         self.set_rule('.T', lambda s: ReverseOperatorFactory(ZeroOperator, s))
 
-    def direct(self, input, output, operation=assignment_operation):
+    def direct(self, input, output, operation=operation_assignment):
         operation(output, 0)
 
     @staticmethod

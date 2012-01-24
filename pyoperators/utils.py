@@ -3,10 +3,11 @@ from __future__ import division
 import collections
 import multiprocessing
 import numpy as np
+import operator
 import os
 import scipy.sparse
 
-__all__ = ['assignment_operation']
+__all__ = ['operation_assignment']
 
 
 class ndarraywrap(np.ndarray):
@@ -69,11 +70,19 @@ def assert_is_not_none(a, msg=None):
     assert False, str(a) + ' is None' + _get_msg(msg)
 
 
-def assignment_operation(a, b):
+def operation_assignment(a, b):
     """
-    assignment_operation(a, b) -- Same as a[...] = b.
+    operation_assignment(a, b) -- Same as a[...] = b.
     """
     a[...] = b
+
+
+operation_symbol = {
+    operator.iadd: '+',
+    operator.isub: '-',
+    operator.imul: '*',
+    operator.idiv: '/',
+}
 
 
 def first_is_not(l, v):
