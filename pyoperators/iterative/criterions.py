@@ -9,7 +9,7 @@ their __call__ and diff methods and their shapein attribute.
 
 import copy
 import numpy as np
-from ..core import Operator, I
+from ..core import Operator, IdentityOperator
 
 __all__ = [
     'norm2',
@@ -163,7 +163,7 @@ class Norm2(Norm):
             return 2 * x
 
         def hessian(x):
-            return 2 * I(shapein=x.size)
+            return 2 * IdentityOperator(shapein=x.size)
 
         def c_call(x):
             return np.dot(x.T, C * x)
