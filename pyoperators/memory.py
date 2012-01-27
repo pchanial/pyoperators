@@ -15,7 +15,7 @@ from . import utils
 
 __all__ = []
 
-verbose = True
+verbose = False
 istack = 0
 stack = []
 

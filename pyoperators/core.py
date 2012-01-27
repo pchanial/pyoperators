@@ -2783,7 +2783,6 @@ class IdentityOperator(HomothetyOperator):
 
     >>> I = IdentityOperator(shapein=2)
     >>> I * arange(2)
-    Info: Allocating (2,) float64 = 16 bytes in IdentityOperator.
     ndarraywrap([ 0.,  1.])
 
     """
