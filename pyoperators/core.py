@@ -465,16 +465,16 @@ class Operator(object):
         self.inverse(input.conjugate(), output)
         output[...] = output.conjugate()
 
-    def __call__(self, input, output=None):
+    def __call__(self, x, out=None):
 
-        if isinstance(input, Operator):
-            return CompositionOperator([self, input])
+        if isinstance(x, Operator):
+            return CompositionOperator([self, x])
 
         if self.direct is None:
             raise NotImplementedError(
                 'Call to ' + self.__name__ + ' is not imp' 'lemented.'
             )
-        i, o = self._validate_arguments(input, output)
+        i, o = self._validate_arguments(x, out)
         with memory.push_and_pop(o):
             if not self.flags.inplace and self.same_data(i, o):
                 memory.up()
@@ -490,28 +490,28 @@ class Operator(object):
                 memory.down()
                 o[...] = o_
 
-        cls = input.__class__ if isinstance(input, np.ndarray) else np.ndarray
-        attr = input.__dict__.copy() if hasattr(input, '__dict__') else {}
+        cls = x.__class__ if isinstance(x, np.ndarray) else np.ndarray
+        attr = x.__dict__.copy() if hasattr(x, '__dict__') else {}
         cls = self.propagate_attributes(cls, attr)
         if cls is np.ndarray and len(attr) > 0:
             cls = ndarraywrap
-        if output is None:
-            output = o
-        if type(output) is np.ndarray:
+        if out is None:
+            out = o
+        if type(out) is np.ndarray:
             if cls is np.ndarray:
-                return output
-            output = output.view(cls)
-        elif type(output) is not cls:
-            output.__class__ = cls
-            if output.__array_finalize__ is not None:
-                output.__array_finalize__()
+                return out
+            out = out.view(cls)
+        elif type(out) is not cls:
+            out.__class__ = cls
+            if out.__array_finalize__ is not None:
+                out.__array_finalize__()
 
         # we cannot simply update __dict__, because of properties.
         # the iteration is sorted by key, so that attributes beginning with an
         # underscore are set first.
         for k in sorted(attr.keys()):
-            setattr(output, k, attr[k])
-        return output
+            setattr(out, k, attr[k])
+        return out
 
     @property
     def shape(self):
