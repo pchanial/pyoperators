@@ -15,8 +15,9 @@ A = FftOperator(1024)
 and then use the instance as a function. The object @A@ is a Python callable and takes "numpy":http://numpy.scipy.org 's N-dimensional array object as inputs and outputs:
 
 {% highlight python %}
->>> input = np.arange(1024, dtype=complex)
->>> output = A(input)
+>>> memory.verbose = True
+>>> x = np.arange(1024, dtype=complex)
+>>> y = A(x)
 Info: Allocating (1024,) complex128 = 0.015625 MiB in FftOperator.
 {% endhighlight %}
 
@@ -25,8 +26,9 @@ When using the operator in such a way, a no-side-effect policy is enforced: it i
 <a name="output_argument"></a>Similarly to ufuncs, such behaviour can be changed by providing the output array:
 
 {% highlight python %}
->>> output = np.empty(1024, dtype=complex)
->>> A(input, output)
+>>> memory.verbose = True
+>>> y = np.empty(1024, dtype=complex)
+>>> A(x, out=y)    # or simply A(x, y)
 {% endhighlight %}
 
 "In-place operations":#inplace_operators can be performed in a similar way by providing the input array as the output.
@@ -350,8 +352,8 @@ Such operator is obtained by only setting the @shapein@ keyword. The following e
 >>> op = Op()
 >>> op.shapein, op.shapeout
 ((2,), None)
->>> output = np.empty((2,2), int)
->>> op([1, 2], output)
+>>> y = np.empty((2,2), int)
+>>> op([1, 2], out=y)
 array([[1, 3],
        [5, 7]])
 {% endhighlight %}
@@ -372,10 +374,10 @@ This kind of operator is of limited interest and is shown here for completeness.
 (None, None)
 >>> op([1,2,3])
 ValueError: The output shape of an implicit input shape and unconstrained output shape operator cannot be inferred.
->>> output = np.empty(4)
->>> op([1.,2.,3.,4.,5.], output)
+>>> y = np.empty(4)
+>>> op([1.,2.,3.,4.,5.], out=y)
 array([ 1.,  2.,  3.,  4.])
->>> op(np.arange(4.), output)
+>>> op(np.arange(4.), out=y)
 ValueError: The input has an invalid shape '(4,)'. Expected shape is '(5,)'.
 {% endhighlight %}
 
@@ -393,8 +395,8 @@ This kind of operator is the default: this behaviour is obtained by not setting 
 >>> op = Op()
 >>> op.shapein, op.shapeout
 (None, None)
->>> output = np.empty((2,2), int)
->>> op([2, 1], output)
+>>> y = np.empty((2,2), int)
+>>> op([2, 1], out=y)
 array([[3, 3],
        [3, 3]])
 {% endhighlight %}
@@ -530,7 +532,7 @@ Unary rules are attached to an operator by using the @set_rule@ method:
 ... class Op1(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
-...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op2, self))
+...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op2, s))
 ...     def direct(self, input, output):
 ...         output[:-1] = input
 ...         output[-1] = 0
@@ -541,7 +543,7 @@ Unary rules are attached to an operator by using the @set_rule@ method:
 ... class Op2(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
-...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op1, self))
+...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op1, s))
 ...     def direct(self, input, output):
 ...         output[...] = input[:-1]
 ...     def reshapein(self, shapein):
@@ -680,18 +682,18 @@ The in-place property is useful to avoid intermediate variables. To minimise the
 As an example, let's consider the composition of an in-place operator @IN@ by an out-of-place operator @OUT@. The out-of-place composition
 
 {% highlight python %}
->>> (IN * OUT)(input, output)
+>>> (IN * OUT)(x, out=y)
 {% endhighlight %}
 
-requires an intermediate variable only if the size of @OUT@ 's output is larger than that of the @output@ variable. Otherwise, the @output@ variable is used as @OUT@ 's output and the application of the operator @IN@ is performed in-place.
+requires an intermediate variable only if the size of @OUT@ 's output is larger than that of the @y@ variable. Otherwise, @y@'s buffer is used as output for the @OUT@ operator and the application of the operator @IN@ is performed in-place on @y@.
 
 Concerning the in-place composition:
 
 {% highlight python %}
->>> (IN * OUT)(input, input)
+>>> (IN * OUT)(x, out=x)
 {% endhighlight %}
 
-it is not possible to avoid the use of a temporary variable, since a buffer different from the @input@ variable is required for the @OUT@ operator.  The application of the operator @IN@ is performed out-of-place because its output is the @input@ variable.
+it is not possible to avoid the use of a temporary variable, since a buffer different from the @x@ variable is required for the @OUT@ operator.  The application of the operator @IN@ is performed out-of-place because its output is the @x@ variable.
 
 
 
@@ -705,38 +707,42 @@ An operator that can do in-place reductions is an operator that can add, multipl
 Let see how this property can be used to further remove the use of intermediate variables. First, let's assume that the operator @o2@ cannot do in-place reductions:
 
 {% highlight python %}
->>> (o1 + o2)(input, output)
+>>> (o1 + o2)(x, out=y)
 {% endhighlight %}
 
 The following steps are performed:
 
-* the variable @output@ is used as @o1@ 's output,
+* the variable @y@ is used as @o1@ 's output,
 * a temporary variable is allocated (or retrieved from the memory manager),
 * it is used as @o2@ 's output
-* and is then added in-place to the @output@ variable.
+* and is then added in-place to the @y@ variable.
 
 If we now assume that the operator @o2@ can do in-place reductions, the intermediate variable is not required anymore:
 
-* the variable @output@ is used as @o1@ 's output
-* @o2@ updates the @output@ variable in-place.
+* the variable @y@ is used as @o1@ 's output
+* @o2@ updates @y@ in-place.
 
 One can enable such property by adding the keyword @operation@ to the operator's direct method.
 
 {% highlight python %}
->>> class P(Operator):
+>>> memory.verbose = True
+... @decorators.inplace_reduction
+... class P(Operator):
 ...     def direct(self, input, output, operation=operation_assignment):
 ...         operation(output, input)
 ...
 >>> Q = sum(P() for k in range(0,3))
->>> output = np.empty(2)
->>> Q([1., 2.], output)
-array([ 3.,  6.])
+>>> y = np.empty(2)
+>>> Q([ 1., 2.], out=y)
+array([ 3., 6.])
 {% endhighlight %}
 
-No intermediate variable is needed and all operations have been performed in-place. For the first operand, the @direct@ method of @Q@, which is an @AdditionOperator@, calls @P@ 's @direct@ method without the @operation@ keyword and consequently, the default function @operation_assignment@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @__iadd__@ function from Python's @operator@ module (If @Q@ was a @MultiplicationOperator@, it would be the function @operator.__imul__@), which result in adding the input into the output argument in-place. This property is even more interesting for cache locality when an operator's output is zero, except for a few values. In such a case, the operator would only have to update the non-zero values:
+No intermediate variable is needed and all operations have been performed in-place. For the first operand, the @direct@ method of @Q@, which is an @AdditionOperator@, calls @P@ 's @direct@ method without the @operation@ keyword and consequently, the default function @operation_assignment@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @iadd@ function from Python's @operator@ module (If @Q@ was a @MultiplicationOperator@, it would be the function @operator.imul@), which result in adding the input into the output argument in-place. This property is even more interesting for cache locality when an operator's output is zero, except for a few values. In such a case, the operator would only have to update the non-zero values:
 
 {% highlight python %}
->>> @decorators.linear
+>>> memory.verbose=True
+... @decorators.linear
+... @decorators.inplace_reduction
 ... class Projection(Operator):
 ...     def __init__(self, index):
 ...          self.index = index
@@ -749,8 +755,8 @@ No intermediate variable is needed and all operations have been performed in-pla
 ...         output[self.index] += input
 ...
 >>> Q = Projection(0) + Projection(5) + Projection(10)
->>> output = np.empty(11)
->>> Q([2.], output)
+>>> y = np.empty(11)
+>>> Q([2.], out=y)
 array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
 {% endhighlight %}
 
