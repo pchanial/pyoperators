@@ -20,90 +20,94 @@ __all__ = [
 @square
 @inplace
 class ClipOperator(Operator):
+    """
+    Clip (limit) the values in an array.
+
+    Given an interval, values outside the interval are clipped to
+    the interval edges.  For example, if an interval of ``[0, 1]``
+    is specified, values smaller than 0 become 0, and values larger
+    than 1 become 1.
+
+    Arguments
+    ---------
+    vmin: scalar or array_like
+        The minimum limit below which all input values are set to vmin.
+    vmax: scalar or array_like
+        The maximum limit above which all input values are set to vmax.
+
+    Exemples
+    --------
+    >>>  C = ClipOperator(0, 1)
+    >>> x = linspace(-2, 2, 5)
+    >>> x
+    array([-2., -1.,  0.,  1.,  2.])
+    >>> C(x)
+    array([ 0.,  0.,  0.,  1.,  1.])
+
+    See also
+    --------
+    MaximumOperator, MinimumOperator, np.clip
+    """
+
     def __init__(self, vmin, vmax, **keywords):
-        """
-        Clips the values of the input arrays.
-
-        Arguments
-        ---------
-
-        vmin: scalar
-          The minimum limit below which all input values are set to vmin.
-        vmax: scalar
-          The maximum limit above which all input values are set to vmax.
-
-        Exemples
-        --------
-        >>> C = ClipOperator(0, 1, shapein=5)
-        >>> x =  linspace(-2, 2, 5)
-        >>> x
-        array([-2., -1.,  0.,  1.,  2.])
-        >>> C * x
-        Info: Allocating (5,) float64 = 40 bytes in ClipOperator.
-        ndarraywrap([ 0.,  0.,  0.,  1.,  1.])
-
-        See also
-        --------
-        np.clip
-        """
         Operator.__init__(self, lambda i, o: np.clip(i, vmin, vmax, out=o), **keywords)
 
 
 @square
 @inplace
 class MaximumOperator(Operator):
+    """
+    Set all input array values above a given value to this value.
+
+    Arguments
+    ---------
+    value: scalar or array_like
+        Threshold value to which the input array is compared.
+
+    Exemple
+    -------
+    >>> M = MaximumOperator(1)
+    >>> x =  linspace(-2, 2, 5)
+    >>> x
+    array([-2., -1.,  0.,  1.,  2.])
+    >>> M(x)
+    array([ 1.,  1.,  1.,  1.,  2.])
+
+    See also
+    --------
+    ClipOperator, MinimumOperator, np.maximum
+    """
+
     def __init__(self, value, **keywords):
-        """
-        Set all input array values below value to value.
-
-        Arguments
-        ---------
-        value: scalar
-          The value with which the input array is compared.
-
-        Exemple
-        -------
-        >>> M = MaximumOperator(1, shapein=5)
-        >>> x =  linspace(-2, 2, 5)
-        >>> x
-        array([-2., -1.,  0.,  1.,  2.])
-        >>> M * x
-        Info: Allocating (5,) float64 = 40 bytes in MaximumOperator.
-        ndarraywrap([ 1.,  1.,  1.,  1.,  2.])
-
-        See also
-        --------
-        np.maximum
-        """
         Operator.__init__(self, lambda i, o: np.maximum(i, value, o), **keywords)
 
 
 @square
 @inplace
 class MinimumOperator(Operator):
+    """
+    Set all input array values above a given value to this value.
+
+    Arguments
+    ---------
+    value: scalar, broadcastable array
+        The value to which the input array is compared.
+
+    Exemple
+    -------
+    >>> M = MinimumOperator(1)
+    >>> x =  linspace(-2, 2, 5)
+    >>> x
+    array([-2., -1.,  0.,  1.,  2.])
+    >>> M(x)
+    array([-2., -1.,  0.,  1.,  1.])
+
+    See also
+    --------
+    ClipOperator, MaximumOperator, np.minimum
+    """
+
     def __init__(self, value, **keywords):
-        """
-        Set all input array values above value to value.
-
-        Arguments
-        ---------
-        value: scalar
-          The value with which the input array is compared.
-
-        Exemple
-        -------
-        >>> M = MinimumOperator(1, shapein=5)
-        >>> x =  linspace(-2, 2, 5)
-        >>> x
-        array([-2., -1.,  0.,  1.,  2.])
-        >>> M * x
-        Info: Allocating (5,) float64 = 40 bytes in MinimumOperator.
-        ndarraywrap([-2., -1.,  0.,  1.,  1.])
-
-        See also
-        --------
-        np.minimum
-        """
         Operator.__init__(self, lambda i, o: np.minimum(i, value, o), **keywords)
 
 
