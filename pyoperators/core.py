@@ -1886,6 +1886,31 @@ class BlockOperator(CompositeOperator):
         else:
             self.__class__ = BlockDiagonalOperator
         CompositeOperator.__init__(self, operands, flags=flags)
+
+        self.set_rule('.C', lambda s: BlockOperator([op.C for op in s.operands],
+                      s.partitionin, s.partitionout, s.axisin, s.axisout,
+                      s.new_axisin, s.new_axisout))
+        self.set_rule('.T', lambda s: BlockOperator([op.T for op in s.operands],
+                      s.partitionout, s.partitionin, s.axisout, s.axisin,
+                      s.new_axisout, s.new_axisin))
+        self.set_rule('.H', lambda s: BlockOperator([op.H for op in s.operands],
+                      s.partitionout, s.partitionin, s.axisout, s.axisin,
+                      s.new_axisout, s.new_axisin))
+
+        if isinstance(self, BlockDiagonalOperator):
+            self.set_rule('.I', lambda s: type(s)([op.I for op in
+                      s.operands], s.partitionout, s.axisout, s.axisin,
+                      s.new_axisout, s.new_axisin))
+            self.set_rule('.IC', lambda s: type(s)([op.I.C for op in \
+                      s.operands], s.partitionout, s.axisout, s.axisin,
+                      s.new_axisout, s.new_axisin))
+            self.set_rule('.IT', lambda s: type(s)([op.I.T for op in \
+                      s.operands], s.partitionin, s.axisin, s.axisout,
+                      s.new_axisin, s.new_axisout))
+            self.set_rule('.IH', lambda s: type(s)([o.I.H for o in \
+                      s.operands], s.partitionin, s.axisin, s.axisout,
+                      s.new_axisin, s.new_axisout))
+
         self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator)
         self.set_rule('.{self}', self._rule_add, AdditionOperator)
         self.set_rule('.{Operator}', self._rule_left_operator,
@@ -2284,28 +2309,6 @@ class BlockDiagonalOperator(BlockOperator):
         BlockOperator.__init__(self, operands, partitionin, partitionout,
                                axisin, axisout, new_axisin, new_axisout)
 
-        self.set_rule('.C', lambda s: BlockDiagonalOperator([op.C for op in \
-                      s.operands], s.partitionin, s.axisin, s.axisout,
-                      s.new_axisin, s.new_axisout))
-        self.set_rule('.T', lambda s: BlockDiagonalOperator([op.T for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-        self.set_rule('.H', lambda s: BlockDiagonalOperator([op.H for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-        self.set_rule('.I', lambda s: BlockDiagonalOperator([op.I for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-        self.set_rule('.IC', lambda s: BlockDiagonalOperator([op.I.C for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-        self.set_rule('.IT', lambda s: BlockDiagonalOperator([op.I.T for op in \
-                      s.operands], s.partitionin, s.axisin, s.axisout,
-                      s.new_axisin, s.new_axisout))
-        self.set_rule('.IH', lambda s: BlockDiagonalOperator([op.I.H for op in \
-                      s.operands], s.partitionin, s.axisin, s.axisout,
-                      s.new_axisin, s.new_axisout))
-
     def direct(self, input, output):
         if None in self.partitionout:
             partitionout = list(self.partitionout)
@@ -2376,12 +2379,6 @@ class BlockColumnOperator(BlockOperator):
 
         BlockOperator.__init__(self, operands, partitionout=partitionout,
                                axisout=axisout, new_axisout=new_axisout)
-        self.set_rule('.C', lambda s: BlockColumnOperator([op.C for op in \
-                      s.operands], s.partitionout, s.axisout, s.new_axisout))
-        self.set_rule('.T', lambda s: BlockRowOperator([op.T for op in \
-                      s.operands], s.partitionout, s.axisout, s.new_axisout))
-        self.set_rule('.H', lambda s: BlockRowOperator([op.H for op in \
-                      s.operands], s.partitionout, s.axisout, s.new_axisout))
         
     def direct(self, input, output):
         if None in self.partitionout:
@@ -2445,12 +2442,6 @@ class BlockRowOperator(BlockOperator):
 
         BlockOperator.__init__(self, operands, partitionin=partitionin,
                                axisin=axisin, new_axisin=new_axisin)
-        self.set_rule('.C', lambda s: BlockRowOperator([op.C for op in \
-                      s.operands], s.partitionin, s.axisin, s.new_axisin))
-        self.set_rule('.T', lambda s: BlockColumnOperator([op.T for op in \
-                      s.operands], s.partitionin, s.axisin, s.new_axisin))
-        self.set_rule('.H', lambda s: BlockColumnOperator([op.H for op in \
-                      s.operands], s.partitionin, s.axisin, s.new_axisin))
 
     def direct(self, input, output):
         if None in self.partitionin:
