@@ -48,16 +48,12 @@ class MaskOperator(DiagonalOperator):
             return ZeroOperator(shapein=shapein, dtype=dtype, **keywords)
         elif np.all(data == 0):
             return IdentityOperator(shapein=shapein, dtype=dtype, **keywords)
-        return BroadcastingOperator.__new__(cls, data, broadcast=broadcast,
+        return DiagonalOperator.__new__(cls, data, broadcast=broadcast,
             shapein=shapein, dtype=dtype, **keywords)
 
     def __init__(self, mask, dtype=None, **keywords):
         DiagonalOperator.__init__(self, mask, dtype=np.bool8, **keywords)
         self.data = ~self.data
-
-    conjugate_ = None
-    inverse = None
-    inverse_conjugate = None
 
 
 @linear
