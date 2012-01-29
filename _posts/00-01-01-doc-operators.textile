@@ -833,6 +833,7 @@ h3. Linear operators
 * BlockColumnOperator
 * CompositionOperator
 * ConstantOperator
+* DenseOperator
 * DiagonalOperator
 * EigendecompositionOperator
 * HomothetyOperator
