@@ -1,6 +1,5 @@
 from __future__ import division
 
-import nose
 import numpy as np
 
 from pyoperators import (
@@ -79,7 +78,3 @@ def test_packing():
     assert u.T.__class__ == PackOperator
     assert np.allclose(u([1, 4]), [1, 0, 0, 4, 0])
     assert np.allclose(u.T([1, 2, 3, 4, 5]), [1, 4])
-
-
-if __name__ == "__main__":
-    nose.run(argv=['', __file__])
