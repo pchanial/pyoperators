@@ -5,8 +5,8 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, idempotent, symmetric, inplace
-from .core import (Operator, BroadcastingOperator, CompositionOperator,
-                   DiagonalOperator, IdentityOperator, ZeroOperator, asoperator)
+from .core import (Operator, CompositionOperator, DiagonalOperator,
+                   IdentityOperator, ZeroOperator, asoperator)
 from .utils import isscalar
 
 __all__ = [
@@ -48,8 +48,7 @@ class MaskOperator(DiagonalOperator):
             return ZeroOperator(shapein=shapein, dtype=dtype, **keywords)
         elif np.all(data == 0):
             return IdentityOperator(shapein=shapein, dtype=dtype, **keywords)
-        return DiagonalOperator.__new__(cls, data, broadcast=broadcast,
-            shapein=shapein, dtype=dtype, **keywords)
+        return DiagonalOperator.__new__(cls)
 
     def __init__(self, mask, dtype=None, **keywords):
         DiagonalOperator.__init__(self, mask, dtype=np.bool8, **keywords)
