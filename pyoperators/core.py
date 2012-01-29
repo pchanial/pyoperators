@@ -462,16 +462,21 @@ class Operator(object):
         return array1.__array_interface__['data'][0] == \
                array2.__array_interface__['data'][0]
 
-    def todense(self, shapein=None):
+    def todense(self, shapein=None, inplace=False):
         """
         Output the dense representation of the Operator
         as a ndarray.
 
         Arguments
         ---------
-        shapein: (default None) None or tuple
-          If a shapein is not already associated with the Operator,
-          it must me passed to the todense method.
+        shapein : (default None) None or tuple
+            If a shapein is not already associated with the Operator,
+            it must me passed to the todense method.
+        inplace : boolean
+            For testing purposes only. By default, this method uses
+            out-of-place operations that directly fill the output array.
+            By setting inplace to True, one can test in-place operations, at
+            the cost of additional copies.
         """
         if not self.flags.linear:
             raise TypeError('The operator is not linear.')
@@ -482,13 +487,27 @@ class Operator(object):
         shapeout = self.validatereshapein(shapein)
         m, n = np.product(shapeout), np.product(shapein)
         d = np.empty((n,m), self.dtype)
-        v = np.zeros(n, self.dtype)
-        for i in range(n):
+
+        if not inplace or not self.flags.inplace:
+            v = np.zeros(n, self.dtype)
+            for i in xrange(n):
+                v[i] = 1
+                o = d[i,:].reshape(shapeout)
+                with memory.push_and_pop(o):
+                    self.direct(v.reshape(shapein), o)
+                v[i] = 0
+            return d.T
+
+        # test in-place mechanism
+        u = np.empty(max(m,n), self.dtype)
+        v = u[:n]
+        w = u[:m]
+        for i in xrange(n):
+            v[:] = 0
             v[i] = 1
-            o = d[i,:].reshape(shapeout)
-            with memory.push_and_pop(o):
-                self.direct(v.reshape(shapein), o)
-            v[i] = 0
+            with memory.push_and_pop(w):
+                self.direct(v.reshape(shapein), w.reshape(shapeout))
+            d[i,:] = w
         return d.T
 
     def matvec(self, v, output=None):
