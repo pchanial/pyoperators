@@ -905,14 +905,12 @@ class Operator(object):
             self.set_rule('.I', '.')
 
         self.set_rule('.I.', '1', CompositionOperator)
-        if self.flags.idempotent:
-            self.set_rule('..', '.', CompositionOperator)
         if self.flags.orthogonal:
             self.set_rule('.T.', '1', CompositionOperator)
         if self.flags.unitary:
             self.set_rule('.H.', '1', CompositionOperator)
-        if self.flags.involutary:
-            self.set_rule('..', '1', CompositionOperator)
+        if self.flags.idempotent:
+            self.set_rule('..', '.', CompositionOperator)
 
     def _init_inout(self, shapein, shapeout, reshapein, reshapeout, toshapein,
                     toshapeout, validatein, validateout, attrin, attrout,
