@@ -2,8 +2,35 @@ from __future__ import division
 
 import numpy as np
 
-from pyoperators import IdentityOperator, ZeroOperator, DiagonalOperator, MaskOperator, PackOperator, UnpackOperator
+from numpy.testing import assert_equal
+from pyoperators import IdentityOperator, ZeroOperator, DiagonalOperator, DenseOperator, MaskOperator, PackOperator, UnpackOperator
 
+def test_denseoperator():
+
+    def func(m, d, v):
+        expected = np.dot(m, v)
+        assert_equal(d(v), expected)
+        if d.flags.square:
+            w = v.copy()
+            d(w, w)
+            assert_equal(w, expected)
+
+    m = np.array([[1,1j],[2,2]])
+    d = DenseOperator(m)
+    for v in np.array([1+0j,0]), np.array([0+0j,1]):
+        yield func, m, d, v
+        yield func, m.T, d.T, v
+        yield func, m.T.conj(), d.H, v
+
+    m = np.array([[1,2],[3,4j],[5,6]])
+    d = DenseOperator(m)
+    for v in np.array([1+0j,0]), np.array([0+0j,1]):
+        yield func, m, d, v
+    for v in np.array([1+0j,0, 0]), np.array([0j,1, 0]), np.array([0j,0,1]):
+        yield func, m.T, d.T, v
+        yield func, m.T.conj(), d.H, v
+
+        
 def test_masking():
 
     mask = MaskOperator(0)
@@ -55,6 +82,7 @@ def test_masking():
 def test_masking2():
     m = MaskOperator([True, False, True])
     assert m * m is m
+
 
 def test_packing():
 
