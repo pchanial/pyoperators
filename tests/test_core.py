@@ -1,4 +1,5 @@
 import numpy as np
+import pyoperators
 
 from nose.tools import ok_
 from numpy.testing import assert_equal, assert_array_equal, assert_raises
@@ -10,6 +11,9 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          ZeroOperator, asoperator, I, O)
 from pyoperators.utils import (ndarraywrap, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance)
+
+all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
+            'Operator')]
 
 np.seterr(all='raise')
 
@@ -95,6 +99,37 @@ class Stretch(Operator):
         shape_ = list(shape)
         shape_[self.axis] //= 2
         return shape_
+
+def test_flags():
+    def func(o):
+        if o.flags.idempotent:
+            assert_is(o, o * o)
+        if o.flags.real:
+            assert_is(o, o.C)
+        if o.flags.symmetric:
+            assert_is(o, o.T)
+        if o.flags.hermitian:
+            assert_is(o, o.H)
+        if o.flags.involutary:
+            assert_is(o, o.I)
+        if o.flags.orthogonal:
+            assert_is(o.T, o.I)
+        if o.flags.unitary:
+            assert_is(o.H, o.I)
+    v = np.arange(10.)
+    for op in all_ops:
+        try:
+            o = op()
+        except:
+            try:
+                o = op(v)
+            except:
+                print 'Cannot test: ' + op.__name__
+                continue
+        if type(o) is not op:
+            print 'Cannot test: ' + op.__name__
+            continue
+        yield func, o
 
 def test_shape_is_inttuple():
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
