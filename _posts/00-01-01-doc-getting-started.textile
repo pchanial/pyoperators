@@ -15,7 +15,7 @@ To define an operator, one needs to define a direct function which will replace 
 Then, you can instantiate an @Operator@:
 
 {% highlight python %}
->>> A = Operator(direct=f, flags='symmetric')
+>>> A = Operator(f, flags='symmetric')
 {% endhighlight %}
 
 This operator does not have an explicit shape, it can handle inputs of any shape:
