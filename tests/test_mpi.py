@@ -1,7 +1,7 @@
 import numpy as np
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
-from pyoperators.mpi_operators import (
+from pyoperators.operators_mpi import (
     DistributionGlobalOperator,
     DistributionIdentityOperator,
     distribute_shape,

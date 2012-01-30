@@ -3,7 +3,7 @@ import nose
 from numpy import testing
 
 import pywt
-from pyoperators.pywt_operators import WaveletOperator, Wavelet2Operator
+from pyoperators.operators_pywt import WaveletOperator, Wavelet2Operator
 
 sizes = ((32,),)
 shapes = ((4, 4),)
