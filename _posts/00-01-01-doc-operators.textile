@@ -835,6 +835,8 @@ h3. Linear operators
 * ConstantOperator
 * DenseOperator
 * DiagonalOperator
+* DistributionIdentityOperator
+* DistributionGlobalOperator
 * EigendecompositionOperator
 * HomothetyOperator
 * IdentityOperator
