@@ -15,9 +15,13 @@ from .linear import *
 from .nonlinear import *
 from .iterative import *
 
-# try to import pywt
 try:
     from .pywt_operators import *
+except (ImportError):
+    pass
+
+try:
+    from .mpi_operators import *
 except (ImportError):
     pass
 
