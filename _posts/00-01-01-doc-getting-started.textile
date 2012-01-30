@@ -22,10 +22,8 @@ This operator does not have an explicit shape, it can handle inputs of any shape
 
 {% highlight python %}
 >>> A(np.ones(5))
-Info: Allocating (5,) float64 = 40 bytes in Operator.
 array([ 2.,  2.,  2.,  2.,  2.])
 >>> A(np.ones((2,3)))
-Info: Allocating (2,3) float64 = 48 bytes in Operator.
 array([[ 2.,  2.,  2.],
        [ 2.,  2.,  2.]])
 {% endhighlight %}
