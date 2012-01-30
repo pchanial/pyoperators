@@ -3,6 +3,7 @@ import numpy as np
 from mpi4py import MPI
 from pyoperators.core import Operator
 from pyoperators.decorators import (real, linear, square, inplace)
+from pyoperators.utils import tointtuple
 
 __all__ = ['DistributionGlobalOperator',
            'DistributionIdentityOperator']
@@ -164,8 +165,8 @@ def distribute_shape(shape, rank=None, size=None, comm=None):
         size = comm.size
     if rank is None:
         rank = comm.rank
-    if not isinstance(shape, tuple):
-        raise TypeError('The input is not a shape tuple.')
+
+    shape = tointtuple(shape)
     if len(shape) == 0:
         if size > 1:
             raise ValueError('It is ambiguous to split a scalar across processe'

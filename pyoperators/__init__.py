@@ -6,7 +6,8 @@ The pyoperator package contains the following modules or packages:
 - nonlinear : defines non-linear operators (such as thresholding or rounding)
 - iterative : defines iterative algorithms working with operators
 
-- pywt_operators : (optional) loaded if PyWavelets is present.
+- operators_mpi : (optional) loaded if mpi4py is present.
+- operators_pywt : (optional) loaded if PyWavelets is present.
 """
 
 from .utils import *
@@ -16,12 +17,12 @@ from .nonlinear import *
 from .iterative import *
 
 try:
-    from .pywt_operators import *
+    from .operators_pywt import *
 except(ImportError):
     pass
 
 try:
-    from .mpi_operators import *
+    from .operators_mpi import *
 except(ImportError):
     pass
 
