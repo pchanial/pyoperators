@@ -2,7 +2,7 @@ import numpy as np
 import pyoperators
 
 from nose.tools import ok_
-from numpy.testing import assert_equal, assert_array_equal, assert_raises
+from numpy.testing import assert_raises
 from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockColumnOperator, BlockDiagonalOperator, BlockRowOperator,
@@ -40,10 +40,10 @@ def assert_is_inttuple(shape, msg=''):
 
 def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
-    assert_equal(op.shapein, op.shapeout)
-    assert_equal(op.reshapein, op.reshapeout)
-    assert_equal(op.toshapein, op.toshapeout)
-    assert_equal(op.validatein, op.validateout)
+    assert_eq(op.shapein, op.shapeout)
+    assert_eq(op.reshapein, op.reshapeout)
+    assert_eq(op.toshapein, op.toshapeout)
+    assert_eq(op.validatein, op.validateout)
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
@@ -154,8 +154,8 @@ def test_shape_explicit():
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((13,2),(2,2),(13,2)),
                             ((1,3),(4,),(4,))):
-        yield assert_equal, o.shapeout, eout, '*shapeout:'+str(o)
-        yield assert_equal, o.shapein, ein, '*shapein:'+str(o)
+        yield assert_eq, o.shapeout, eout, '*shapeout:'+str(o)
+        yield assert_eq, o.shapein, ein, '*shapein:'+str(o)
     yield assert_raises, ValueError, CompositionOperator, [o2, o1]
     yield assert_raises, ValueError, CompositionOperator, [o3, o2]
     yield assert_raises, ValueError, CompositionOperator, [o3, I, o1]
@@ -165,8 +165,8 @@ def test_shape_explicit():
 
     o1 = Operator(shapein=(13,2), flags='square')
     for o in [o1+I, I+o1, o1+o4, o1+I+o5+o4, I+o5+o1]:
-        yield assert_equal, o.shapein, o1.shapein, '+shapein:'+str(o)
-        yield assert_equal, o.shapeout, o1.shapeout, '+shapeout:'+str(o)
+        yield assert_eq, o.shapein, o1.shapein, '+shapein:'+str(o)
+        yield assert_eq, o.shapeout, o1.shapeout, '+shapeout:'+str(o)
     yield assert_raises, ValueError, AdditionOperator, [o2, o1]
     yield assert_raises, ValueError, AdditionOperator, [o3, o2]
     yield assert_raises, ValueError, AdditionOperator, [I, o3, o1]
@@ -190,8 +190,8 @@ def test_shape_implicit():
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((6,),(12,),(24,)),
                             ((4,),(2,),(1,))):
-        yield assert_equal, o.validatereshapein(shapein), eout, 'in:'+str(o)
-        yield assert_equal, o.validatereshapeout(shapeout), ein, 'out:'+str(o)
+        yield assert_eq, o.validatereshapein(shapein), eout, 'in:'+str(o)
+        yield assert_eq, o.validatereshapeout(shapeout), ein, 'out:'+str(o)
 
 def test_shapeout_unconstrained1():
     for shape in shapes:
@@ -275,7 +275,7 @@ def test_shapein_unconstrained3():
 
     def func(op, shape):
         assert_square(op)
-        assert_equal(op.shapein, shape)
+        assert_eq(op.shapein, shape)
     for shape in shapes[1:]:
         for cls in (Op1, Op2, Op3, Op4):
             op = cls(shapeout=shape)
@@ -297,8 +297,8 @@ def test_dtype1():
             except TypeError:
                 i = np.array(input.real, di)
             o = Op(dop)(i)
-            yield assert_equal, o.dtype, (i*np.array(value,dop)).dtype, str((dop,di))
-            yield assert_array_equal, o, i*np.array(value,dop), str((dop,di))
+            yield assert_eq, o.dtype, (i*np.array(value,dop)).dtype, str((dop,di))
+            yield assert_eq, o, i*np.array(value,dop), str((dop,di))
 
 
 def test_dtype2():
@@ -314,8 +314,8 @@ def test_dtype2():
         except TypeError:
             i = np.array(input.real, di)
         o = op(i)
-        yield assert_equal, o.dtype, (i * i).dtype, str(di)
-        yield assert_array_equal, o, i * i, str(di)
+        yield assert_eq, o.dtype, (i * i).dtype, str(di)
+        yield assert_eq, o, i * i, str(di)
 
 
 def test_symmetric():    
@@ -329,12 +329,12 @@ def test_symmetric():
 
     op = Op()
     assert_flags(op, 'linear,square,real,symmetric')
-    assert_equal(op.shape, (2,2))
-    assert_equal(op.shapeout, (2,))
+    assert_eq(op.shape, (2,2))
+    assert_eq(op.shapeout, (2,))
     assert op is op.C
     assert op is op.T
     assert op is op.H
-    assert_array_equal(op([1,1]), np.array(mat * [[1],[1]]).ravel())
+    assert_eq(op([1,1]), np.array(mat * [[1],[1]]).ravel())
 
 
 def test_broadcasting_as_strided():
@@ -346,7 +346,7 @@ def test_broadcasting_as_strided():
             v = o.data*np.ones(s)
         else:
             v = (o.data.T * np.ones(s, int).T).T
-        yield assert_equal, o._as_strided(s), v
+        yield assert_eq, o._as_strided(s), v
 
 
 def test_constant_reduction1():
@@ -371,7 +371,7 @@ def test_constant_reduction1():
                 z.T[...] += c2.T
             else:
                 z[...] += c2
-            yield assert_equal, v, z
+            yield assert_eq, v, z
 
 def test_constant_reduction2():
     H = HomothetyOperator
@@ -389,13 +389,13 @@ def test_constant_reduction2():
     v = np.arange(6).reshape((2,3))
     def func(c, o, r):
         op = MultiplicationOperator([c, o])
-        assert_equal(op(v), c.data*o(v))
+        assert_eq(op(v), c.data*o(v))
         assert_is(type(op), r[0])
         if type(op) is CompositionOperator:
             op = op.operands[0]
             r = r[1]
             assert_is(type(op), r[0])
-        assert_equal, op.data, r[1]
+        assert_eq, op.data, r[1]
     for c,rs in zip(cs, results):
         for o, r in zip(os, rs):
             yield func, c, o, r
@@ -413,7 +413,7 @@ def _test_constant_reduction3():
         op = o * c
         y_tmp = np.empty(o.shapein, int)
         c(v, y_tmp)
-        yield assert_equal, op(v), o(y_tmp)
+        yield assert_eq, op(v), o(y_tmp)
 
 
 def test_scalar_reduction1():
@@ -422,8 +422,8 @@ def test_scalar_reduction1():
     for model, result in zip(models, results):
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             o = model(i)
-            yield assert_equal, o, result, str((model,i))
-            yield assert_equal, o.dtype, int, str((model,i))
+            yield assert_eq, o, result, str((model,i))
+            yield assert_eq, o.dtype, int, str((model,i))
 
 
 def test_scalar_reduction2():
@@ -434,7 +434,7 @@ def test_scalar_reduction2():
     for iop, imodel, result in zip(iops, imodels, results):
         model = getattr(model, iop)(imodel)
         for i in (np.array(3), [3], (3,), np.int(3), 3):
-            yield assert_equal, model(i), result, str((iop,i))
+            yield assert_eq, model(i), result, str((iop,i))
 
 
 def test_scalar_reduction3():
@@ -449,8 +449,8 @@ def test_scalar_reduction3():
         if idin is None:
             idin = opin
         assert_is_instance(p, Op)
-        assert_equal(p.shapein, idin)
-        assert_equal(p.shapeout, opout)
+        assert_eq(p.shapein, idin)
+        assert_eq(p.shapeout, opout)
     for opout in (None, (100,)):
         for opin in (None, (100,)):
             for idin in (None, (100,)):
@@ -748,8 +748,8 @@ def test_inplace1():
     op = NotInplace()
     v = np.array([2., 0., 1.])
     op(v,v)
-    assert_equal(v,[2,0,0])
-    assert_equal(len(memory.stack), 1)
+    assert_eq(v,[2,0,0])
+    assert_eq(len(memory.stack), 1)
 
 
 def test_inplace_can_use_output():
@@ -859,12 +859,12 @@ def test_inplace_can_use_output():
         op(v, w)
         delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
-        assert_equal(log, expected, strops)
-        assert_equal(show_stack(), 'CD', strops)
+        assert_eq(log, expected, strops)
+        assert_eq(show_stack(), 'CD', strops)
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_array_equal(w, w2, strops)
+        assert_eq(w, w2, strops)
 
     def func_inplace(n, i, expected, strops):
         memory.stack = [B, C]
@@ -877,12 +877,12 @@ def test_inplace_can_use_output():
         op(v, w)
         delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
-        assert_equal(log, expected, strops)
-        assert_equal(show_stack(), 'BC', strops)
+        assert_eq(log, expected, strops)
+        assert_eq(show_stack(), 'BC', strops)
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_array_equal(w, w2, strops)
+        assert_eq(w, w2, strops)
 
     for n in [2, 3, 4]:
         for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
@@ -999,12 +999,12 @@ def test_inplace_cannot_use_output():
         op(v, w)
         delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
-        assert_equal(log, expected, strops)
-        assert_equal(show_stack(), 'CD', strops)
+        assert_eq(log, expected, strops)
+        assert_eq(show_stack(), 'CD', strops)
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_array_equal(w, w2, strops)
+        assert_eq(w, w2, strops)
 
     def func_inplace(n, i, expected, strops):
         memory.stack = [B, C]
@@ -1017,12 +1017,12 @@ def test_inplace_cannot_use_output():
         op(v, w)
         delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
-        assert_equal(log, expected, strops)
-        assert_equal(show_stack(), 'BC', strops)
+        assert_eq(log, expected, strops)
+        assert_eq(show_stack(), 'BC', strops)
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_array_equal(w, w2, strops)
+        assert_eq(w, w2, strops)
 
     for n in [2, 3, 4]:
         for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
@@ -1053,25 +1053,25 @@ def test_addition():
     yield assert_is, op.__class__, Op
 
     op = np.sum([Op(v) for v in [1,2]])
-    assert_equal(op.__class__, AdditionOperator)
-    assert_array_equal(op(1), 3)
-    assert_equal(len(memory.stack), 1)
+    assert_eq(op.__class__, AdditionOperator)
+    assert_eq(op(1), 3)
+    assert_eq(len(memory.stack), 1)
 
     op = np.sum([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, AdditionOperator)
 
     input = np.array(1, int)
     output = np.array(0, int)
-    assert_array_equal(op(input, output), 7)
-    assert_array_equal(input, 1)
-    assert_array_equal(output, 7)
-    assert_equal(len(memory.stack), 1)
+    assert_eq(op(input, output), 7)
+    assert_eq(input, 1)
+    assert_eq(output, 7)
+    assert_eq(len(memory.stack), 1)
 
     output = input
-    assert_array_equal(op(input, output), 7)
-    assert_array_equal(input, 7)
-    assert_array_equal(output, 7)
-    assert_equal(len(memory.stack), 2)
+    assert_eq(op(input, output), 7)
+    assert_eq(input, 7)
+    assert_eq(output, 7)
+    assert_eq(len(memory.stack), 2)
 
 
 def test_multiplication():
@@ -1088,30 +1088,30 @@ def test_multiplication():
     yield assert_is, op.__class__, Op
 
     op = MultiplicationOperator([Op(v) for v in [1,2]])
-    assert_equal(op.__class__, MultiplicationOperator)
-    assert_array_equal(op(1), 2)
-    assert_equal(len(memory.stack), 1)
+    assert_eq(op.__class__, MultiplicationOperator)
+    assert_eq(op(1), 2)
+    assert_eq(len(memory.stack), 1)
 
     op = MultiplicationOperator([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, MultiplicationOperator)
 
     input = np.array(1, int)
     output = np.array(0, int)
-    assert_array_equal(op(input, output), 8)
-    assert_array_equal(input, 1)
-    assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 1)
+    assert_eq(op(input, output), 8)
+    assert_eq(input, 1)
+    assert_eq(output, 8)
+    assert_eq(len(memory.stack), 1)
 
     output = input
-    assert_array_equal(op(input, output), 8)
-    assert_array_equal(input, 8)
-    assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 2)
+    assert_eq(op(input, output), 8)
+    assert_eq(input, 8)
+    assert_eq(output, 8)
+    assert_eq(len(memory.stack), 2)
 
 def test_composition1():
     def func(op, shapein, shapeout):
-        assert_equal(op.shapein, shapein)
-        assert_equal(op.shapeout, shapeout)
+        assert_eq(op.shapein, shapein)
+        assert_eq(op.shapeout, shapeout)
         if shapein is not None and shapein == shapeout:
             assert_flags(op, 'square')
     for shapein in shapes:
@@ -1158,17 +1158,17 @@ def test_composition3():
     op = np.product([Op(v) for v in [1]])
     assert_is(op.__class__, Op)
     op(1)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(len(memory.stack), 0)
 
     memory.stack = []
     op = np.product([Op(v) for v in [1,2]])
     assert_is(op.__class__, CompositionOperator)
-    assert_array_equal(op(1), 2)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(op(1), 2)
+    assert_eq(len(memory.stack), 0)
 
     memory.stack = []
-    assert_array_equal(op([1]), 2)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(op([1]), 2)
+    assert_eq(len(memory.stack), 0)
 
     op = np.product([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, CompositionOperator)
@@ -1176,32 +1176,32 @@ def test_composition3():
     input = np.array(1, int)
     output = np.array(0, int)
     memory.stack = []
-    assert_array_equal(op(input, output), 8)
-    assert_array_equal(input, 1)
-    assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(op(input, output), 8)
+    assert_eq(input, 1)
+    assert_eq(output, 8)
+    assert_eq(len(memory.stack), 0)
 
     output = input
     memory.stack = []
-    assert_array_equal(op(input, output), 8)
-    assert_array_equal(input, 8)
-    assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(op(input, output), 8)
+    assert_eq(input, 8)
+    assert_eq(output, 8)
+    assert_eq(len(memory.stack), 0)
 
     input = np.array([1], int)
     output = np.array([0], int)
     memory.stack = []
-    assert_array_equal(op(input, output), 8)
-    assert_array_equal(input, 1)
-    assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(op(input, output), 8)
+    assert_eq(input, 1)
+    assert_eq(output, 8)
+    assert_eq(len(memory.stack), 0)
 
     output = input
     memory.stack = []
-    assert_array_equal(op(input, output), 8)
-    assert_array_equal(input, 8)
-    assert_array_equal(output, 8)
-    assert_equal(len(memory.stack), 0)
+    assert_eq(op(input, output), 8)
+    assert_eq(input, 8)
+    assert_eq(output, 8)
+    assert_eq(len(memory.stack), 0)
 
 def test_scalar_operator1():
     data = (0., 1., 2)
@@ -1222,7 +1222,7 @@ def test_scalar_operator2():
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
         yield assert_is_instance, o, HomothetyOperator
 
-    s = HomothetyOperator(complex(0,1))
+    s = HomothetyOperator(complex(1,1))
     yield assert_is, s.T, s
     yield assert_is, s.H, s.C
     yield assert_not_in, s.I, (s, s.C)
@@ -1241,7 +1241,7 @@ def test_partition1():
     for ops, p in zip(((o1,o2,o3), (I,o2,o3), (o1,2*I,o3), (o1,o2,3*I)),
                       (None, (1,2,3), (1,2,3), (1,2,3))):
         op = BlockDiagonalOperator(ops, partitionin=p, axisin=0)
-        yield assert_array_equal, op.todense(6), r, str(op)
+        yield assert_eq, op.todense(6), r, str(op)
 
 def test_partition2():
     # in some cases in this test, partitionout cannot be inferred from
@@ -1252,7 +1252,7 @@ def test_partition2():
         for axiss in (0,1,2,3):
             op = BlockDiagonalOperator(3*[Stretch(axiss)], partitionin=p,
                                        axisin=axisp)
-            yield assert_array_equal, op(i), Stretch(axiss)(i), 'axis={0},{1}'.format(axisp,axiss)
+            yield assert_eq, op(i), Stretch(axiss)(i), 'axis={0},{1}'.format(axisp,axiss)
 
 def test_partition3():
     # test axisin != axisout...
@@ -1276,8 +1276,8 @@ def test_block1():
     for axis,s in zip(range(-3,3),
                       ((3,2,2),(2,3,2),(2,2,3),(3,2,2),(2,3,2),(2,2,3))):
         op = BlockDiagonalOperator(ops, new_axisin=axis)
-        yield assert_equal, op.shapein, s
-        yield assert_equal, op.shapeout, s
+        yield assert_eq, op.shapein, s
+        yield assert_eq, op.shapeout, s
 
 def test_block2():
     shape = (3,4,5,6)
@@ -1287,7 +1287,7 @@ def test_block2():
             op = BlockDiagonalOperator(shape[axisp]*[Stretch(axiss)], new_axisin=axisp)
             axisp_ = axisp if axisp >= 0 else axisp + 4
             axiss_ = axiss if axisp_ > axiss else axiss + 1
-            yield assert_array_equal, op(i), Stretch(axiss_)(i), 'axis={0},{1}'.format(axisp,axiss)
+            yield assert_eq, op(i), Stretch(axiss_)(i), 'axis={0},{1}'.format(axisp,axiss)
 
 def test_block3():
     # test new_axisin != new_axisout...
@@ -1315,11 +1315,11 @@ def test_block_column2():
     p = np.matrix([[1,0], [0,2], [1,0]])
     o = asoperator(np.matrix(p))
     e = BlockColumnOperator([o, 2*o], axisout=0)
-    assert_array_equal(e.todense(), np.vstack([p,2*p]))
-    assert_array_equal(e.T.todense(), e.todense().T)
+    assert_eq(e.todense(), np.vstack([p,2*p]))
+    assert_eq(e.T.todense(), e.todense().T)
     e = BlockColumnOperator([o, 2*o], new_axisout=0)
-    assert_array_equal(e.todense(), np.vstack([p,2*p]))
-    assert_array_equal(e.T.todense(), e.todense().T)
+    assert_eq(e.todense(), np.vstack([p,2*p]))
+    assert_eq(e.T.todense(), e.todense().T)
 
 def test_block_row1():
     I2 = IdentityOperator(2)
@@ -1331,11 +1331,11 @@ def test_block_row2():
     p = np.matrix([[1,0], [0,2], [1,0]])
     o = asoperator(np.matrix(p))
     r = BlockRowOperator([o, 2*o], axisin=0)
-    assert_array_equal(r.todense(), np.hstack([p,2*p]))
-    assert_array_equal(r.T.todense(), r.todense().T)
+    assert_eq(r.todense(), np.hstack([p,2*p]))
+    assert_eq(r.T.todense(), r.todense().T)
     r = BlockRowOperator([o, 2*o], new_axisin=0)
-    assert_array_equal(r.todense(), np.hstack([p,2*p]))
-    assert_array_equal(r.T.todense(), r.todense().T)
+    assert_eq(r.todense(), np.hstack([p,2*p]))
+    assert_eq(r.T.todense(), r.todense().T)
 
 def test_diagonal1():
     data = (0., 1., [0,0], [1,1], 2, [2,2], [1,2])
@@ -1373,7 +1373,7 @@ def test_diagonal2():
 
                 data = op(d1.data.T, d2.data.T).T if 'fast' in (d1.broadcast,
                        d2.broadcast) else op(d1.data, d2.data)
-                yield assert_array_equal, d.data, data, str(d1)+' and '+str(d2)
+                yield assert_eq, d.data, data, str(d1)+' and '+str(d2)
     
 
 def test_zero2():
@@ -1381,7 +1381,7 @@ def test_zero2():
     o = Operator(shapein=3, shapeout=6)
     zo = z*o
     yield assert_is_instance, zo, ZeroOperator
-    yield assert_equal, zo.shapein, o.shapein
+    yield assert_eq, zo.shapein, o.shapein
     yield assert_is_none, zo.shapeout
 
 def test_zero3():
@@ -1390,15 +1390,15 @@ def test_zero3():
     zo = z*o
     yield assert_is_instance, zo, ZeroOperator
     yield assert_is_none, zo.shapein, 'in'
-    yield assert_equal, zo.shapeout, z.shapeout, 'out'
+    yield assert_eq, zo.shapeout, z.shapeout, 'out'
 
 def test_zero3b():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator(flags='square')
     zo = z*o
     yield assert_is_instance, zo, ZeroOperator
-    yield assert_equal, zo.shapein, z.shapein, 'in'
-    yield assert_equal, zo.shapeout, z.shapeout, 'out'
+    yield assert_eq, zo.shapein, z.shapein, 'in'
+    yield assert_eq, zo.shapeout, z.shapeout, 'out'
 
 def test_zero4():
     z = ZeroOperator()
@@ -1412,11 +1412,11 @@ def test_zero5():
     zo = z*o
     oz = o*z
     yield assert_is_instance, zo, ZeroOperator, 'zo'
-    yield assert_equal, zo.shapein, o.shapein, 'zo in'
+    yield assert_eq, zo.shapein, o.shapein, 'zo in'
     yield assert_is_none, zo.shapeout, 'zo out'
     yield assert_is_instance, oz, ZeroOperator, 'oz'
     yield assert_is_none, oz.shapein, 'oz, in'
-    yield assert_equal, oz.shapeout, o.shapeout, 'oz, out'
+    yield assert_eq, oz.shapeout, o.shapeout, 'oz, out'
 
 def test_zero7():
     z = ZeroOperator(flags='square')
@@ -1434,8 +1434,8 @@ def test_zero7():
     zo = z*o
     oz = o*z
     v = np.ones(4)
-    assert_equal(zo.T(v), o.T(z.T(v)))
-    assert_equal(oz.T(v), z.T(o.T(v)))
+    assert_eq(zo.T(v), o.T(z.T(v)))
+    assert_eq(oz.T(v), z.T(o.T(v)))
     
 def test_zero8():
     z = ZeroOperator()
