@@ -2,18 +2,18 @@ from __future__ import division
 
 import numpy as np
 
-from numpy.testing import assert_equal
 from pyoperators import IdentityOperator, ZeroOperator, DiagonalOperator, DenseOperator, MaskOperator, PackOperator, UnpackOperator
+from pyoperators.utils import assert_eq
 
 def test_denseoperator():
 
     def func(m, d, v):
         expected = np.dot(m, v)
-        assert_equal(d(v), expected)
+        assert_eq(d(v), expected)
         if d.flags.square:
             w = v.copy()
             d(w, w)
-            assert_equal(w, expected)
+            assert_eq(w, expected)
 
     m = np.array([[1,1j],[2,2]])
     d = DenseOperator(m)
