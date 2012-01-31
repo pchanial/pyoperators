@@ -2982,6 +2982,10 @@ class BroadcastingOperator(Operator):
     Abstract class for operators that operate on a data array and
     the input array, and for which broadcasting of the data array across
     the input array is required.
+
+    Leftward broadcasting is the normal numpy's broadcasting along the slow
+    dimensions, if the array is stored in C order. Rightward broadcasting is
+    a broadcasting along the fast dimension.
     """
 
     def __init__(
@@ -2996,7 +3000,7 @@ class BroadcastingOperator(Operator):
         if data.ndim == 0:
             broadcast = 'scalar'
         broadcast = broadcast.lower()
-        values = ('fast', 'slow', 'disabled', 'scalar')
+        values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError(
                 "Invalid value '{0}' for the broadcast keyword. Ex"
@@ -3043,17 +3047,17 @@ class BroadcastingOperator(Operator):
 
         # check broadcast
         b = set([b1.broadcast, b2.broadcast])
-        if 'slow' in b and 'fast' in b:
+        if 'leftward' in b and 'rightward' in b:
             return None
         if 'disabled' in b:
             broadcast = 'disabled'
-        elif 'slow' in b:
-            broadcast = 'slow'
-        elif 'fast' in b:
-            broadcast = 'fast'
+        elif 'leftward' in b:
+            broadcast = 'leftward'
+        elif 'rightward' in b:
+            broadcast = 'rightward'
         else:
             broadcast = 'scalar'
-        if 'fast' in b:
+        if 'rightward' in b:
             data = operation(b1.data.T, b2.data.T).T
         else:
             data = operation(b1.data, b2.data)
@@ -3062,7 +3066,7 @@ class BroadcastingOperator(Operator):
 
     def _as_strided(self, shape):
         strides = len(shape) * [0]
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             delta = 0
         else:
             delta = len(shape) - self.data.ndim
@@ -3088,8 +3092,8 @@ class DiagonalOperator(BroadcastingOperator):
     data : ndarray
       The diagonal coefficients
 
-    broadcast : 'fast' or 'disabled' (default 'disabled')
-      If broadcast == 'fast', the diagonal is broadcasted along the fast
+    broadcast : 'rightward' or 'disabled' (default 'disabled')
+      If broadcast == 'rightward', the diagonal is broadcasted along the fast
       axis.
 
     Exemple
@@ -3101,7 +3105,7 @@ class DiagonalOperator(BroadcastingOperator):
            [0, 3, 0],
            [0, 0, 5]])
 
-    >>> A = DiagonalOperator(arange(1, 3), broadcast='fast', shapein=(2, 2))
+    >>> A = DiagonalOperator(arange(1, 3), broadcast='rightward', shapein=(2, 2))
     >>> A.todense()
 
     array([[1, 0, 0, 0],
@@ -3121,25 +3125,25 @@ class DiagonalOperator(BroadcastingOperator):
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
 
     def direct(self, input, output):
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             np.multiply(input.T, self.data.T, output.T)
         else:
             np.multiply(input, self.data, output)
 
     def conjugate_(self, input, output):
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             np.multiply(input.T, np.conjugate(self.data).T, output.T)
         else:
             np.multiply(input, np.conjugate(self.data), output)
 
     def inverse(self, input, output):
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             np.divide(input.T, self.data.T, output.T)
         else:
             np.divide(input, self.data, output)
 
     def inverse_conjugate(self, input, output):
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             np.divide(input.T, np.conjugate(self.data).T, output.T)
         else:
             np.divide(input, np.conjugate(self.data), output)
@@ -3151,7 +3155,7 @@ class DiagonalOperator(BroadcastingOperator):
         if len(shape) < n:
             raise ValueError("Invalid number of dimensions.")
 
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             it = zip(shape[:n], self.data.shape[:n])
         else:
             it = zip(shape[-n:], self.data.shape[-n:])
@@ -3172,7 +3176,7 @@ class DiagonalOperator(BroadcastingOperator):
         if n > 1:
             raise ValueError('Ambiguous broadcasting.')
         if n == 0:
-            if self.broadcast == 'fast':
+            if self.broadcast == 'rightward':
                 sd.append(-1)
             else:
                 sd.insert(0, -1)
@@ -3326,7 +3330,7 @@ class ConstantOperator(BroadcastingOperator):
         self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
 
     def direct(self, input, output, operation=operation_assignment):
-        if self.broadcast == 'fast':
+        if self.broadcast == 'rightward':
             operation(output.T, self.data.T)
         else:
             operation(output, self.data)
