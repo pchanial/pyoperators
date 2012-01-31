@@ -1245,7 +1245,8 @@ class Operator(object):
         return CompositionOperator([other, self])
 
     def __imul__(self, other):
-        return CompositionOperator([self, other])
+        _tocompositeoperator(self, CompositionOperator, [self.copy(), other])
+        return self
 
     def __add__(self, other):
         return AdditionOperator([self, other])
@@ -1254,7 +1255,8 @@ class Operator(object):
         return AdditionOperator([other, self])
 
     def __iadd__(self, other):
-        return AdditionOperator([self, other])
+        _tocompositeoperator(self, AdditionOperator, [self.copy(), other])
+        return self
 
     def __sub__(self, other):
         return AdditionOperator([self, -other])
@@ -1263,7 +1265,8 @@ class Operator(object):
         return AdditionOperator([other, -self])
 
     def __isub__(self, other):
-        return AdditionOperator([self, -other])
+        _tocompositeoperator(self, AdditionOperator, [self.copy(), -other])
+        return self
 
     def __neg__(self):
         return HomothetyOperator(-1) * self
@@ -3396,3 +3399,16 @@ class ZeroOperator(ConstantOperator):
 
 I = IdentityOperator()
 O = ZeroOperator()
+
+
+def _tocompositeoperator(op, cls, operands):
+    operands = cls._validate_operands(operands)
+    operands = cls._apply_rules(operands)
+    if len(operands) == 1:
+        op.__class__ = operands[0].__class__
+        op.__dict__ = operands[0].__dict__
+        return
+    op.__class__ = cls
+    op.__dict__ = {}
+    op.operands = operands
+    op.__init__(operands)
