@@ -137,6 +137,15 @@ def test_eq():
     for op1, op2 in zip(ops1, ops2):
         yield assert_eq, op1, op2
 
+def test_tocomposite():
+    from .test_shared import ops
+    for op1 in ops:
+        for op2 in ops:
+            op = op1.copy() * op2.T
+            op1_ = op1.copy()
+            op1_ *= op2.T
+            yield assert_eq, op1_, op
+
 def test_shape_is_inttuple():
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
                     3., [3.], np.array(3.), np.array([3.]), (3.,),
