@@ -6,11 +6,54 @@ import numpy as np
 import operator
 import os
 import scipy.sparse
+import types
 
 __all__ = [ 'operation_assignment' ]
 
 class ndarraywrap(np.ndarray):
     pass
+
+def all_eq(a, b):
+    """
+    Return True if a and b are equal by recursively comparing them.
+    """
+    if isinstance(a, collections.Mapping):
+        if type(a) is not type(b):
+            return False
+        if set(a.keys()) != set(b.keys()):
+            return False
+        for k in a:
+            if not all_eq(a[k], b[k]):
+                return False
+        return True
+    if isinstance(a, (str, unicode)):
+        if type(a) is not type(b):
+            return False
+        return a == b
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        return np.allclose(a, b)
+    if isinstance(a, collections.Container):
+        if type(a) is not type(b):
+            return False
+        if len(a) != len(b):
+            return False
+        for a_, b_ in zip(a, b):
+            if not all_eq(a_, b_):
+                return False
+            return True
+    if isinstance(a, types.MethodType):
+        if type(a) is not type(b):
+            return False
+        return a.im_class is b.im_class and a.im_func is b.im_func
+    if isinstance(a, types.LambdaType):
+        if type(a) is not type(b):
+            return False
+        return a.func_code is b.func_code
+    return a == b
+
+def assert_eq(a, b, msg=None):
+    """ Assert that the two arguments are (almost) equal. """
+    assert all_eq(a, b), msg
 
 def assert_in(a, b, msg=None):
     """ Assert that the first argument is in the second one. """

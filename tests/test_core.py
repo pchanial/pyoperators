@@ -9,7 +9,7 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          CompositionOperator, ConstantOperator, DiagonalOperator,
          IdentityOperator, MultiplicationOperator, HomothetyOperator,
          ZeroOperator, asoperator, I, O)
-from pyoperators.utils import (ndarraywrap, assert_is, assert_is_not,
+from pyoperators.utils import (ndarraywrap, assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance)
 
 all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
@@ -130,6 +130,12 @@ def test_flags():
             print 'Cannot test: ' + op.__name__
             continue
         yield func, o
+
+def test_eq():
+    from .test_shared import ops as ops1
+    ops2 = [type(o)() for o in ops1]
+    for op1, op2 in zip(ops1, ops2):
+        yield assert_eq, op1, op2
 
 def test_shape_is_inttuple():
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),

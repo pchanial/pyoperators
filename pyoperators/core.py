@@ -16,8 +16,8 @@ import types
 
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
-from .utils import (operation_assignment, first_is_not, isclassattr, isscalar,
-                    ndarraywrap, strenum, strshape, tointtuple)
+from .utils import (all_eq, first_is_not, isclassattr, isscalar, ndarraywrap,
+                    operation_assignment, strenum, strshape, tointtuple)
 from .decorators import (linear, real, idempotent, involutary, symmetric,
                          inplace, inplace_reduction)
 
@@ -106,7 +106,15 @@ class OperatorRule(object):
     def __eq__(self, other):
         if not isinstance(other, OperatorRule):
             return NotImplemented
-        return str(self) == str(other)
+        if self.subjects != other.subjects:
+            return False
+        if isinstance(self.predicate, types.LambdaType):
+            if type(self.predicate) is not type(other.predicate):
+                return False
+            return self.predicate.func_code is other.predicate.func_code
+        if isinstance(self.predicate, str):
+            return self.predicate == other.predicate
+        return self.predicate  is other.predicate
 
     @staticmethod
     def _symbol2operator(op, symbol):
@@ -1120,6 +1128,18 @@ class Operator(object):
 
     def __neg__(self):
         return HomothetyOperator(-1) * self
+
+    def __eq__(self, other):
+        if self is other:
+            return True
+        if type(self) is not type(other):
+            return False
+        d1 = self.__dict__.copy()
+        d2 = other.__dict__.copy()
+        for k in '_C', '_T', '_H', '_I', '_D':
+            if k in d1: del d1[k]
+            if k in d2: del d2[k]
+        return all_eq(d1, d2)
 
     def __str__(self):
         if self.shapein is not None or self.shapeout is not None:
