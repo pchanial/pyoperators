@@ -347,11 +347,11 @@ def test_symmetric():
 
 
 def test_broadcasting_as_strided():
-    shapes = {'slow':(2,4,3,4,2,2), 'fast':(3,2,2,3,1,2)}
-    for b in ('fast', 'slow'):
+    shapes = {'leftward':(2,4,3,4,2,2), 'rightward':(3,2,2,3,1,2)}
+    for b in ('rightward', 'leftward'):
         o = BroadcastingOperator(np.arange(6).reshape((3,1,2,1)), broadcast=b)
         s = shapes[b]
-        if b == 'slow':
+        if b == 'leftward':
             v = o.data*np.ones(s)
         else:
             v = (o.data.T * np.ones(s, int).T).T
@@ -360,23 +360,23 @@ def test_broadcasting_as_strided():
 
 def test_constant_reduction1():
     c = 1, np.array([1,2]), np.array([2,3,4])
-    t = 'scalar', 'fast', 'slow'
+    t = 'scalar', 'rightward', 'leftward'
 
     for c1, t1 in zip(c, t):
         op1 = ConstantOperator(c1, broadcast=t1)
         for c2, t2 in zip(c, t):
             op2 = ConstantOperator(c2, broadcast=t2)
             op = op1 + op2
-            if set((op1.broadcast, op2.broadcast)) != set(('fast', 'slow')):
+            if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
                 yield assert_is_instance, op, ConstantOperator
             v = np.zeros((2,3))
             op(np.nan, v)
             z = np.zeros((2,3))
-            if t1 == 'fast':
+            if t1 == 'rightward':
                 z.T[...] += c1.T
             else:
                 z[...] += c1
-            if t2 == 'fast':
+            if t2 == 'rightward':
                 z.T[...] += c2.T
             else:
                 z[...] += c2
@@ -386,7 +386,7 @@ def test_constant_reduction2():
     H = HomothetyOperator
     C = CompositionOperator
     D = DiagonalOperator
-    cs = (ConstantOperator(3), ConstantOperator([1,2,3], broadcast='slow'),
+    cs = (ConstantOperator(3), ConstantOperator([1,2,3], broadcast='leftward'),
           ConstantOperator(np.ones((2,3))))
     os = (I, H(2, shapein=(2,3)) * Operator(direct=np.square, shapein=(2,3), 
           flags='square'), H(5))
@@ -415,8 +415,8 @@ def _test_constant_reduction3():
         def direct(self, input, output):
             output[...] = input + np.arange(input.size).reshape(input.shape)
     os = (Op(shapein=()), Op(shapein=(4)), Op(shapein=(2,3,4)))
-    cs = (ConstantOperator(2), ConstantOperator([2], broadcast='slow'),
-          ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='slow'))
+    cs = (ConstantOperator(2), ConstantOperator([2], broadcast='leftward'),
+          ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='leftward'))
     v = 10000000
     for o, c in zip(os, cs):
         op = o * c
@@ -1355,10 +1355,10 @@ def test_diagonal1():
 
 def test_diagonal2():
     ops = (
-           DiagonalOperator([1.,2], broadcast='fast'),
-           DiagonalOperator([[2.,3,4],[5,6,7]], broadcast='fast'),
-           DiagonalOperator([1.,2,3,4,5], broadcast='slow'),
-           DiagonalOperator(np.arange(20.).reshape(4,5), broadcast='slow'),
+           DiagonalOperator([1.,2], broadcast='rightward'),
+           DiagonalOperator([[2.,3,4],[5,6,7]], broadcast='rightward'),
+           DiagonalOperator([1.,2,3,4,5], broadcast='leftward'),
+           DiagonalOperator(np.arange(20.).reshape(4,5), broadcast='leftward'),
            DiagonalOperator(np.arange(120.).reshape(2,3,4,5)),
            HomothetyOperator(7.),
            IdentityOperator(),
@@ -1368,7 +1368,7 @@ def test_diagonal2():
             d1 = ops[i]
             for j in range(i,7):
                 d2 = ops[j]
-                if set((d1.broadcast, d2.broadcast)) == set(('slow', 'fast')):
+                if set((d1.broadcast, d2.broadcast)) == set(('leftward', 'rightward')):
                     continue
                 d = op(d1, d2)
                 if type(d1) is DiagonalOperator:
@@ -1380,7 +1380,7 @@ def test_diagonal2():
                 else:
                     yield assert_is, type(d), HomothetyOperator
 
-                data = op(d1.data.T, d2.data.T).T if 'fast' in (d1.broadcast,
+                data = op(d1.data.T, d2.data.T).T if 'rightward' in (d1.broadcast,
                        d2.broadcast) else op(d1.data, d2.data)
                 yield assert_eq, d.data, data, str(d1)+' and '+str(d2)
     
