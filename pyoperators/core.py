@@ -905,6 +905,9 @@ class Operator(object):
                     self.flags.involutary]):
                 self._set_flags('orthogonal, unitary, involutary')
 
+        if isinstance(self.direct, np.ufunc):
+            self._set_flags('inplace')
+
         if self.flags.inplace_reduction and self.direct is not None:
             if isinstance(self.direct, (types.FunctionType, types.MethodType)):
                 if isinstance(self.direct, types.MethodType):
