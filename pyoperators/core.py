@@ -362,18 +362,20 @@ class Operator(object):
         inverse_transpose=None,
         inverse_adjoint=None,
         inverse_conjugate=None,
-        shapein=None,
-        shapeout=None,
-        reshapein=None,
-        reshapeout=None,
-        toshapein=None,
-        toshapeout=None,
-        validatein=None,
-        validateout=None,
         attrin={},
         attrout={},
         classin=None,
         classout=None,
+        commin=None,
+        commout=None,
+        reshapein=None,
+        reshapeout=None,
+        shapein=None,
+        shapeout=None,
+        toshapein=None,
+        toshapeout=None,
+        validatein=None,
+        validateout=None,
         dtype=None,
         flags=None,
     ):
@@ -430,49 +432,54 @@ class Operator(object):
         self._init_rules()
         self._init_name()
         self._init_inout(
-            shapein,
-            shapeout,
-            reshapein,
-            reshapeout,
-            toshapein,
-            toshapeout,
-            validatein,
-            validateout,
             attrin,
             attrout,
             classin,
             classout,
+            commin,
+            commout,
+            reshapein,
+            reshapeout,
+            shapein,
+            shapeout,
+            toshapein,
+            toshapeout,
+            validatein,
+            validateout,
         )
 
     attrin = {}
     attrout = {}
     classin = None
     classout = None
-    shapein = None
-    shapeout = None
-
-    dtype = None
-    flags = OperatorFlags()
+    commin = None
+    commout = None
     reshapein = None
     reshapeout = None
+    shapein = None
+    shapeout = None
     validatein = None
     validateout = None
 
+    dtype = None
+    flags = OperatorFlags()
+
     direct = None
-    transpose = None
-    adjoint = None
 
     def conjugate_(self, input, output):
         self.direct(input.conjugate(), output)
         output[...] = output.conjugate()
 
+    transpose = None
+    adjoint = None
     inverse = None
-    inverse_transpose = None
-    inverse_adjoint = None
 
     def inverse_conjugate(self, input, output):
         self.inverse(input.conjugate(), output)
         output[...] = output.conjugate()
+
+    inverse_transpose = None
+    inverse_adjoint = None
 
     def __call__(self, x, out=None):
 
@@ -1039,39 +1046,38 @@ class Operator(object):
 
     def _init_inout(
         self,
-        shapein,
-        shapeout,
-        reshapein,
-        reshapeout,
-        toshapein,
-        toshapeout,
-        validatein,
-        validateout,
         attrin,
         attrout,
         classin,
         classout,
+        commin,
+        commout,
+        reshapein,
+        reshapeout,
+        shapein,
+        shapeout,
+        toshapein,
+        toshapeout,
+        validatein,
+        validateout,
     ):
         """
         Set methods and attributes dealing with the input and output handling.
         """
-        shapein = tointtuple(shapein)
-        shapeout = tointtuple(shapeout)
 
-        if reshapein is not None:
-            self.reshapein = reshapein
-        if reshapeout is not None:
-            self.reshapeout = reshapeout
-
-        if toshapein is not None:
-            self.toshapein = toshapein
-        if toshapeout is not None:
-            self.toshapeout = toshapeout
-
-        if validatein is not None:
-            self.validatein = validatein
-        if validateout is not None:
-            self.validateout = validateout
+        # reset attributes
+        for attr in (
+            'attr',
+            'class',
+            'comm',
+            'reshape',
+            'shape',
+            'toshape',
+            'validate',
+        ):
+            for inout in ('in', 'out'):
+                if attr + inout in self.__dict__:
+                    del self.__dict__[attr + inout]
 
         if isinstance(attrin, (dict, types.FunctionType, types.MethodType)):
             if not isinstance(attrin, dict) or len(attrin) > 0:
@@ -1083,16 +1089,29 @@ class Operator(object):
                 self.attrout = attrout
         else:
             raise TypeError('Attributes should be given as a dictionary.')
-
         if classin is not None:
             self.classin = classin
         if classout is not None:
             self.classout = classout
+        if commin is not None:
+            self.commin = commin
+        if commout is not None:
+            self.commout = commout
+        if reshapein is not None:
+            self.reshapein = reshapein
+        if reshapeout is not None:
+            self.reshapeout = reshapeout
+        if toshapein is not None:
+            self.toshapein = toshapein
+        if toshapeout is not None:
+            self.toshapeout = toshapeout
+        if validatein is not None:
+            self.validatein = validatein
+        if validateout is not None:
+            self.validateout = validateout
 
-        if 'shapein' in self.__dict__:
-            del self.__dict__['shapein']
-        if 'shapeout' in self.__dict__:
-            del self.__dict__['shapeout']
+        shapein = tointtuple(shapein)
+        shapeout = tointtuple(shapeout)
         shapeout_, shapein_ = self.validatereshapein(shapein), self.validatereshapeout(
             shapeout
         )
@@ -1366,18 +1385,20 @@ class Operator(object):
 
 def DirectOperatorFactory(cls, source, *args, **keywords):
     return cls(
-        shapein=source.shapein,
-        shapeout=source.shapeout,
-        reshapein=source.reshapein,
-        reshapeout=source.reshapeout,
-        toshapein=source.toshapein,
-        toshapeout=source.toshapeout,
-        validatein=source.validatein,
-        validateout=source.validateout,
         attrin=source.attrin,
         attrout=source.attrout,
         classin=source.classin,
         classout=source.classout,
+        commin=source.commin,
+        commout=source.commout,
+        reshapein=source.reshapein,
+        reshapeout=source.reshapeout,
+        shapein=source.shapein,
+        shapeout=source.shapeout,
+        toshapein=source.toshapein,
+        toshapeout=source.toshapeout,
+        validatein=source.validatein,
+        validateout=source.validateout,
         dtype=source.dtype,
         flags=source.flags,
         *args,
@@ -1387,18 +1408,20 @@ def DirectOperatorFactory(cls, source, *args, **keywords):
 
 def ReverseOperatorFactory(cls, source, *args, **keywords):
     return cls(
-        shapein=source.shapeout,
-        shapeout=source.shapein,
-        reshapein=source.reshapeout,
-        reshapeout=source.reshapein,
-        toshapein=source.toshapeout,
-        toshapeout=source.toshapein,
-        validatein=source.validateout,
-        validateout=source.validatein,
         attrin=source.attrout,
         attrout=source.attrin,
         classin=source.classout,
         classout=source.classin,
+        commin=source.commout,
+        commout=source.commin,
+        reshapein=source.reshapeout,
+        reshapeout=source.reshapein,
+        shapein=source.shapeout,
+        shapeout=source.shapein,
+        toshapein=source.toshapeout,
+        toshapeout=source.toshapein,
+        validatein=source.validateout,
+        validateout=source.validatein,
         dtype=source.dtype,
         flags=source.flags,
         *args,
@@ -2013,6 +2036,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         attrin = cls._merge_attr(op2.attrin, op1.attrin)
         classout = op1.classout or op2.classout
         classin = op2.classin or op1.classout
+        commout = op1.commout or op1.commout
+        commin = op2.commin or op1.commin
         dtype = cls._find_common_type([op1.dtype, op2.dtype])
         flags = cls._merge_flags([op1, op2])
         shapes = cls._get_shapes(op2.shapein, op1.shapeout, [op1, op2])
@@ -2028,18 +2053,20 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         op._init_dtype(dtype)
         op._init_flags(flags)
         op._init_inout(
-            shapein,
-            shapeout,
-            reshapein,
-            reshapeout,
-            toshapein,
-            toshapeout,
-            validatein,
-            validateout,
             attrin,
             attrout,
             classin,
             classout,
+            commin,
+            commout,
+            reshapein,
+            reshapeout,
+            shapein,
+            shapeout,
+            toshapein,
+            toshapeout,
+            validatein,
+            validateout,
         )
 
     @staticmethod

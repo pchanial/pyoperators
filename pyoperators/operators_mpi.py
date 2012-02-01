@@ -68,9 +68,14 @@ class DistributionGlobalOperator(Operator):
             counts.append(n)
             offsets.append(offsets[-1] + n)
         offsets.pop()
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
-        self.commin = MPI.COMM_SELF
-        self.commout = commout
+        Operator.__init__(
+            self,
+            commin=MPI.COMM_SELF,
+            commout=commout,
+            shapein=shapein,
+            shapeout=shapeout,
+            **keywords,
+        )
         self.slice = slice_
         self.counts = counts
         self.offsets = offsets
@@ -141,9 +146,9 @@ class DistributionIdentityOperator(Operator):
     """
 
     def __init__(self, commout=None, **keywords):
-        Operator.__init__(self, **keywords)
-        self.commin = MPI.COMM_SELF
-        self.commout = commout or MPI.COMM_WORLD
+        Operator.__init__(
+            self, commin=MPI.COMM_SELF, commout=commout or MPI.COMM_WORLD, **keywords
+        )
 
     def direct(self, input, output):
         if self.same_data(input, output):
