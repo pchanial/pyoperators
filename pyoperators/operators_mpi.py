@@ -35,7 +35,7 @@ class DistributionGlobalOperator(Operator):
     Given the file 'example_dgo.py':
 
     import numpy as np
-    from tamasis import *
+    from pyoperators import DistributionGlobalOperator
     from mpi4py import MPI
     x_global = np.array([1,2,3])
     d = DistributionGlobalOperator(x_global.shape)
@@ -119,7 +119,7 @@ class DistributionIdentityOperator(Operator):
     Given the file 'example_dio.py':
 
     import numpy as np
-    from tamasis import *
+    from pyoperators import DistributionIdentityOperator
     from mpi4py import MPI
     x_global = np.array([1,1,1])
     d = DistributionIdentityOperator()
