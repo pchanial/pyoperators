@@ -954,6 +954,10 @@ class Operator(object):
 
     def _init_flags(self, flags):
 
+        # XXX reset me...
+        #        if 'flags' in self.__dict__:
+        #            del self.__dict__['flags']
+
         self._set_flags(flags)
 
         if self.flags.real:
@@ -1085,6 +1089,10 @@ class Operator(object):
         if classout is not None:
             self.classout = classout
 
+        if 'shapein' in self.__dict__:
+            del self.__dict__['shapein']
+        if 'shapeout' in self.__dict__:
+            del self.__dict__['shapeout']
         shapeout_, shapein_ = self.validatereshapein(shapein), self.validatereshapeout(
             shapeout
         )
@@ -2016,8 +2024,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         toshapeout = op1.toshapeout
         validatein = op2.validatein
         validateout = op1.validateout
-        op.shapein = None
-        op.shapeout = None
         op._C = op._T = op._H = op._I = None
         op._init_dtype(dtype)
         op._init_flags(flags)
