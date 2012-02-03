@@ -2263,6 +2263,8 @@ class BlockOperator(CompositeOperator):
         """ Rule for Operator * BlockOperator. """
         if self.partitionout is None:
             return None
+        if isinstance(op, BlockOperator):
+            return None
         if op.shapeout is not None:
             return None
         n = len(self.partitionout)
