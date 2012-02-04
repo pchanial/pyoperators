@@ -331,33 +331,54 @@ class OperatorBinaryRule(OperatorRule):
 
 
 class Operator(object):
-    """Abstract class representing an operator.
+    """
+    Operator top-level class.
+
+    The operator class is a function factory.
 
     Attributes
     ----------
+    attrin/attrout : dict or function
+        If attrout is a dict, its items are added to the output. If it is
+        a function, it takes the input attributes and returns the output
+        attributes. The attrin attribute is only used in the reversed direction.
+    classin/classout : Operator class
+        The classout attribute sets the output class. The classin attribute is
+        only used in the reversed direction.
+    commin/commout : mpi4py.Comm
+        The commin and commout attributes store the MPI communicator for the in-
+        put and output.
+    reshapein/reshapeout : function
+        The reshapein function takes the input shape and returns the output
+        shape. The method is used for implicit output shape operators.
+        The reshapeout function does the opposite.
     shapein : tuple
-         operator's input shape.
-
+        Operator's input shape.
     shapeout : tuple
-         operator's output shape.
-
+        Operator's output shape.
+    toshapein/toshapeout : function
+        The toshapein function reshapes a vector into a multi-dimensional array
+        compatible with the operator's input shape. The toshapeout method is
+        only used in the reversed direction.
+    validatein/validateout : function
+        The validatein function raises a ValueError exception if the input
+        shape is not valid. The validateout function is used in the reversed
+        direction
+    flags : OperatorFlags
+        The flags describe properties of the operator.
     dtype : dtype
-         the operator's dtype is used to determine the dtype of its output.
-         Unless it is None, the output dtype is the common type of the
-         operator and input dtypes. If dtype is None, the output dtype is
-         the input dtype.
-
+        The operator's dtype is used to determine the dtype of its output.
+        Unless it is None, the output dtype is the common type of the operator
+        and input dtypes. If dtype is None, the output dtype is the input
+        dtype.
     C : Operator
-         conjugate operator.
-
+        Oonjugate operator.
     T : Operator
-         tranpose operator.
-
+        Tranpose operator.
     H : Operator
-         adjoint operator.
-
+        Adjoint operator.
     I : Operator
-         inverse operator.
+        Inverse operator.
 
     """
 
@@ -546,8 +567,10 @@ class Operator(object):
         return shape
 
     def toshapein(self, v):
-        """Reshape a vector into a multi-dimensional array compatible with
-        the operator's input shape."""
+        """
+        Reshape a vector into a multi-dimensional array compatible with
+        the operator's input shape.
+        """
         if self.shapein is None:
             raise ValueError(
                 "The operator '" + self.__name__ + "' does not hav"
@@ -556,8 +579,10 @@ class Operator(object):
         return v.reshape(self.shapein)
 
     def toshapeout(self, v):
-        """Reshape a vector into a multi-dimensional array compatible with
-        the operator's output shape."""
+        """
+        Reshape a vector into a multi-dimensional array compatible with
+        the operator's output shape.
+        """
         if self.shapeout is None:
             raise ValueError(
                 "The operator '" + self.__name__ + "' does not hav"
@@ -783,10 +808,11 @@ class Operator(object):
         return self._I
 
     def conjugate(self):
-        """Return the complex-conjugate of the operator. Same as '.C'"""
+        """Return the complex-conjugate of the operator. Same as '.C'."""
         return self.C
 
     def copy(self):
+        """Return a copy of the operator."""
         return copy.copy(self)
 
     def propagate_attributes(self, cls, attr):
@@ -890,9 +916,10 @@ class Operator(object):
         return np.find_common_type(dtypes, [])
 
     def _generate_associated_operators(self):
-        """Compute at once the conjugate, transpose, adjoint and inverse
-        operators of the instance and of themselves."""
-
+        """
+        Compute at once the conjugate, transpose, adjoint and inverse operators
+        of the instance and of themselves.
+        """
         rules = dict((r.subjects[0], r) for r in self.rules[None])
 
         if self.flags.real:
@@ -1741,6 +1768,7 @@ class CommutativeCompositeOperator(CompositeOperator):
 
     @classmethod
     def _validate_constants(cls, operands):
+        """Convert constants into ConstantOperator."""
         for i, op in enumerate(operands):
             if isinstance(op, (int, float, complex, np.bool_, np.number, np.ndarray)):
                 operands[i] = ConstantOperator(op)
