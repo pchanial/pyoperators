@@ -175,8 +175,8 @@ They can be set using the @flags@ keyword:
 or by using operator decorators:
 
 {% highlight python %}
->>> @decorators.symmetric
-... @decorators.involutary
+>>> @pyoperators.decorators.symmetric
+... @pyoperators.decorators.involutary
 ... class MyOperator(Operator):
 ...     def direct(self, x, out):
 ...         out[...] = -x
@@ -289,7 +289,7 @@ h3. Operator with implicit input and output shape
 This operator defines both @reshapein@ and @reshapeout@ methods. @Square@-decorated operators are examples of this kind of operators: their @reshapein@ and @reshapeout@ methods simply are @lambda x:x@ by default. The interest for an implicit output shape operator of also handling implicit input shapes arises when a reverse operator such as @.T@ or @.H@ is defined because in which the @reshapein@ and @reshapeout@ methods are swapped. The operator in the following example adds a zero to its input.
 
 {% highlight python %}
->>> @decorators.linear
+>>> @pyoperators.decorators.linear
 ... class Op(Operator):
 ...     def direct(self, input, output):
 ...         output[:-1] = input
@@ -528,7 +528,7 @@ For instance, the rule @'.C'@ &rarr; @'.'@ means that the operator's conjugate i
 Unary rules are attached to an operator by using the @set_rule@ method:
 
 {% highlight python %}
->>> @decorators.linear
+>>> @pyoperators.decorators.linear
 ... class Op1(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
@@ -539,7 +539,7 @@ Unary rules are attached to an operator by using the @set_rule@ method:
 ...     def reshapein(self, shapein):
 ...         return (shapein[0]+1,)
 ...
->>> @decorators.linear
+>>> @pyoperators.decorators.linear
 ... class Op2(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
@@ -609,7 +609,7 @@ Rules are added by using the @set_rule@ method, which has 3 arguments:
 The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Rules, such as the ones set in the superclass, can be deleted with the @del_rule@ method. In the following example, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
 
 {% highlight python %}
->>> @decorators.square
+>>> @pyoperators.decorators.square
 ... class Power(Operator):
 ...     def __init__(self, exponent):
 ...         Operator.__init__(self)
@@ -726,7 +726,7 @@ One can enable such property by adding the keyword @operation@ to the operator's
 
 {% highlight python %}
 >>> memory.pyoperators.verbose = True
-... @decorators.inplace_reduction
+... @pyoperators.decorators.inplace_reduction
 ... class P(Operator):
 ...     def direct(self, input, output, operation=operation_assignment):
 ...         operation(output, input)
@@ -741,8 +741,8 @@ No intermediate variable is needed and all operations have been performed in-pla
 
 {% highlight python %}
 >>> pyoperators.memory.verbose=True
-... @decorators.linear
-... @decorators.inplace_reduction
+... @pyoperators.decorators.linear
+... @pyoperators.decorators.inplace_reduction
 ... class Projection(Operator):
 ...     def __init__(self, index):
 ...          self.index = index
