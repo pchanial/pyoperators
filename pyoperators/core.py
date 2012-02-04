@@ -114,20 +114,32 @@ class OperatorRule(object):
     """
 
     def __init__(self, subjects, predicate):
-        if '1' in subjects:
+
+        if not isinstance(subjects, str):
+            raise TypeError(
+                "The input first argument '{0}' is not a string.".format(subjects)
+            )
+
+        subjects_ = self.split_subject(subjects)
+        if len(subjects_) == 0:
+            raise ValueError('No rule subject is specified.')
+        if not isinstance(self, OperatorUnaryRule) and len(subjects_) == 1:
+            self.__class__ = OperatorUnaryRule
+            self.__init__(subjects, predicate)
+            return
+        if not isinstance(self, OperatorBinaryRule) and len(subjects_) == 2:
+            self.__class__ = OperatorBinaryRule
+            self.__init__(subjects, predicate)
+            return
+
+        if '1' in subjects_:
             raise ValueError("'1' cannot be a subject.")
+
         if isinstance(predicate, str) and '{' in predicate:
             raise ValueError("Predicate cannot be a subclass.")
-        self.subjects = self.split_subject(subjects)
+
+        self.subjects = subjects_
         self.predicate = predicate
-        if len(self.subjects) == 0:
-            raise ValueError('No rule subject is specified.')
-        if not isinstance(self, OperatorUnaryRule) and len(self.subjects) == 1:
-            self.__class__ = OperatorUnaryRule
-            self.__init__(self.subjects, self.predicate)
-        if not isinstance(self, OperatorBinaryRule) and len(self.subjects) == 2:
-            self.__class__ = OperatorBinaryRule
-            self.__init__(self.subjects, self.predicate)
 
     def __eq__(self, other):
         if not isinstance(other, OperatorRule):
@@ -191,9 +203,9 @@ class OperatorUnaryRule(OperatorRule):
     A operator unary rule is a relation that can be expressed by the sentence
     "'subject' is 'predicate'".
 
-    Arguments
-    ---------
-    subject: str
+    Parameters
+    ----------
+    subject : str
         It defines the property of the operator for which the predicate holds:
             '.C' : the operator conjugate
             '.T' : the operator transpose
@@ -203,7 +215,7 @@ class OperatorUnaryRule(OperatorRule):
             '.IT' : the operator inverse-transpose
             '.IH' : the operator inverse-adjoint
 
-    predicate: function or str
+    predicate : function or str
         What is returned by the rule when is applies. It can be:
             '1' : the identity operator
             '.' : the operator itself
@@ -247,18 +259,15 @@ class OperatorBinaryRule(OperatorRule):
     two input arguments checks if the inputs are subjects to the rule, and
     returns the predicate if it is the case. Otherwise, it returns None.
 
-    Arguments
-    ---------
-    operator: Operator
-        The reference operator, one of the two subjects
-
-    subject: str
+    Parameters
+    ----------
+    subjects : str
         It defines the relationship between the two subjects that must be
         verified for the rule to apply. It is the concatenation of two
         expressions. One has to be '.' and stands for the reference subject.
-        It determines if the the reference operator is on the right or left
-        hand side of the operator pair. The other expression constrains the
-        other subject, which must be:
+        It determines if the reference operator is on the right or left hand
+        side of the operator pair. The other expression constrains the other
+        subject, which must be:
             '.' : the reference operator itself.
             '.C' : the conjugate of the reference object
             '.T' : the transpose of the reference object
@@ -269,7 +278,7 @@ class OperatorBinaryRule(OperatorRule):
         o1 and o2 if o1 is o2.C. For a condition '.{DiagonalOperator}', the
         rule will apply if o2 is a DiagonalOperator instance.
 
-    predicate: function or str
+    predicate : function or str
         If the two objects o1, o2, are subjects of the rule, the predicate
         will be returned. The predicate can also be '1', '.', '.C', '.T', '.H'
         of a callable of two arguments.
@@ -625,10 +634,25 @@ class Operator(object):
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
 
-    def set_rule(self, subjects, predicate, operation=None):
+    def set_rule(self, subjects, predicate, operation=None, globals=None):
         """
-        Add a rule to the rule list, taking care of duplicates.
+        Add a rule to the rule list, taking care of duplicates and priorities.
         Class-matching rules have a lower priority than the others.
+
+        Parameters
+        ----------
+        subjects : str
+            See OperatorUnaryRule and OperatorBinaryRule documentation.
+        predicate : str
+            See OperatorUnaryRule and OperatorBinaryRule documentation.
+        operation : CompositeOperator sub class
+            Operation to which applies the rule. It can be: CompositionOperator,
+            AdditionOperator and MultiplicationOperator. For unary rules,
+            the value must be None.
+        globals : dict, optional
+            Dictionary containing the operator classes used in class-matching
+            rules. It is required for classes not from pyoperators.ocre and for
+            which more than one class-matching rule is set.
         """
         rule = OperatorRule(subjects, predicate)
         if len(rule.subjects) > 2:
@@ -675,14 +699,22 @@ class Operator(object):
             return
 
         # insert the rule after more specific ones
-        cls = type(self) if rule.other[1:-1] == 'self' else eval(rule.other[1:-1])
+        cls = (
+            type(self)
+            if rule.other[1:-1] == 'self'
+            else eval(rule.other[1:-1], globals)
+        )
         classes = [r.other[1:-1] for r in rules[index:]]
-        classes = [cls if r == 'self' else eval(r) for r in classes]
-        is_subclass = [issubclass(c, cls) for c in classes]
+        classes = [cls if r == 'self' else eval(r, globals) for r in classes]
+        is_subclass = [issubclass(cls, c) for c in classes]
+        is_supclass = [issubclass(c, cls) for c in classes]
         try:
             index2 = is_subclass.index(True)
         except ValueError:
-            index2 = 0
+            try:
+                index2 = len(is_supclass) - is_supclass[::-1].index(True)
+            except ValueError:
+                index2 = 0
         rules.insert(index + index2, rule)
 
     def del_rule(self, subjects, operation=None):
@@ -690,6 +722,15 @@ class Operator(object):
         Delete an operator rule.
 
         If the rule does not exist, a ValueError exception is raised.
+
+        Parameters
+        ----------
+        subjects : str
+            The subjects of the rule to be deleted.
+        operation : CompositeOperator sub class
+            Operation to which applies the rule to be deleted. It can be:
+            CompositionOperator, AdditionOperator and MultiplicationOperator.
+            For unary rules, the value must be None.
         """
         subjects = OperatorRule.split_subject(subjects)
         if len(subjects) > 2:
