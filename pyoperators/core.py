@@ -342,7 +342,7 @@ class Operator(object):
         If attrout is a dict, its items are added to the output. If it is
         a function, it takes the input attributes and returns the output
         attributes. The attrin attribute is only used in the reversed direction.
-    classin/classout : Operator class
+    classin/classout : ndarray subclass
         The classout attribute sets the output class. The classin attribute is
         only used in the reversed direction.
     commin/commout : mpi4py.Comm
