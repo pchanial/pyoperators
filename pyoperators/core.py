@@ -532,7 +532,7 @@ class Operator(object):
     def set_rule(self, subjects, predicate, operation=None):
         """
         Add a rule to the rule list, taking care of duplicates.
-        Rules matching classes have a lower priority than the others.
+        Class-matching rules have a lower priority than the others.
         """
         rule = OperatorRule(subjects, predicate)
         if len(rule.subjects) > 2:
@@ -583,11 +583,13 @@ class Operator(object):
         cls = type(self) if rule.other[1:-1] == 'self' else \
               eval(rule.other[1:-1]) 
         classes = [ r.other[1:-1] for r in rules[index:] ]
-        classes = [ cls if r == 'self' else eval(r) for r in classes]
+        classes = [ cls if r == 'self' else eval(r) for r in classes ]
         is_subclass = [ issubclass(c, cls) for c in classes ]
-        is_subclass[-1] = True
-        index2 = is_subclass.index(True)
-        rules.insert(index + index2 + 1, rule)
+        try:
+            index2 = is_subclass.index(True)
+        except ValueError:
+            index2 = 0
+        rules.insert(index + index2, rule)
 
     def del_rule(self, subjects, operation=None):
         """
