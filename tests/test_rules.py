@@ -5,7 +5,7 @@ from pyoperators import (Operator, AdditionOperator, CompositionOperator,
          MultiplicationOperator, ConstantOperator, IdentityOperator,
          HomothetyOperator, ZeroOperator)
 from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
-from pyoperators.utils import assert_is, assert_is_none, assert_is_not_none, assert_is_instance, ndarraywrap
+from pyoperators.utils import assert_eq, assert_is, assert_is_none, assert_is_not_none, assert_is_instance, ndarraywrap
 
 from .test_shared import ops, ndarray2, attr2
 
@@ -95,6 +95,39 @@ def test_binaryrule5():
     yield assert_equal, rule(op1, op1), op3
     yield assert_is_none, rule(op1, op2)
     yield assert_equal, rule(op1, op4), op3
+
+r = lambda o:None
+r2 = lambda o:None
+class Op1(Operator):
+    pass
+class Op2(Op1):
+    pass
+class Op3(Op2):
+    def __init__(self):
+        Op2.__init__(self)
+        self.set_rule('.{OpA}', r, CompositionOperator, globals())
+        self.set_rule('.{Op3}', r, CompositionOperator, globals())
+        self.set_rule('..T', r, CompositionOperator)
+        self.set_rule('.{Op2}', r, CompositionOperator, globals())
+        self.set_rule('.{OpB}', r, CompositionOperator, globals())
+        self.set_rule('.{Op1}', r, CompositionOperator, globals())
+        self.set_rule('..H', r, CompositionOperator)
+        self.set_rule('.{Op4}', r, CompositionOperator, globals())
+        self.set_rule('.{Op2}', r2, CompositionOperator, globals())
+class Op4(Op3):
+    pass
+class OpA(Operator):
+    pass
+class OpB(Operator):
+    pass
+
+def test_binaryrule_priority():
+    op = Op3()
+    act = [''.join(r.subjects) for r in op.rules[CompositionOperator]['left']]
+    exp = ['..H','..T','.{OpB}','.{Op4}','.{Op3}','.{Op2}','.{Op1}','.{OpA}' ]
+    for a, e in zip(act, exp):
+        yield assert_eq, a, e
+    assert op.rules[CompositionOperator]['left'][5].predicate is r2
 
 def test_merge_identity():
     def func(op, op1, op2, op_ref):
@@ -205,3 +238,4 @@ def test_del_rule():
     assert_equal(len(op.rules[CompositionOperator]['right']), 1)
     assert_equal(len(op.rules[AdditionOperator]), 0)
     assert_equal(len(op.rules[MultiplicationOperator]), 0)
+
