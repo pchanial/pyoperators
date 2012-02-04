@@ -1028,16 +1028,23 @@ class Operator(object):
             if not isinstance(attrin, dict) or len(attrin) > 0:
                 self.attrin = attrin
         else:
-            raise TypeError('Attributes should be given as a dictionary.')
+            raise TypeError("The 'attrin' keyword should be a dictionary or a f"
+                            "unction.")
         if isinstance(attrout, (dict, types.FunctionType, types.MethodType)):
             if not isinstance(attrout, dict) or len(attrout) > 0:
                 self.attrout = attrout
         else:
-            raise TypeError('Attributes should be given as a dictionary.')
-        if classin is not None:
+            raise TypeError("The 'attrout' keyword should be a dictionary or a "
+                            "function.")
+        if type(classin) is type and issubclass(classin, np.ndarray):
             self.classin = classin
-        if classout is not None:
+        elif classin is not None:
+            raise TypeError("The 'classin' keyword is not an ndarray subclass.")
+        if type(classout) is type and issubclass(classout, np.ndarray):
             self.classout = classout
+        elif classout is not None:
+            raise TypeError("The 'classout' keyword is not an ndarray subclass."
+                            )
         if commin is not None:
             self.commin = commin
         if commout is not None:
