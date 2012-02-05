@@ -100,6 +100,11 @@ class Stretch(Operator):
         shape_[self.axis] //= 2
         return shape_
 
+
+#===========
+# Test flags
+#===========
+
 def test_flags():
     def func(o):
         if o.flags.idempotent:
@@ -131,20 +136,28 @@ def test_flags():
             continue
         yield func, o
 
-def test_eq():
-    from .test_shared import ops as ops1
-    ops2 = [type(o)() for o in ops1]
-    for op1, op2 in zip(ops1, ops2):
-        yield assert_eq, op1, op2
+def test_symmetric():    
+    mat = np.matrix([[2,1],[1,2]])
+    @decorators.symmetric
+    class Op(Operator):
+        def __init__(self):
+            Operator.__init__(self, shapein=2, dtype=mat.dtype)
+        def direct(self, input, output):
+            output[...] = np.dot(mat, input)
 
-def test_tocomposite():
-    from .test_shared import ops
-    for op1 in ops:
-        for op2 in ops:
-            op = op1.copy() * op2.T
-            op1_ = op1.copy()
-            op1_ *= op2.T
-            yield assert_eq, op1_, op
+    op = Op()
+    assert_flags(op, 'linear,square,real,symmetric')
+    assert_eq(op.shape, (2,2))
+    assert_eq(op.shapeout, (2,))
+    assert op is op.C
+    assert op is op.T
+    assert op is op.H
+    assert_eq(op([1,1]), np.array(mat * [[1],[1]]).ravel())
+
+
+#========================
+# Test input/output shape
+#========================
 
 def test_shape_is_inttuple():
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
@@ -290,6 +303,11 @@ def test_shapein_unconstrained3():
             op = cls(shapeout=shape)
             yield func, op, shape
 
+
+#====================
+# Test operator dtype
+#====================
+
 def test_dtype1():
     value = 2.5
     @decorators.square
@@ -327,144 +345,34 @@ def test_dtype2():
         yield assert_eq, o, i * i, str(di)
 
 
-def test_symmetric():    
-    mat = np.matrix([[2,1],[1,2]])
-    @decorators.symmetric
-    class Op(Operator):
-        def __init__(self):
-            Operator.__init__(self, shapein=2, dtype=mat.dtype)
-        def direct(self, input, output):
-            output[...] = np.dot(mat, input)
+#=========================
+# Test operator comparison
+#=========================
 
-    op = Op()
-    assert_flags(op, 'linear,square,real,symmetric')
-    assert_eq(op.shape, (2,2))
-    assert_eq(op.shapeout, (2,))
-    assert op is op.C
-    assert op is op.T
-    assert op is op.H
-    assert_eq(op([1,1]), np.array(mat * [[1],[1]]).ravel())
+def test_eq():
+    from .test_shared import ops as ops1
+    ops2 = [type(o)() for o in ops1]
+    for op1, op2 in zip(ops1, ops2):
+        yield assert_eq, op1, op2
 
 
-def test_broadcasting_as_strided():
-    shapes = {'leftward':(2,4,3,4,2,2), 'rightward':(3,2,2,3,1,2)}
-    for b in ('rightward', 'leftward'):
-        o = BroadcastingOperator(np.arange(6).reshape((3,1,2,1)), broadcast=b)
-        s = shapes[b]
-        if b == 'leftward':
-            v = o.data*np.ones(s)
-        else:
-            v = (o.data.T * np.ones(s, int).T).T
-        yield assert_eq, o._as_strided(s), v
+#==================
+# Test _tocomposite
+#==================
+
+def test_tocomposite():
+    from .test_shared import ops
+    for op1 in ops:
+        for op2 in ops:
+            op = op1.copy() * op2.T
+            op1_ = op1.copy()
+            op1_ *= op2.T
+            yield assert_eq, op1_, op
 
 
-def test_constant_reduction1():
-    c = 1, np.array([1,2]), np.array([2,3,4])
-    t = 'scalar', 'rightward', 'leftward'
-
-    for c1, t1 in zip(c, t):
-        op1 = ConstantOperator(c1, broadcast=t1)
-        for c2, t2 in zip(c, t):
-            op2 = ConstantOperator(c2, broadcast=t2)
-            op = op1 + op2
-            if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
-                yield assert_is_instance, op, ConstantOperator
-            v = np.zeros((2,3))
-            op(np.nan, v)
-            z = np.zeros((2,3))
-            if t1 == 'rightward':
-                z.T[...] += c1.T
-            else:
-                z[...] += c1
-            if t2 == 'rightward':
-                z.T[...] += c2.T
-            else:
-                z[...] += c2
-            yield assert_eq, v, z
-
-def test_constant_reduction2():
-    H = HomothetyOperator
-    C = CompositionOperator
-    D = DiagonalOperator
-    cs = (ConstantOperator(3), ConstantOperator([1,2,3], broadcast='leftward'),
-          ConstantOperator(np.ones((2,3))))
-    os = (I, H(2, shapein=(2,3)) * Operator(direct=np.square, shapein=(2,3), 
-          flags='square'), H(5))
-    results = (((H, 3), (C, (H, 6)), (H, 15)),
-               ((D, [1,2,3]), (C, (D, [2,4,6])), (D, [5,10,15])),
-               ((IdentityOperator, 1), (C, (H,2)), (H, 5))
-               )
-    
-    v = np.arange(6).reshape((2,3))
-    def func(c, o, r):
-        op = MultiplicationOperator([c, o])
-        assert_eq(op(v), c.data*o(v))
-        assert_is(type(op), r[0])
-        if type(op) is CompositionOperator:
-            op = op.operands[0]
-            r = r[1]
-            assert_is(type(op), r[0])
-        assert_eq, op.data, r[1]
-    for c,rs in zip(cs, results):
-        for o, r in zip(os, rs):
-            yield func, c, o, r
-
-def _test_constant_reduction3():
-    @decorators.square
-    class Op(Operator):
-        def direct(self, input, output):
-            output[...] = input + np.arange(input.size).reshape(input.shape)
-    os = (Op(shapein=()), Op(shapein=(4)), Op(shapein=(2,3,4)))
-    cs = (ConstantOperator(2), ConstantOperator([2], broadcast='leftward'),
-          ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='leftward'))
-    v = 10000000
-    for o, c in zip(os, cs):
-        op = o * c
-        y_tmp = np.empty(o.shapein, int)
-        c(v, y_tmp)
-        yield assert_eq, op(v), o(y_tmp)
-
-
-def test_scalar_reduction1():
-    models = 1.*I+I, -I, (-2) * I, -(2*I), 1.*I-I, 1.*I-2*I
-    results = [6, -3, -6, -6, 0, -3]
-    for model, result in zip(models, results):
-        for i in (np.array(3), [3], (3,), np.int(3), 3):
-            o = model(i)
-            yield assert_eq, o, result, str((model,i))
-            yield assert_eq, o.dtype, int, str((model,i))
-
-
-def test_scalar_reduction2():
-    model = -I
-    iops = '__iadd__', '__isub__', '__imul__', '__iadd__', '__imul__'
-    imodels = 2*I, 2*I, 2*I, O, O
-    results = [3, -3, -6, -6, 0]
-    for iop, imodel, result in zip(iops, imodels, results):
-        model = getattr(model, iop)(imodel)
-        for i in (np.array(3), [3], (3,), np.int(3), 3):
-            yield assert_eq, model(i), result, str((iop,i))
-
-
-def test_scalar_reduction3():
-    @decorators.linear
-    class Op(Operator):
-        pass
-    def func(opout, opin, idin):
-        if opin is not None and idin is not None and opin != idin:
-            return
-        p = Op(shapeout=opout, shapein=opin) * IdentityOperator(shapein=idin)
-
-        if idin is None:
-            idin = opin
-        assert_is_instance(p, Op)
-        assert_eq(p.shapein, idin)
-        assert_eq(p.shapeout, opout)
-    for opout in (None, (100,)):
-        for opin in (None, (100,)):
-            for idin in (None, (100,)):
-                yield func, opout, opin, idin
-
+#===========================
+# Test attribute propagation
+#===========================
 
 def test_propagation_attribute1():
     @decorators.square
@@ -658,7 +566,12 @@ def test_propagation_attribute3():
     output = op(input)
     assert output.__dict__ == {'attr_instance':40, 'attr_instance2':42,
                                'attr_class':30, 'attr_class2':2}    
+
     
+#=======================
+# Test class propagation
+#=======================
+
 def check_propagation_class(op, i, c):
     o = op(i)
     assert_is(type(o), c)
@@ -746,6 +659,11 @@ def test_propagation_class_nested():
         for op2 in ops2:
             for op3 in ops1:
                 yield func3, op1, op2, op3, ndarray2
+
+
+#===========================
+# Test in-place/out-of-place
+#===========================
 
 def test_inplace1():
     memory.stack = []
@@ -1048,6 +966,10 @@ def test_inplace_cannot_use_output():
             yield func_inplace, n, i, expected, strops
 
     
+#=========================
+# Test composite operators
+#=========================
+
 def test_addition():
     @decorators.square
     class Op(Operator):
@@ -1212,35 +1134,6 @@ def test_composition3():
     assert_eq(output, 8)
     assert_eq(len(memory.stack), 0)
 
-def test_scalar_operator1():
-    data = (0., 1., 2)
-    expected = (ZeroOperator, IdentityOperator, HomothetyOperator)
-    for d,e in zip(data, expected):
-        yield assert_is, HomothetyOperator(d).__class__, e
-
-def test_scalar_operator2():
-    s = HomothetyOperator(1)
-    yield ok_, s.C is s.T is s.H is s.I is s
-
-    s = HomothetyOperator(-1)
-    yield ok_, s.C is s.T is s.H is s.I is s
-
-    s = HomothetyOperator(2.)
-    yield ok_, s.C is s.T is s.H is s
-    yield assert_is_not, s.I, s
-    for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
-        yield assert_is_instance, o, HomothetyOperator
-
-    s = HomothetyOperator(complex(1,1))
-    yield assert_is, s.T, s
-    yield assert_is, s.H, s.C
-    yield assert_not_in, s.I, (s, s.C)
-    yield assert_not_in, s.I.C, (s, s.C)
-    yield assert_is_instance, s.C, HomothetyOperator
-    for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
-        yield assert_is_instance, o, HomothetyOperator
-
-
 def test_partition1():
     o1 = HomothetyOperator(1, shapein=1)
     o2 = HomothetyOperator(2, shapein=2)
@@ -1346,6 +1239,22 @@ def test_block_row2():
     assert_eq(r.todense(), np.hstack([p,2*p]))
     assert_eq(r.T.todense(), r.todense().T)
 
+
+#=============================
+# Test non-composite operators
+#=============================
+
+def test_broadcasting_as_strided():
+    shapes = {'leftward':(2,4,3,4,2,2), 'rightward':(3,2,2,3,1,2)}
+    for b in ('rightward', 'leftward'):
+        o = BroadcastingOperator(np.arange(6).reshape((3,1,2,1)), broadcast=b)
+        s = shapes[b]
+        if b == 'leftward':
+            v = o.data*np.ones(s)
+        else:
+            v = (o.data.T * np.ones(s, int).T).T
+        yield assert_eq, o._as_strided(s), v
+
 def test_diagonal1():
     data = (0., 1., [0,0], [1,1], 2, [2,2], [1,2])
     expected = (ZeroOperator, IdentityOperator, ZeroOperator, IdentityOperator,
@@ -1384,8 +1293,133 @@ def test_diagonal2():
                        d2.broadcast) else op(d1.data, d2.data)
                 yield assert_eq, d.data, data, str(d1)+' and '+str(d2)
     
+def test_homothety_operator():
+    s = HomothetyOperator(1)
+    yield ok_, s.C is s.T is s.H is s.I is s
 
-def test_zero2():
+    s = HomothetyOperator(-1)
+    yield ok_, s.C is s.T is s.H is s.I is s
+
+    s = HomothetyOperator(2.)
+    yield ok_, s.C is s.T is s.H is s
+    yield assert_is_not, s.I, s
+    for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
+        yield assert_is_instance, o, HomothetyOperator
+
+    s = HomothetyOperator(complex(1,1))
+    yield assert_is, s.T, s
+    yield assert_is, s.H, s.C
+    yield assert_not_in, s.I, (s, s.C)
+    yield assert_not_in, s.I.C, (s, s.C)
+    yield assert_is_instance, s.C, HomothetyOperator
+    for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
+        yield assert_is_instance, o, HomothetyOperator
+
+def test_homothety_reduction1():
+    models = 1.*I+I, -I, (-2) * I, -(2*I), 1.*I-I, 1.*I-2*I
+    results = [6, -3, -6, -6, 0, -3]
+    for model, result in zip(models, results):
+        for i in (np.array(3), [3], (3,), np.int(3), 3):
+            o = model(i)
+            yield assert_eq, o, result, str((model,i))
+            yield assert_eq, o.dtype, int, str((model,i))
+
+def test_homothety_reduction2():
+    model = -I
+    iops = '__iadd__', '__isub__', '__imul__', '__iadd__', '__imul__'
+    imodels = 2*I, 2*I, 2*I, O, O
+    results = [3, -3, -6, -6, 0]
+    for iop, imodel, result in zip(iops, imodels, results):
+        model = getattr(model, iop)(imodel)
+        for i in (np.array(3), [3], (3,), np.int(3), 3):
+            yield assert_eq, model(i), result, str((iop,i))
+
+def test_homothety_reduction3():
+    @decorators.linear
+    class Op(Operator):
+        pass
+    def func(opout, opin, idin):
+        if opin is not None and idin is not None and opin != idin:
+            return
+        p = Op(shapeout=opout, shapein=opin) * IdentityOperator(shapein=idin)
+
+        if idin is None:
+            idin = opin
+        assert_is_instance(p, Op)
+        assert_eq(p.shapein, idin)
+        assert_eq(p.shapeout, opout)
+    for opout in (None, (100,)):
+        for opin in (None, (100,)):
+            for idin in (None, (100,)):
+                yield func, opout, opin, idin
+
+def test_constant_reduction1():
+    c = 1, np.array([1,2]), np.array([2,3,4])
+    t = 'scalar', 'rightward', 'leftward'
+
+    for c1, t1 in zip(c, t):
+        op1 = ConstantOperator(c1, broadcast=t1)
+        for c2, t2 in zip(c, t):
+            op2 = ConstantOperator(c2, broadcast=t2)
+            op = op1 + op2
+            if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
+                yield assert_is_instance, op, ConstantOperator
+            v = np.zeros((2,3))
+            op(np.nan, v)
+            z = np.zeros((2,3))
+            if t1 == 'rightward':
+                z.T[...] += c1.T
+            else:
+                z[...] += c1
+            if t2 == 'rightward':
+                z.T[...] += c2.T
+            else:
+                z[...] += c2
+            yield assert_eq, v, z
+
+def test_constant_reduction2():
+    H = HomothetyOperator
+    C = CompositionOperator
+    D = DiagonalOperator
+    cs = (ConstantOperator(3), ConstantOperator([1,2,3], broadcast='leftward'),
+          ConstantOperator(np.ones((2,3))))
+    os = (I, H(2, shapein=(2,3)) * Operator(direct=np.square, shapein=(2,3), 
+          flags='square'), H(5))
+    results = (((H, 3), (C, (H, 6)), (H, 15)),
+               ((D, [1,2,3]), (C, (D, [2,4,6])), (D, [5,10,15])),
+               ((IdentityOperator, 1), (C, (H,2)), (H, 5))
+               )
+    
+    v = np.arange(6).reshape((2,3))
+    def func(c, o, r):
+        op = MultiplicationOperator([c, o])
+        assert_eq(op(v), c.data*o(v))
+        assert_is(type(op), r[0])
+        if type(op) is CompositionOperator:
+            op = op.operands[0]
+            r = r[1]
+            assert_is(type(op), r[0])
+        assert_eq, op.data, r[1]
+    for c,rs in zip(cs, results):
+        for o, r in zip(os, rs):
+            yield func, c, o, r
+
+def _test_constant_reduction3():
+    @decorators.square
+    class Op(Operator):
+        def direct(self, input, output):
+            output[...] = input + np.arange(input.size).reshape(input.shape)
+    os = (Op(shapein=()), Op(shapein=(4)), Op(shapein=(2,3,4)))
+    cs = (ConstantOperator(2), ConstantOperator([2], broadcast='leftward'),
+          ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='leftward'))
+    v = 10000000
+    for o, c in zip(os, cs):
+        op = o * c
+        y_tmp = np.empty(o.shapein, int)
+        c(v, y_tmp)
+        yield assert_eq, op(v), o(y_tmp)
+
+def test_zero1():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6)
     zo = z*o
@@ -1393,7 +1427,7 @@ def test_zero2():
     yield assert_eq, zo.shapein, o.shapein
     yield assert_is_none, zo.shapeout
 
-def test_zero3():
+def test_zero2():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator()
     zo = z*o
@@ -1401,7 +1435,7 @@ def test_zero3():
     yield assert_is_none, zo.shapein, 'in'
     yield assert_eq, zo.shapeout, z.shapeout, 'out'
 
-def test_zero3b():
+def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator(flags='square')
     zo = z*o
@@ -1427,7 +1461,7 @@ def test_zero5():
     yield assert_is_none, oz.shapein, 'oz, in'
     yield assert_eq, oz.shapeout, o.shapeout, 'oz, out'
 
-def test_zero7():
+def test_zero6():
     z = ZeroOperator(flags='square')
     @decorators.linear
     class Op(Operator):
@@ -1446,6 +1480,6 @@ def test_zero7():
     assert_eq(zo.T(v), o.T(z.T(v)))
     assert_eq(oz.T(v), z.T(o.T(v)))
     
-def test_zero8():
+def test_zero7():
     z = ZeroOperator()
     yield assert_is, z*z, z
