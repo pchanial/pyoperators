@@ -43,7 +43,6 @@ def assert_square(op, msg=''):
     assert_eq(op.shapein, op.shapeout)
     assert_eq(op.reshapein, op.reshapeout)
     assert_eq(op.toshapein, op.toshapeout)
-    assert_eq(op.validatein, op.validateout)
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
@@ -302,6 +301,44 @@ def test_shapein_unconstrained3():
         for cls in (Op1, Op2, Op3, Op4):
             op = cls(shapeout=shape)
             yield func, op, shape
+
+
+#================
+# Test validation
+#================
+
+def test_validation():
+    from .test_shared import Ops
+    class ValidationError(ValueError):
+        pass
+    def vin(shape):
+        if shape[0] % 2 == 0:
+            raise ValidationError()
+    def vout(shape):
+        if shape[0] % 2 == 1:
+            raise ValidationError()
+    x_ok = np.empty(3)
+    y_ok = np.empty(4)
+    x_err = np.empty(6)
+    y_err = np.empty(7)
+    def func(cls):
+        op = cls(validatein=vin, validateout=vout)
+        op(x_ok, y_ok)
+        cls_error = ValueError if op.flags.shape_input == 'explicit' else \
+                    ValidationError
+        assert_raises(cls_error, op, x_err, y_ok)
+        cls_error = ValueError if op.flags.shape_output == 'explicit' else \
+                    ValidationError
+        assert_raises(cls_error, op, x_ok, y_err)
+
+        if op.flags.shape_output == 'implicit':
+            assert_raises(ValidationError, cls, validateout=vout,
+                          shapein=x_err.shape)
+        if op.flags.shape_input == 'implicit':
+            assert_raises(ValidationError, cls, validatein=vin,
+                          shapeout=y_err.shape)
+    for cls in Ops:
+        yield func, cls
 
 
 #====================

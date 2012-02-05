@@ -478,6 +478,9 @@ class Operator(object):
             validateout,
         )
 
+    dtype = None
+    flags = OperatorFlags()
+
     attrin = {}
     attrout = {}
     classin = None
@@ -488,11 +491,52 @@ class Operator(object):
     reshapeout = None
     shapein = None
     shapeout = None
-    validatein = None
-    validateout = None
 
-    dtype = None
-    flags = OperatorFlags()
+    def toshapein(self, v):
+        """
+        Reshape a vector into a multi-dimensional array compatible with
+        the operator's input shape.
+        """
+        if self.shapein is None:
+            raise ValueError(
+                "The operator '" + self.__name__ + "' does not hav"
+                "e an explicit shape."
+            )
+        return v.reshape(self.shapein)
+
+    def toshapeout(self, v):
+        """
+        Reshape a vector into a multi-dimensional array compatible with
+        the operator's output shape.
+        """
+        if self.shapeout is None:
+            raise ValueError(
+                "The operator '" + self.__name__ + "' does not hav"
+                "e an explicit shape."
+            )
+        return v.reshape(self.shapeout)
+
+    def validatein(self, shapein):
+        """
+        Validate an input shape by raising a ValueError exception if it is
+        invalid.
+        """
+        if self.shapein is not None and self.shapein != shapein:
+            raise ValueError(
+                "The input shape '{0}' is incompatible with that o"
+                "f {1}: '{2}'.".format(shapein, self.__name__, self.shapein)
+            )
+
+    def validateout(self, shapeout):
+        """
+        Validate an output shape by raising a ValueError exception if it is
+        invalid.
+        """
+        if self.shapeout is not None and self.shapeout != shapeout:
+            raise ValueError(
+                "The output shape '{0}' is incompatible with that "
+                "of {1}: '{2}'.".format(shapeout, self.__name__, self.shapeout)
+            )
 
     direct = None
 
@@ -565,30 +609,6 @@ class Operator(object):
         if shape[0] is None or shape[1] is None:
             return None
         return shape
-
-    def toshapein(self, v):
-        """
-        Reshape a vector into a multi-dimensional array compatible with
-        the operator's input shape.
-        """
-        if self.shapein is None:
-            raise ValueError(
-                "The operator '" + self.__name__ + "' does not hav"
-                "e an explicit shape."
-            )
-        return v.reshape(self.shapein)
-
-    def toshapeout(self, v):
-        """
-        Reshape a vector into a multi-dimensional array compatible with
-        the operator's output shape.
-        """
-        if self.shapeout is None:
-            raise ValueError(
-                "The operator '" + self.__name__ + "' does not hav"
-                "e an explicit shape."
-            )
-        return v.reshape(self.shapeout)
 
     @staticmethod
     def same_data(array1, array2):
@@ -857,12 +877,7 @@ class Operator(object):
             The output shape, consistent with the input shape
         """
         shapein = tointtuple(shapein)
-        if None not in (self.shapein, shapein) and self.shapein != shapein:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f {1}: '{2}'.".format(shapein, self.__name__, self.shapein)
-            )
-        if self.validatein is not None and shapein is not None:
+        if shapein is not None:
             self.validatein(shapein)
         if self.shapeout is not None:
             # explicit output shape
@@ -871,7 +886,9 @@ class Operator(object):
             # unconstrained output shape (or shapein is None)
             return None
         # implicit output shape
-        return tointtuple(self.reshapein(shapein))
+        shapeout = tointtuple(self.reshapein(shapein))
+        self.validateout(shapeout)
+        return shapeout
 
     def validatereshapeout(self, shapeout):
         """
@@ -891,12 +908,7 @@ class Operator(object):
             The input shape, consistent with the output shape
         """
         shapeout = tointtuple(shapeout)
-        if None not in (self.shapeout, shapeout) and self.shapeout != shapeout:
-            raise ValueError(
-                "The output shape '{0}' is incompatible with that "
-                "of {1}: '{2}'.".format(shapeout, self.__name__, self.shapeout)
-            )
-        if self.validateout is not None and shapeout is not None:
+        if shapeout is not None:
             self.validateout(shapeout)
         if self.shapein is not None:
             # explicit input shape
@@ -905,7 +917,9 @@ class Operator(object):
             # unconstrained input shape (or shapeout is None)
             return None
         # implicit input shape
-        return tointtuple(self.reshapeout(shapeout))
+        shapein = tointtuple(self.reshapeout(shapeout))
+        self.validatein(shapein)
+        return shapein
 
     @staticmethod
     def _find_common_type(dtypes):
@@ -1243,6 +1257,11 @@ class Operator(object):
             else 'unconstrained'
         )
         self._set_flags(shape_input=flag_is, shape_output=flag_os)
+
+        if flag_is == 'explicit':
+            self.validatein = Operator.validatein.__get__(self, type(self))
+        if flag_os == 'explicit':
+            self.validateout = Operator.validateout.__get__(self, type(self))
 
     def _init_name(self):
         """Set operator's __name__ attribute."""
