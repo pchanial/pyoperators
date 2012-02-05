@@ -1460,43 +1460,43 @@ def test_zero1():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6)
     zo = z*o
-    yield assert_is_instance, zo, ZeroOperator
-    yield assert_eq, zo.shapein, o.shapein
-    yield assert_is_none, zo.shapeout
+    assert_is_instance(zo, ZeroOperator)
+    assert_eq(zo.shapein, o.shapein)
+    assert_is_none(zo.shapeout)
 
 def test_zero2():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator()
     zo = z*o
-    yield assert_is_instance, zo, ZeroOperator
-    yield assert_is_none, zo.shapein, 'in'
-    yield assert_eq, zo.shapeout, z.shapeout, 'out'
+    assert_is_instance(zo, ZeroOperator)
+    assert_is_none(zo.shapein, 'in')
+    assert_eq(zo.shapeout, z.shapeout, 'out')
 
 def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator(flags='square')
     zo = z*o
-    yield assert_is_instance, zo, ZeroOperator
-    yield assert_eq, zo.shapein, z.shapein, 'in'
-    yield assert_eq, zo.shapeout, z.shapeout, 'out'
+    assert_is_instance(zo, ZeroOperator)
+    assert_eq(zo.shapein, z.shapein, 'in')
+    assert_eq(zo.shapeout, z.shapeout, 'out')
 
 def test_zero4():
     z = ZeroOperator()
     o = Operator(flags='linear')
-    yield assert_is_instance, z*o, ZeroOperator
-    yield assert_is_instance, o*z, ZeroOperator
+    assert_is_instance(z*o, ZeroOperator)
+    assert_is_instance(o*z, ZeroOperator)
 
 def test_zero5():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6, flags='linear')
     zo = z*o
     oz = o*z
-    yield assert_is_instance, zo, ZeroOperator, 'zo'
-    yield assert_eq, zo.shapein, o.shapein, 'zo in'
-    yield assert_is_none, zo.shapeout, 'zo out'
-    yield assert_is_instance, oz, ZeroOperator, 'oz'
-    yield assert_is_none, oz.shapein, 'oz, in'
-    yield assert_eq, oz.shapeout, o.shapeout, 'oz, out'
+    assert_is_instance(zo, ZeroOperator, 'zo')
+    assert_eq(zo.shapein, o.shapein, 'zo in')
+    assert_is_none(zo.shapeout, 'zo out')
+    assert_is_instance(oz, ZeroOperator, 'oz')
+    assert_is_none(oz.shapein, 'oz, in')
+    assert_eq(oz.shapeout, o.shapeout, 'oz, out')
 
 def test_zero6():
     z = ZeroOperator(flags='square')
