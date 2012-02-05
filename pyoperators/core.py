@@ -679,7 +679,7 @@ class Operator(object):
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
 
-    def set_rule(self, subjects, predicate, operation=None, globals=None):
+    def set_rule(self, subjects, predicate, operation=None, globals=None, merge=True):
         """
         Add a rule to the rule list, taking care of duplicates and priorities.
         Class-matching rules have a lower priority than the others.
@@ -700,6 +700,8 @@ class Operator(object):
             which more than one class-matching rule is set.
         """
         rule = OperatorRule(subjects, predicate)
+        rule.merge = merge
+
         if len(rule.subjects) > 2:
             raise ValueError('Only unary and binary rules are allowed.')
 
@@ -1901,7 +1903,8 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                         raise NotImplementedError()
                     ops[i], ops[i + 1] = new_ops
                     break
-                cls._merge(new_ops, o1, o2)
+                if rule.merge:
+                    cls._merge(new_ops, o1, o2)
                 del ops[i + 1]
                 ops[i] = new_ops
                 break
@@ -2398,7 +2401,10 @@ class BlockOperator(CompositeOperator):
         self.set_rule('.{Operator}', self._rule_left_operator, CompositionOperator)
         self.set_rule('{Operator}.', self._rule_right_operator, CompositionOperator)
         self.set_rule(
-            '{BlockOperator}.', self._rule_comp_blockoperator, CompositionOperator
+            '{BlockOperator}.',
+            self._rule_comp_blockoperator,
+            CompositionOperator,
+            merge=False,
         )
 
     def validatereshapein(self, shapein):
