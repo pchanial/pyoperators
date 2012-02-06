@@ -162,6 +162,8 @@ def merge_none(a, b):
     >>> merge_none([1,None,3],[None,2,3])
     [1, 2, 3]
     """
+    if a is b is None:
+        return None
     if len(a) != len(b):
         raise ValueError('The input sequences do not have the same length.')
     if any(p != q for p,q in zip(a,b) if None not in (p,q)):
