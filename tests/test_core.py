@@ -1,4 +1,5 @@
 import numpy as np
+import operator
 import pyoperators
 
 from nose.tools import ok_
@@ -393,18 +394,22 @@ def test_eq():
         yield assert_eq, op1, op2
 
 
-#==================
-# Test _tocomposite
-#==================
+#================
+# Test iadd, imul
+#================
 
-def test_tocomposite():
+def test_iadd_imul():
     from .test_shared import ops
-    for op1 in ops:
+    for operation in (operator.iadd, operator.imul):
         for op2 in ops:
-            op = op1.copy() * op2.T
-            op1_ = op1.copy()
-            op1_ *= op2.T
-            yield assert_eq, op1_, op
+            for op1 in ops:
+                if operation is operator.iadd:
+                    op = op1 + op2
+                    op1 += op2
+                else:
+                    op = op1 * op2.T
+                    op1 *= op2.T
+                yield assert_eq, op1, op
 
 
 #===========================
