@@ -1426,7 +1426,10 @@ class Operator(object):
             s += ' '
         else:
             s = ''
-        s += self.__name__
+        if hasattr(self, '__name__'):
+            s += self.__name__
+        else:
+            s += type(self).__name__ + '[not initialized]'
         return s
 
     def __repr__(self):
@@ -1480,7 +1483,12 @@ class Operator(object):
                 a += [s]
             else:
                 a += [var + '=' + s]
-        return self.__name__ + '(' + ', '.join(a) + ')'
+        name = (
+            self.__name__
+            if hasattr(self, '__name__')
+            else type(self).__name__ + '[not initialized]'
+        )
+        return name + '(' + ', '.join(a) + ')'
 
 
 def DirectOperatorFactory(cls, source, *args, **keywords):
