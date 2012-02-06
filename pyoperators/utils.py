@@ -145,6 +145,29 @@ def isscalar(data):
         return False
     return True
 
+def merge_none(a, b):
+    """
+    Compare two sequences elementwise and merge them discarding None entries.
+
+    Raises ValueError exception if the two sequances do not have the same
+    length or if they have different non-None elements.
+
+    Parameters
+    ----------
+    a, b : sequences
+        The sequences to be compared.
+
+    Example
+    -------
+    >>> merge_none([1,None,3],[None,2,3])
+    [1, 2, 3]
+    """
+    if len(a) != len(b):
+        raise ValueError('The input sequences do not have the same length.')
+    if any(p != q for p,q in zip(a,b) if None not in (p,q)):
+        raise ValueError('The input sequences have incompatible values.')
+    return tuple(p if p is not None else q for p,q in zip(a,b))
+    
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
     if n is not None:
