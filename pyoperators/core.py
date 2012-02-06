@@ -21,6 +21,7 @@ from .utils import (
     first_is_not,
     isclassattr,
     isscalar,
+    merge_none,
     ndarraywrap,
     operation_assignment,
     strenum,
@@ -2397,9 +2398,14 @@ class BlockOperator(CompositeOperator):
             )
 
         self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator)
-        self.set_rule('.{self}', self._rule_add, AdditionOperator)
         self.set_rule('.{Operator}', self._rule_left_operator, CompositionOperator)
         self.set_rule('{Operator}.', self._rule_right_operator, CompositionOperator)
+        self.set_rule(
+            '{self}.', self._rule_add_blockoperator, AdditionOperator, merge=False
+        )
+        self.set_rule(
+            '{self}.', self._rule_mul_blockoperator, MultiplicationOperator, merge=False
+        )
         self.set_rule(
             '{BlockOperator}.',
             self._rule_comp_blockoperator,
@@ -2625,6 +2631,33 @@ class BlockOperator(CompositeOperator):
         return [Ellipsis] + (-axis) * [slice(None)]
 
     @staticmethod
+    def _validate_commutative(op1, op2):
+        axisin1 = op1.axisin if op1.axisin is not None else op1.new_axisin
+        axisin2 = op2.axisin if op2.axisin is not None else op2.new_axisin
+        axisout1 = op1.axisout if op1.axisout is not None else op1.new_axisout
+        axisout2 = op2.axisout if op2.axisout is not None else op2.new_axisout
+        if axisin1 != axisin2 or axisout1 != axisout2:
+            return None
+        if (
+            op1.axisin is not None
+            and op2.new_axisin is not None
+            or op1.new_axisin is not None
+            and op2.axisin is not None
+            or op1.axisout is not None
+            and op2.new_axisout is not None
+            or op1.new_axisout is not None
+            and op2.axisout is not None
+        ):
+            # XXX we could handle these cases with a reshape
+            return None
+        try:
+            return merge_none(op1.partitionout, op2.partitionout), merge_none(
+                op1.partitionin, op2.partitionin
+            )
+        except ValueError:
+            return None
+
+    @staticmethod
     def _validate_composition(op1, op2):
         axisin1 = op1.axisin if op1.axisin is not None else op1.new_axisin
         axisout2 = op2.axisout if op2.axisout is not None else op2.new_axisout
@@ -2640,45 +2673,40 @@ class BlockOperator(CompositeOperator):
             return None
         p1 = op1.partitionin
         p2 = op2.partitionout
-        if p1 is None or p2 is None or len(p1) != len(p2):
+        if p1 is None or p2 is None:
             return None
-        if any(p != q for p, q in zip(p1, p2) if None not in (p, q)):
+        try:
+            p = merge_none(p1, p2)
+        except ValueError:
             return None
-        return op2.partitionin, op1.partitionout
-
-    @staticmethod
-    def _validate_addition(op1, op2):
-        axisin1 = op1.axisin if op1.axisin is not None else op1.new_axisin
-        axisin2 = op2.axisin if op2.axisin is not None else op2.new_axisin
-        axisout1 = op1.axisout if op1.axisout is not None else op1.new_axisout
-        axisout2 = op2.axisout if op2.axisout is not None else op2.new_axisout
-        if axisin1 != axisin2 or axisout1 != axisout2:
-            return None, None
-        if (
-            op1.axisin is not None
-            and op2.new_axisin is not None
-            or op1.new_axisin is not None
-            and op2.axisin is not None
-            or op1.axisout is not None
-            and op2.new_axisout is not None
-            or op1.new_axisout is not None
-            and op2.axisout is not None
-        ):
-            # XXX we could handle these cases with a reshape
-            return None
-
-        def func(p1, p2):
-            if p1 is None and p2 is not None or p1 is not None and p2 is None:
-                return None
-            if len(p1) != len(p2):
-                return None
-            if any(p != q for p, q in zip(p1, p2) if None not in (p, q)):
-                return None
-            return [p or q for p, q in zip(p1, p2)]
-
-        return func(op1.partitionin, op2.partitionin), func(
-            op1.partitionout, op2.partitionout
+        pout = (
+            None
+            if op1.partitionout is None
+            else op1._get_partitionout(
+                op1.operands,
+                p,
+                op1.axisin,
+                op1.axisout,
+                op1.new_axisin,
+                op1.new_axisout,
+            )
         )
+        pin = (
+            None
+            if op2.partitionin is None
+            else op2._get_partitionin(
+                op2.operands,
+                p,
+                op2.axisin,
+                op2.axisout,
+                op2.new_axisin,
+                op2.new_axisout,
+            )
+        )
+
+        return None if pout is None else merge_none(
+            op1.partitionout, pout
+        ), None if pin is None else merge_none(op2.partitionin, pin)
 
     @staticmethod
     def _validate_shapes(shapes, p, axis, new_axis):
@@ -2738,23 +2766,6 @@ class BlockOperator(CompositeOperator):
         )
 
     @staticmethod
-    def _rule_add(p1, p2):
-        """Rule for BlockOperator + BlockOperator."""
-        partitionin, partitionout = p1._validate_addition(p1, p2)
-        if partitionin is partitionout is None:
-            return None
-        operands = [o1 + o2 for o1, o2 in zip(p1.operands, p2.operands)]
-        return BlockOperator(
-            operands,
-            partitionin,
-            partitionout,
-            p1.axisin,
-            p1.axisout,
-            p1.new_axisin,
-            p1.new_axisout,
-        )
-
-    @staticmethod
     def _rule_right_operator(op, self):
         """Rule for Operator * BlockOperator."""
         if self.partitionout is None:
@@ -2809,12 +2820,38 @@ class BlockOperator(CompositeOperator):
         )
 
     @staticmethod
+    def _rule_commutative_blockoperator(p1, p2, operation):
+        """Rule for BlockOperator + BlockOperator."""
+        partitions = p1._validate_commutative(p1, p2)
+        if partitions is None:
+            return None
+        partitionout, partitionin = partitions
+        operands = [operation([o1, o2]) for o1, o2 in zip(p1.operands, p2.operands)]
+        return BlockOperator(
+            operands,
+            partitionin,
+            partitionout,
+            p1.axisin,
+            p1.axisout,
+            p1.new_axisin,
+            p1.new_axisout,
+        )
+
+    @staticmethod
+    def _rule_add_blockoperator(p1, p2):
+        return p1._rule_commutative_blockoperator(p1, p2, AdditionOperator)
+
+    @staticmethod
+    def _rule_mul_blockoperator(p1, p2):
+        return p1._rule_commutative_blockoperator(p1, p2, MultiplicationOperator)
+
+    @staticmethod
     def _rule_comp_blockoperator(p1, p2):
         """Rule for BlockOperator * BlockOperator."""
         partitions = p1._validate_composition(p1, p2)
         if partitions is None:
             return None
-        partitionin, partitionout = partitions
+        partitionout, partitionin = partitions
         operands = [o1 * o2 for o1, o2 in zip(p1.operands, p2.operands)]
         if partitionin is partitionout is None:
             return AdditionOperator(operands)

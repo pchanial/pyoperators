@@ -5,12 +5,12 @@ from nose.tools import ok_
 from numpy.testing import assert_raises
 from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
-         BlockColumnOperator, BlockDiagonalOperator, BlockRowOperator,
-         CompositionOperator, ConstantOperator, DiagonalOperator,
-         IdentityOperator, MultiplicationOperator, HomothetyOperator,
-         ZeroOperator, asoperator, I, O)
+         BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
+         BlockRowOperator, CompositionOperator, ConstantOperator,
+         DiagonalOperator, IdentityOperator, MultiplicationOperator,
+         HomothetyOperator, ZeroOperator, asoperator, I, O)
 from pyoperators.utils import (ndarraywrap, assert_eq, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance)
+         assert_is_none, assert_not_in, assert_is_instance, merge_none)
 
 all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
             'Operator')]
@@ -1275,6 +1275,63 @@ def test_block_row2():
     r = BlockRowOperator([o, 2*o], new_axisin=0)
     assert_eq(r.todense(), np.hstack([p,2*p]))
     assert_eq(r.T.todense(), r.todense().T)
+
+def test_partition_implicit_commutative():
+    partitions = (None,None), (2,None), (None,3), (2,3)
+    ops = [I, 2*I]
+    def func(op1, op2, p1, p2, cls):
+        op = operation([op1, op2])
+        assert type(op) is cls
+        if op.partitionin is None:
+            assert op1.partitionin is op2.partitionin is None
+        else:
+            assert op.partitionin == merge_none(p1,p2)
+        if op.partitionout is None:
+            assert op1.partitionout is op2.partitionout is None
+        else:
+            assert op.partitionout == merge_none(p1,p2)
+    for operation in (AdditionOperator, MultiplicationOperator):
+        for p1 in partitions:
+            for p2 in partitions:
+                for cls, aout, ain, pout1, pin1, pout2, pin2 in zip(
+                    (BlockRowOperator, BlockDiagonalOperator,
+                     BlockColumnOperator), (None,0,0), (0,0,None), (None,p1,p1),
+                    (p1,p1,None), (None,p2,p2), (p2,p2,None)):
+                    op1 = BlockOperator(ops, partitionout=pout1,
+                              partitionin=pin1, axisin=ain, axisout=aout)
+                    op2 = BlockOperator(ops, partitionout=pout2,
+                              partitionin=pin2, axisin=ain, axisout=aout)
+                    yield func, op1, op2, p1, p2, cls
+
+def test_partition_implicit_composition():
+    partitions = (None,None), (2,None), (None,3), (2,3)
+    ops = [I, 2*I]
+    def func(op1, op2, pin1, pout2, cls):
+        op = op1 * op2
+        assert_is_instance(op, cls)
+        if not isinstance(op, BlockOperator):
+            return
+        pout = None if isinstance(op, BlockRowOperator) else \
+               merge_none(pin1, pout2)
+        pin = None if isinstance(op, BlockColumnOperator) else \
+              merge_none(pin1, pout2)
+        assert pout == op.partitionout
+        assert pin == op.partitionin
+    for pin1 in partitions:
+        for pout2 in partitions:
+            for cls1, cls2, cls, aout1, ain1, aout2, ain2, pout1, pin2, in zip(
+                (BlockRowOperator, BlockRowOperator, BlockDiagonalOperator,
+                BlockDiagonalOperator), (BlockDiagonalOperator,
+                BlockColumnOperator, BlockDiagonalOperator,
+                BlockColumnOperator), (BlockRowOperator, HomothetyOperator,
+                BlockDiagonalOperator, BlockColumnOperator), (None,None,0,0),
+                (0,0,0,0), (0,0,0,0), (0,None,0,None), (None,None,pin1,pin1),
+                (pout2,None,pout2,None)):
+                op1 = BlockOperator(ops, partitionin=pin1, partitionout=pout1,
+                                    axisout=aout1, axisin=ain1)
+                op2 = BlockOperator(ops, partitionout=pout2, partitionin=pin2,
+                                    axisout=aout2, axisin=ain2)
+                yield func, op1, op2, pin1, pout2, cls
 
 
 #=============================
