@@ -3054,7 +3054,7 @@ class BlockColumnOperator(BlockOperator):
             dest += n
 
     def __str__(self):
-        operands = ['[{}]'.format(o) for o in self.operands]
+        operands = ['[{0}]'.format(o) for o in self.operands]
         if len(operands) > 2:
             operands = [operands[0], '...', operands[-1]]
         return '[ ' + ' '.join(operands) + ' ]'
