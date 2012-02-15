@@ -2,7 +2,7 @@ import numpy as np
 from nose.plugins.skip import SkipTest
 from pyoperators.operators_mpi import (DistributionGlobalOperator,
      DistributionIdentityOperator, distribute_shape, distribute_slice)
-from pyoperators.utils import assert_eq
+from pyoperators.utils.testing import assert_eq
 
 try:
     from mpi4py import MPI

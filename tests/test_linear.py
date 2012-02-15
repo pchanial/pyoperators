@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 
 from pyoperators import IdentityOperator, ZeroOperator, DiagonalOperator, DenseOperator, MaskOperator, PackOperator, UnpackOperator
-from pyoperators.utils import assert_eq
+from pyoperators.utils.testing import assert_eq
 
 def test_denseoperator():
 

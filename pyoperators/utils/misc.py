@@ -8,10 +8,19 @@ import os
 import scipy.sparse
 import types
 
-__all__ = [ 'operation_assignment' ]
-
-class ndarraywrap(np.ndarray):
-    pass
+__all__ = ['all_eq',
+           'first_is_not',
+           'isclassattr',
+           'isscalar',
+           'merge_none',
+           'ndarraywrap',
+           'openmp_num_threads',
+           'operation_assignment',
+           'operation_symbol',
+           'strenum',
+           'strplural',
+           'strshape',
+           'tointtuple']
 
 def all_eq(a, b):
     """
@@ -50,73 +59,6 @@ def all_eq(a, b):
             return False
         return a.func_code is b.func_code
     return a == b
-
-def assert_eq(a, b, msg=None):
-    """ Assert that the two arguments are (almost) equal. """
-    assert all_eq(a, b), msg
-
-def assert_in(a, b, msg=None):
-    """ Assert that the first argument is in the second one. """
-    if a in b:
-        return
-    assert False, str(a) + ' is not in ' + str(b) + _get_msg(msg)
-
-def assert_not_in(a, b, msg=None):
-    """ Assert that the first argument is not in second one. """
-    if a not in b:
-        return
-    assert False, str(a) + ' is in ' + str(b) + _get_msg(msg)
-
-def assert_is(a, b, msg=None):
-    """ Assert arguments are equal as determined by the 'is' operator. """
-    if a is b:
-        return
-    assert False, str(a) + ' is not ' + str(b) + _get_msg(msg)
-
-def assert_is_not(a, b, msg=None):
-    """ Assert arguments are not equal as determined by the 'is' operator. """
-    if a is not b:
-        return
-    assert False, str(a) + ' is ' + str(b) + _get_msg(msg)
-
-def assert_is_instance(a, cls, msg=None):
-    """ Assert that the first argument is an instance of the second one. """
-    if isinstance(a, cls):
-        return
-    assert False, str(a) + " is not a '" + cls.__name__ + "' instance" + \
-           _get_msg(msg)
-
-def assert_is_not_instance(a, cls, msg=None):
-    """ Assert that the first argument is not an instance of the second one. """
-    if not isinstance(a, cls):
-        return
-    assert False, str(a) + " is a '" + cls.__name__ + "' instance" + \
-           _get_msg(msg)
-
-def assert_is_none(a, msg=None):
-    """ Assert argument is None. """
-    if a is None:
-        return
-    assert False, str(a) + ' is not None' + _get_msg(msg)
-
-def assert_is_not_none(a, msg=None):
-    """ Assert argument is not None. """
-    if a is not None:
-        return
-    assert False, str(a) + ' is None' + _get_msg(msg)
-
-def operation_assignment(a, b):
-    """
-    operation_assignment(a, b) -- Same as a[...] = b.
-    """
-    a[...] = b
-
-operation_symbol = {
-    operator.iadd: '+',
-    operator.isub: '-',
-    operator.imul: '*',
-    operator.idiv: '/',
-}
 
 def first_is_not(l, v):
     """
@@ -170,12 +112,28 @@ def merge_none(a, b):
         raise ValueError('The input sequences have incompatible values.')
     return tuple(p if p is not None else q for p,q in zip(a,b))
     
+class ndarraywrap(np.ndarray):
+    pass
+
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
     if n is not None:
         return int(n)
     return multiprocessing.cpu_count()
     
+def operation_assignment(a, b):
+    """
+    operation_assignment(a, b) -- Same as a[...] = b.
+    """
+    a[...] = b
+
+operation_symbol = {
+    operator.iadd: '+',
+    operator.isub: '-',
+    operator.imul: '*',
+    operator.idiv: '/',
+}
+
 def strenum(choices, last='or'):
     """
     Enumerates elements of a list
@@ -250,8 +208,3 @@ def tointtuple(data):
         return tuple(None if d is None else int(d) for d in data)
     except TypeError:
         return (int(data),)
-
-def _get_msg(msg):
-    if not msg:
-        return '.'
-    return ': ' + str(msg) + '.'
