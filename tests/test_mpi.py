@@ -1,7 +1,9 @@
 import numpy as np
 from nose.plugins.skip import SkipTest
+from pyoperators.utils.mpi import (collect_shape, distribute_shape,
+         distribute_slice)
 from pyoperators.operators_mpi import (DistributionGlobalOperator,
-     DistributionIdentityOperator, distribute_shape, distribute_slice)
+         DistributionIdentityOperator)
 from pyoperators.utils.testing import assert_eq
 
 try:
@@ -12,6 +14,17 @@ except ImportError:
 rank = MPI.COMM_WORLD.rank
 size = MPI.COMM_WORLD.size
 dtypes = np.int8, np.int32, np.int64, np.float32, np.float64
+
+def test_collect():
+    def func(comm, s1, s2):
+        shape_global = (s1,) + s2
+        shape_local = distribute_shape(shape_global, comm=comm)
+        shape_global2 = collect_shape(shape_local, comm=comm)
+        assert shape_global == shape_global2
+    for comm in (MPI.COMM_SELF, MPI.COMM_WORLD):
+        for s1 in range(size*2+1):
+            for s2 in ((), (2,), (2,3)):
+                yield func, comm, s1, s2
 
 def test_distribute():
     if size > 1:
