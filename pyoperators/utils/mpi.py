@@ -2,8 +2,23 @@ try:
     from mpi4py import MPI
 except ImportError:
     import fake_MPI as MPI
+from .misc import tointtuple
 
-__all__ = ['MPI', 'distribute_shape', 'distribute_slice']
+__all__ = ['MPI', 'collect_shape', 'distribute_shape', 'distribute_slice']
+
+
+def collect_shape(shape, comm=None):
+    """
+    Return the shape of the global array resulting from stacking local arrays
+    along the first dimension.
+
+    """
+    shape = tointtuple(shape)
+    comm = comm or MPI.COMM_WORLD
+    shapes = comm.allgather(shape)
+    if any(len(s) != len(shapes[0]) or s[1:] != shapes[0][1:] for s in shapes):
+        raise ValueError("The shapes are incompatible: '{0}'.".format(shapes))
+    return (sum(s[0] for s in shapes),) + shapes[0][1:]
 
 
 def distribute_shape(shape, rank=None, size=None, comm=None):
