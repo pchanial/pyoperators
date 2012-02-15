@@ -26,7 +26,7 @@ setup(
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
     requires=['numpy (>1.6)', 'scipy (>0.9)', 'numexpr (>2.0)'],
-    packages=['pyoperators', 'pyoperators.iterative'],
+    packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
     license='CeCILL-B',

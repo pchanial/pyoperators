@@ -11,7 +11,7 @@ from pyoperators import (
     PackOperator,
     UnpackOperator,
 )
-from pyoperators.utils import assert_eq
+from pyoperators.utils.testing import assert_eq
 
 
 def test_denseoperator():

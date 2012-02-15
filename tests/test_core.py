@@ -10,8 +10,9 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockRowOperator, CompositionOperator, ConstantOperator,
          DiagonalOperator, IdentityOperator, MultiplicationOperator,
          HomothetyOperator, ZeroOperator, asoperator, I, O)
-from pyoperators.utils import (ndarraywrap, assert_eq, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance, merge_none)
+from pyoperators.utils import ndarraywrap, merge_none
+from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
+         assert_is_none, assert_not_in, assert_is_instance)
 
 all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
             'Operator')]

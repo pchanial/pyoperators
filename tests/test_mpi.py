@@ -6,7 +6,7 @@ from pyoperators.operators_mpi import (
     distribute_shape,
     distribute_slice,
 )
-from pyoperators.utils import assert_eq
+from pyoperators.utils.testing import assert_eq
 
 try:
     from mpi4py import MPI
