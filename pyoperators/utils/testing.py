@@ -1,3 +1,4 @@
+import numpy as np
 from .misc import all_eq
 
 __all__ = ['assert_eq',
@@ -63,6 +64,24 @@ def assert_is_not_none(a, msg=None):
     if a is not None:
         return
     assert False, str(a) + ' is None' + _get_msg(msg)
+
+def assert_raises(*args, **kwargs):
+    np.testing.assert_raises(*args, **kwargs)
+assert_raises.__doc__ = np.testing.assert_raises.__doc__
+
+def assert_raises_if(condition, *args, **kwargs):
+    """
+    assert_raises_if(condition, exception_class, callable, *args, **kwargs)
+
+    Fail if condition is true unless an exception of class exception_class is
+    thrown by the callable. If the condition is not true, the callable is still
+    called.
+    """
+    try:
+        np.testing.assert_raises(*args, **kwargs)
+    except AssertionError:
+        if condition:
+            raise
 
 def _get_msg(msg):
     if not msg:
