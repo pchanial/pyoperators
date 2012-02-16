@@ -126,6 +126,25 @@ def get(nbytes, shape, dtype, description):
     stack[istack] = v
     return v
 
+def print_stack(stack_addresses={}):
+    """
+    Print the stack.
+    A dict of ndarray addresses can be used to name the stack elements.
+    """
+    global stack, istack
+    if len(stack) == 0:
+        print 'The memory stack is empty.'
+    for i, s in enumerate(stack):
+        if s is None:
+            print '{0}\t: None'
+            continue
+        id_ = s.__array_interface__['data'][0]
+        if id_ in stack_addresses:
+            strid = stack_addresses[id_] + ' ' + str(id_)
+        else:
+            strid = str(id_)
+        print '{0:<2}: {1}\t({2} bytes)'.format(i, strid, s.nbytes)
+    
 def push_and_pop(array):
     """
     Return a context manager.
@@ -144,7 +163,9 @@ def push_and_pop(array):
         def __exit__(self, *excinfo):
             global stack, istack
             if array.flags.contiguous:
-                assert self.id == id(stack[istack])
+                if self.id != id(stack[istack]):
+                    print_stack({self.id : 'pushed array'})
+                    assert self.id == id(stack[istack])
                 stack.pop(istack)
             else:
                 istack -= 1
