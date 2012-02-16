@@ -1,9 +1,9 @@
+import itertools
 import numpy as np
 import operator
 import pyoperators
 
 from nose.tools import ok_
-from numpy.testing import assert_raises
 from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
@@ -11,8 +11,10 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          DiagonalOperator, IdentityOperator, MultiplicationOperator,
          HomothetyOperator, ZeroOperator, asoperator, I, O)
 from pyoperators.utils import ndarraywrap, merge_none
+from pyoperators.utils.mpi import MPI
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance)
+         assert_is_none, assert_not_in, assert_is_instance, assert_raises,
+         assert_raises_if)
 
 all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
             'Operator')]
@@ -702,6 +704,33 @@ def test_propagation_class_nested():
         for op2 in ops2:
             for op3 in ops1:
                 yield func3, op1, op2, op3, ndarray2
+
+
+#========================
+# Test MPI communicators
+#========================
+
+def test_comm_commutative():
+    comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
+    def func(operation, comms):
+        ops = [Operator(commin=c) for c in comms]
+        assert_raises_if(MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms,
+                         ValueError, operation, ops)
+        ops = [Operator(commout=c) for c in comms]
+        assert_raises_if(MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms,
+                         ValueError, operation, ops)
+    for operation in (AdditionOperator, MultiplicationOperator):
+        for comms in itertools.combinations_with_replacement(comms_all, 3):
+            yield func, operation, comms
+
+def test_comm_composition():
+    comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
+    def func(commin, commout):
+        ops = [Operator(commin=commin), Operator(commout=commout)]
+        assert_raises_if(None not in (commin, commout) and commin is not \
+                         commout, ValueError, CompositionOperator, ops)
+    for commin, commout in itertools.product(comms_all, repeat=2):
+        yield func, commin, commout
 
 
 #===========================

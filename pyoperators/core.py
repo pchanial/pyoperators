@@ -1399,10 +1399,7 @@ class CompositeOperator(Operator):
         if operands is None:
             return
         dtype = self._find_common_type([o.dtype for o in self.operands])
-        classin = first_is_not([o.classin for o in self.operands], None)
-        classout = first_is_not([o.classout for o in self.operands], None)
-        Operator.__init__(self, dtype=dtype, classin=classin, classout=classout,
-                          **keywords)
+        Operator.__init__(self, dtype=dtype, **keywords)
 
     def propagate_attributes(self, cls, attr):
         return self.operands[0].propagate_attributes(cls, attr)
@@ -1471,7 +1468,12 @@ class CommutativeCompositeOperator(CompositeOperator):
     def __init__(self, operands=None, operation=None, *args, **keywords):
         if operands is None:
             return
-        CompositeOperator.__init__(self, operands, *args, **keywords)
+        classin = first_is_not([o.classin for o in self.operands], None)
+        classout = first_is_not([o.classout for o in self.operands], None)
+        commin = first_is_not([o.commin for o in self.operands], None)
+        commout = first_is_not([o.commout for o in self.operands], None)
+        CompositeOperator.__init__(self, operands, commin=commin, commout= \
+            commout, classin=classin, classout=classout, *args, **keywords)
         self.operation = operation
 
     def direct(self, input, output):
@@ -1540,6 +1542,18 @@ class CommutativeCompositeOperator(CompositeOperator):
                 raise ValueError("Incompatible shape in operands: '{0}' and '{1"
                                  "}'.".format(shapein, shapein_))
         return shapein
+
+    @classmethod
+    def _validate_operands(cls, operands):
+        operands = super(CommutativeCompositeOperator, cls)._validate_operands(
+                         operands)
+        comms = [op.commin for op in operands if op.commin is not None]
+        if len(set(id(c) for c in comms)) > 1:
+            raise ValueError('The input MPI communicators are incompatible.')
+        comms = [op.commout for op in operands if op.commout is not None]
+        if len(set(id(c) for c in comms)) > 1:
+            raise ValueError('The output MPI communicators are incompatible.')
+        return operands
 
     @classmethod
     def _apply_rules(cls, ops):
@@ -1722,12 +1736,15 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
     def __init__(self, operands=None):
         flags = self._merge_flags(self.operands)
-        NonCommutativeCompositeOperator.__init__(self, operands, flags=flags)
-        self.classin = first_is_not([o.classin for o in reversed(
-                                     self.operands)], None)
-        self.classout = first_is_not([o.classout for o in self.operands], None)
-        self._set_flags(inplace_reduction=
-                        self.operands[0].flags.inplace_reduction)
+        flags.update({'inplace_reduction':
+                      self.operands[0].flags.inplace_reduction})
+        classin = first_is_not([o.classin for o in self.operands[::-1]], None)
+        classout = first_is_not([o.classout for o in self.operands], None)
+        commin = first_is_not([o.commin for o in self.operands[::-1]], None)
+        commout = first_is_not([o.commout for o in self.operands], None)
+        NonCommutativeCompositeOperator.__init__(self, operands, flags=flags,
+            classin=classin, classout=classout, commin=commin, commout=commout)
+
         self._info = {}
         self.set_rule('.C', lambda s:type(s)([m.C for m in s.operands]))
         self.set_rule('.T', lambda s:type(s)([m.T for m in s.operands[::-1]]))
@@ -1974,6 +1991,17 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         def reshapeout(shape):
             return op2.reshapeout(op1.reshapeout(shape))
         return reshapeout
+
+    @classmethod
+    def _validate_operands(cls, operands):
+        operands = super(NonCommutativeCompositeOperator,
+                         cls)._validate_operands(operands)
+        for op1, op2 in zip(operands[:-1], operands[1:]):
+            commin = op1.commin
+            commout = op2.commout
+            if None not in (commin, commout) and commin is not commout:
+                raise ValueError('The MPI communicators are incompatible.')
+        return operands
 
 
 class BlockOperator(CompositeOperator):
