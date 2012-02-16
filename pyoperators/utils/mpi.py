@@ -4,10 +4,10 @@ except ImportError:
     import fake_MPI as MPI
 from .misc import tointtuple
 
-__all__ = ['MPI', 'collect_shape', 'distribute_shape', 'distribute_slice']
+__all__ = ['MPI', 'combine_shape', 'distribute_shape', 'distribute_slice']
 
 
-def collect_shape(shape, comm=None):
+def combine_shape(shape, comm=None):
     """
     Return the shape of the global array resulting from stacking local arrays
     along the first dimension.

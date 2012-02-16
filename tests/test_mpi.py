@@ -1,6 +1,6 @@
 import numpy as np
 from nose.plugins.skip import SkipTest
-from pyoperators.utils.mpi import collect_shape, distribute_shape, distribute_slice
+from pyoperators.utils.mpi import combine_shape, distribute_shape, distribute_slice
 from pyoperators.operators_mpi import (
     DistributionGlobalOperator,
     DistributionIdentityOperator,
@@ -21,7 +21,7 @@ def test_collect():
     def func(comm, s1, s2):
         shape_global = (s1,) + s2
         shape_local = distribute_shape(shape_global, comm=comm)
-        shape_global2 = collect_shape(shape_local, comm=comm)
+        shape_global2 = combine_shape(shape_local, comm=comm)
         assert shape_global == shape_global2
 
     for comm in (MPI.COMM_SELF, MPI.COMM_WORLD):
