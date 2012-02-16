@@ -19,7 +19,6 @@ verbose = False
 istack = 0
 stack = []
 
-
 def allocate(shape, dtype, buf, description):
     """
     Return an array of given shape and dtype. If a buffer is provided and
@@ -31,7 +30,7 @@ def allocate(shape, dtype, buf, description):
         shape = (shape,)
     dtype = np.dtype(dtype)
 
-    requested = dtype.itemsize * reduce(lambda x, y: x * y, shape, 1)
+    requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
     if buf is not None and buf.nbytes >= requested:
         if utils.isscalar(buf):
             buf = buf.reshape(1)
@@ -43,17 +42,9 @@ def allocate(shape, dtype, buf, description):
             snbytes = str(requested) + ' bytes'
         else:
             snbytes = str(requested / 2**20) + ' MiB'
-        print(
-            'Info: Allocating '
-            + str(shape).replace(' ', '')
-            + ' '
-            + dtype.type.__name__
-            + ' = '
-            + snbytes
-            + ' in '
-            + description
-            + '.'
-        )
+        print('Info: Allocating ' + str(shape).replace(' ','') + ' ' + \
+              dtype.type.__name__ + ' = ' + snbytes + ' in ' + \
+              description + '.')
     try:
         buf = np.empty(shape, dtype)
     except MemoryError:
@@ -62,18 +53,15 @@ def allocate(shape, dtype, buf, description):
 
     return buf, True
 
-
 def allocate_like(a, b, description):
-    """Return an array of same shape and dtype as a given array."""
+    """ Return an array of same shape and dtype as a given array. """
     return allocate(a.shape, a.dtype, b, description)
 
-
 def clear():
-    """Clear the memory stack."""
+    """ Clear the memory stack. """
     global stack, istack
     stack = []
     istack = 0
-
 
 def down():
     """
@@ -83,7 +71,6 @@ def down():
     if istack == 0:
         raise ValueError('The stack pointer already is at the bottom.')
     istack -= 1
-
 
 def up():
     """
@@ -95,7 +82,6 @@ def up():
         stack.append(None)
     istack += 1
 
-
 def swap():
     """
     Swap stack elements istack and istack+1.
@@ -105,15 +91,14 @@ def swap():
         stack.append(None)
     if istack == len(stack) - 1:
         stack.append(None)
-    stack[istack], stack[istack + 1] = stack[istack + 1], stack[istack]
-
+    stack[istack], stack[istack+1] = stack[istack+1], stack[istack]
 
 def get(nbytes, shape, dtype, description):
     """
     Get an array of given shape and dtype from the stack.
     The output array is guaranteed to be C-contiguous.
     """
-    global stack, istack
+    global stack, istack    
     assert istack <= len(stack)
     if istack == len(stack):
         stack.append(None)
@@ -127,17 +112,9 @@ def get(nbytes, shape, dtype, description):
             snbytes = str(nbytes) + ' bytes'
         else:
             snbytes = str(nbytes / 2**20) + ' MiB'
-        print(
-            'Info: Allocating '
-            + utils.strshape(shape)
-            + ' '
-            + dtype.type.__name__
-            + ' = '
-            + snbytes
-            + ' in '
-            + description
-            + '.'
-        )
+        print('Info: Allocating ' + utils.strshape(shape) + ' ' + \
+              dtype.type.__name__ + ' = ' + snbytes + ' in ' + \
+              description + '.')
 
     v = None
     try:
@@ -145,18 +122,35 @@ def get(nbytes, shape, dtype, description):
     except MemoryError:
         gc.collect()
         v = np.empty(nbytes, dtype=np.int8)
-
+    
     stack[istack] = v
     return v
 
-
+def print_stack(stack_addresses={}):
+    """
+    Print the stack.
+    A dict of ndarray addresses can be used to name the stack elements.
+    """
+    global stack, istack
+    if len(stack) == 0:
+        print 'The memory stack is empty.'
+    for i, s in enumerate(stack):
+        if s is None:
+            print '{0}\t: None'
+            continue
+        id_ = s.__array_interface__['data'][0]
+        if id_ in stack_addresses:
+            strid = stack_addresses[id_] + ' ' + str(id_)
+        else:
+            strid = str(id_)
+        print '{0:<2}: {1}\t({2} bytes)'.format(i, strid, s.nbytes)
+    
 def push_and_pop(array):
     """
     Return a context manager.
     If the input array is contiguous, push it on top of the stack on entering
     and pop it on exiting.
     """
-
     class MemoryManager(object):
         def __enter__(self):
             global stack, istack
@@ -166,13 +160,14 @@ def push_and_pop(array):
                 stack.insert(istack, array_)
             else:
                 istack += 1
-
         def __exit__(self, *excinfo):
             global stack, istack
             if array.flags.contiguous:
-                assert self.id == id(stack[istack])
+                if self.id != id(stack[istack]):
+                    print_stack({self.id : 'pushed array'})
+                    assert self.id == id(stack[istack])
                 stack.pop(istack)
             else:
                 istack -= 1
-
     return MemoryManager()
+
