@@ -2143,7 +2143,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         attrin = cls._merge_attr(op2.attrin, op1.attrin)
         classout = op1.classout or op2.classout
         classin = op2.classin or op1.classin
-        commout = op1.commout or op1.commout
+        commout = op1.commout or op2.commout
         commin = op2.commin or op1.commin
         dtype = cls._find_common_type([op1.dtype, op2.dtype])
         flags = cls._merge_flags([op1, op2])
