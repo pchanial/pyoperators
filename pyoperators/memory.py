@@ -135,15 +135,17 @@ def print_stack(stack_addresses={}):
     if len(stack) == 0:
         print 'The memory stack is empty.'
     for i, s in enumerate(stack):
+        pointer = '--> ' if i == istack else '    '
         if s is None:
             print '{0}\t: None'
             continue
-        id_ = s.__array_interface__['data'][0]
-        if id_ in stack_addresses:
-            strid = stack_addresses[id_] + ' ' + str(id_)
+        address = s.__array_interface__['data'][0]
+        if address in stack_addresses:
+            strid = stack_addresses[address] + ' '
         else:
-            strid = str(id_)
-        print '{0:<2}: {1}\t({2} bytes)'.format(i, strid, s.nbytes)
+            strid = ''
+        strid += hex(address)
+        print pointer + '{0:<2}: {1}\t({2} bytes)'.format(i, strid, s.nbytes)
     
 def push_and_pop(array):
     """
@@ -151,23 +153,40 @@ def push_and_pop(array):
     If the input array is contiguous, push it on top of the stack on entering
     and pop it on exiting.
     """
+    from .utils.mpi import MPI
+
     class MemoryManager(object):
+
         def __enter__(self):
             global stack, istack
+            self.istack = istack
             if array.flags.contiguous:
                 array_ = array.ravel().view(np.int8)
-                self.id = id(array_)
+                self.address = array_.__array_interface__['data'][0]
                 stack.insert(istack, array_)
-            else:
-                istack += 1
+
         def __exit__(self, *excinfo):
+            import sys
             global stack, istack
-            if array.flags.contiguous:
-                if self.id != id(stack[istack]):
-                    print_stack({self.id : 'pushed array'})
-                    assert self.id == id(stack[istack])
-                stack.pop(istack)
+            if sys.exc_info()[0] is None:
+                assert istack == self.istack
+                if not array.flags.contiguous:
+                    return
+                address = stack[istack].__array_interface__['data'][0]
+                if self.address != address:
+                    msg = 'Stack'
+                    if MPI.COMM_WORLD.size > 1:
+                        msg += ' for rank ' + str(MPI.COMM_WORLD.rank)
+                    print(msg + ', failed to find ' + hex(self.address) +
+                          ' at istack=' + str(istack) + ':')
+                    print_stack({self.address : 'pushed array'})
+                    stack.pop(istack)
+                    assert False
             else:
-                istack -= 1
+                istack = self.istack
+                if not array.flags.contiguous:
+                    return
+            stack.pop(istack)
+
     return MemoryManager()
 
