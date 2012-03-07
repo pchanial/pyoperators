@@ -1,10 +1,37 @@
+import numpy as np
 try:
     from mpi4py import MPI
 except ImportError:
     import fake_MPI as MPI
-from .misc import tointtuple
+from .misc import isscalar, tointtuple
 
-__all__ = ['MPI', 'combine_shape', 'distribute_shape', 'distribute_slice']
+__all__ = ['MPI',
+           'combine',
+           'distribute',
+           'combine_shape',
+           'distribute_shape',
+           'distribute_slice']
+
+
+def combine(n, comm=MPI.COMM_WORLD):
+    """
+    Return total number of work items.
+    """
+    n = np.array(n)
+    comm.Allreduce(MPI.IN_PLACE, n, op=MPI.SUM)
+    return int(n)
+
+
+def distribute(n, comm=MPI.COMM_WORLD):
+    """
+    Distribute work across processors.
+    """
+    if isscalar(n):
+        return n // comm.size + ((n % comm.size) > comm.rank)
+    n = np.asanyarray(n)
+    s = distribute_slice(n.shape[0], comm=comm)
+    return n[s]
+
 
 def combine_shape(shape, comm=None):
     """
