@@ -19,8 +19,8 @@ from . import memory
 from .utils import (all_eq, first_is_not, isclassattr, isscalar, merge_none,
                     ndarraywrap, operation_assignment, strenum, strshape,
                     tointtuple)
-from .decorators import (linear, real, idempotent, involutary, symmetric,
-                         inplace, inplace_reduction)
+from .decorators import (linear, real, idempotent, involutary, square,
+                         symmetric, inplace, inplace_reduction)
 
 __all__ = [
     'Operator',
@@ -29,6 +29,7 @@ __all__ = [
     'BlockColumnOperator',
     'BlockDiagonalOperator',
     'BlockRowOperator',
+    'BlockSliceOperator',
     'BroadcastingOperator',
     'CompositionOperator',
     'ConstantOperator',
@@ -1410,6 +1411,8 @@ class CompositeOperator(Operator):
         
     @classmethod
     def _validate_operands(cls, operands):
+        if isinstance(operands, Operator):
+            operands = [operands]
         operands = [asoperator(op) for op in operands]
         result = []
         for op in operands:
@@ -1422,7 +1425,7 @@ class CompositeOperator(Operator):
     def __str__(self):
         if isinstance(self, AdditionOperator):
             op = ' + '
-        elif isinstance(self, BlockDiagonalOperator):
+        elif isinstance(self, (BlockDiagonalOperator, BlockSliceOperator)):
             op = ' ⊕ '
         else:
             op = ' * '
@@ -2046,11 +2049,13 @@ class BlockOperator(CompositeOperator):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the output partition.')
         flags = {
-            'linear':all([op.flags.linear for op in self.operands]),
-            'real':all([op.flags.real for op in self.operands])}
+            'linear':all(op.flags.linear for op in self.operands),
+            'real':all(op.flags.real for op in self.operands)
+        }
 
         if partitionin is not None and partitionout is not None:
-            flags['square'] = all([op.flags.square for op in self.operands])
+            flags['square'] = all(op.flags.square for op in self.operands)
+            flags['symmetric'] = all(op.flags.symmetric for op in self.operands)
 
         self.partitionin = partitionin
         self.partitionout = partitionout
@@ -2678,6 +2683,80 @@ class BlockRowOperator(BlockOperator):
         if len(operands) > 2:
             operands = [operands[0], '...', operands[-1]]
         return '[[ ' + ' '.join(operands) + ' ]]'
+
+@square
+class BlockSliceOperator(CompositeOperator):
+    """
+    Class for multiple disjoint slices.
+
+    The elements of the input not included in the slices are copied over
+    to the output. This is due to fact that is not easy to derive the complement
+    of a set of slices. To set those values to zeros, you might use MaskOperator
+    or write a custom operator.
+    Currently, there is no check to verify that the slices are disjoint.
+    Non-disjoint slices can lead to unexpected results.
+
+    Examples
+    --------
+    >>> op = BlockSliceOperator(HomothetyOperator(3), slice(None,None,2))
+    >>> op(np.ones(6))
+    array([ 3.,  1.,  3.,  1.,  3.,  1.])
+
+    >>> op = BlockSliceOperator([ConstantOperator(1), ConstantOperator(2)],
+                                ([slice(0,2), slice(0,2)], 
+                                 [slice(2,4), slice(2,4)]))
+    >>> op(np.zeros((4,4)))
+    array([[ 1.,  1.,  0.,  0.],
+           [ 1.,  1.,  0.,  0.],
+           [ 0.,  0.,  2.,  2.],
+           [ 0.,  0.,  2.,  2.]])
+
+    """
+    def __new__(cls, operands=None, *args, **keywords):
+        # CompositeOperator's __new__ is overwritten because we allow 1 operand
+        if operands is not None:
+            operands = cls._validate_operands(operands)
+            operands = cls._apply_rules(operands)
+        instance = super(CompositeOperator, cls).__new__(cls)
+        instance.operands = operands
+        return instance
+
+    def __init__(self, operands, slices, **keywords):
+        if any(not op.flags.square and op.flags.shape_output != 'unconstrained'
+               for op in self.operands):
+            raise ValueError('Input operands must be square.')
+        if not isinstance(slices, (list, tuple, slice)):
+            raise TypeError('Invalid input slices.')
+        if isinstance(slices, slice):
+            slices = (slices,)
+        if len(self.operands) != len(slices):
+            raise ValueError("The number of slices '{0}' is not equal to the nu"
+                "mber of operands '{1}'.".format(len(slices), len(self.operands)
+                ))
+
+        flags = {
+            'linear':all(op.flags.linear for op in self.operands),
+            'real':all(op.flags.real for op in self.operands),
+            'symmetric':all(op.flags.symmetric for op in self.operands),
+            'inplace':all(op.flags.inplace for op in self.operands),
+        }
+
+        Operator.__init__(self, flags=flags, **keywords)
+        self.slices = tuple(slices)
+        self.set_rule('.C', lambda s: 
+                      BlockSliceOperator([op.C for op in s.operands], s.slices))
+        self.set_rule('.T', lambda s: 
+                      BlockSliceOperator([op.T for op in s.operands], s.slices))
+        self.set_rule('.H', lambda s: 
+                      BlockSliceOperator([op.H for op in s.operands], s.slices))
+
+    def direct(self, input, output):
+        if not self.same_data(input, output):
+            output[...] = input
+        for s, op in zip(self.slices, self.operands):
+            o = output[s]
+            with memory.push_and_pop(o):
+                op.direct(input[s], o)
 
 
 @linear

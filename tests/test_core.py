@@ -7,11 +7,12 @@ from nose.tools import ok_
 from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
-         BlockRowOperator, CompositionOperator, ConstantOperator,
-         DiagonalOperator, IdentityOperator, MultiplicationOperator,
-         HomothetyOperator, ZeroOperator, asoperator, I, O)
+         BlockRowOperator, BlockSliceOperator, CompositionOperator,
+         ConstantOperator, DiagonalOperator, IdentityOperator,
+         MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator, I,
+         O)
 from pyoperators.utils import ndarraywrap, merge_none
-from pyoperators.utils.mpi import MPI
+from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises,
          assert_raises_if)
@@ -102,6 +103,15 @@ class Stretch(Operator):
         shape_ = list(shape)
         shape_[self.axis] //= 2
         return shape_
+
+@decorators.real
+@decorators.symmetric
+class HomothetyOutplaceOperator(Operator):
+    def __init__(self, value):
+        Operator.__init__(self)
+        self.value = value
+    def direct(self, input, output):
+        output[...] = self.value * input
 
 
 #===========
@@ -1367,6 +1377,33 @@ def test_partition_implicit_composition():
                 op2 = BlockOperator(ops, partitionout=pout2, partitionin=pin2,
                                     axisout=aout2, axisin=ain2)
                 yield func, op1, op2, pin1, pout2, cls
+
+
+def test_block_slice():
+    size = 4
+    def func(o, input, expected):
+        actual = o(input)
+        assert_eq(actual, expected)
+        o(input, input)
+        assert_eq(input, expected)
+    for ndim in range(1,5):
+        for nops in range(1,5):
+            for Op in [HomothetyOperator, HomothetyOutplaceOperator]:
+                slices_ = [
+                    [distribute_slice(size, i, nops) for i in range(nops)],
+                    [distribute_slice(size, i, size) for i in range(nops)],
+                    [ndim * [slice(i, None, nops)] for i in range(nops)],
+                ]
+                for slices in slices_:
+                    input = np.zeros(ndim*(size,))
+                    expected = np.zeros_like(input)
+                    ops = [Op(i+1) for i in range(nops)]
+                    for i, s in enumerate(slices):
+                        input[s] = 10 * (i+1)
+                        expected[s] = input[s] * (i+1)
+                    o = BlockSliceOperator(ops, slices)
+                    assert o.flags.inplace is Op.flags.inplace
+                    yield func, o, input, expected
 
 
 #=============================
