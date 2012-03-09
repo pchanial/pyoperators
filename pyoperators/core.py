@@ -1199,7 +1199,7 @@ class Operator(object):
                     )
             if shapeout is None:
                 shapeout = input.shape
-            output = memory.allocate(shapeout, dtype, None, self.__name__)[0]
+            output = memory.allocate(shapeout, dtype, 'in ' + self.__name__)
         return input, output
 
     def __mul__(self, other):
