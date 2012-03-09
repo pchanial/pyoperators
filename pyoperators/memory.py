@@ -19,43 +19,32 @@ verbose = False
 istack = 0
 stack = []
 
-def allocate(shape, dtype, buf, description):
+def allocate(shape, dtype, description):
     """
-    Return an array of given shape and dtype. If a buffer is provided and
-    is large enough, it is reused, otherwise a memory allocation takes
-    place. Every allocation should go through this method.
-    """
+    Return an array of given shape and dtype.
 
+    """
     if utils.isscalar(shape):
         shape = (shape,)
     dtype = np.dtype(dtype)
 
-    requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
-    if buf is not None and buf.nbytes >= requested:
-        if utils.isscalar(buf):
-            buf = buf.reshape(1)
-        buf = buf.ravel().view(np.int8)[:requested].view(dtype).reshape(shape)
-        return buf, False
-
     if verbose:
+        requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
         if requested < 1024:
-            snbytes = str(requested) + ' bytes'
+            snbytes = str(requested) + ' bytes '
+        elif requested < 1048576:
+            snbytes = str(requested / 2**10) + ' KiB '
         else:
-            snbytes = str(requested / 2**20) + ' MiB'
-        print('Info: Allocating ' + str(shape).replace(' ','') + ' ' + \
-              dtype.type.__name__ + ' = ' + snbytes + ' in ' + \
-              description + '.')
+            snbytes = str(requested / 2**20) + ' MiB '
+        print('Info: Allocating ' + str(shape).replace(' ','') + ' ' +
+              dtype.type.__name__ + ' = ' + snbytes + description + '.')
     try:
         buf = np.empty(shape, dtype)
     except MemoryError:
         gc.collect()
         buf = np.empty(shape, dtype)
 
-    return buf, True
-
-def allocate_like(a, b, description):
-    """ Return an array of same shape and dtype as a given array. """
-    return allocate(a.shape, a.dtype, b, description)
+    return buf
 
 def clear():
     """ Clear the memory stack. """
