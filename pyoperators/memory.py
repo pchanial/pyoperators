@@ -19,7 +19,7 @@ verbose = False
 istack = 0
 stack = []
 
-def allocate(shape, dtype, description):
+def allocate(shape, dtype, description, verbose=None):
     """
     Return an array of given shape and dtype.
 
@@ -27,17 +27,22 @@ def allocate(shape, dtype, description):
     if utils.isscalar(shape):
         shape = (shape,)
     dtype = np.dtype(dtype)
+    if verbose is None:
+        verbose = globals()['verbose']
 
     if verbose:
         requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
-        if requested < 1024:
-            snbytes = str(requested) + ' bytes '
-        elif requested < 1048576:
-            snbytes = str(requested / 2**10) + ' KiB '
-        else:
-            snbytes = str(requested / 2**20) + ' MiB '
-        print('Info: Allocating ' + str(shape).replace(' ','') + ' ' +
-              dtype.type.__name__ + ' = ' + snbytes + description + '.')
+        if requested > 0:
+            if requested < 1024:
+                snbytes = str(requested) + ' bytes '
+            elif requested < 1048576:
+                snbytes = str(requested / 2**10) + ' KiB '
+            else:
+                snbytes = str(requested / 2**20) + ' MiB '
+            msg = 'Info: Allocating ' + str(shape).replace(' ','') + ' '
+            msg += str(dtype) if dtype.kind != 'V' else 'elements'
+            msg += ' = ' + snbytes + description + '.'
+            print(msg)
     try:
         buf = np.empty(shape, dtype)
     except MemoryError:
