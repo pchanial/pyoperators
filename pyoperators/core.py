@@ -28,6 +28,7 @@ from .utils import (
     strshape,
     tointtuple,
 )
+from .utils.mpi import MPI
 from .decorators import (
     linear,
     real,
@@ -1467,12 +1468,29 @@ class Operator(object):
                 and self.flags.shape_output == 'implicit'
             ):
                 s = 'lambda x:x'
+            elif var in ('commin', 'commout'):
+                if val is MPI.COMM_WORLD:
+                    s = 'MPI.COMM_WORLD'
+                elif val is MPI.COMM_SELF:
+                    s = 'MPI.COMM_SELF'
+                else:
+                    s = str(val)
             elif isinstance(val, Operator):
                 s = 'Operator()'
+            elif type(val) is type:
+                s = val.__module__ + '.' + val.__name__
             elif var in ['shapein', 'shapeout']:
                 s = strshape(val)
             elif isinstance(val, np.ndarray) and val.ndim == 0:
                 s = repr(val[()])
+            elif isinstance(val, np.ndarray):
+                s = 'array' if type(val) is np.ndarray else type(val).__name__
+                s += '(' + val.ndim * '['
+                s += str(val.flat[0])
+                if val.size > 1:
+                    s += ', ' if val.size == 2 else ', ..., '
+                    s += str(val.flat[-1])
+                s += val.ndim * ']' + ', dtype={0})'.format(val.dtype)
             elif var == 'dtype':
                 s = str(val)
             else:
