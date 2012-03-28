@@ -151,6 +151,10 @@ def strenum(choices, last='or'):
     "'blue', 'red' or 'yellow'"
     """
     choices = [ "'{0}'".format(choice) for choice in choices ]
+    if len(choices) == 0:
+        raise ValueError('There is no valid choice.')
+    if len(choices) == 1:
+        return choices[0]
     return ', '.join(choices[0:-1]) + ' ' + last + ' ' + choices[-1]
 
 def strplural(name, n, prepend=True, s=''):
