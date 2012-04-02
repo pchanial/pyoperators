@@ -2,7 +2,13 @@
 import nose
 from numpy import testing
 
-import pywt
+try:
+    import pywt
+except ImportError:
+    from nose.plugins.skip import SkipTest
+
+    raise SkipTest
+
 from pyoperators.operators_pywt import WaveletOperator, Wavelet2Operator
 
 sizes = ((32,),)
