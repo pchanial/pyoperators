@@ -105,7 +105,7 @@ def Get_processor_name():
 
 COMM_NULL = Comm(0, 0)
 COMM_SELF = Comm(0, 1)
-COMM_WORLD = COMM_SELF
+COMM_WORLD = Comm(0, 1)
 
 class Exception(__builtin__.Exception):
     """ Exception.__init__(self, int ierr=0) """
