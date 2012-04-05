@@ -17,7 +17,10 @@ __all__ = ['all_eq',
            'openmp_num_threads',
            'operation_assignment',
            'operation_symbol',
+           'strelapsed',
            'strenum',
+           'strinfo',
+           'strnbytes',
            'strplural',
            'strshape',
            'tointtuple']
@@ -134,6 +137,29 @@ operation_symbol = {
     operator.idiv: '/',
 }
 
+def strelapsed(t0, msg='Elapsed time'):
+    """
+    Return an information message including elapsed time.
+
+    Parameters
+    ----------
+    t0 : float
+        The starting time stamp, obtained with time.time()
+    msg : string, optional
+        Informative message
+
+    Example
+    -------
+    >>> import time
+    >>> t0 = time.time()
+    >>> pass
+    >>> print(strelapsed(t0, 'Did nothing in'))
+    Info computernode: Did nothing in... 0.00s
+ 
+    """
+    import time
+    return strinfo(msg + '... {0:.2f}s'.format(time.time()-t0))[:-1]
+
 def strenum(choices, last='or'):
     """
     Enumerates elements of a list
@@ -149,6 +175,7 @@ def strenum(choices, last='or'):
     --------
     >>> strenum(['blue', 'red', 'yellow'], 'or')
     "'blue', 'red' or 'yellow'"
+
     """
     choices = [ "'{0}'".format(choice) for choice in choices ]
     if len(choices) == 0:
@@ -156,6 +183,48 @@ def strenum(choices, last='or'):
     if len(choices) == 1:
         return choices[0]
     return ', '.join(choices[0:-1]) + ' ' + last + ' ' + choices[-1]
+
+def strinfo(msg):
+    """
+    Return information message adding processor's node name.
+
+    Parameter
+    ---------
+    msg : string
+        The information message.
+    Example
+    -------
+    >>> print(strinfo('My information message'))
+    Info computernode: My information message. 
+
+    """
+    import platform
+    return 'Info {0}: {1}.'.format(platform.node(), msg)
+
+def strnbytes(nbytes):
+    """
+    Return number of bytes in a human readable unit of KiB, MiB or GiB.
+
+    Parameter
+    ---------
+    nbytes: int
+        Number of bytes, to be displayed in a human readable way.
+
+    Example
+    -------
+    >>> a = np.empty((100,100))
+    >>> print(strnbytes(a.nbytes))
+    78.125 KiB
+
+    """
+    if nbytes < 1024:
+        return str(nbytes) + ' bytes'
+    elif nbytes < 1048576:
+        return str(nbytes / 2**10) + ' KiB'
+    elif nbytes < 1073741824:
+        return str(nbytes / 2**20) + ' MiB'
+    else:
+        return str(nbytes / 2**30) + ' GiB'
 
 def strplural(name, n, prepend=True, s=''):
     """
@@ -185,6 +254,7 @@ def strplural(name, n, prepend=True, s=''):
     >>> animals = ['cat', 'dog']
     >>> strplural('animal', len(animals), s=': ') + ', '.join(animals)
     '2 animals: cat, dog'
+
     """
     if n == 0:
         return ('no ' if prepend else '') + name
