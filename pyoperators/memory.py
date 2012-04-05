@@ -33,16 +33,9 @@ def allocate(shape, dtype, description, verbose=None):
     if verbose:
         requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
         if requested > 0:
-            if requested < 1024:
-                snbytes = str(requested) + ' bytes '
-            elif requested < 1048576:
-                snbytes = str(requested / 2**10) + ' KiB '
-            else:
-                snbytes = str(requested / 2**20) + ' MiB '
-            msg = 'Info: Allocating ' + str(shape).replace(' ','') + ' '
-            msg += str(dtype) if dtype.kind != 'V' else 'elements'
-            msg += ' = ' + snbytes + description + '.'
-            print(msg)
+            print(utils.strinfo('Allocating ' + str(shape).replace(' ','') +
+                  ' ' + (str(dtype) if dtype.kind != 'V' else 'elements') +
+                  ' = ' + utils.strnbytes(requested) + ' ' + description))
     try:
         buf = np.empty(shape, dtype)
     except MemoryError:
@@ -102,13 +95,9 @@ def get(nbytes, shape, dtype, description):
         return v[:nbytes]
 
     if verbose:
-        if nbytes < 1024:
-            snbytes = str(nbytes) + ' bytes'
-        else:
-            snbytes = str(nbytes / 2**20) + ' MiB'
-        print('Info: Allocating ' + utils.strshape(shape) + ' ' + \
-              dtype.type.__name__ + ' = ' + snbytes + ' in ' + \
-              description + '.')
+        print(utils.strinfo('Allocating ' + utils.strshape(shape) + ' ' +
+              dtype.type.__name__ + ' = ' + utils.strnbytes(nbytes) + ' in ' +
+              description))
 
     v = None
     try:
