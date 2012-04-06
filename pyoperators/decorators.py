@@ -101,12 +101,3 @@ def inplace(cls):
     It sets the 'inplace' attribute to True.
     """
     return flags(cls, 'inplace')
-
-
-def inplace_reduction(cls):
-    """
-    Decorator for inplace-reduction operators, i.e operators that can update
-    their output arguments with their output.
-    It sets the 'inplace_reduction' flag.
-    """
-    return flags(cls, 'inplace_reduction')

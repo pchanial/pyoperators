@@ -4,7 +4,7 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import square, inplace, inplace_reduction
+from .decorators import square, inplace
 from .core import Operator
 from .utils import operation_assignment, operation_symbol
 
@@ -111,10 +111,9 @@ class MinimumOperator(Operator):
         Operator.__init__(self, lambda i, o: np.minimum(i, value, o), **keywords)
 
 
+# numexpr 2.0 cannot handle inplace reductions
 @square
 @inplace
-# numexpr 2.0 cannot handle inplace reductions
-# @inplace_reduction
 class NumexprOperator(Operator):
     """
     Return an operator evaluating an expression using numexpr.
@@ -139,7 +138,9 @@ class NumexprOperator(Operator):
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
         self.expr = expr
         self.global_dict = global_dict
-        Operator.__init__(self, dtype=dtype, **keywords)
+        Operator.__init__(
+            self, dtype=dtype, flags={'inplace_reduction': False}, **keywords
+        )
 
     def direct(self, input, output, operation=operation_assignment):
         if operation is operation_assignment:

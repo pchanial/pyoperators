@@ -29,16 +29,7 @@ from .utils import (
     tointtuple,
 )
 from .utils.mpi import MPI
-from .decorators import (
-    linear,
-    real,
-    idempotent,
-    involutary,
-    square,
-    symmetric,
-    inplace,
-    inplace_reduction,
-)
+from .decorators import linear, real, idempotent, involutary, square, symmetric, inplace
 
 __all__ = [
     'Operator',
@@ -1096,21 +1087,21 @@ class Operator(object):
         if isinstance(self.direct, np.ufunc):
             self._set_flags('inplace')
 
-        if self.flags.inplace_reduction and self.direct is not None:
-            if isinstance(self.direct, (types.FunctionType, types.MethodType)):
-                if isinstance(self.direct, types.MethodType):
-                    d = self.direct.im_func
-                else:
-                    d = self.direct
-                if 'operation' not in d.func_code.co_varnames:
-                    raise TypeError(
-                        "The direct method of an inplace-reduction "
-                        "operator must have an 'operation' keyword."
-                    )
+        if (
+            flags is None
+            or 'inplace_reduction' not in flags
+            or flags['inplace_reduction']
+        ) and isinstance(self.direct, (types.FunctionType, types.MethodType)):
+            if isinstance(self.direct, types.MethodType):
+                d = self.direct.im_func
             else:
+                d = self.direct
+            if 'operation' in d.func_code.co_varnames:
+                self._set_flags('inplace_reduction')
+            elif flags is not None and 'inplace_reduction' in flags:
                 raise TypeError(
-                    "Inplace reductions are not possible with a '{0"
-                    "}' direct method.".format(type(self.direct).__name__)
+                    "The direct method of an inplace-reduction "
+                    "operator must have an 'operation' keyword."
                 )
 
     def _init_rules(self):
@@ -3635,7 +3626,6 @@ class IdentityOperator(HomothetyOperator):
 
 @idempotent
 @inplace
-@inplace_reduction
 class ConstantOperator(BroadcastingOperator):
     """
     Non-linear constant operator.
