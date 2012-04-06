@@ -1853,7 +1853,7 @@ class AdditionOperator(CommutativeCompositeOperator):
     """
 
     def __new__(cls, operands=None):
-        return CommutativeCompositeOperator.__new__(cls, operands, operator.__iadd__)
+        return CommutativeCompositeOperator.__new__(cls, operands, operator.iadd)
 
     def __init__(self, operands=None):
         if operands is None:
@@ -1866,7 +1866,7 @@ class AdditionOperator(CommutativeCompositeOperator):
             or all([op.flags.square for op in self.operands]),
         }
         CommutativeCompositeOperator.__init__(
-            self, operands, operator.__iadd__, flags=flags
+            self, operands, operator.iadd, flags=flags
         )
         self.classin = first_is_not([o.classin for o in self.operands], None)
         self.classout = first_is_not([o.classout for o in self.operands], None)
@@ -1885,7 +1885,7 @@ class MultiplicationOperator(CommutativeCompositeOperator):
     """
 
     def __new__(cls, operands=None):
-        return CommutativeCompositeOperator.__new__(cls, operands, operator.__imul__)
+        return CommutativeCompositeOperator.__new__(cls, operands, operator.imul)
 
     def __init__(self, operands=None):
         if operands is None:
@@ -1898,7 +1898,7 @@ class MultiplicationOperator(CommutativeCompositeOperator):
             or all([op.flags.square for op in self.operands]),
         }
         CommutativeCompositeOperator.__init__(
-            self, operands, operator.__imul__, flags=flags
+            self, operands, operator.imul, flags=flags
         )
         self.classin = first_is_not([o.classin for o in self.operands], None)
         self.classout = first_is_not([o.classout for o in self.operands], None)
