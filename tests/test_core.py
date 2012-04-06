@@ -1492,11 +1492,12 @@ def test_homothety_reduction1():
 
 def test_homothety_reduction2():
     model = -I
-    iops = '__iadd__', '__isub__', '__imul__', '__iadd__', '__imul__'
+    iops = (operator.iadd, operator.isub, operator.imul, operator.iadd,
+            operator.imul)
     imodels = 2*I, 2*I, 2*I, O, O
     results = [3, -3, -6, -6, 0]
     for iop, imodel, result in zip(iops, imodels, results):
-        model = getattr(model, iop)(imodel)
+        model = iop(model, imodel)
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             yield assert_eq, model(i), result, str((iop,i))
 
