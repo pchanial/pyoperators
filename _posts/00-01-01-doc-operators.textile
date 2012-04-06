@@ -725,8 +725,8 @@ If we now assume that the operator @o2@ can do in-place reductions, the intermed
 One can enable such property by adding the keyword @operation@ to the operator's direct method.
 
 {% highlight python %}
->>> memory.pyoperators.verbose = True
-... @pyoperators.decorators.inplace_reduction
+>>> from pyoperators import operation_assignment
+>>> pyoperators.memory.verbose = True
 ... class P(Operator):
 ...     def direct(self, input, output, operation=operation_assignment):
 ...         operation(output, input)
@@ -742,7 +742,6 @@ No intermediate variable is needed and all operations have been performed in-pla
 {% highlight python %}
 >>> pyoperators.memory.verbose=True
 ... @pyoperators.decorators.linear
-... @pyoperators.decorators.inplace_reduction
 ... class Projection(Operator):
 ...     def __init__(self, index):
 ...          self.index = index
