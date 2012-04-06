@@ -1776,12 +1776,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         self.set_rule('.IT', lambda s:type(s)([m.I.T for m in s.operands]))
         self.set_rule('.IH', lambda s:type(s)([m.I.H for m in s.operands]))
 
-    def direct(self, input, output, operation=None):
+    def direct(self, input, output, operation=operation_assignment):
 
         inplace_composition = self.same_data(input, output)
         shapeouts, sizeouts, outplaces, reuse_output = self._get_info(
             input.shape, output.shape, output.dtype, inplace_composition and \
-            operation is None)
+            operation is operation_assignment)
         noutplaces = outplaces.count(True)
 
         nswaps = 0
