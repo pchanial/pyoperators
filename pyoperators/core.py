@@ -1098,11 +1098,9 @@ class Operator(object):
             self._set_flags('inplace')
             self._set_flags('universal')
 
-        if (
-            flags is None
-            or 'inplace_reduction' not in flags
-            or flags['inplace_reduction']
-        ) and isinstance(self.direct, (types.FunctionType, types.MethodType)):
+        if self.flags.inplace_reduction and isinstance(
+            self.direct, (types.FunctionType, types.MethodType)
+        ):
             if isinstance(self.direct, types.MethodType):
                 d = self.direct.im_func
             else:
@@ -1872,9 +1870,10 @@ class AdditionOperator(CommutativeCompositeOperator):
         flags = {
             'linear': all([op.flags.linear for op in self.operands]),
             'real': all([op.flags.real for op in self.operands]),
-            'square': self.shapein is not None
-            and self.shapein == self.shapeout
-            or all([op.flags.square for op in self.operands]),
+            'square': all([op.flags.square for op in self.operands]),
+            'symmetric': all([op.flags.symmetric for op in self.operands]),
+            'hermitian': all([op.flags.hermitian for op in self.operands]),
+            'universal': all([op.flags.universal for op in self.operands]),
         }
         CommutativeCompositeOperator.__init__(
             self, operands, operator.iadd, flags=flags
@@ -1902,11 +1901,9 @@ class MultiplicationOperator(CommutativeCompositeOperator):
         if operands is None:
             return
         flags = {
-            'linear': False,
             'real': all([op.flags.real for op in self.operands]),
-            'square': self.shapein is not None
-            and self.shapein == self.shapeout
-            or all([op.flags.square for op in self.operands]),
+            'square': all([op.flags.square for op in self.operands]),
+            'universal': all([op.flags.universal for op in self.operands]),
         }
         CommutativeCompositeOperator.__init__(
             self, operands, operator.imul, flags=flags
@@ -1989,7 +1986,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
     def __init__(self, operands=None):
         flags = self._merge_flags(self.operands)
-        flags.update({'inplace_reduction': self.operands[0].flags.inplace_reduction})
         classin = first_is_not([o.classin for o in self.operands[::-1]], None)
         classout = first_is_not([o.classout for o in self.operands], None)
         commin = first_is_not([o.commin for o in self.operands[::-1]], None)
@@ -2265,6 +2261,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'linear': all([op.flags.linear for op in ops]),
             'real': all([op.flags.real for op in ops]),
             'square': all([op.flags.square for op in ops]),
+            'universal': all([op.flags.universal for op in ops]),
+            'inplace_reduction': ops[0].flags.inplace_reduction,
         }
         return flags
 
@@ -2370,6 +2368,7 @@ class BlockOperator(CompositeOperator):
         if partitionin is not None and partitionout is not None:
             flags['square'] = all(op.flags.square for op in self.operands)
             flags['symmetric'] = all(op.flags.symmetric for op in self.operands)
+            flags['hermitian'] = all(op.flags.hermitian for op in self.operands)
 
         self.partitionin = partitionin
         self.partitionout = partitionout
