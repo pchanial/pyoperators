@@ -93,6 +93,17 @@ def unitary(cls):
     return flags(cls, 'unitary')
 
 
+def universal(cls):
+    """
+    Decorator for universal operators, i.e. operators P which satisfy for  any
+    block operator B = [B1, ..., Bn] the property:
+        P(B) = [P(B1), ..., P(Bn)] and
+        B(P) = [B1(P), ..., Bn(P)]
+    It sets the 'universal' flags.
+    """
+    return flags(cls, 'universal')
+
+
 def inplace(cls):
     """
     Decorator for inplace operators, i.e operators that can handle input and
