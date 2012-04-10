@@ -107,8 +107,8 @@ class Stretch(Operator):
 @decorators.real
 @decorators.symmetric
 class HomothetyOutplaceOperator(Operator):
-    def __init__(self, value):
-        Operator.__init__(self)
+    def __init__(self, value, **keywords):
+        Operator.__init__(self, **keywords)
         self.value = value
     def direct(self, input, output):
         output[...] = self.value * input
@@ -1048,9 +1048,9 @@ def test_inplace_cannot_use_output():
             yield func_inplace, n, i, expected, strops
 
     
-#=========================
-# Test composite operators
-#=========================
+#===============
+# Test addition
+#===============
 
 def test_addition():
     @decorators.square
@@ -1087,6 +1087,10 @@ def test_addition():
     assert_eq(len(memory.stack), 2)
 
 
+#=====================
+# Test multiplication
+#=====================
+
 def test_multiplication():
     @decorators.square
     class Op(Operator):
@@ -1120,6 +1124,11 @@ def test_multiplication():
     assert_eq(input, 8)
     assert_eq(output, 8)
     assert_eq(len(memory.stack), 2)
+
+
+#==================
+# Test composition
+#==================
 
 def test_composition1():
     def func(op, shapein, shapeout):
@@ -1215,6 +1224,11 @@ def test_composition3():
     assert_eq(input, 8)
     assert_eq(output, 8)
     assert_eq(len(memory.stack), 0)
+
+
+#================
+# Test partition
+#================
 
 def test_partition1():
     o1 = HomothetyOperator(1, shapein=1)
@@ -1380,6 +1394,64 @@ def test_partition_implicit_composition():
                                     axisout=aout2, axisin=ain2)
                 yield func, op1, op2, pin1, pout2, cls
 
+
+def test_partition_broadcast_composition():
+    def func1(d, b):
+        p = d * b
+        assert_is_instance(p, BlockDiagonalOperator)
+        d_ = d.todense(b.shapeout)
+        b_ = b.todense()
+        p_ = np.dot(d_, b_)
+        assert_eq(p.todense(), p_)
+    def func2(d, b):
+        p = d + b
+        assert_is_instance(p, BlockDiagonalOperator)
+        d_ = d.todense(b.shapein)
+        b_ = b.todense()
+        p_ = np.add(d_, b_)
+        assert_eq(p.todense(), p_)
+    def func3(b, d):
+        p = b * d
+        assert_is_instance(p, BlockDiagonalOperator)
+        b_ = b.todense()
+        d_ = d.todense(b.shapein)
+        p_ = np.dot(b_, d_)
+        assert_eq(p.todense(), p_)
+        
+    for ndims in range(4):
+        shape = tuple(range(2,2+ndims))
+        sfunc1 = lambda ndim: np.arange(np.product(range(2,ndim+2))).reshape(
+                             range(2,ndim+2)) + 2
+        sfunc2 = lambda ndim: np.arange(np.product(range(2+ndims-ndim,2+ndims))).reshape(
+                             range(2+ndims-ndim,2+ndims)) + 2
+        diag = [DiagonalOperator(sfunc1(ndim)) for ndim in range(ndims+1)] + \
+               [DiagonalOperator(sfunc2(ndim), broadcast='leftward')
+                    for ndim in range(1,ndims+1)] + \
+               [DiagonalOperator(sfunc1(ndim), broadcast='rightward')
+                    for ndim in range(1,ndims+1)]
+
+        def toone(index):
+            list_ = list(shape)
+            list_[index] = 1
+            return list_
+        def remove(index):
+            list_ = list(shape)
+            list_.pop(index)
+            return list_
+        block = [BlockDiagonalOperator([HomothetyOutplaceOperator(v, shapein=toone(axis)) for v in range(2, 2+shape[axis])], axisin=axis, partitionin=shape[axis]*[1]) for axis in range(-ndims,ndims)] + \
+                [BlockDiagonalOperator([HomothetyOutplaceOperator(v, shapein=remove(axis)) for v in range(2, 2+shape[axis])], new_axisin=axis, partitionin=shape[axis]*[1]) for axis in range(-ndims,ndims)]
+
+        for d, b in itertools.product(diag, block):
+            if d.broadcast == 'disabled' and d.shapein != b.shapeout:
+                continue
+            yield func1, d, b
+            yield func2, d, b
+            yield func3, b, d
+
+
+#==================
+# Test Block slice
+#==================
 
 def test_block_slice():
     size = 4
