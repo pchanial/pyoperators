@@ -21,7 +21,7 @@ from .utils import (all_eq, first_is_not, isclassattr, isscalar, merge_none,
                     tointtuple)
 from .utils.mpi import MPI
 from .decorators import (linear, real, idempotent, involutary, square,
-                         symmetric, inplace)
+                         symmetric, universal, inplace)
 
 __all__ = [
     'Operator',
@@ -59,6 +59,7 @@ class OperatorFlags(namedtuple('OperatorFlags',
                                 'involutary', # o * o = I
                                 'orthogonal', # o * o.T = I
                                 'unitary',    # o * o.H = I
+                                'universal',  # o*[B1...Bn] = [o*B1...o*Bn]
                                 'inplace',
                                 'inplace_reduction',
                                 'shape_input',
@@ -66,7 +67,7 @@ class OperatorFlags(namedtuple('OperatorFlags',
                                 ])):
     """ Informative flags about the operator. """
     def __new__(cls):
-        t = 11*(False,) + ('', '')
+        t = 12*(False,) + ('', '')
         return super(OperatorFlags, cls).__new__(cls, *t)
 
     def __str__(self):
@@ -995,6 +996,7 @@ class Operator(object):
 
         if isinstance(self.direct, np.ufunc):
             self._set_flags('inplace')
+            self._set_flags('universal')
 
         if (flags is None or 'inplace_reduction' not in flags or 
             flags['inplace_reduction']) and isinstance(self.direct,
@@ -2408,7 +2410,7 @@ class BlockOperator(CompositeOperator):
     @staticmethod
     def _rule_add_operator(self, op):
         """ Rule for BlockOperator + Operator. """
-        if op.shapein is not None:
+        if not op.flags.universal:
             return None
         return BlockOperator([o + op for o in self.operands],
             self.partitionin, self.partitionout, self.axisin, self.axisout,
@@ -2421,7 +2423,7 @@ class BlockOperator(CompositeOperator):
             return None
         if isinstance(op, BlockOperator):
             return None
-        if op.shapeout is not None:
+        if not op.flags.universal:
             return None
         n = len(self.partitionout)
         partitionout = self._get_partitionout(n*[op], self.partitionout,
@@ -2435,7 +2437,7 @@ class BlockOperator(CompositeOperator):
         """ Rule for BlockOperator * Operator. """
         if self.partitionin is None:
             return None
-        if op.shapein is not None:
+        if not op.flags.universal:
             return None
         n = len(self.partitionin)
         partitionin = self._get_partitionin(n*[op], self.partitionin,
@@ -3020,6 +3022,7 @@ class DiagonalOperator(BroadcastingOperator):
 
 
 @inplace
+@universal
 class HomothetyOperator(DiagonalOperator):
     """
     Multiplication by a scalar.

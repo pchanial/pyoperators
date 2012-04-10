@@ -3,7 +3,7 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import square, inplace
+from .decorators import square, inplace, universal
 from .core import Operator
 from .utils import operation_assignment, operation_symbol
 
@@ -15,6 +15,7 @@ __all__ = ['ClipOperator',
 
 @square
 @inplace
+@universal
 class ClipOperator(Operator):
     """
     Clip (limit) the values in an array.
@@ -50,6 +51,7 @@ class ClipOperator(Operator):
 
 @square
 @inplace
+@universal
 class MaximumOperator(Operator):
     """
     Set all input array values above a given value to this value.
@@ -78,6 +80,7 @@ class MaximumOperator(Operator):
 
 @square 
 @inplace
+@universal
 class MinimumOperator(Operator):
     """
     Set all input array values above a given value to this value.
@@ -144,6 +147,7 @@ class NumexprOperator(Operator):
 
 @square
 @inplace
+@universal
 class RoundOperator(Operator):
     """Rounding operator.
     
