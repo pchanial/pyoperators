@@ -2152,14 +2152,12 @@ class BlockOperator(CompositeOperator):
             shapeouts = [op.validatereshapein(s) for op,s in zip(self.operands,
                 self._get_shapes(shapein, self.partitionin, self.axisin,
                 self.new_axisin))]
-        if None in shapeouts and shapein is not None:
-            raise NotImplementedError("Unconstrained output shape operators are"
-                                      " not handled in block operators.")
+        if None in shapeouts:
+            return None
         shapeout = self._validate_shapes(shapeouts, self.partitionout,
                                          self.axisout, self.new_axisout)
-        if shapein is None:
-            if shapeout is None or None in shapeouts:
-                return None
+        if shapeout is None:
+            return None
         if self.partitionout is None:
             return shapeout
         if self.new_axisout is not None:
@@ -2182,14 +2180,12 @@ class BlockOperator(CompositeOperator):
             shapeins = [op.validatereshapeout(s) for op,s in zip(self.operands,
                 self._get_shapes(shapeout, self.partitionout, self.axisout,
                 self.new_axisout))]
-        if None in shapeins and shapeout is not None:
-            raise NotImplementedError("Unconstrained input shape operators are "
-                                      "not handled in block operators.")
+        if None in shapeins:
+            return None
         shapein = self._validate_shapes(shapeins, self.partitionin,
                                          self.axisin, self.new_axisin)
-        if shapeout is None:
-            if shapein is None or None in shapeins:
-                return None
+        if shapein is None:
+            return None
         if self.partitionin is None:
             return shapein
         if self.new_axisin is not None:
@@ -2310,8 +2306,7 @@ class BlockOperator(CompositeOperator):
     @staticmethod
     def _get_shapes(shape, partition, axis, new_axis):
         if None in partition:
-            raise ValueError('The shape of an operator with implicit partition '
-                             'cannot be inferred.')
+            return len(partition) * (None,)
         if new_axis is not None:
             shape_ = list(shape)
             del shape_[new_axis]
