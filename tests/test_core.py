@@ -1103,6 +1103,13 @@ def test_addition():
     assert_eq(output, 7)
     assert_eq(len(memory.stack), 2)
 
+def test_addition_flags():
+    def func(f):
+        o = AdditionOperator([Operator(flags=f), Operator(flags=f)])
+        assert getattr(o.flags, f)
+    for f in 'linear,real,square,symmetric,hermitian,universal'.split(','):
+        yield func, f
+
 
 #=====================
 # Test multiplication
@@ -1141,6 +1148,13 @@ def test_multiplication():
     assert_eq(input, 8)
     assert_eq(output, 8)
     assert_eq(len(memory.stack), 2)
+
+def test_multiplication_flags():
+    def func(f):
+        o = MultiplicationOperator([Operator(flags=f), Operator(flags=f)])
+        assert getattr(o.flags, f)
+    for f in 'real,square,universal'.split(','):
+        yield func, f
 
 
 #==================
@@ -1241,6 +1255,13 @@ def test_composition3():
     assert_eq(input, 8)
     assert_eq(output, 8)
     assert_eq(len(memory.stack), 0)
+
+def test_composition_flags():
+    def func(f):
+        o = CompositionOperator([Operator(flags=f), Operator(flags=f)])
+        assert getattr(o.flags, f)
+    for f in 'linear,real,square,universal,inplace_reduction'.split(','):
+        yield func, f
 
 
 #================
