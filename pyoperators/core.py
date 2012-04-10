@@ -2376,8 +2376,12 @@ class BlockOperator(CompositeOperator):
 
     @staticmethod
     def _validate_composition(op1, op2):
-        axisin1 = op1.axisin if op1.axisin is not None else op1.new_axisin
-        axisout2 = op2.axisout if op2.axisout is not None else op2.new_axisout
+        axisin1= first_is_not([op1.axisin, op1.new_axisin], None)
+        axisout2 = first_is_not([op2.axisout, op2.new_axisout], None)
+        if axisin1 < 0 and op2.shapeout is not None:
+            axisin1 += len(op2.shapeout)
+        if axisout2 < 0 and op1.shapein is not None:
+            axisout2 += len(op1.shapein)
         if axisin1 != axisout2:
             return None
         if op1.axisin is not None and op2.new_axisout is not None or \
