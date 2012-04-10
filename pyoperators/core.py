@@ -2084,8 +2084,6 @@ class BlockOperator(CompositeOperator):
         self.new_axisin = new_axisin
         self.axisout = axisout
         self.new_axisout = new_axisout
-        self.slicein = self._get_slice(axisin, new_axisin)
-        self.sliceout = self._get_slice(axisout, new_axisout)
         if partitionin is None:
             self.__class__ = BlockColumnOperator
         elif partitionout is None:
@@ -2093,6 +2091,19 @@ class BlockOperator(CompositeOperator):
         else:
             self.__class__ = BlockDiagonalOperator
         CompositeOperator.__init__(self, operands, flags=flags)
+
+        if self.shapein is not None:
+            n = len(self.shapein)
+            if self.axisin is not None and self.axisin < 0:
+                self.axisin += n
+            elif self.new_axisin is not None and self.new_axisin < 0:
+                self.new_axisin += n
+        if self.shapeout is not None:
+            n = len(self.shapeout)
+            if self.axisout is not None and self.axisout < 0:
+                self.axisout += n
+            elif self.new_axisout is not None and self.new_axisout < 0:
+                self.new_axisout += n
 
         self.set_rule('.C', lambda s: BlockOperator([op.C for op in s.operands],
                       s.partitionin, s.partitionout, s.axisin, s.axisout,
@@ -2330,6 +2341,31 @@ class BlockOperator(CompositeOperator):
         return [Ellipsis] + (-axis) * [slice(None)]
 
     @staticmethod
+    def _get_slices(partition, axis, new_axis):
+        """ Return iterator of the block slices. """
+        s = BlockOperator._get_slice(axis, new_axis)
+        dest = 0
+        for n in partition:
+            if new_axis is not None:
+                s[new_axis] = dest
+            else:
+                s[axis] = slice(dest, dest + n)
+            dest += n
+            yield list(s)
+
+    def get_slicesin(self, partitionin=None):
+        """ Return iterator of the block input slices. """
+        if partitionin is None:
+            partitionin = self.partitionin
+        return self._get_slices(partitionin, self.axisin, self.new_axisin)
+ 
+    def get_slicesout(self, partitionout=None):
+        """ Return iterator of the block output slices. """
+        if partitionout is None:
+            partitionout = self.partitionout
+        return self._get_slices(partitionout, self.axisout, self.new_axisout)
+
+    @staticmethod
     def _validate_commutative(op1, op2):
         axisin1 = op1.axisin if op1.axisin is not None else op1.new_axisin
         axisin2 = op2.axisin if op2.axisin is not None else op2.new_axisin
@@ -2559,22 +2595,14 @@ class BlockDiagonalOperator(BlockOperator):
         else:
             partitionout = self.partitionout
 
-        destin = 0
-        destout = 0
-        for op, nin, nout in zip(self.operands, self.partitionin, partitionout):
-            if self.new_axisin is not None:
-                self.slicein[self.new_axisin] = destin
-            else:
-                self.slicein[self.axisin] = slice(destin, destin + nin)
-            if self.new_axisout is not None:
-                self.sliceout[self.new_axisout] = destout
-            else:
-                self.sliceout[self.axisout] = slice(destout, destout + nout)
-            o = output[self.sliceout]
+        memory.up()
+        for i, op, sin, sout in zip(range(len(self.operands)), self.operands,
+                                    self.get_slicesin(),
+                                    self.get_slicesout(partitionout)):
+            o = output[sout]
             with memory.push_and_pop(o):
-                op.direct(input[self.slicein], o)
-            destin += nin
-            destout += nout
+                op.direct(input[sin], o)
+        memory.down()
 
 
 class BlockColumnOperator(BlockOperator):
@@ -2619,22 +2647,18 @@ class BlockColumnOperator(BlockOperator):
         if None in self.partitionout:
             partitionout = list(self.partitionout)
             for i, op in enumerate(self.operands):
-                if partitionout[i] is not None:
-                    continue
-                partitionout[i] = op.validatereshapein(input.shape)[self.axisout]
+                if partitionout[i] is None:
+                    partitionout[i] = op.validatereshapein(input.shape)[
+                                          self.axisout]
         else:
             partitionout = self.partitionout
 
-        dest = 0
-        for op, n in zip(self.operands, partitionout):
-            if self.new_axisout is not None:
-                self.sliceout[self.new_axisout] = dest
-            else:
-                self.sliceout[self.axisout] = slice(dest, dest + n)
-            o = output[self.sliceout]
+        memory.up()
+        for op, sout in zip(self.operands, self.get_slicesout(partitionout)):
+            o = output[sout]
             with memory.push_and_pop(o):
                 op.direct(input, o)
-            dest += n
+        memory.down()
 
     def __str__(self):
         operands = ['[{0}]'.format(o) for o in self.operands]
@@ -2683,20 +2707,16 @@ class BlockRowOperator(BlockOperator):
             partitionin = list(self.partitionin)
             for i, op in enumerate(self.operands):
                 if partitionin[i] is None:
-                    partitionin[i] = input.shape[self.axisin]
+                    partitionin[i] = op.validatereshapeout(output.shape)[
+                                         self.axisin]
         else:
             partitionin = self.partitionin
 
+        #XXX optimize me
         work = np.zeros_like(output)
-        dest = 0
-        for op, n in zip(self.operands, partitionin):
-            if self.new_axisin is not None:
-                self.slicein[self.new_axisin] = dest
-            else:
-                self.slicein[self.axisin] = slice(dest, dest + n)
-            op.direct(input[self.slicein], output)
+        for op, sin in zip(self.operands, self.get_slicesin(partitionin)):
+            op.direct(input[sin], output)
             work += output
-            dest += n
         output[...] = work
 
     def __str__(self):
@@ -2774,10 +2794,12 @@ class BlockSliceOperator(CompositeOperator):
     def direct(self, input, output):
         if not self.same_data(input, output):
             output[...] = input
+        memory.up()
         for s, op in zip(self.slices, self.operands):
             o = output[s]
             with memory.push_and_pop(o):
                 op.direct(input[s], o)
+        memory.down()
 
 
 @linear
@@ -2954,6 +2976,14 @@ class DiagonalOperator(BroadcastingOperator):
             self.__init__(data.flat[0], **keywords)
             return
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
+        self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
+                      o, CompositionOperator), CompositionOperator)
+        self.set_rule('{BlockOperator}.', lambda o,s: self._rule_right_block(o,
+                      s, CompositionOperator), CompositionOperator)
+        self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
+                      o, AdditionOperator), AdditionOperator)
+        self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
+                      o, MultiplicationOperator), MultiplicationOperator)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -3019,6 +3049,69 @@ class DiagonalOperator(BroadcastingOperator):
             raise ValueError("Invalid broadcasting.")
 
         return v
+
+    @staticmethod
+    def _rule_block(self, op, shape, partition, axis, new_axis, func):
+        if partition is None:
+            return
+        if None in partition and self.broadcast != 'scalar':
+            return
+
+        b = self.broadcast
+        ndim = self.data.ndim
+        axis_ = first_is_not([axis, new_axis], None)
+            
+        do_replicate = False
+        if b == 'scalar':
+            do_replicate = True
+        elif b == 'disabled':
+            pass
+        elif shape is None:
+            if new_axis is not None and ndim == 1 and (new_axis == -1 and 
+               b == 'rightward' or new_axis ==  0 and b == 'leftward'):
+                do_replicate = True
+            elif b == 'rightward':
+                if axis_ > ndim:
+                    do_replicate = True
+                elif axis_ < 0:
+                    return
+            else:
+                if axis_ < -ndim:
+                    do_replicate = True
+                elif axis_ >= 0:
+                    return
+        else:
+            if b == 'rightward':
+                if axis_ >= ndim:
+                    do_replicate = True
+            else:
+                if axis is not None:
+                    axis = axis - len(shape)
+                else:
+                    new_axis = new_axis - len(shape)
+                if axis_ - len(shape) < -ndim:
+                    do_replicate = True
+        if do_replicate:
+            ops = [func(self, o) for o in op.operands]
+        else:
+            slices = op._get_slices(partition, axis, new_axis)
+            ops = [func(DiagonalOperator(self.data[s], broadcast=
+                   self.broadcast), o) for s, o in zip(slices, op.operands)]
+
+        return BlockOperator(ops, op.partitionin, partition, op.axisin,
+                             op.axisout, op.new_axisin, op.new_axisout)
+
+    @staticmethod
+    def _rule_left_block(self, op, cls):
+        func = lambda d, b: cls([d, b])
+        return DiagonalOperator._rule_block(self, op, op.shapeout,
+            op.partitionout, op.axisout, op.new_axisout, func)
+
+    @staticmethod
+    def _rule_right_block(op, self, cls):
+        func = lambda d, b: cls([b, d])
+        return DiagonalOperator._rule_block(self, op, op.shapein,
+            op.partitionin, op.axisin, op.new_axisin, func)
 
 
 @inplace
