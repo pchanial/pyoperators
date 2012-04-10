@@ -2145,10 +2145,7 @@ class BlockOperator(CompositeOperator):
         shapeout = super(BlockOperator, self).validatereshapein(shapein)
         if shapeout is not None:
             return shapeout
-        if shapein is None:
-            return self.reshapein(None)
 
-    def reshapein(self,shapein):
         if shapein is None or self.partitionin is None:
             shapeouts = [op.validatereshapein(shapein) for op in self.operands]
         else:
@@ -2178,10 +2175,7 @@ class BlockOperator(CompositeOperator):
         shapein = super(BlockOperator, self).validatereshapeout(shapeout)
         if shapein is not None:
             return shapein
-        if shapeout is None:
-            return self.reshapeout(None)
 
-    def reshapeout(self, shapeout):
         if shapeout is None or self.partitionout is None:
             shapeins = [op.validatereshapeout(shapeout) for op in self.operands]
         else:
