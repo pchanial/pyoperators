@@ -113,22 +113,33 @@ def print_stack(stack_addresses={}):
     """
     Print the stack.
     A dict of ndarray addresses can be used to name the stack elements.
+
+    Example
+    -------
+    print_stack({'output':myoutput})
+
     """
     global stack, istack
     if len(stack) == 0:
         print 'The memory stack is empty.'
+    d = dict((v.__array_interface__['data'][0] if isinstance(v, np.ndarray)
+             else v, k) for k, v in stack_addresses.items())
+    result = []
     for i, s in enumerate(stack):
         pointer = '--> ' if i == istack else '    '
+        res = pointer + '{0:<2}: '.format(i)
         if s is None:
-            print '{0}\t: None'
-            continue
-        address = s.__array_interface__['data'][0]
-        if address in stack_addresses:
-            strid = stack_addresses[address] + ' '
+            res += 'None'
         else:
-            strid = ''
-        strid += hex(address)
-        print pointer + '{0:<2}: {1}\t({2} bytes)'.format(i, strid, s.nbytes)
+            address = s.__array_interface__['data'][0]
+            if address in d:
+                strid = d[address] + ' '
+            else:
+                strid = ''
+            strid += hex(address)
+            res += '{1}\t({2} bytes)'.format(i, strid, s.nbytes)
+        result.insert(0, res)
+    print '\n'.join(result)
     
 def push_and_pop(array):
     """
