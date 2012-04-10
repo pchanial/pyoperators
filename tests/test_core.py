@@ -3,7 +3,6 @@ import numpy as np
 import operator
 import pyoperators
 
-from nose.tools import ok_
 from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
@@ -173,39 +172,43 @@ def test_symmetric():
 #========================
 
 def test_shape_is_inttuple():
+    def func(o):
+        shapein = o.shapein
+        assert_is_inttuple(o.shapein)
+        assert_is_inttuple(o.shapeout)
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
                     3., [3.], np.array(3.), np.array([3.]), (3.,),
                     [3,2], np.array([3,2]), (3,2),
                     [3.,2], np.array([3.,2]), (3.,2)):
         o = Operator(shapein=shapein, shapeout=shapein)
-        yield assert_is_inttuple, o.shapein, 'shapein: '+str(shapein)
-        yield assert_is_inttuple, o.shapeout, 'shapeout: '+str(shapein)
+        yield func, o
 
 def test_shape_explicit():
     o1, o2, o3 = (
         Operator(shapeout=(13,2), shapein=(2,2)),
         Operator(shapeout=(2,2), shapein=(1,3)),
         Operator(shapeout=(1,3), shapein=4))
+    def func(o, eout, ein):
+        assert_eq(o.shapeout, eout)
+        assert_eq(o.shapein, ein)
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((13,2),(2,2),(13,2)),
                             ((1,3),(4,),(4,))):
-        yield assert_eq, o.shapeout, eout, '*shapeout:'+str(o)
-        yield assert_eq, o.shapein, ein, '*shapein:'+str(o)
-    yield assert_raises, ValueError, CompositionOperator, [o2, o1]
-    yield assert_raises, ValueError, CompositionOperator, [o3, o2]
-    yield assert_raises, ValueError, CompositionOperator, [o3, I, o1]
+        yield func, o, eout, ein
+    assert_raises(ValueError, CompositionOperator, [o2, o1])
+    assert_raises(ValueError, CompositionOperator, [o3, o2])
+    assert_raises(ValueError, CompositionOperator, [o3, I, o1])
 
     o4 = Operator(shapeout=o1.shapeout)
     o5 = Operator(flags='square')
 
     o1 = Operator(shapein=(13,2), flags='square')
     for o in [o1+I, I+o1, o1+o4, o1+I+o5+o4, I+o5+o1]:
-        yield assert_eq, o.shapein, o1.shapein, '+shapein:'+str(o)
-        yield assert_eq, o.shapeout, o1.shapeout, '+shapeout:'+str(o)
-    yield assert_raises, ValueError, AdditionOperator, [o2, o1]
-    yield assert_raises, ValueError, AdditionOperator, [o3, o2]
-    yield assert_raises, ValueError, AdditionOperator, [I, o3, o1]
-    yield assert_raises, ValueError, AdditionOperator, [o3, I, o1]
+        yield func, o, o1.shapeout, o1.shapein
+    assert_raises(ValueError, AdditionOperator, [o2, o1])
+    assert_raises(ValueError, AdditionOperator, [o3, o2])
+    assert_raises(ValueError, AdditionOperator, [I, o3, o1])
+    assert_raises(ValueError, AdditionOperator, [o3, I, o1])
 
 def test_shape_implicit():
     class Op(Operator):
@@ -222,16 +225,18 @@ def test_shape_implicit():
     assert o1.shapein is o2.shapein is o3.shapein is None
     shapein = (1,)
     shapeout = (24,)
+    def func(o, eout, ein):
+        assert_eq(o.validatereshapein(shapein), eout)
+        assert_eq(o.validatereshapeout(shapeout), ein)
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((6,),(12,),(24,)),
                             ((4,),(2,),(1,))):
-        yield assert_eq, o.validatereshapein(shapein), eout, 'in:'+str(o)
-        yield assert_eq, o.validatereshapeout(shapeout), ein, 'out:'+str(o)
+        yield func, o, eout, ein
 
 def test_shapeout_unconstrained1():
     for shape in shapes:
         op = Operator(shapein=shape)
-        yield assert_is, op.shapeout, None
+        assert_is_none(op.shapeout)
 
 def test_shapeout_unconstrained2():
     class Op(Operator):
@@ -264,9 +269,11 @@ def test_shapeout_implicit():
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
 
 def test_shapein_unconstrained1():
-    for shape in shapes[1:]:
+    def func(shape):
         op = Operator(shapeout=shape)
-        yield assert_is, op.shapein, None
+        assert_is_none(op.shapein)
+    for shape in shapes[1:]:
+        yield func, shape
 
 def test_shapein_unconstrained2():
     class Op(Operator):
@@ -368,16 +375,18 @@ def test_dtype1():
         def direct(self, input, output):
             np.multiply(input, np.array(value, self.dtype), output)
     input = complex(1,1)
+    def func(dop, di):
+        try:
+            i = np.array(input, di)
+        except TypeError:
+            i = np.array(input.real, di)
+        o = Op(dop)(i)
+        assert_eq(o.dtype, (i*np.array(value,dop)).dtype, str((dop,di)))
+        assert_eq(o, i*np.array(value,dop), str((dop,di)))
+
     for dop in dtypes:
         for di in dtypes:
-            try:
-                i = np.array(input, di)
-            except TypeError:
-                i = np.array(input.real, di)
-            o = Op(dop)(i)
-            yield assert_eq, o.dtype, (i*np.array(value,dop)).dtype, str((dop,di))
-            yield assert_eq, o, i*np.array(value,dop), str((dop,di))
-
+            yield func, dop, di
 
 def test_dtype2():
     @decorators.square
@@ -386,15 +395,16 @@ def test_dtype2():
             np.multiply(input, input, output)
     op = Op()
     input = complex(1,1)
-    for di in dtypes:
+    def func(di):
         try:
             i = np.array(input, di)
         except TypeError:
             i = np.array(input.real, di)
         o = op(i)
-        yield assert_eq, o.dtype, (i * i).dtype, str(di)
-        yield assert_eq, o, i * i, str(di)
-
+        assert_eq(o.dtype, (i * i).dtype, str(di))
+        assert_eq(o, i * i, str(di))
+    for di in dtypes:
+        yield func, di
 
 #=========================
 # Test operator comparison
@@ -403,8 +413,10 @@ def test_dtype2():
 def test_eq():
     from .test_shared import ops as ops1
     ops2 = [type(o)() for o in ops1]
+    def func(op1, op2):
+        assert_eq(op1, op2)
     for op1, op2 in zip(ops1, ops2):
-        yield assert_eq, op1, op2
+        yield func, op1, op2
 
 
 #================
@@ -413,17 +425,18 @@ def test_eq():
 
 def test_iadd_imul():
     from .test_shared import ops
+    def func(op1, op2, operation):
+        if operation is operator.iadd:
+            op = op1 + op2
+            op1 += op2
+        else:
+            op = op1 * op2.T
+            op1 *= op2.T
+        assert_eq(op1, op)
     for operation in (operator.iadd, operator.imul):
         for op2 in ops:
             for op1 in ops:
-                if operation is operator.iadd:
-                    op = op1 + op2
-                    op1 += op2
-                else:
-                    op = op1 * op2.T
-                    op1 *= op2.T
-                yield assert_eq, op1, op
-
+                yield func, op1, op2, operation
 
 #===========================
 # Test attribute propagation
@@ -458,43 +471,47 @@ def test_propagation_attribute1():
             pass
 
     inputs = [np.ones(5), np.ones(5).view(ndarray2)]
-    for i in inputs:
+    def func1(i):
         op = AddAttribute()
-        yield ok_, op(i).newattr_direct
-        yield ok_, op.T(i).newattr_transpose
+        assert op(i).newattr_direct
+        assert op.T(i).newattr_transpose
 
         op = AddAttribute2() * AddAttribute()
-        yield ok_, not op(i).newattr_direct
-        yield ok_, op.T(i).newattr_transpose
+        assert not op(i).newattr_direct
+        assert op.T(i).newattr_transpose
 
         op = AddAttribute3() * AddAttribute()
-        yield ok_, op(i).newattr_direct
-        yield ok_, op(i).newattr3_direct
-        yield ok_, op.T(i).newattr_transpose
-        yield ok_, op.T(i).newattr3_transpose
+        assert op(i).newattr_direct
+        assert op(i).newattr3_direct
+        assert op.T(i).newattr_transpose
+        assert op.T(i).newattr3_transpose
+    for i in inputs:
+        yield func1, i
 
-    for i_ in inputs:
+    def func2(i_):
         op = AddAttribute()
         i = i_.copy()
-        yield ok_, op(i,i).newattr_direct
+        assert op(i,i).newattr_direct
         i = i_.copy()
-        yield ok_, op.T(i,i).newattr_transpose
+        assert op.T(i,i).newattr_transpose
 
         op = AddAttribute2() * AddAttribute()
         i = i_.copy()
-        yield ok_, not op(i,i).newattr_direct
+        assert not op(i,i).newattr_direct
         i = i_.copy()
-        yield ok_, op.T(i,i).newattr_transpose
+        assert op.T(i,i).newattr_transpose
 
         op = AddAttribute3() * AddAttribute()
         i = i_.copy()
         o = op(i,i)
-        yield ok_, o.newattr_direct
-        yield ok_, o.newattr3_direct
+        assert o.newattr_direct
+        assert o.newattr3_direct
         i = i_.copy()
         o = op.T(i,i)
-        yield ok_, o.newattr_transpose
-        yield ok_, o.newattr3_transpose
+        assert o.newattr_transpose
+        assert o.newattr3_transpose
+    for i_ in inputs:
+        yield func2, i_
 
 
 def test_propagation_attribute2():
@@ -1063,7 +1080,7 @@ def test_addition():
 
     memory.stack = []
     op = np.sum([Op(v) for v in [1]])
-    yield assert_is, op.__class__, Op
+    assert_is(op.__class__, Op)
 
     op = np.sum([Op(v) for v in [1,2]])
     assert_eq(op.__class__, AdditionOperator)
@@ -1102,7 +1119,7 @@ def test_multiplication():
 
     memory.stack = []
     op = MultiplicationOperator([Op(v) for v in [1]])
-    yield assert_is, op.__class__, Op
+    assert_is(op.__class__, Op)
 
     op = MultiplicationOperator([Op(v) for v in [1,2]])
     assert_eq(op.__class__, MultiplicationOperator)
@@ -1236,21 +1253,25 @@ def test_partition1():
     o3 = HomothetyOperator(3, shapein=3)
     
     r = DiagonalOperator([1,2,2,3,3,3]).todense()
+    def func(ops, p):
+        op = BlockDiagonalOperator(ops, partitionin=p, axisin=0)
+        assert_eq(op.todense(6), r, str(op))
     for ops, p in zip(((o1,o2,o3), (I,o2,o3), (o1,2*I,o3), (o1,o2,3*I)),
                       (None, (1,2,3), (1,2,3), (1,2,3))):
-        op = BlockDiagonalOperator(ops, partitionin=p, axisin=0)
-        yield assert_eq, op.todense(6), r, str(op)
+        yield func, ops, p
 
 def test_partition2():
     # in some cases in this test, partitionout cannot be inferred from
     # partitionin, because the former depends on the input rank
     i = np.arange(3*4*5*6).reshape(3,4,5,6)
+    def func(axisp, p, axiss):
+        op = BlockDiagonalOperator(3*[Stretch(axiss)], partitionin=p,
+                                   axisin=axisp)
+        assert_eq(op(i), Stretch(axiss)(i))
     for axisp,p in zip((0,1,2,3,-1,-2,-3), ((1,1,1),(1,2,1),(2,2,1),(2,3,1),
                                             (2,3,1),(2,2,1),(1,2,1),(1,1,1))):
         for axiss in (0,1,2,3):
-            op = BlockDiagonalOperator(3*[Stretch(axiss)], partitionin=p,
-                                       axisin=axisp)
-            yield assert_eq, op(i), Stretch(axiss)(i), 'axis={0},{1}'.format(axisp,axiss)
+            yield func, axisp, p, axiss
 
 def test_partition3():
     # test axisin != axisout...
@@ -1272,21 +1293,24 @@ def test_partition4():
 
 def test_block1():
     ops = [HomothetyOperator(i, shapein=(2,2)) for i in range(1,4)]
+    def func(axis, s):
+        op = BlockDiagonalOperator(ops, new_axisin=axis)
+        assert_eq(op.shapein, s)
+        assert_eq(op.shapeout, s)
     for axis,s in zip(range(-3,3),
                       ((3,2,2),(2,3,2),(2,2,3),(3,2,2),(2,3,2),(2,2,3))):
-        op = BlockDiagonalOperator(ops, new_axisin=axis)
-        yield assert_eq, op.shapein, s
-        yield assert_eq, op.shapeout, s
-
+        yield func, axis, s
 def test_block2():
     shape = (3,4,5,6)
     i = np.arange(np.product(shape)).reshape(shape)
+    def func(axisp, axiss):
+        op = BlockDiagonalOperator(shape[axisp]*[Stretch(axiss)], new_axisin=axisp)
+        axisp_ = axisp if axisp >= 0 else axisp + 4
+        axiss_ = axiss if axisp_ > axiss else axiss + 1
+        assert_eq(op(i), Stretch(axiss_)(i))
     for axisp in (0,1,2,3,-1,-2,-3):
         for axiss in (0,1,2):
-            op = BlockDiagonalOperator(shape[axisp]*[Stretch(axiss)], new_axisin=axisp)
-            axisp_ = axisp if axisp >= 0 else axisp + 4
-            axiss_ = axiss if axisp_ > axiss else axiss + 1
-            yield assert_eq, op(i), Stretch(axiss_)(i), 'axis={0},{1}'.format(axisp,axiss)
+            yield func, axisp, axiss
 
 def test_block3():
     # test new_axisin != new_axisout...
@@ -1486,21 +1510,25 @@ def test_block_slice():
 
 def test_broadcasting_as_strided():
     shapes = {'leftward':(2,4,3,4,2,2), 'rightward':(3,2,2,3,1,2)}
-    for b in ('rightward', 'leftward'):
+    def func(b):
         o = BroadcastingOperator(np.arange(6).reshape((3,1,2,1)), broadcast=b)
         s = shapes[b]
         if b == 'leftward':
             v = o.data*np.ones(s)
         else:
             v = (o.data.T * np.ones(s, int).T).T
-        yield assert_eq, o._as_strided(s), v
+        assert_eq(o._as_strided(s), v)
+    for b in ('rightward', 'leftward'):
+        yield func, b
 
 def test_diagonal1():
     data = (0., 1., [0,0], [1,1], 2, [2,2], [1,2])
     expected = (ZeroOperator, IdentityOperator, ZeroOperator, IdentityOperator,
                 HomothetyOperator, HomothetyOperator, DiagonalOperator)
-    for d,e in zip(data, expected):
-        yield assert_is, DiagonalOperator(d).__class__, e
+    def func(d, e):
+        assert_is(DiagonalOperator(d).__class__, e)
+    for d, e in zip(data, expected):
+        yield func, d, e
 
 def test_diagonal2():
     ops = (
@@ -1512,6 +1540,20 @@ def test_diagonal2():
            HomothetyOperator(7.),
            IdentityOperator(),
           )
+    def func(op, d1, d2):
+        d = op(d1, d2)
+        if type(d1) is DiagonalOperator:
+            assert_is(type(d), DiagonalOperator)
+        elif type(d1) is HomothetyOperator:
+            assert_is(type(d), HomothetyOperator)
+        elif op is np.multiply:
+            assert_is(type(d), IdentityOperator)
+        else:
+            assert_is(type(d), HomothetyOperator)
+
+        data = op(d1.data.T, d2.data.T).T if 'rightward' in (d1.broadcast,
+               d2.broadcast) else op(d1.data, d2.data)
+        assert_eq(d.data, data)
     for op in (np.add, np.multiply):
         for i in range(7):
             d1 = ops[i]
@@ -1519,50 +1561,42 @@ def test_diagonal2():
                 d2 = ops[j]
                 if set((d1.broadcast, d2.broadcast)) == set(('leftward', 'rightward')):
                     continue
-                d = op(d1, d2)
-                if type(d1) is DiagonalOperator:
-                    yield assert_is, type(d), DiagonalOperator
-                elif type(d1) is HomothetyOperator:
-                    yield assert_is, type(d), HomothetyOperator
-                elif op is np.multiply:
-                    yield assert_is, type(d), IdentityOperator
-                else:
-                    yield assert_is, type(d), HomothetyOperator
-
-                data = op(d1.data.T, d2.data.T).T if 'rightward' in (d1.broadcast,
-                       d2.broadcast) else op(d1.data, d2.data)
-                yield assert_eq, d.data, data, str(d1)+' and '+str(d2)
+                yield func, op, d1, d2
     
 def test_homothety_operator():
     s = HomothetyOperator(1)
-    yield ok_, s.C is s.T is s.H is s.I is s
+    assert s.C is s.T is s.H is s.I is s
 
     s = HomothetyOperator(-1)
-    yield ok_, s.C is s.T is s.H is s.I is s
+    assert s.C is s.T is s.H is s.I is s
 
     s = HomothetyOperator(2.)
-    yield ok_, s.C is s.T is s.H is s
-    yield assert_is_not, s.I, s
+    assert s.C is s.T is s.H is s
+    assert_is_not(s.I, s)
+    def func(o):
+        assert_is_instance(o, HomothetyOperator)
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
-        yield assert_is_instance, o, HomothetyOperator
+        yield func, o
 
     s = HomothetyOperator(complex(1,1))
-    yield assert_is, s.T, s
-    yield assert_is, s.H, s.C
-    yield assert_not_in, s.I, (s, s.C)
-    yield assert_not_in, s.I.C, (s, s.C)
-    yield assert_is_instance, s.C, HomothetyOperator
+    assert_is(s.T, s)
+    assert_is(s.H, s.C)
+    assert_not_in(s.I, (s, s.C))
+    assert_not_in(s.I.C, (s, s.C))
+    assert_is_instance(s.C, HomothetyOperator)
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
-        yield assert_is_instance, o, HomothetyOperator
+        yield func, o
 
 def test_homothety_reduction1():
     models = 1.*I+I, -I, (-2) * I, -(2*I), 1.*I-I, 1.*I-2*I
     results = [6, -3, -6, -6, 0, -3]
+    def func(model, result, i):
+        o = model(i)
+        assert_eq(o, result, str((model,i)))
+        assert_eq(o.dtype, int, str((model,i)))
     for model, result in zip(models, results):
         for i in (np.array(3), [3], (3,), np.int(3), 3):
-            o = model(i)
-            yield assert_eq, o, result, str((model,i))
-            yield assert_eq, o.dtype, int, str((model,i))
+            yield func, model, result, i
 
 def test_homothety_reduction2():
     model = -I
@@ -1570,10 +1604,12 @@ def test_homothety_reduction2():
             operator.imul)
     imodels = 2*I, 2*I, 2*I, O, O
     results = [3, -3, -6, -6, 0]
+    def func(imodel, result, i):
+        assert_eq(model(i), result)
     for iop, imodel, result in zip(iops, imodels, results):
         model = iop(model, imodel)
         for i in (np.array(3), [3], (3,), np.int(3), 3):
-            yield assert_eq, model(i), result, str((iop,i))
+            yield func, imodel, result, i
 
 def test_homothety_reduction3():
     @decorators.linear
@@ -1598,25 +1634,27 @@ def test_constant_reduction1():
     c = 1, np.array([1,2]), np.array([2,3,4])
     t = 'scalar', 'rightward', 'leftward'
 
+    def func(c1, t1, c2, t2):
+        op2 = ConstantOperator(c2, broadcast=t2)
+        op = op1 + op2
+        if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
+            assert_is_instance(op, ConstantOperator)
+        v = np.zeros((2,3))
+        op(np.nan, v)
+        z = np.zeros((2,3))
+        if t1 == 'rightward':
+            z.T[...] += c1.T
+        else:
+            z[...] += c1
+        if t2 == 'rightward':
+            z.T[...] += c2.T
+        else:
+            z[...] += c2
+        assert_eq(v, z)
     for c1, t1 in zip(c, t):
         op1 = ConstantOperator(c1, broadcast=t1)
         for c2, t2 in zip(c, t):
-            op2 = ConstantOperator(c2, broadcast=t2)
-            op = op1 + op2
-            if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
-                yield assert_is_instance, op, ConstantOperator
-            v = np.zeros((2,3))
-            op(np.nan, v)
-            z = np.zeros((2,3))
-            if t1 == 'rightward':
-                z.T[...] += c1.T
-            else:
-                z[...] += c1
-            if t2 == 'rightward':
-                z.T[...] += c2.T
-            else:
-                z[...] += c2
-            yield assert_eq, v, z
+            yield func, c1, t1, c2, t2
 
 def test_constant_reduction2():
     H = HomothetyOperator
@@ -1654,11 +1692,13 @@ def _test_constant_reduction3():
     cs = (ConstantOperator(2), ConstantOperator([2], broadcast='leftward'),
           ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='leftward'))
     v = 10000000
-    for o, c in zip(os, cs):
+    def func(o, c):
         op = o * c
         y_tmp = np.empty(o.shapein, int)
         c(v, y_tmp)
-        yield assert_eq, op(v), o(y_tmp)
+        assert_eq(op(v), o(y_tmp))
+    for o, c in zip(os, cs):
+        yield func, o, c
 
 def test_zero1():
     z = ZeroOperator()
@@ -1723,4 +1763,4 @@ def test_zero6():
     
 def test_zero7():
     z = ZeroOperator()
-    yield assert_is, z*z, z
+    assert_is(z*z, z)
