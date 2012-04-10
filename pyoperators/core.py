@@ -2548,7 +2548,7 @@ class BlockDiagonalOperator(BlockOperator):
     Example
     -------
     o1, o2 = Operator(shapein=(16,4)), Operator(shapein=(16,3))
-    p = BlockDiagonalOperator([o1, o2], axis=-1)
+    p = BlockDiagonalOperator([o1, o2], axisin=-1)
     print(p.shapein)
     (16,7)
 
