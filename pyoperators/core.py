@@ -364,7 +364,7 @@ class Operator(object):
                  attrin={}, attrout={}, classin=None, classout=None,
                  commin=None, commout=None, reshapein=None, reshapeout=None,
                  shapein=None, shapeout=None, toshapein=None, toshapeout=None,
-                 validatein=None, validateout=None, dtype=None, flags=None):
+                 validatein=None, validateout=None, dtype=None, flags={}):
             
         for method, name in zip( \
             (direct, transpose, adjoint, conjugate_, inverse, inverse_transpose,
@@ -997,18 +997,21 @@ class Operator(object):
         if isinstance(self.direct, np.ufunc):
             self._set_flags('inplace')
             self._set_flags('universal')
-
-        if self.flags.inplace_reduction and isinstance(self.direct,
-            (types.FunctionType, types.MethodType)):
+            if self.flags.inplace_reduction:
+                raise ValueError('Ufuncs do not handle inplace reductions.')
+        else:
             if isinstance(self.direct, types.MethodType):
                 d = self.direct.im_func
             else:
                 d = self.direct
-            if 'operation' in d.func_code.co_varnames:
-                self._set_flags('inplace_reduction')
-            elif flags is not None and 'inplace_reduction' in flags:
-                raise TypeError("The direct method of an inplace-reduction "
-                        "operator must have an 'operation' keyword.")
+            if isinstance(flags, (dict, str)) and 'inplace_reduction' not in \
+               flags or isinstance(flags, OperatorFlags):
+                if d is not None and 'operation' in d.func_code.co_varnames:
+                    self._set_flags('inplace_reduction')
+            if self.flags.inplace_reduction:
+                if d is not None and 'operation' not in d.func_code.co_varnames:
+                    raise TypeError("The direct method of an inplace-reduction "
+                            "operator must have an 'operation' keyword.")
 
 
     def _init_rules(self):
