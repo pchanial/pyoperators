@@ -1400,8 +1400,8 @@ def test_partition_implicit_commutative():
         for p1 in partitions:
             for p2 in partitions:
                 for cls, aout, ain, pout1, pin1, pout2, pin2 in zip(
-                    (BlockRowOperator, BlockDiagonalOperator,
-                     BlockColumnOperator), (None,0,0), (0,0,None), (None,p1,p1),
+                    (BlockRowOperator, BlockDiagonalOperator, BlockColumnOperator),
+                    (None,0,0), (0,0,None), (None,p1,p1),
                     (p1,p1,None), (None,p2,p2), (p2,p2,None)):
                     op1 = BlockOperator(ops, partitionout=pout1,
                               partitionin=pin1, axisin=ain, axisout=aout)
@@ -1427,12 +1427,13 @@ def test_partition_implicit_composition():
         for pout2 in partitions:
             for cls1, cls2, cls, aout1, ain1, aout2, ain2, pout1, pin2, in zip(
                 (BlockRowOperator, BlockRowOperator, BlockDiagonalOperator,
-                BlockDiagonalOperator), (BlockDiagonalOperator,
-                BlockColumnOperator, BlockDiagonalOperator,
-                BlockColumnOperator), (BlockRowOperator, HomothetyOperator,
-                BlockDiagonalOperator, BlockColumnOperator), (None,None,0,0),
-                (0,0,0,0), (0,0,0,0), (0,None,0,None), (None,None,pin1,pin1),
-                (pout2,None,pout2,None)):
+                 BlockDiagonalOperator),
+                (BlockDiagonalOperator, BlockColumnOperator, BlockDiagonalOperator,
+                 BlockColumnOperator),
+                (BlockRowOperator, HomothetyOperator, BlockDiagonalOperator,
+                 BlockColumnOperator),
+                (None,None,0,0), (0,0,0,0), (0,0,0,0), (0,None,0,None),
+                (None,None,pin1,pin1), (pout2,None,pout2,None)):
                 op1 = BlockOperator(ops, partitionin=pin1, partitionout=pout1,
                                     axisout=aout1, axisin=ain1)
                 op2 = BlockOperator(ops, partitionout=pout2, partitionin=pin2,
