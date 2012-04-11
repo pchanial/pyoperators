@@ -2038,14 +2038,14 @@ class BlockOperator(CompositeOperator):
         if new_axisin is not None:
             if partitionin is None:
                 partitionin = len(self.operands) * (1,)
-            elif partitionin != len(self.operands) * (1,):
+            elif any(p not in (None, 1) for p in partitionin):
                 raise ValueError('If the block operator input shape has one mor'
                                  'e dimension than its blocks, the input partit'
                                  'ion must be a tuple of ones.')
         if new_axisout is not None:
             if partitionout is None:
                 partitionout = len(self.operands) * (1,)
-            elif partitionout != len(self.operands) * (1,):
+            elif any(p not in (None, 1) for p in partitionout):
                 raise ValueError('If the block operator output shape has one mo'
                                  're dimension than its blocks, the output part'
                                  'ition must be a tuple of ones.')
@@ -2063,10 +2063,17 @@ class BlockOperator(CompositeOperator):
             if len(partitionin) != len(self.operands):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the input partition.')
+            partitionin = merge_none(partitionin, self._get_partitionin(
+                                      operands, partitionout, axisin, axisout,
+                                      new_axisin, new_axisout))
         if partitionout is not None:
             if len(partitionout) != len(self.operands):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the output partition.')
+            partitionout = merge_none(partitionout, self._get_partitionout(
+                                      operands, partitionin, axisin, axisout,
+                                      new_axisin, new_axisout))
+
         flags = {
             'linear':all(op.flags.linear for op in self.operands),
             'real':all(op.flags.real for op in self.operands)
@@ -2077,8 +2084,8 @@ class BlockOperator(CompositeOperator):
             flags['symmetric'] = all(op.flags.symmetric for op in self.operands)
             flags['hermitian'] = all(op.flags.hermitian for op in self.operands)
 
-        self.partitionin = partitionin
-        self.partitionout = partitionout
+        self.partitionin = tointtuple(partitionin)
+        self.partitionout = tointtuple(partitionout)
         self.axisin = axisin
         self.new_axisin = new_axisin
         self.axisout = axisout
@@ -2238,7 +2245,10 @@ class BlockOperator(CompositeOperator):
         """ Infer the input partition from the output partition. """
         if new_axisin is not None:
             return len(ops) * (1,)
-        
+
+        if partitionout is None:
+            return [o.shapein[axisin] if o.shapein else None for o in ops]
+
         if new_axisout is None:
             ndim_min = axisout+1 if axisout >= 0 else -axisout
         else:
@@ -2273,7 +2283,10 @@ class BlockOperator(CompositeOperator):
         """ Infer the output partition from the input partition. """
         if new_axisout is not None:
             return len(ops) * (1,)
-        
+
+        if partitionin is None:
+            return [o.shapeout[axisout] if o.shapeout else None for o in ops]
+
         if new_axisin is None:
             ndim_min = axisin+1 if axisin >= 0 else -axisin
         else:
@@ -2566,8 +2579,7 @@ class BlockDiagonalOperator(BlockOperator):
             partitionin = self._get_partition([op.shapein \
                 for op in self.operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
-        partitionout = self._get_partitionout(operands, partitionin, axisin,
-                                              axisout, new_axisin, new_axisout)
+        partitionout = len(partitionin) * (None,)
 
         BlockOperator.__init__(self, operands, partitionin, partitionout,
                                axisin, axisout, new_axisin, new_axisout)
@@ -3090,7 +3102,7 @@ class DiagonalOperator(BroadcastingOperator):
             ops = [func(DiagonalOperator(self.data[s], broadcast=
                    self.broadcast), o) for s, o in zip(slices, op.operands)]
 
-        return BlockOperator(ops, op.partitionin, partition, op.axisin,
+        return BlockOperator(ops, op.partitionin, op.partitionout, op.axisin,
                              op.axisout, op.new_axisin, op.new_axisout)
 
     @staticmethod
