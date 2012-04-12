@@ -1616,6 +1616,7 @@ def asoperator1d(operator):
 class CompositeOperator(Operator):
     """
     Abstract class for grouping operands.
+
     """
 
     def __new__(cls, operands=None, *args, **keywords):
@@ -1624,6 +1625,7 @@ class CompositeOperator(Operator):
             operands = cls._apply_rules(operands)
             if len(operands) == 1:
                 return operands[0]
+            cls._validate_comm(operands)
         instance = super(CompositeOperator, cls).__new__(cls)
         instance.operands = operands
         return instance
@@ -1653,6 +1655,16 @@ class CompositeOperator(Operator):
             else:
                 result.append(op)
         return result
+
+    @classmethod
+    def _validate_comm(cls, operands):
+        comms = [op.commin for op in operands if op.commin is not None]
+        if len(set(id(c) for c in comms)) > 1:
+            raise ValueError('The input MPI communicators are incompatible.')
+        comms = [op.commout for op in operands if op.commout is not None]
+        if len(set(id(c) for c in comms)) > 1:
+            raise ValueError('The output MPI communicators are incompatible.')
+        return operands
 
     def __str__(self):
         if isinstance(self, AdditionOperator):
@@ -1799,17 +1811,6 @@ class CommutativeCompositeOperator(CompositeOperator):
         return shapein
 
     @classmethod
-    def _validate_operands(cls, operands):
-        operands = super(CommutativeCompositeOperator, cls)._validate_operands(operands)
-        comms = [op.commin for op in operands if op.commin is not None]
-        if len(set(id(c) for c in comms)) > 1:
-            raise ValueError('The input MPI communicators are incompatible.')
-        comms = [op.commout for op in operands if op.commout is not None]
-        if len(set(id(c) for c in comms)) > 1:
-            raise ValueError('The output MPI communicators are incompatible.')
-        return operands
-
-    @classmethod
     def _apply_rules(cls, ops):
         if len(ops) <= 1:
             return ops
@@ -1885,8 +1886,6 @@ class AdditionOperator(CommutativeCompositeOperator):
         CommutativeCompositeOperator.__init__(
             self, operands, operator.iadd, flags=flags
         )
-        self.classin = first_is_not([o.classin for o in self.operands], None)
-        self.classout = first_is_not([o.classout for o in self.operands], None)
         self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands]))
         self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands]))
         self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
@@ -1915,9 +1914,88 @@ class MultiplicationOperator(CommutativeCompositeOperator):
         CommutativeCompositeOperator.__init__(
             self, operands, operator.imul, flags=flags
         )
-        self.classin = first_is_not([o.classin for o in self.operands], None)
-        self.classout = first_is_not([o.classout for o in self.operands], None)
         self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
+
+
+@square
+class BlockSliceOperator(CommutativeCompositeOperator):
+    """
+    Class for multiple disjoint slices.
+
+    The elements of the input not included in the slices are copied over
+    to the output. This is due to fact that is not easy to derive the complement
+    of a set of slices. To set those values to zeros, you might use MaskOperator
+    or write a custom operator.
+    Currently, there is no check to verify that the slices are disjoint.
+    Non-disjoint slices can lead to unexpected results.
+
+    Examples
+    --------
+    >>> op = BlockSliceOperator(HomothetyOperator(3), slice(None,None,2))
+    >>> op(np.ones(6))
+    array([ 3.,  1.,  3.,  1.,  3.,  1.])
+
+    >>> op = BlockSliceOperator([ConstantOperator(1), ConstantOperator(2)],
+                                ([slice(0,2), slice(0,2)],
+                                 [slice(2,4), slice(2,4)]))
+    >>> op(np.zeros((4,4)))
+    array([[ 1.,  1.,  0.,  0.],
+           [ 1.,  1.,  0.,  0.],
+           [ 0.,  0.,  2.,  2.],
+           [ 0.,  0.,  2.,  2.]])
+
+    """
+
+    def __init__(self, operands, slices, **keywords):
+        if any(
+            not op.flags.square and op.flags.shape_output != 'unconstrained'
+            for op in self.operands
+        ):
+            raise ValueError('Input operands must be square.')
+        if not isinstance(slices, (list, tuple, slice)):
+            raise TypeError('Invalid input slices.')
+        if isinstance(slices, slice):
+            slices = (slices,)
+        if len(self.operands) != len(slices):
+            raise ValueError(
+                "The number of slices '{0}' is not equal to the nu"
+                "mber of operands '{1}'.".format(len(slices), len(self.operands))
+            )
+
+        flags = {
+            'linear': all(op.flags.linear for op in self.operands),
+            'real': all(op.flags.real for op in self.operands),
+            'symmetric': all(op.flags.symmetric for op in self.operands),
+            'inplace': all(op.flags.inplace for op in self.operands),
+        }
+
+        CommutativeCompositeOperator.__init__(self, operands, flags=flags)
+        self.slices = tuple(slices)
+        self.set_rule(
+            '.C', lambda s: BlockSliceOperator([op.C for op in s.operands], s.slices)
+        )
+        self.set_rule(
+            '.T', lambda s: BlockSliceOperator([op.T for op in s.operands], s.slices)
+        )
+        self.set_rule(
+            '.H', lambda s: BlockSliceOperator([op.H for op in s.operands], s.slices)
+        )
+
+    def direct(self, input, output):
+        if not self.same_data(input, output):
+            output[...] = input
+        memory.up()
+        for s, op in zip(self.slices, self.operands):
+            o = output[s]
+            with memory.push_and_pop(o):
+                op.direct(input[s], o)
+        memory.down()
+
+    def validatereshapein(self, shapein):
+        return super(CompositeOperator, self).validatereshapein(shapein)
+
+    def validatereshapeout(self, shapeout):
+        return super(CompositeOperator, self).validatereshapeout(shapeout)
 
 
 class NonCommutativeCompositeOperator(CompositeOperator):
@@ -2298,10 +2376,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return reshapeout
 
     @classmethod
-    def _validate_operands(cls, operands):
-        operands = super(NonCommutativeCompositeOperator, cls)._validate_operands(
-            operands
-        )
+    def _validate_comm(cls, operands):
         for op1, op2 in zip(operands[:-1], operands[1:]):
             commin = op1.commin
             commout = op2.commout
@@ -2310,7 +2385,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return operands
 
 
-class BlockOperator(CompositeOperator):
+class BlockOperator(NonCommutativeCompositeOperator):
     """
     Abstract base class for BlockDiagonalOperator, BlockColumnOperator and
     BlockRowOperator.
@@ -2402,7 +2477,11 @@ class BlockOperator(CompositeOperator):
             self.__class__ = BlockRowOperator
         else:
             self.__class__ = BlockDiagonalOperator
-        CompositeOperator.__init__(self, operands, flags=flags)
+        commin = first_is_not([o.commin for o in self.operands], None)
+        commout = first_is_not([o.commout for o in self.operands], None)
+        CompositeOperator.__init__(
+            self, operands, commin=commin, commout=commout, flags=flags
+        )
 
         if self.shapein is not None:
             n = len(self.shapein)
@@ -3226,90 +3305,6 @@ class BlockRowOperator(BlockOperator):
         if len(operands) > 2:
             operands = [operands[0], '...', operands[-1]]
         return '[[ ' + ' '.join(operands) + ' ]]'
-
-
-@square
-class BlockSliceOperator(CompositeOperator):
-    """
-    Class for multiple disjoint slices.
-
-    The elements of the input not included in the slices are copied over
-    to the output. This is due to fact that is not easy to derive the complement
-    of a set of slices. To set those values to zeros, you might use MaskOperator
-    or write a custom operator.
-    Currently, there is no check to verify that the slices are disjoint.
-    Non-disjoint slices can lead to unexpected results.
-
-    Examples
-    --------
-    >>> op = BlockSliceOperator(HomothetyOperator(3), slice(None,None,2))
-    >>> op(np.ones(6))
-    array([ 3.,  1.,  3.,  1.,  3.,  1.])
-
-    >>> op = BlockSliceOperator([ConstantOperator(1), ConstantOperator(2)],
-                                ([slice(0,2), slice(0,2)],
-                                 [slice(2,4), slice(2,4)]))
-    >>> op(np.zeros((4,4)))
-    array([[ 1.,  1.,  0.,  0.],
-           [ 1.,  1.,  0.,  0.],
-           [ 0.,  0.,  2.,  2.],
-           [ 0.,  0.,  2.,  2.]])
-
-    """
-
-    def __new__(cls, operands=None, *args, **keywords):
-        # CompositeOperator's __new__ is overwritten because we allow 1 operand
-        if operands is not None:
-            operands = cls._validate_operands(operands)
-            operands = cls._apply_rules(operands)
-        instance = super(CompositeOperator, cls).__new__(cls)
-        instance.operands = operands
-        return instance
-
-    def __init__(self, operands, slices, **keywords):
-        if any(
-            not op.flags.square and op.flags.shape_output != 'unconstrained'
-            for op in self.operands
-        ):
-            raise ValueError('Input operands must be square.')
-        if not isinstance(slices, (list, tuple, slice)):
-            raise TypeError('Invalid input slices.')
-        if isinstance(slices, slice):
-            slices = (slices,)
-        if len(self.operands) != len(slices):
-            raise ValueError(
-                "The number of slices '{0}' is not equal to the nu"
-                "mber of operands '{1}'.".format(len(slices), len(self.operands))
-            )
-
-        flags = {
-            'linear': all(op.flags.linear for op in self.operands),
-            'real': all(op.flags.real for op in self.operands),
-            'symmetric': all(op.flags.symmetric for op in self.operands),
-            'inplace': all(op.flags.inplace for op in self.operands),
-        }
-
-        Operator.__init__(self, flags=flags, **keywords)
-        self.slices = tuple(slices)
-        self.set_rule(
-            '.C', lambda s: BlockSliceOperator([op.C for op in s.operands], s.slices)
-        )
-        self.set_rule(
-            '.T', lambda s: BlockSliceOperator([op.T for op in s.operands], s.slices)
-        )
-        self.set_rule(
-            '.H', lambda s: BlockSliceOperator([op.H for op in s.operands], s.slices)
-        )
-
-    def direct(self, input, output):
-        if not self.same_data(input, output):
-            output[...] = input
-        memory.up()
-        for s, op in zip(self.slices, self.operands):
-            o = output[s]
-            with memory.push_and_pop(o):
-                op.direct(input[s], o)
-        memory.down()
 
 
 @linear

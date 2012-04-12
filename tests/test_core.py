@@ -10,11 +10,10 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          ConstantOperator, DiagonalOperator, IdentityOperator,
          MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator, I,
          O)
-from pyoperators.utils import ndarraywrap, merge_none
+from pyoperators.utils import ndarraywrap, first_is_not, merge_none
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance, assert_raises,
-         assert_raises_if)
+         assert_is_none, assert_not_in, assert_is_instance, assert_raises)
 
 all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
             'Operator')]
@@ -737,25 +736,41 @@ def test_propagation_class_nested():
 # Test MPI communicators
 #========================
 
-def test_comm_commutative():
+def test_comm_composite():
     comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
-    def func(operation, comms):
-        ops = [Operator(commin=c) for c in comms]
-        assert_raises_if(MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms,
-                         ValueError, operation, ops)
-        ops = [Operator(commout=c) for c in comms]
-        assert_raises_if(MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms,
-                         ValueError, operation, ops)
-    for operation in (AdditionOperator, MultiplicationOperator):
+    def func(cls, comms, inout):
+        ops = [Operator(**{'comm'+inout:c}) for c in comms]
+        if MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms:
+            assert_raises(ValueError, cls, ops)
+            return
+        keywords = {}
+        args = ()
+        if cls in (BlockDiagonalOperator, BlockRowOperator):
+            keywords = {'axisin':0}
+        elif cls is BlockColumnOperator:
+            keywords = {'axisout':0}
+        elif cls is BlockSliceOperator:
+            args = [tuple(slice(i,i+1) for i in range(len(comms)))]
+        else:
+            keywords = {}
+        op = cls(ops, *args, **keywords)
+        assert_is(getattr(op, 'comm'+inout), first_is_not(comms, None))
+    for cls in (AdditionOperator, MultiplicationOperator, BlockRowOperator,
+                BlockDiagonalOperator, BlockColumnOperator, BlockSliceOperator):
         for comms in itertools.combinations_with_replacement(comms_all, 3):
-            yield func, operation, comms
+            for inout in ('in', 'out'):
+                yield func, cls, comms, inout
 
 def test_comm_composition():
     comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
     def func(commin, commout):
         ops = [Operator(commin=commin), Operator(commout=commout)]
-        assert_raises_if(None not in (commin, commout) and commin is not \
-                         commout, ValueError, CompositionOperator, ops)
+        if None not in (commin, commout) and commin is not commout:
+            assert_raises(ValueError, CompositionOperator, ops)
+            return
+        op = CompositionOperator(ops)
+        assert_is(op.commin, commout or commin)
+        assert_is(op.commout, commout or commin)
     for commin, commout in itertools.product(comms_all, repeat=2):
         yield func, commin, commout
 
