@@ -769,10 +769,128 @@ def test_comm_composition():
             assert_raises(ValueError, CompositionOperator, ops)
             return
         op = CompositionOperator(ops)
-        assert_is(op.commin, commout or commin)
-        assert_is(op.commout, commout or commin)
+        assert_is(op.commin, commin)
+        assert_is(op.commout, commout)
     for commin, commout in itertools.product(comms_all, repeat=2):
         yield func, commin, commout
+
+def test_comm_propagation():
+    composite = (AdditionOperator, MultiplicationOperator, BlockRowOperator, BlockDiagonalOperator, BlockColumnOperator)
+    commin = commin_ = MPI.COMM_WORLD.Dup()
+    commout = commout_ = MPI.COMM_WORLD.Dup()
+    class OpGetComm(Operator):
+        def propagate_commin(self, comm):
+            return OpNewComm(commin=comm, commout=comm)
+    class OpNewComm(Operator):
+        pass
+    class OpSetComm1(Operator):
+        commin = commin_
+        commout = commout_
+    class OpSetComm2(Operator):
+        commin = commin_
+        commout = commin_
+    opgetcomm = OpGetComm()
+    opsetcomm1 = OpSetComm1()
+    opsetcomm2 = OpSetComm2()
+    
+    # get+set in composition
+    def func1(i, op):
+        assert_is(op.commin, commin)
+        assert_is(op.commout, commout)
+        opget = op.operands[i]
+        assert_is_instance(opget, OpNewComm)
+        if i == 0:
+            assert_is(opget.commin, commout)
+            assert_is(opget.commout, commout)
+        else:
+            assert_is(opget.commin, commin)
+            assert_is(opget.commout, commin)
+    for i, ops in enumerate([(opgetcomm,opsetcomm1), (opsetcomm1,opgetcomm)]):
+        op = CompositionOperator(ops)
+        yield func1, i, op
+
+    # get+set in composite
+    def func2(i, op):
+        assert_is(op.commin, commin)
+        assert_is(op.commout, commin)
+        opget = op.operands[i]
+        assert_is_instance(opget, OpNewComm)
+        assert_is(opget.commin, commin)
+        assert_is(opget.commout, commin)
+    for cls in composite:
+        for i, ops in enumerate([(opgetcomm,opsetcomm2),
+                                 (opsetcomm2,opgetcomm)]):
+            keywords = {}
+            if cls in (BlockDiagonalOperator, BlockRowOperator):
+                keywords = {'axisin':0}
+            elif cls is BlockColumnOperator:
+                keywords = {'axisout':0}
+            op = cls(ops, **keywords)
+            yield func2, i, op
+
+    # composition(get) + set in composite
+    def func3(i, op):
+        assert_is(op.commin, commin)
+        assert_is(op.commout, commin)
+        compget = op.operands[i]
+        assert_is(compget.commin, commin)
+        assert_is(compget.commout, commin)
+        opget = op.operands[i].operands[i]
+        assert_is_instance(opget, OpNewComm)
+        assert_is(opget.commin, commin)
+        assert_is(opget.commout, commin)
+    for cls in composite:
+        for i, ops in enumerate([(opgetcomm*Operator(),opsetcomm2),
+                                 (opsetcomm2,Operator()*opgetcomm)]):
+            keywords = {}
+            if cls in (BlockDiagonalOperator, BlockRowOperator):
+                keywords = {'axisin':0}
+            elif cls is BlockColumnOperator:
+                keywords = {'axisout':0}
+            op = cls(ops, **keywords)
+            yield func3, i, op
+
+    # composite(set) + get in composition
+    def func4(i, op):
+        assert_is(op.commin, commin)
+        assert_is(op.commout, commin)
+        opget = op.operands[i]
+        assert_is_instance(opget, OpNewComm)
+        assert_is(opget.commin, commin)
+        assert_is(opget.commout, commin)
+    for cls in composite:
+        keywords = {}
+        if cls in (BlockDiagonalOperator, BlockRowOperator):
+            keywords = {'axisin':0}
+        elif cls is BlockColumnOperator:
+            keywords = {'axisout':0}
+        for ops_in in [(opsetcomm2, Operator()), (Operator(), opsetcomm2)]:
+            op_in = cls(ops_in, **keywords)
+            for i, op in enumerate([opgetcomm*op_in, op_in*opgetcomm]):
+                yield func4, i, op
+
+    # composite(get) + set in composition
+    def func5(i, j, op):
+        assert_is(op.commin, commin)
+        assert_is(op.commout, commin)
+        compget = op.operands[j]
+        assert_is(compget.commin, commin)
+        assert_is(compget.commout, commin)
+        opget = compget.operands[i]
+        assert_is_instance(opget, OpNewComm)
+        assert_is(opget.commin, commin)
+        assert_is(opget.commout, commin)
+    for cls in composite:
+        keywords = {}
+        if cls in (BlockDiagonalOperator, BlockRowOperator):
+            keywords = {'axisin':0}
+        elif cls is BlockColumnOperator:
+            keywords = {'axisout':0}
+        for i, ops_in in enumerate([(opgetcomm, Operator()),
+                                    (Operator(), opgetcomm)]):
+            op_in = cls(ops_in, **keywords)
+            for j, op in enumerate([op_in*opsetcomm2, opsetcomm2*op_in]):
+                yield func5, i, j, op
 
 
 #===========================

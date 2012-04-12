@@ -521,6 +521,22 @@ class Operator(object):
             )
         return v.reshape(self.shapeout)
 
+    def propagate_commin(self, commin):
+        """
+        Propagate MPI communicator of the input to the operands.
+        Operands have the possibility to change during this step.
+
+        """
+        return self
+
+    def propagate_commout(self, commin):
+        """
+        Propagate MPI communicator of the output to the operands.
+        Operands have the possibility to change during this step.
+
+        """
+        return self
+
     def validatein(self, shapein):
         """
         Validate an input shape by raising a ValueError exception if it is
@@ -1200,8 +1216,6 @@ class Operator(object):
             self.commin = commin
         if commout is not None:
             self.commout = commout
-        if self.commin is None or self.commout is None:
-            self.commin = self.commout = self.commin or self.commout
         if reshapein is not None:
             self.reshapein = reshapein
         if reshapeout is not None:
@@ -1635,9 +1649,27 @@ class CompositeOperator(Operator):
             return
         dtype = self._find_common_type([o.dtype for o in self.operands])
         Operator.__init__(self, dtype=dtype, **keywords)
+        self.propagate_commin(self.commin)
+        self.propagate_commout(self.commout)
 
     def propagate_attributes(self, cls, attr):
         return self.operands[0].propagate_attributes(cls, attr)
+
+    def propagate_commin(self, commin):
+        if commin is None:
+            return self
+        self.commin = commin
+        for i, op in enumerate(self.operands):
+            self.operands[i] = op.propagate_commin(commin)
+        return self
+
+    def propagate_commout(self, commout):
+        if commout is None:
+            return self
+        self.commout = commout
+        for i, op in enumerate(self.operands):
+            self.operands[i] = op.propagate_commout(commout)
+        return self
 
     @classmethod
     def _apply_rules(cls, ops):
@@ -2164,6 +2196,32 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         for op in reversed(self.operands):
             cls = op.propagate_attributes(cls, attr)
         return cls
+
+    def propagate_commin(self, commin):
+        if commin is None:
+            return self
+        self.commin = commin
+        for i, op in reversed(list(enumerate(self.operands))):
+            if op.commin is not None:
+                commin = op.commout
+            else:
+                op = op.propagate_commin(commin)
+                self.operands[i] = op
+                commin = op.commout or commin
+        return self
+
+    def propagate_commout(self, commout):
+        if commout is None:
+            return self
+        self.commout = commout
+        for i, op in enumerate(self.operands):
+            if op.commout is not None:
+                commout = op.commin
+            else:
+                op = op.propagate_commout(commout)
+                self.operands[i] = op
+                commout = op.commin or commout
+        return self
 
     def validatereshapein(self, shapein):
         shapeout = super(CompositionOperator, self).validatereshapein(shapein)
