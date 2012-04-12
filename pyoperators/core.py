@@ -1200,6 +1200,8 @@ class Operator(object):
             self.commin = commin
         if commout is not None:
             self.commout = commout
+        if self.commin is None or self.commout is None:
+            self.commin = self.commout = self.commin or self.commout
         if reshapein is not None:
             self.reshapein = reshapein
         if reshapeout is not None:
