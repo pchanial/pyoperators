@@ -2458,7 +2458,31 @@ class BlockOperator(NonCommutativeCompositeOperator):
         axisout=None,
         new_axisin=None,
         new_axisout=None,
+        flags=None,
     ):
+
+        if (
+            not isinstance(self, BlockRowOperator)
+            and axisout is None
+            and new_axisout is None
+        ):
+            self.__class__ = BlockRowOperator
+            self.__init__(operands, partitionin, axisin, new_axisin)
+            return
+        if (
+            not isinstance(self, BlockColumnOperator)
+            and axisin is None
+            and new_axisin is None
+        ):
+            self.__class__ = BlockColumnOperator
+            self.__init__(operands, partitionout, axisout, new_axisout)
+            return
+        if type(self) is BlockOperator:
+            self.__class__ = BlockDiagonalOperator
+            self.__init__(
+                operands, partitionin, axisin, axisout, new_axisin, new_axisout
+            )
+            return
 
         if new_axisin is not None:
             if partitionin is None:
@@ -2513,11 +2537,12 @@ class BlockOperator(NonCommutativeCompositeOperator):
                 ),
             )
 
-        flags = {
-            'linear': all(op.flags.linear for op in self.operands),
-            'real': all(op.flags.real for op in self.operands),
-        }
-
+        if flags is None:
+            flags = {}
+        if 'linear' not in flags:
+            flags['linear'] = all(op.flags.linear for op in self.operands)
+        if 'real' not in flags:
+            flags['real'] = all(op.flags.real for op in self.operands)
         if partitionin is not None and partitionout is not None:
             flags['square'] = all(op.flags.square for op in self.operands)
             flags['symmetric'] = all(op.flags.symmetric for op in self.operands)
@@ -3324,7 +3349,14 @@ class BlockRowOperator(BlockOperator):
 
     """
 
-    def __init__(self, operands, partitionin=None, axisin=None, new_axisin=None):
+    def __init__(
+        self,
+        operands,
+        partitionin=None,
+        axisin=None,
+        new_axisin=None,
+        operation=operator.iadd,
+    ):
         if axisin is None and new_axisin is None:
             raise NotImplementedError('Free partitioning not implemented yet.')
 
@@ -3334,12 +3366,20 @@ class BlockRowOperator(BlockOperator):
             )
         partitionin = tointtuple(partitionin)
 
+        flags = {'linear': operation is operator.iadd}
+
         BlockOperator.__init__(
             self,
             operands,
             partitionin=partitionin,
             axisin=axisin,
             new_axisin=new_axisin,
+            flags=flags,
+        )
+
+        self.operation = operation
+        self._need_temporary = any(
+            not o.flags.inplace_reduction for o in self.operands[1:]
         )
 
     def direct(self, input, output):
@@ -3351,12 +3391,26 @@ class BlockRowOperator(BlockOperator):
         else:
             partitionin = self.partitionin
 
-        # XXX optimize me
-        work = np.zeros_like(output)
-        for op, sin in zip(self.operands, self.get_slicesin(partitionin)):
-            op.direct(input[sin], output)
-            work += output
-        output[...] = work
+        if self._need_temporary:
+            memory.up()
+            buf = (
+                memory.get(output.nbytes, output.shape, output.dtype, self.__name__)
+                .view(output.dtype)
+                .reshape(output.shape)
+            )
+
+        sins = tuple(self.get_slicesin(partitionin))
+        self.operands[0].direct(input[sins[0]], output)
+
+        for op, sin in zip(self.operands, sins)[1:]:
+            if op.flags.inplace_reduction:
+                op.direct(input[sin], output, operation=self.operation)
+            else:
+                op.direct(input[sin], buf)
+                self.operation(output, buf)
+
+        if self._need_temporary:
+            memory.down()
 
     def __str__(self):
         operands = [str(o) for o in self.operands]
