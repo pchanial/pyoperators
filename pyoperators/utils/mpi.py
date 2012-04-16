@@ -1,4 +1,5 @@
 import numpy as np
+import operator
 
 try:
     from mpi4py import MPI
@@ -8,12 +9,49 @@ from .misc import isscalar, tointtuple
 
 __all__ = [
     'MPI',
+    'as_mpi',
     'combine',
     'distribute',
     'combine_shape',
     'distribute_shape',
     'distribute_slice',
 ]
+
+DTYPE_MAP = {
+    np.dtype(np.int8): MPI.SIGNED_CHAR,
+    np.dtype(np.int16): MPI.SHORT,
+    np.dtype(np.int32): MPI.INT,
+    np.dtype(np.int64): MPI.LONG,
+    np.dtype(np.uint8): MPI.UNSIGNED_CHAR,
+    np.dtype(np.uint16): MPI.UNSIGNED_SHORT,
+    np.dtype(np.uint32): MPI.UNSIGNED_INT,
+    np.dtype(np.uint64): MPI.UNSIGNED_LONG,
+    np.dtype(np.float32): MPI.FLOAT,
+    np.dtype(np.float64): MPI.DOUBLE,
+    np.dtype(np.complex64): MPI.COMPLEX,
+    np.dtype(np.complex128): MPI.DOUBLE_COMPLEX,
+}
+
+IOP_PY_MAP = {
+    'sum': operator.iadd,
+    'prod': operator.imul,
+    'min': lambda x, y: np.minimum(x, y, x),
+    'max': lambda x, y: np.maximum(x, y, x),
+}
+OP_PY_MAP = {
+    'sum': sum,
+    'prod': lambda x: reduce(np.multiply, x),
+    'min': lambda x: reduce(np.minimum, x),
+    'max': lambda x: reduce(np.maximum, x),
+}
+OP_MPI_MAP = {'sum': MPI.SUM, 'prod': MPI.PROD, 'min': MPI.MIN, 'max': MPI.MAX}
+
+
+def as_mpi(x):
+    try:
+        return x, DTYPE_MAP[x.dtype]
+    except KeyError:
+        raise KeyError("The dtype '{0}' is not handled in MPI.".format(x.dtype.name))
 
 
 def combine(n, comm=MPI.COMM_WORLD):
