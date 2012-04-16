@@ -6,7 +6,7 @@ except ImportError:
     from .utils.mpi import MPI
 from .core import Operator
 from .decorators import (real, linear, square, inplace)
-from .utils.mpi import distribute_shape, distribute_slice
+from .utils.mpi import as_mpi, distribute_shape, distribute_slice
 
 __all__ = ['DistributionGlobalOperator',
            'DistributionIdentityOperator']
@@ -151,4 +151,4 @@ class DistributionIdentityOperator(Operator):
     def transpose(self, input, output):
         if not self.same_data(input, output):
             output[...] = input
-        self.commout.Allreduce(MPI.IN_PLACE, output, op=MPI.SUM)
+        self.commout.Allreduce(MPI.IN_PLACE, as_mpi(output), op=MPI.SUM)
