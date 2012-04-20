@@ -1920,3 +1920,15 @@ def test_zero6():
 def test_zero7():
     z = ZeroOperator()
     assert_is(z*z, z)
+
+def test_zero8():
+    class Op(Operator):
+        pass
+    o = Op()
+    assert type(o + O) is Op
+
+def test_identity():
+    class Op(Operator):
+        pass
+    o = Op()
+    assert type(MultiplicationOperator([o, I])) is Op

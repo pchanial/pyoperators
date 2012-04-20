@@ -3871,6 +3871,7 @@ class IdentityOperator(HomothetyOperator):
     def __init__(self, shapein=None, **keywords):
         HomothetyOperator.__init__(self, 1, shapein=shapein, **keywords)
         self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
+        self.set_rule('.{Operator}', lambda s, o: o, MultiplicationOperator)
 
     def direct(self, input, output):
         if self.same_data(input, output):
@@ -3979,6 +3980,7 @@ class ZeroOperator(ConstantOperator):
     def __init__(self, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
         self.set_rule('.T', lambda s: ReverseOperatorFactory(ZeroOperator, s))
+        self.set_rule('.{Operator}', lambda s, o: o, AdditionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         operation(output, 0)
