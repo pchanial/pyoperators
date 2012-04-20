@@ -45,7 +45,8 @@ def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
     assert_eq(op.shapein, op.shapeout)
     assert_eq(op.reshapein, op.reshapeout)
-    assert_eq(op.toshapein, op.toshapeout)
+    if op.shapein is None:
+        assert_eq(op.toshapein, op.toshapeout)
 
 dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
