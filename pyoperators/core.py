@@ -528,10 +528,7 @@ class Operator(object):
 
     @property
     def shape(self):
-        shape = (np.product(self.shapeout), np.product(self.shapein))
-        if shape[0] is None or shape[1] is None:
-            return None
-        return shape
+        return (np.product(self.shapeout), np.product(self.shapein))
 
     @staticmethod
     def same_data(array1, array2):
