@@ -1132,6 +1132,17 @@ class Operator(object):
             else:
                 self.toshapeout = self.toshapein
 
+        if self.shapein is not None:
+            try:
+                del self.toshapein
+            except AttributeError:
+                pass
+        if self.shapeout is not None:
+            try:
+                del self.toshapeout
+            except AttributeError:
+                pass
+
         flag_is = 'explicit' if self.shapein is not None else 'implicit' \
                   if self.reshapeout is not None else 'unconstrained'
         flag_os = 'explicit' if self.shapeout is not None else 'implicit' \
