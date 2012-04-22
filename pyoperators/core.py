@@ -2141,7 +2141,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             input.shape,
             output.shape,
             output.dtype,
-            inplace_composition and operation is operation_assignment,
+            inplace_composition,
+            operation is not operation_assignment,
         )
         noutplaces = outplaces.count(True)
 
@@ -2243,9 +2244,13 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             return shapein
         return self._get_shapes(None, shapeout, self.operands)[-1]
 
-    def _get_info(self, shapein, shapeout, dtype, inplace):
+    def _get_info(
+        self, shapein, shapeout, dtype, inplace_composition, inplace_reduction
+    ):
         try:
-            return self._info[(shapein, shapeout, dtype, inplace)]
+            return self._info[
+                (shapein, shapeout, dtype, inplace_composition, inplace_reduction)
+            ]
         except KeyError:
             pass
         shapeouts = self._get_shapes(shapein, shapeout, self.operands)[:-1]
@@ -2257,9 +2262,13 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             )
         sizeouts = self._get_sizeouts(shapeouts)
         nbytes = reduce(lambda x, y: x * y, shapeout, 1) * dtype.itemsize
-        outplaces, reuse_output = self._get_outplaces(nbytes, inplace, sizeouts)
+        outplaces, reuse_output = self._get_outplaces(
+            nbytes, inplace_composition, inplace_reduction, sizeouts
+        )
         v = shapeouts, sizeouts, outplaces, reuse_output
-        self._info[(shapein, shapeout, dtype, inplace)] = v
+        self._info[
+            (shapein, shapeout, dtype, inplace_composition, inplace_reduction)
+        ] = v
         return v
 
     @staticmethod
@@ -2300,7 +2309,9 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             sizeouts.insert(0, dtype.itemsize * np.prod(shapeout))
         return sizeouts
 
-    def _get_outplaces(self, output_nbytes, inplace_composition, sizeouts):
+    def _get_outplaces(
+        self, output_nbytes, inplace_composition, inplace_reduction, sizeouts
+    ):
         outplaces = [not op.flags.inplace for op in self.operands]
         if not inplace_composition:
             outplaces[-1] = True
@@ -2310,6 +2321,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             inplace_composition
             and noutplaces % 2 == 1
             and noutplaces == len(self.operands)
+            or inplace_reduction
         ):
             return outplaces, False
 
