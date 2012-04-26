@@ -2,7 +2,14 @@ import numpy as np
 from nose.tools import eq_
 
 from pyoperators import Operator
-from pyoperators.utils import first_is_not, isscalar, strenum, strplural, strshape
+from pyoperators.utils import (
+    first_is_not,
+    isscalar,
+    product,
+    strenum,
+    strplural,
+    strshape,
+)
 
 
 def assert_is_scalar(o):
@@ -28,6 +35,14 @@ def test_is_scalar():
 def test_is_not_scalar():
     for o in ([], (), np.ones(1), np.ones(2)):
         yield assert_is_not_scalar, o
+
+
+def test_product():
+    def func(o):
+        assert o == 1
+
+    for o in ([], (), (1,), [1], [2, 0.5], (2, 0.5), np.array(1), np.array([2, 0.5])):
+        yield func, product(o)
 
 
 def test_strenum():
