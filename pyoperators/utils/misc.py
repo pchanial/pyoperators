@@ -17,6 +17,7 @@ __all__ = ['all_eq',
            'openmp_num_threads',
            'operation_assignment',
            'operation_symbol',
+           'product',
            'strelapsed',
            'strenum',
            'strinfo',
@@ -136,6 +137,18 @@ operation_symbol = {
     operator.imul: '*',
     operator.idiv: '/',
 }
+
+def product(a):
+    """ Return the product of a arbitrary input, including generators. """
+    if isinstance(a, (list, tuple, types.GeneratorType)):
+        # a for loop is a bit faster than reduce(operator.imul, a)
+        r = 1
+        for x in a:
+            r *= x
+        return r
+
+    a = np.asarray(a)
+    return np.product(a, dtype=a.dtype)
 
 def strelapsed(t0, msg='Elapsed time'):
     """
