@@ -8,6 +8,7 @@ from pyoperators.utils.mpi import (
     combine_shape,
     distribute_shape,
     distribute_slice,
+    filter_comm,
 )
 from pyoperators.operators_mpi import (
     DistributionGlobalOperator,
@@ -126,3 +127,19 @@ def test_dio_inplace():
     d = DistributionIdentityOperator()
     for n in range(10):
         yield func, n
+
+
+def test_filter_comm():
+    comm = MPI.COMM_WORLD
+
+    def func(nglobal):
+        d = np.array(comm.rank)
+        with filter_comm(comm.rank < nglobal, comm) as newcomm:
+            if newcomm is not None:
+                newcomm.Allreduce(MPI.IN_PLACE, as_mpi(d))
+        d = comm.bcast(d)
+        n = min(comm.size, nglobal)
+        assert d == n * (n - 1) // 2
+
+    for nglobal in range(comm.size + 3):
+        yield func, nglobal
