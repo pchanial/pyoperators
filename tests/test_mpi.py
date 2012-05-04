@@ -1,7 +1,7 @@
 import numpy as np
 from nose.plugins.skip import SkipTest
 from pyoperators.utils.mpi import (DTYPE_MAP, OP_PY_MAP, OP_MPI_MAP, as_mpi,
-         combine_shape, distribute_shape, distribute_slice)
+         combine_shape, distribute_shape, distribute_slice, filter_comm)
 from pyoperators.operators_mpi import (DistributionGlobalOperator,
                                        DistributionIdentityOperator)
 from pyoperators.utils.testing import assert_eq
@@ -99,8 +99,20 @@ def test_dio():
 def test_dio_inplace():
     def func(n):
         assert_eq(d.todense(shapein=n), d.todense(shapein=n, inplace=True))
-        assert_eq(d.T.todense(shapein=n), d.T.todense(shapein=n,
-                                                         inplace=True))
+        assert_eq(d.T.todense(shapein=n), d.T.todense(shapein=n, inplace=True))
     d = DistributionIdentityOperator()
     for n in range(10):
         yield func, n
+
+def test_filter_comm():
+    comm = MPI.COMM_WORLD
+    def func(nglobal):
+        d = np.array(comm.rank)
+        with filter_comm(comm.rank < nglobal, comm) as newcomm:
+            if newcomm is not None:
+                newcomm.Allreduce(MPI.IN_PLACE, as_mpi(d))
+        d = comm.bcast(d)
+        n = min(comm.size, nglobal)
+        assert d == n * (n - 1) // 2
+    for nglobal in range(comm.size + 3):
+        yield func, nglobal

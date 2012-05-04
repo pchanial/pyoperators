@@ -1,3 +1,4 @@
+import contextlib
 import numpy as np
 import operator
 
@@ -13,7 +14,8 @@ __all__ = ['MPI',
            'distribute',
            'combine_shape',
            'distribute_shape',
-           'distribute_slice']
+           'distribute_slice',
+           'filter_comm']
 
 DTYPE_MAP = {
     np.dtype(np.int8): MPI.SIGNED_CHAR,
@@ -124,3 +126,36 @@ def distribute_slice(nglobal, rank=None, size=None, comm=None):
     start = nglobal // size * rank + min(rank, nglobal % size)
     stop = start + nlocal
     return slice(start, stop)
+
+
+@contextlib.contextmanager
+def filter_comm(condition, comm):
+    """
+    Return a context manager whose return value is a communicator that only
+    include processes for which the specified condition is met or None
+    otherwise.
+
+    Parameters:
+    -----------
+    condition : boolean
+        Condition to be met to include the process in the new communicator.
+    comm : mpi4py.MPI.Comm
+        The communicator of the processes that reach the execution of
+        this function. These processes will be included in the new communicator
+        if condition is True.
+        
+    Example:
+    --------
+    The following snippet prints the list of the rank of the 3 first processes,
+    for any number of MPI processes greater than 3:
+    with filter_comm(comm.rank < 3, MPI.COMM_WORLD) as newcomm:
+        if newcomm is not None:
+            print(newcomm.allgather(newcomm.rank))
+    
+    """
+    newcomm = comm.Split(color=int(condition), key=comm.rank)
+    if not condition:
+        yield None
+    else:
+        yield newcomm
+    newcomm.Free()
