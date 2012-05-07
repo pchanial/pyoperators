@@ -115,6 +115,21 @@ def distribute_shape(shape, rank=None, size=None, comm=None):
     return (nlocal,) + tuple(shape[1:])
 
 
+def distribute_shapes(shape, comm=None):
+    """
+    Return the list of the local array shapes given the shape of a global array,
+    for all MPI processes. The load is distributed along the first dimension.
+    """
+    if comm is None:
+        comm = MPI.COMM_WORLD
+    size = comm.size
+    nglobal = shape[0]
+    shape_first = (nglobal // size + 1,) + shape[1:]
+    shape_last = (nglobal // size,) + shape[1:]
+    nfirst = nglobal % size
+    return nfirst * (shape_first,) + (size - nfirst) * (shape_last,)
+
+
 def distribute_slice(nglobal, rank=None, size=None, comm=None):
     """
     Given a number of ordered global work items, return the slice that brackets
