@@ -32,10 +32,10 @@ def test_allreduce():
             i = np.iinfo(dtype if dtype != np.uint64 else np.int64)
             x = np.random.random_integers(i.min, i.max-1, size=n).astype(dtype)
         elif dtype.kind == 'f':
-            x = np.random.random_integers(-m, m, size=n).astype(dtype)
+            x = np.random.random_integers(-100, 100, size=n).astype(dtype)
         elif dtype.kind == 'c':
-            x = np.random.random_integers(-m, m, size=n).astype(dtype) + \
-                np.random.random_integers(-m, m, size=n).astype(dtype) * 1j
+            x = np.random.random_integers(-100, 100, size=n) + \
+                np.random.random_integers(-100, 100, size=n) * 1j
         else:
             raise TypeError()
         xs = comm.allgather(x)
