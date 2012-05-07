@@ -1,7 +1,8 @@
 import numpy as np
 from nose.plugins.skip import SkipTest
 from pyoperators.utils.mpi import (DTYPE_MAP, OP_PY_MAP, OP_MPI_MAP, as_mpi,
-         combine_shape, distribute_shape, distribute_slice, filter_comm)
+         combine_shape, distribute_shape, distribute_shapes, distribute_slice,
+         filter_comm)
 from pyoperators.operators_mpi import (DistributionGlobalOperator,
                                        DistributionIdentityOperator)
 from pyoperators.utils.testing import assert_eq
@@ -55,8 +56,16 @@ def test_collect():
                 yield func, comm, s1, s2
 
 def test_distribute():
+    class MyComm(object):
+        def __init__(self, rank, size):
+            self.rank = rank
+            self.size = size
     if size > 1:
         return
+    def func(a, r, shape, shapes):
+        assert_equal(a[r], shape[0])
+        assert_equal(shapes[r], shape)
+
     for n in range(10):
         for sz in range(1,7):
             work = np.zeros(n, int)
@@ -67,11 +76,18 @@ def test_distribute():
                 a[r] = sum(work==r)
             stop = tuple(np.cumsum(a))
             start = (0,) + stop[:-1]
-            for r in range(sz):
-                yield assert_eq, a[r], distribute_shape((n,), rank=r,
-                                                           size=sz)[0]
-                s = slice(start[r], stop[r])
-                yield assert_eq, s, distribute_slice(n, rank=r, size=sz)
+            comm = MyComm(0, sz)
+            for s in [(), (1,), (3,4)]:
+                shapes = distribute_shapes((n,) + s, comm=comm)
+                for r in range(sz):
+                    shape = distribute_shape((n,) + s, rank=r, size=sz)
+                    yield func, a, r, shape, shapes
+                    if len(s) > 0:
+                        continue
+                    sl = slice(start[r], stop[r])
+                    yield assert_eq, sl, distribute_slice(n, rank=r, size=sz)
+
+    
 
 def test_dgo():
     def func(shape, dtype):
