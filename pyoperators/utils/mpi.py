@@ -17,6 +17,7 @@ __all__ = [
     'distribute_shape',
     'distribute_slice',
     'filter_comm',
+    'mprint',
 ]
 
 DTYPE_MAP = {
@@ -178,3 +179,19 @@ def filter_comm(condition, comm):
     else:
         yield newcomm
     newcomm.Free()
+
+
+def mprint(msg='', comm=MPI.COMM_WORLD):
+    """
+    Print message on stdout. If the message is the same for all nodes,
+    only print one message. Otherwise, add rank information.
+
+    All messages are gathered and printed by rank 0 process, to make sure that
+    messages are printed in rank order.
+    """
+    msgs = comm.gather(msg)
+    if comm.rank == 0:
+        if all(m == msgs[0] for m in msgs):
+            print(msg)
+        else:
+            print('\n'.join('Rank {}: {}'.format(i, m) for i, m in enumerate(msgs)))
