@@ -3374,10 +3374,14 @@ class ConstantOperator(BroadcastingOperator):
 
     @staticmethod
     def _rule_left(self, op):
+        if op.commin is not None or op.commout is not None:
+            return None
         return self.copy()
 
     @staticmethod
     def _rule_right(op, self):
+        if op.commin is not None or op.commout is not None:
+            return None
         if op.flags.shape_output == 'unconstrained':
             return None
         if self.flags.shape_output == 'explicit':
@@ -3433,6 +3437,8 @@ class ZeroOperator(ConstantOperator):
 
     @staticmethod
     def _rule_right(op, self):
+        if op.commin is not None or op.commout is not None:
+            return None
         if op.flags.linear:
             return self.copy()
         return super(ZeroOperator, self)._rule_right(op, self)
