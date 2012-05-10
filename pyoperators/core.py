@@ -964,10 +964,6 @@ class Operator(object):
 
     def _init_flags(self, flags):
 
-# XXX reset me...
-#        if 'flags' in self.__dict__:
-#            del self.__dict__['flags']
-
         self._set_flags(flags)
 
         if self.flags.real:
@@ -1881,6 +1877,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
     def __init__(self, operands=None):
         flags = self._merge_flags(self.operands)
+        flags['inplace_reduction'] = self.operands[0].flags.inplace_reduction
         classin = first_is_not([o.classin for o in self.operands[::-1]], None)
         classout = first_is_not([o.classout for o in self.operands], None)
         commin = first_is_not([o.commin for o in self.operands[::-1]], None)
@@ -2144,7 +2141,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'real':all([op.flags.real for op in ops]),
             'square':all([op.flags.square for op in ops]),
             'universal':all([op.flags.universal for op in ops]),
-            'inplace_reduction':ops[0].flags.inplace_reduction,
         }
         return flags
 
