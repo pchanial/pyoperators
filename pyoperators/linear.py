@@ -109,6 +109,22 @@ class MaskOperator(DiagonalOperator):
         DiagonalOperator.__init__(self, mask, dtype=np.bool8, **keywords)
         self.data = ~self.data
 
+    @staticmethod
+    def _rule_left_block(self, op, cls):
+        func_operation = lambda d, b: cls([d, b])
+        func_data = lambda d: ~d
+        return self._rule_block(self, op, op.shapeout, op.partitionout,
+                                op.axisout, op.new_axisout, func_operation,
+                                func_data)
+
+    @staticmethod
+    def _rule_right_block(op, self, cls):
+        func_operation = lambda d, b: cls([b, d])
+        func_data = lambda d: ~d
+        return self._rule_block(self, op, op.shapein, op.partitionin,
+                                op.axisin, op.new_axisin, func_operation,
+                                func_data)
+
 
 @linear
 @real
