@@ -307,6 +307,11 @@ class OperatorBinaryRule(OperatorRule):
             if subother == 'self':
                 if not isinstance(other, reference.__class__):
                     return None
+            elif subother == 'HomothetyOperator':
+                if not isinstance(other, ZeroOperator) and subother not in (
+                    c.__name__ for c in other.__class__.__mro__
+                ):
+                    return None
             elif subother not in (c.__name__ for c in other.__class__.__mro__):
                 return None
         elif other is not subother:
@@ -3517,12 +3522,12 @@ class BroadcastingOperator(Operator):
         )
         self.set_rule(
             '.{BlockOperator}',
-            lambda s, o: self._rule_left_block_composition(s, o),
+            lambda s, o: self._rule_left_block(s, o, CompositionOperator),
             CompositionOperator,
         )
         self.set_rule(
             '{BlockOperator}.',
-            lambda o, s: self._rule_right_block_composition(o, s),
+            lambda o, s: self._rule_right_block(o, s, CompositionOperator),
             CompositionOperator,
         )
         self.set_rule(
@@ -3575,7 +3580,16 @@ class BroadcastingOperator(Operator):
         return cls(data, broadcast)
 
     @staticmethod
-    def _rule_block(self, op, shape, partition, axis, new_axis, func):
+    def _rule_block(
+        self,
+        op,
+        shape,
+        partition,
+        axis,
+        new_axis,
+        func_operation,
+        func_data=lambda x: x,
+    ):
         if partition is None:
             return
         if None in partition and self.broadcast != 'scalar':
@@ -3629,11 +3643,11 @@ class BroadcastingOperator(Operator):
                 if axis_ - len(shape) < -ndim:
                     do_replicate = True
         if do_replicate:
-            ops = [func(self, o) for o in op.operands]
+            ops = [func_operation(self, o) for o in op.operands]
         else:
             slices = op._get_slices(partition, axis, new_axis)
             ops = [
-                func(type(self)(data[s], broadcast=b), o)
+                func_operation(type(self)(func_data(data)[s], broadcast=b), o)
                 for s, o in zip(slices, op.operands)
             ]
 
@@ -3787,20 +3801,6 @@ class DiagonalOperator(BroadcastingOperator):
 
         return v
 
-    @staticmethod
-    def _rule_left_block_composition(self, op):
-        func = lambda d, b: CompositionOperator([d, b])
-        return self._rule_block(
-            self, op, op.shapeout, op.partitionout, op.axisout, op.new_axisout, func
-        )
-
-    @staticmethod
-    def _rule_right_block_composition(op, self):
-        func = lambda d, b: CompositionOperator([b, d])
-        return self._rule_block(
-            self, op, op.shapein, op.partitionin, op.axisin, op.new_axisin, func
-        )
-
 
 @inplace
 class HomothetyOperator(DiagonalOperator):
@@ -3945,6 +3945,16 @@ class ConstantOperator(BroadcastingOperator):
         self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
         self.set_rule('.{CompositionOperator}', self._rule_mul, MultiplicationOperator)
         self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
+        self.set_rule(
+            '.{BlockOperator}',
+            lambda s, o: self._rule_left_block_composition(s, o),
+            CompositionOperator,
+        )
+        self.set_rule(
+            '{BlockOperator}.',
+            lambda o, s: self._rule_right_block_composition(o, s),
+            CompositionOperator,
+        )
 
     def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'rightward':
