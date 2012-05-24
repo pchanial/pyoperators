@@ -7,7 +7,7 @@ from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
          BlockRowOperator, BlockSliceOperator, CompositionOperator,
-         ConstantOperator, DiagonalOperator, IdentityOperator,
+         ConstantOperator, DiagonalOperator, IdentityOperator, MaskOperator,
          MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator, I,
          O)
 from pyoperators.utils import ndarraywrap, first_is_not, merge_none
@@ -1732,11 +1732,13 @@ def test_broadcasting_as_strided():
         yield func, b
 
 def test_diagonal1():
-    data = (0., 1., [0,0], [1,1], 2, [2,2], [1,2])
+    data = (0., 1., [0,0], [1,1], 2, [2,2], [0,1], [-1,1], [2,1])
     expected = (ZeroOperator, IdentityOperator, ZeroOperator, IdentityOperator,
-                HomothetyOperator, HomothetyOperator, DiagonalOperator)
+                HomothetyOperator, HomothetyOperator, MaskOperator,
+                DiagonalOperator, DiagonalOperator)
     def func(d, e):
-        assert_is(DiagonalOperator(d).__class__, e)
+        op = DiagonalOperator(d)
+        assert_is(op.__class__, e)
     for d, e in zip(data, expected):
         yield func, d, e
 
@@ -1773,6 +1775,58 @@ def test_diagonal2():
                     continue
                 yield func, op, d1, d2
     
+def test_masking():
+
+    mask = MaskOperator(0)
+    assert isinstance(mask, IdentityOperator)
+    mask = MaskOperator(0, shapein=(32,32), dtype=np.float32)
+    assert isinstance(mask, IdentityOperator)
+    assert mask.shapein == (32,32)
+    assert mask.dtype == np.float32
+
+    mask = MaskOperator(1)
+    assert isinstance(mask, ZeroOperator)
+    mask = MaskOperator(1, shapein=(32,32), dtype=np.float32)
+    assert isinstance(mask, ZeroOperator)
+    assert mask.shapein == (32,32)
+    assert mask.dtype == np.float32
+
+    b = np.array([3., 4., 1., 0., 3., 2.])
+    c = np.array([3., 4., 0., 0., 3., 0.])
+    mask = MaskOperator(np.array([0, 0., 1., 1., 0., 1], dtype=np.int8))
+    assert np.all(mask(b) == c)
+    mask = DiagonalOperator(np.array([1, 1., 0., 0., 1., 0]))
+    assert np.all(mask(b) == c)
+    mask = MaskOperator(np.array([False, False, True, True, False, True]))
+    assert np.all(mask(b) == c)
+
+    b = np.array([[3., 4.], [1., 0.], [3., 2.]])
+    c = np.array([[3., 4.], [0., 0.], [3., 0.]])
+    mask = MaskOperator(np.array([[0, 0.], [1., 1.], [0., 1.]], dtype='int8'))
+    assert np.all(mask(b) == c)
+    mask = DiagonalOperator(np.array([[1, 1.], [0., 0.], [1., 0.]]))
+    assert np.all(mask(b) == c)
+    mask = MaskOperator(np.array([[False, False], [True, True], [False, True]]))
+    assert np.all(mask(b) == c)
+
+    b = np.array([[[3, 4.], [1., 0.]], [[3., 2], [-1, 9]]])
+    c = np.array([[[3, 4.], [0., 0.]], [[3., 0], [0, 0]]])
+    mask = MaskOperator(np.array([[[0, 0.], [1., 1.]], [[0., 1], [1, 1]]], int))
+    assert np.all(mask(b) == c)
+
+    mask = DiagonalOperator(np.array([[[1, 1], [0., 0]], [[1, 0], [0, 0]]]))
+    assert np.all(mask(b) == c)
+    mask = MaskOperator(np.array([[[False, False], [True, True]],
+                                  [[False, True], [True, True]]]))
+    assert np.all(mask(b) == c)
+
+    c = mask(b, b)
+    assert id(b) == id(c)
+
+def test_masking2():
+    m = MaskOperator([True, False, True])
+    assert m * m is m
+
 def test_homothety_operator():
     s = HomothetyOperator(1)
     assert s.C is s.T is s.H is s.I is s
