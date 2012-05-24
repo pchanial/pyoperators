@@ -8,8 +8,11 @@ import os
 import scipy.sparse
 import types
 
+from . import cythonutils as cu
+
 __all__ = ['all_eq',
            'first_is_not',
+           'inspect_special_values',
            'isclassattr',
            'isscalar',
            'merge_none',
@@ -73,6 +76,43 @@ def first_is_not(l, v):
         if a is not v:
             return a
     return v
+
+def inspect_special_values(x):
+    """
+    If an array has no other values than -1, 0 and 1, return a tuple consisting
+    of their occurences plus the boolean False and a boolean indicating if
+    all values are equal. Otherwise, return the tuple (0, 0, 0, True,
+    np.all(x == x.flat[0]))
+
+    Parameter
+    ---------
+    x : numerical ndarray
+        The array to be inspected.
+
+    Examples
+    --------
+    >>> inspect_special_values([0,-1,-1])
+    2, 1, 0, False, False
+    >>> inspect_special_values([0,-1,-1,1.2])
+    0, 0, 0, True, False
+
+    """
+    x = np.asarray(x)
+    if x.size == 0:
+        return 0, 0, 0, 0, False
+    x = x.ravel()
+    kind = x.dtype.kind
+    if kind == 'b':
+        return cu.inspect_special_values_bool8(x.view(np.uint8))
+    if kind == 'f':
+        return cu.inspect_special_values_float64(x.astype(np.float64))
+    if kind == 'i':
+        return cu.inspect_special_values_int64(x.astype(np.int64))
+    if kind == 'u':
+        return cu.inspect_special_values_uint64(x.astype(np.uint64))
+    if kind == 'c':
+        return cu.inspect_special_values_complex128(x.astype(np.complex128))
+    return 0, 0, 0, True, False
 
 def isclassattr(cls, a):
     """ Test if an attribute is a class attribute. """

@@ -1,6 +1,7 @@
+from . import mpi
+from . import testing
+from .cythonutils import *
 from .misc import *
-import mpi
-import testing
 
 __all__ = [ 'operation_assignment' ]
 
