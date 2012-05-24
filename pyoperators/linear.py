@@ -5,8 +5,8 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, symmetric, inplace
-from .core import (Operator, CompositionOperator, DirectOperatorFactory,
-                   ReverseOperatorFactory, asoperator)
+from .core import (Operator, CompositionOperator, DiagonalOperator,
+                   DirectOperatorFactory, ReverseOperatorFactory, asoperator)
 from .utils import isscalar, strshape
 
 __all__ = [
