@@ -8,6 +8,7 @@ from .decorators import linear, real, symmetric, inplace
 from .core import (
     Operator,
     CompositionOperator,
+    DiagonalOperator,
     DirectOperatorFactory,
     ReverseOperatorFactory,
     asoperator,
