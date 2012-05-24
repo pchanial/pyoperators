@@ -1732,12 +1732,14 @@ def test_broadcasting_as_strided():
         yield func, b
 
 def test_diagonal1():
-    data = (0., 1., [0,0], [1,1], 2, [2,2], [0,1], [-1,1], [2,1])
+    data = (0., 1., [0,0], [1,1], 2, [2,2], [0,1], [-1,-1], [-1,1], [2,1])
     expected = (ZeroOperator, IdentityOperator, ZeroOperator, IdentityOperator,
                 HomothetyOperator, HomothetyOperator, MaskOperator,
-                DiagonalOperator, DiagonalOperator)
+                HomothetyOperator, DiagonalOperator, DiagonalOperator)
     def func(d, e):
         op = DiagonalOperator(d)
+        if all(_ in (-1,1) for _ in op.data.flat):
+            assert op.flags.involutary
         assert_is(op.__class__, e)
     for d, e in zip(data, expected):
         yield func, d, e

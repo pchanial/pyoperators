@@ -3754,6 +3754,10 @@ class DiagonalOperator(BroadcastingOperator):
             self.__class__ = MaskOperator
             self.__init__(~data.astype(np.bool8), **keywords)
             return
+        if nmones + nones == n:
+            keywords['flags'] = self.validate_flags(
+                keywords.get('flags', {}), involutary=True
+            )
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
 
     def direct(self, input, output):
@@ -3897,8 +3901,6 @@ class HomothetyOperator(DiagonalOperator):
             if any(s != 0 for s in data.strides) and np.any(data.flat[0] != data):
                 raise ValueError("The input is not a scalar..")
             data = np.asarray(data.flat[0])
-        if data == -1:
-            keywords['flags'] = {'involutary': True}
 
         DiagonalOperator.__init__(self, data, 'scalar', **keywords)
         self.set_rule(
