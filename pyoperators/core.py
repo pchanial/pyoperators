@@ -1306,7 +1306,7 @@ class Operator(object):
         if isinstance(flags, OperatorFlags):
             self.flags = flags
             return
-        flags = self._validate_flags(flags)
+        flags = self.validate_flags(flags)
         f = [k for k, v in flags.items() if v]
         if 'symmetric' in f or 'hermitian' in f or 'orthogonal' in f or 'unitary' in f:
             flags['linear'] = flags['square'] = True
@@ -1361,22 +1361,24 @@ class Operator(object):
         return input, output
 
     @staticmethod
-    def _validate_flags(flags):
+    def validate_flags(flags, **keywords):
         """Return flags as a dictionary."""
         if flags is None:
-            return {}
+            return keywords
         if isinstance(flags, dict):
-            return flags.copy()
-        if isinstance(flags, OperatorFlags):
-            return dict((k, v) for k, v in zip(OperatorFlags._fields, flags))
-        if isinstance(flags, str):
-            flags = [f.strip() for f in flags.split(',')]
-        if not isinstance(flags, (list, tuple)):
+            flags = flags.copy()
+        elif isinstance(flags, OperatorFlags):
+            flags = dict((k, v) for k, v in zip(OperatorFlags._fields, flags))
+        elif isinstance(flags, (list, tuple, str)):
+            if isinstance(flags, str):
+                flags = [f.strip() for f in flags.split(',')]
+            flags = dict((f, True) for f in flags)
+        else:
             raise TypeError(
                 "The operator flags have an invalid type '{0}'.".format(flags)
             )
-        flags = dict((f, True) for f in flags)
-        if any(not isinstance(f, str) for f in flags.keys()):
+        flags.update(keywords)
+        if any(not isinstance(f, str) for f in flags):
             raise TypeError("Invalid type for the operator flags: {0}.".format(flags))
         if any(f not in OperatorFlags._fields for f in flags):
             raise ValueError(
