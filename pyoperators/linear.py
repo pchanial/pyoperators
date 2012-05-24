@@ -4,9 +4,8 @@ import numpy as np
 
 from scipy.sparse.linalg import eigsh
 
-from .decorators import linear, real, idempotent, symmetric, inplace
-from .core import (Operator, CompositionOperator, DiagonalOperator,
-                   IdentityOperator, ZeroOperator, DirectOperatorFactory,
+from .decorators import linear, real, symmetric, inplace
+from .core import (Operator, CompositionOperator, DirectOperatorFactory,
                    ReverseOperatorFactory, asoperator)
 from .utils import isscalar, strshape
 
@@ -14,7 +13,6 @@ __all__ = [
     'BandOperator',
     'DenseOperator',
     'EigendecompositionOperator',
-    'MaskOperator',
     'PackOperator',
     'SymmetricBandOperator',
     'TridiagonalOperator',
@@ -70,60 +68,6 @@ class DenseOperator(Operator):
 
     def todense(self, shapein=None):
         return self.data
-
-
-@real
-@idempotent
-@inplace
-class MaskOperator(DiagonalOperator):
-    """
-    A subclass of DiagonalOperator with booleans on the diagonal.
-
-    Exemple
-    -------
-    >>> M = MaskOperator([True, False])
-    >>> M.todense()
-
-    array([[False, False],
-           [False,  True]], dtype=bool)
-
-    Notes
-    -----
-    We follow the convention of MaskedArray, where True means masked.
-    """
-    def __new__(cls, data, broadcast='disabled', shapein=None, dtype=None,
-                flags=None, **keywords):
-        data = np.array(data, dtype, copy=False)
-        if shapein is None and broadcast == 'disabled' and data.ndim > 0:
-            shapein = data.shape
-        if np.all(data == 1):
-            flags = cls._validate_flags(flags)
-            flags['square'] = True
-            return ZeroOperator(shapein=shapein, dtype=dtype, flags=flags,
-                                **keywords)
-        elif np.all(data == 0):
-            return IdentityOperator(shapein=shapein, dtype=dtype, **keywords)
-        return DiagonalOperator.__new__(cls)
-
-    def __init__(self, mask, dtype=None, **keywords):
-        DiagonalOperator.__init__(self, mask, dtype=np.bool8, **keywords)
-        self.data = ~self.data
-
-    @staticmethod
-    def _rule_left_block(self, op, cls):
-        func_operation = lambda d, b: cls([d, b])
-        func_data = lambda d: ~d
-        return self._rule_block(self, op, op.shapeout, op.partitionout,
-                                op.axisout, op.new_axisout, func_operation,
-                                func_data)
-
-    @staticmethod
-    def _rule_right_block(op, self, cls):
-        func_operation = lambda d, b: cls([b, d])
-        func_data = lambda d: ~d
-        return self._rule_block(self, op, op.shapein, op.partitionin,
-                                op.axisin, op.new_axisin, func_operation,
-                                func_data)
 
 
 @linear

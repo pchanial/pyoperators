@@ -16,9 +16,9 @@ import types
 
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
-from .utils import (all_eq, first_is_not, isclassattr, isscalar, merge_none,
-                    ndarraywrap, operation_assignment, strenum, strshape,
-                    tointtuple)
+from .utils import (all_eq, first_is_not, inspect_special_values, isclassattr,
+                    isscalar, merge_none, ndarraywrap, operation_assignment,
+                    strenum, strshape, tointtuple)
 from .utils.mpi import MPI
 from .decorators import (linear, real, idempotent, involutary, square,
                          symmetric, inplace)
@@ -37,6 +37,7 @@ __all__ = [
     'DiagonalOperator',
     'HomothetyOperator',
     'IdentityOperator',
+    'MaskOperator',
     'MultiplicationOperator',
     'ReshapeOperator',
     'ZeroOperator',
@@ -3157,15 +3158,30 @@ class DiagonalOperator(BroadcastingOperator):
            [0, 1, 0, 0],
            [0, 0, 2, 0],
            [0, 0, 0, 2]])
+
     """
     def __init__(self, data, broadcast='disabled', **keywords):
         data = np.asarray(data)
-        if not isinstance(self, HomothetyOperator) and \
-           np.all(data == data.flat[0]):
-            if broadcast == 'disabled' and data.ndim > 0:
-                keywords['shapein'] = data.shape
+        if broadcast == 'disabled' and data.ndim > 0:
+            keywords['shapein'] = data.shape
+        n = data.size
+        nmones, nzeros, nones, other, same = inspect_special_values(data)
+        if nzeros == n and not isinstance(self, ZeroOperator):
+            self.__class__ = ZeroOperator
+            self.__init__(**keywords)
+            return
+        if nones == n and not isinstance(self, IdentityOperator):
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+        if same and not isinstance(self, (HomothetyOperator, ZeroOperator)):
             self.__class__ = HomothetyOperator
             self.__init__(data.flat[0], **keywords)
+            return
+        if nones + nzeros == n and not isinstance(self, (HomothetyOperator,
+                                                         MaskOperator)):
+            self.__class__ = MaskOperator
+            self.__init__(~data.astype(np.bool8), **keywords)
             return
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
 
@@ -3234,6 +3250,46 @@ class DiagonalOperator(BroadcastingOperator):
 
         return v
 
+@real
+@idempotent
+class MaskOperator(DiagonalOperator):
+    """
+    A subclass of DiagonalOperator with booleans on the diagonal.
+
+    Exemple
+    -------
+    >>> M = MaskOperator([True, False])
+    >>> M.todense()
+
+    array([[False, False],
+           [False,  True]], dtype=bool)
+
+    Notes
+    -----
+    We follow the convention of MaskedArray, where True means masked.
+
+    """
+    def __init__(self, mask, **keywords):
+        mask = np.array(mask, dtype=np.bool8)
+        DiagonalOperator.__init__(self, ~mask, **keywords)
+
+    @staticmethod
+    def _rule_left_block(self, op, cls):
+        func_operation = lambda d, b: cls([d, b])
+        func_data = lambda d: ~d
+        return self._rule_block(self, op, op.shapeout, op.partitionout,
+                                op.axisout, op.new_axisout, func_operation,
+                                func_data)
+
+    @staticmethod
+    def _rule_right_block(op, self, cls):
+        func_operation = lambda d, b: cls([b, d])
+        func_data = lambda d: ~d
+        return self._rule_block(self, op, op.shapein, op.partitionin,
+                                op.axisin, op.new_axisin, func_operation,
+                                func_data)
+
+
 @inplace
 class HomothetyOperator(DiagonalOperator):
     """
@@ -3252,14 +3308,6 @@ class HomothetyOperator(DiagonalOperator):
                np.any(data.flat[0] != data):
                 raise ValueError("The input is not a scalar..")
             data = np.asarray(data.flat[0])
-        if not isinstance(self, ZeroOperator) and data == 0:
-            self.__class__ = ZeroOperator
-            self.__init__(**keywords)
-            return
-        if not isinstance(self, IdentityOperator) and data == 1:
-            self.__class__ = IdentityOperator
-            self.__init__(**keywords)
-            return
         if data == -1:
             keywords['flags'] = {'involutary':True}
 
