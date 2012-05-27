@@ -3734,6 +3734,7 @@ class DiagonalOperator(BroadcastingOperator):
         data = np.asarray(data)
         if broadcast == 'disabled' and data.ndim > 0:
             keywords['shapein'] = data.shape
+            keywords['shapeout'] = data.shape
         n = data.size
         nmones, nzeros, nones, other, same = inspect_special_values(data)
         if nzeros == n and not isinstance(self, ZeroOperator):
