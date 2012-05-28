@@ -4101,7 +4101,7 @@ class ZeroOperator(ConstantOperator):
     A subclass of ConstantOperator with data = 0.
     """
 
-    def __init__(self, **keywords):
+    def __init__(self, *args, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
         self.set_rule('.T', lambda s: ReverseOperatorFactory(ZeroOperator, s))
         self.set_rule('.{Operator}', lambda s, o: o, AdditionOperator)
