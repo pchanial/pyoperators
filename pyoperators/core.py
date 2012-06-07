@@ -587,11 +587,7 @@ class Operator(object):
         with memory.push_and_pop(o):
             if not self.flags.inplace and self.same_data(i, o):
                 memory.up()
-                o_ = (
-                    memory.get(o.nbytes, o.shape, o.dtype, self.__name__)
-                    .view(o.dtype)
-                    .reshape(o.shape)
-                )
+                o_ = memory.get(o.shape, o.dtype, self.__name__)
             else:
                 o_ = o
             self.direct(i, o_)
@@ -1788,11 +1784,7 @@ class CommutativeCompositeOperator(CompositeOperator):
 
         if need_temporary:
             memory.up()
-            buf = (
-                memory.get(output.nbytes, output.shape, output.dtype, self.__name__)
-                .view(output.dtype)
-                .reshape(output.shape)
-            )
+            buf = memory.get(output.shape, output.dtype, self.__name__)
 
         operands[0].direct(input, output)
 
@@ -2162,11 +2154,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         ):
             if outplace and iop > 0:
                 memory.up()
-                o = (
-                    memory.get(sizeout, shapeout, output.dtype, self.__name__)
-                    .view(output.dtype)
-                    .reshape(shapeout)
-                )
+                o = memory.get(shapeout, output.dtype, self.__name__)
                 op.direct(i, o)
                 i = o
                 memory.down()
@@ -2174,11 +2162,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 nswaps += 1
             else:
                 # we keep reusing the same stack element for inplace operators
-                o = (
-                    memory.get(sizeout, shapeout, output.dtype, self.__name__)
-                    .view(output.dtype)
-                    .reshape(shapeout)
-                )
+                o = memory.get(shapeout, output.dtype, self.__name__)
                 op.direct(i, o)
                 i = o
 
@@ -3410,11 +3394,7 @@ class BlockRowOperator(BlockOperator):
 
         if self._need_temporary:
             memory.up()
-            buf = (
-                memory.get(output.nbytes, output.shape, output.dtype, self.__name__)
-                .view(output.dtype)
-                .reshape(output.shape)
-            )
+            buf = memory.get(output.shape, output.dtype, self.__name__)
 
         sins = tuple(self.get_slicesin(partitionin))
         self.operands[0].direct(input[sins[0]], output)
