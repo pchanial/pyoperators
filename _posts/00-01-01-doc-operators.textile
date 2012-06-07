@@ -855,6 +855,7 @@ h3. Linear operators
 h3. Non-linear operators
 
 * ClipOperator
+* ConstantOperator
 * HardThresholdingOperator
 * MaximumOperator
 * MinimumOperator
