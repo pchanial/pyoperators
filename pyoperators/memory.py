@@ -12,6 +12,7 @@ from __future__ import division
 import gc
 import numpy as np
 from . import utils
+from .utils import product
 
 __all__ = []
 
@@ -80,19 +81,23 @@ def swap():
         stack.append(None)
     stack[istack], stack[istack+1] = stack[istack+1], stack[istack]
 
-def get(nbytes, shape, dtype, description):
+def get(shape, dtype, description):
     """
     Get an array of given shape and dtype from the stack.
     The output array is guaranteed to be C-contiguous.
     """
     global stack, istack    
     assert istack <= len(stack)
+
+    dtype = np.dtype(dtype)
+    nbytes = product(shape) * dtype.itemsize
+
     if istack == len(stack):
         stack.append(None)
 
     v = stack[istack]
     if v is not None and v.nbytes >= nbytes:
-        return v[:nbytes]
+        return v[:nbytes].view(dtype).reshape(shape)
 
     if verbose:
         print(utils.strinfo('Allocating ' + utils.strshape(shape) + ' ' +
@@ -107,7 +112,7 @@ def get(nbytes, shape, dtype, description):
         v = np.empty(nbytes, dtype=np.int8)
     
     stack[istack] = v
-    return v
+    return v.view(dtype).reshape(shape)
 
 def print_stack(stack_addresses={}):
     """
