@@ -3,15 +3,18 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
+from . import memory
 from .decorators import square, inplace, universal
-from .core import Operator
+from .core import Operator, CompositionOperator, IdentityOperator
 from .utils import operation_assignment, operation_symbol
 
 __all__ = ['ClipOperator',
+           'HardThresholdingOperator',
            'MaximumOperator',
            'MinimumOperator',
            'NumexprOperator',
-           'RoundOperator']
+           'RoundOperator',
+           'SoftThresholdingOperator']
 
 @square
 @inplace
@@ -184,3 +187,119 @@ class RoundOperator(Operator):
         Operator.__init__(self, table[method], **keywords)
         self.__name__ += ' [' + method + ']'
 
+
+if numexpr.__version__ > '2.0.1':
+ @square
+ @inplace
+ @universal
+ class HardThresholdingOperator(NumexprOperator):
+    """
+    Hard thresholding operator.
+
+    Ha(x) = 0 if |x| <= a
+          = x otherwise
+
+    Parameter
+    ---------
+    a : positive float or array
+        Hard threshold
+
+    """
+    def __init__(self, a, **keywords):
+        if np.any(a < 0):
+            raise ValueError('Negative hard threshold.')
+        if np.all(a == 0):
+            self.__class__ = IdentityOperator
+            IdentityOperator.__init__(self, **keywords)
+            return
+        a = np.asarray(a)
+        shapein = a.shape if a.ndim > 0 else None
+        NumexprOperator.__init__(self, 'where(abs(input) <= a, 0, input)',
+                                 {'a':a}, shapein=shapein, dtype=float, 
+                                 **keywords)
+        self.a = a
+        self.set_rule('.{HardThresholdingOperator}', lambda s, o:
+                      HardThresholdingOperator(np.maximum(s.a, o.a)),
+                      CompositionOperator)
+else:
+ @square
+ @inplace
+ @universal
+ class HardThresholdingOperator(Operator):
+    """
+    Hard thresholding operator.
+
+    Ha(x) = 0 if |x| <= a
+          = x otherwise
+
+    Parameter
+    ---------
+    a : positive float or array
+        Hard threshold
+
+    """
+    def __init__(self, a, **keywords):
+        if np.any(a < 0):
+            raise ValueError('Negative hard threshold.')
+        if np.all(a == 0):
+            self.__class__ = IdentityOperator
+            IdentityOperator.__init__(self, **keywords)
+            return
+        a = np.asarray(a)
+        shapein = a.shape if a.ndim > 0 else None
+        Operator.__init__(self, shapein=shapein, dtype=float, **keywords)
+        self.a = a
+        self.set_rule('.{HardThresholdingOperator}', lambda s, o:
+                      HardThresholdingOperator(np.maximum(s.a, o.a)),
+                      CompositionOperator)
+
+    def direct(self, input, output):
+        if not self.same_data(input, output):
+            output[...] = input
+        memory.up()
+        mask = memory.get(input.shape, bool, self.__name__)
+        memory.up()
+        tmp = memory.get(input.shape, input.dtype, self.__name__)
+        np.abs(input, tmp)
+        mask[...] = tmp <= self.a
+        memory.down()
+        output[mask] = 0
+        memory.down()
+
+
+@square
+@inplace
+@universal
+class SoftThresholdingOperator(Operator):
+    """
+    Soft thresholding operator.
+
+    Sa(x) = sign(x) [|x| - a]+
+
+    Parameter
+    ---------
+    a : positive float or array
+        Soft threshold
+
+    """
+    def __init__(self, a, **keywords):
+        if np.any(a < 0):
+            raise ValueError('Negative soft threshold.')
+        if np.all(a == 0):
+            self.__class__ = IdentityOperator
+            IdentityOperator.__init__(self, **keywords)
+            return
+        a = np.asarray(a)
+        shapein = a.shape if a.ndim > 0 else None
+        Operator.__init__(self, shapein=shapein, dtype=float, **keywords)
+        self.a = a
+
+    def direct(self, input, output):
+        memory.up()
+        mask = memory.get(input.shape, bool, self.__name__)
+        mask[...] = input < 0
+        np.abs(input, output)
+        output -= self.a
+        np.maximum(output, 0, output)
+        output[mask] *= -1
+        memory.down()

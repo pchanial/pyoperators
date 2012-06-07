@@ -1,7 +1,8 @@
 import numpy as np
 from numpy.testing import assert_equal
 
-from pyoperators import NumexprOperator, RoundOperator
+from pyoperators import (HardThresholdingOperator, NumexprOperator,
+                         RoundOperator, SoftThresholdingOperator)
 
 def test_rounding():
     a=np.array([-3.5,-3,-2.6,-2.5,-2.4,0,0.2,0.5,0.9,1,1.5])
@@ -41,3 +42,37 @@ def test_numexpr1():
 def test_numexpr2():
     op = NumexprOperator('3*input') + NumexprOperator('2*input')
     assert_equal(op(np.arange(10)), 5*np.arange(10))
+
+def test_hard_thresholding():
+    x = [-1., -0.2, -0.1, 0, 0.2, 0.1, 2, 3]
+    lbda = 0.2
+    H = HardThresholdingOperator(lbda)
+    expected = [-1, 0, 0, 0, 0, 0, 2,3]
+    assert_equal(H(x), expected)
+    x = np.array(x)
+    H(x, x)
+    assert_equal(x, expected)
+    lbda2 = [0.3, 0.1, 2]
+    shape = np.asarray(lbda2).shape
+    G = HardThresholdingOperator(lbda2)
+    assert_equal(G.shapein, shape)
+    K = G * H
+    assert_equal(K.a, np.maximum(lbda, lbda2))
+    assert_equal(K.shapein, shape)
+    K = H * G
+    assert_equal(K.a, np.maximum(lbda, lbda2))
+    assert_equal(K.shapein, shape)
+    
+def test_soft_thresholding():
+    x = [-1., -0.2, -0.1, 0, 0.1, 0.2, 2, 3]
+    lbda = np.array(0.2)
+    S = SoftThresholdingOperator(lbda)
+    expected = [-1, 0, 0, 0, 0, 0, 2, 3] - lbda * [-1, 0, 0, 0, 0, 0, 1, 1]
+    assert_equal(S(x), expected)
+    x = np.array(x)
+    S(x, x)
+    assert_equal(x, expected)
+    lbda2 = [0.3, 0.1, 2]
+    shape = np.asarray(lbda2).shape
+    T = SoftThresholdingOperator(lbda2)
+    assert_equal(T.shapein, shape)
