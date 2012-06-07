@@ -4007,11 +4007,9 @@ class ConstantOperator(BroadcastingOperator):
                 ConstantOperator, s, s.data.conjugate(), broadcast=s.broadcast
             ),
         )
-        if (
-            self.flags.shape_input == 'unconstrained'
-            and self.flags.shape_output != 'implicit'
-        ):
-            self.set_rule('.T', '.')
+        #        if self.flags.shape_input == 'unconstrained' and \
+        #           self.flags.shape_output != 'implicit':
+        #            self.set_rule('.T', '.')
         self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
         self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
         self.set_rule('.{CompositionOperator}', self._rule_mul, MultiplicationOperator)
