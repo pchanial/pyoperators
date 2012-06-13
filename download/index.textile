@@ -14,6 +14,10 @@ The easiest way to download and install the pyoperators package is by using the 
 
 bc. sudo easy_install pyoperators
 
+To upgrade an already installed PyOperator package:
+
+bc. sudo easy_install --upgrade pyoperators
+
 h2. The Git way
 
 You can also clone the Github repository, using the version control system "Git":http://git-scm.com/:
