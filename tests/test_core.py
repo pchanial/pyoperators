@@ -1212,18 +1212,20 @@ def test_addition():
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
-    memory.stack = []
     op = np.sum([Op(v) for v in [1]])
     assert_is(op.__class__, Op)
 
     op = np.sum([Op(v) for v in [1,2]])
     assert_eq(op.__class__, AdditionOperator)
+
+    memory.clear()
     assert_eq(op(1), 3)
     assert_eq(len(memory.stack), 1)
 
     op = np.sum([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, AdditionOperator)
 
+    memory.clear()
     input = np.array(1, int)
     output = np.array(0, int)
     assert_eq(op(input, output), 7)
@@ -1231,6 +1233,7 @@ def test_addition():
     assert_eq(output, 7)
     assert_eq(len(memory.stack), 1)
 
+    memory.clear()
     output = input
     assert_eq(op(input, output), 7)
     assert_eq(input, 7)
