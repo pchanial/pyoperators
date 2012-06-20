@@ -3,6 +3,7 @@ import numpy as np
 import operator
 import pyoperators
 
+from nose.plugins.skip import SkipTest
 from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
@@ -1198,7 +1199,47 @@ def test_inplace_cannot_use_output():
                 strops = '0' + strops
             yield func_inplace, n, i, expected, strops
 
+
     
+#====================
+# Test associativity
+#====================
+
+def test_associativity():
+    class Op1(Operator):
+        pass
+    class Op2(Operator):
+        pass
+    class Op3(Operator):
+        pass
+    class Op4(Operator):
+        pass
+
+    # composite and operator
+    def func1(cls, op):
+        assert_is_instance(op, cls)
+        assert_eq(len(op.operands), 3)
+        if all(isinstance(o, c) for o,c in zip(op.operands, [Op2, Op3, Op1])):
+            raise SkipTest() # commutative rules do not preserve order...
+        for o, c in zip(op.operands, [Op1, Op2, Op3]):
+            assert_is_instance(o, c)
+    for operation in (AdditionOperator, MultiplicationOperator,
+                      CompositionOperator):
+        yield func1, operation, operation([operation([Op1(), Op2()]), Op3()])
+        yield func1, operation, operation([Op1(), operation([Op2(), Op3()])])
+
+    # composite and composite
+    def func2(cls, op):
+        assert_is_instance(op, cls)
+        assert_eq(len(op.operands), 4)
+        for o, c in zip(op.operands, [Op1, Op2, Op3, Op4]):
+            assert_is_instance(o, c)
+    for operation in (AdditionOperator, MultiplicationOperator,
+                      CompositionOperator):
+        yield func2, operation, operation([operation([Op1(), Op2()]),
+                                           operation([Op3(), Op4()])])
+
+
 #===============
 # Test addition
 #===============

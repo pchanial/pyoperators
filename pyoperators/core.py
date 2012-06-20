@@ -1487,14 +1487,7 @@ class CompositeOperator(Operator):
     def _validate_operands(cls, operands):
         if isinstance(operands, Operator):
             operands = [operands]
-        operands = [asoperator(op) for op in operands]
-        result = []
-        for op in operands:
-            if isinstance(op, cls):
-                result.extend(op.operands)
-            else:
-                result.append(op)
-        return result
+        return [asoperator(op) for op in operands]
 
     @classmethod
     def _validate_comm(cls, operands):
@@ -1561,6 +1554,10 @@ class CommutativeCompositeOperator(CompositeOperator):
         commout = first_is_not([o.commout for o in self.operands], None)
         CompositeOperator.__init__(self, operands, commin=commin, commout= \
             commout, classin=classin, classout=classout, *args, **keywords)
+        self.set_rule('.{Operator}', lambda s,o: type(s)(s.operands + [o]),
+                      type(self), merge=False)
+        self.set_rule('.{self}', lambda s,o: type(s)(s.operands + o.operands),
+                      type(self), merge=False)
         self.operation = operation
 
     def direct(self, input, output):
@@ -1895,6 +1892,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         self.set_rule('.IC',lambda s:type(s)([m.I.C for m in s.operands[::-1]]))
         self.set_rule('.IT', lambda s:type(s)([m.I.T for m in s.operands]))
         self.set_rule('.IH', lambda s:type(s)([m.I.H for m in s.operands]))
+        self.set_rule('.{self}', lambda s,o: type(s)(s.operands + o.operands),
+                      CompositionOperator, merge=False)
+        self.set_rule('.{Operator}', lambda s,o: type(s)(s.operands + [o]),
+                      CompositionOperator, merge=False)
+        self.set_rule('{Operator}.', lambda o,s: type(s)([o] + s.operands),
+                      CompositionOperator, merge=False)
 
     def direct(self, input, output, operation=operation_assignment):
 
