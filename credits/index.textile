@@ -13,5 +13,5 @@ To cite this package, use:
 
 h1. Acknowledgements
 
-* The pyoperators package is the result of the merging of the packages "Tamasis/PACS":https://github.com/pchanial/tamasis-map (v3) by Pierre Chanial and the package "linear_operators":https://github.com/nbarbey/linear_operators by Nicolas Barbey.
+* The pyoperators package is the result of the merging of the packages "Tamasis/PACS":https://github.com/pchanial/tamasis-pacs (v3) by Pierre Chanial and the package "linear_operators":https://github.com/nbarbey/linear_operators by Nicolas Barbey.
 * Pierre Chanial and Nicolas Barbey thank the ASTRONET consortium for funding this work through the TAMASIS and CSH projects.
