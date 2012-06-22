@@ -16,8 +16,8 @@ from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises)
 
-all_ops = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
-            'Operator')]
+ALL_OPS = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
+            'Operator') ]
 
 np.seterr(all='raise')
 
@@ -135,7 +135,7 @@ def test_flags():
         if o.flags.unitary:
             assert_is(o.H, o.I)
     v = np.arange(10.)
-    for op in all_ops:
+    for op in ALL_OPS:
         try:
             o = op()
         except:
