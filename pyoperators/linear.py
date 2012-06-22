@@ -5,79 +5,17 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, symmetric, inplace
-from .core import (
-    Operator,
-    CompositionOperator,
-    DiagonalOperator,
-    DirectOperatorFactory,
-    ReverseOperatorFactory,
-    asoperator,
-)
-from .utils import isscalar, strshape
+from .core import Operator, CompositionOperator, DiagonalOperator, asoperator
+from .utils import isscalar
 
 __all__ = [
     'BandOperator',
-    'DenseOperator',
     'EigendecompositionOperator',
     'PackOperator',
     'SymmetricBandOperator',
     'TridiagonalOperator',
     'UnpackOperator',
 ]
-
-
-@linear
-class DenseOperator(Operator):
-    """
-    Operator representing a dense matrix.
-
-    Example
-    -------
-    >>> m = array([[1.,2.,3.],[2.,3.,4.]])
-    >>> d([1,0,0])
-    array([ 1.,  2.])
-    """
-
-    def __init__(self, data, shapein=None, shapeout=None, dtype=None, **keywords):
-        if data is None:
-            raise ValueError('The input data is None.')
-        data = np.asarray(data)
-        if dtype is None:
-            dtype = data.dtype
-        data = np.array(data, dtype, copy=False)
-        if data.ndim != 2:
-            raise ValueError('The input is not a 2-dimensional array.')
-        if shapein is None:
-            shapein = data.shape[1]
-        elif np.product(shapein) != data.shape[1]:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f the input matrix '{1}'.".format(strshape(shapein), data.shape[1])
-            )
-        if shapeout is None:
-            shapeout = data.shape[0]
-        elif np.product(shapeout) != data.shape[0]:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f the input matrix '{1}'.".format(strshape(shapeout), data.shape[0])
-            )
-        Operator.__init__(
-            self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
-        )
-        self.data = data
-        self.set_rule(
-            '.C', lambda s: DirectOperatorFactory(type(s), s, np.conjugate(s.data))
-        )
-        self.set_rule('.T', lambda s: ReverseOperatorFactory(type(s), s, s.data.T))
-        self.set_rule(
-            '.H', lambda s: ReverseOperatorFactory(type(s), s, np.conjugate(s.data.T))
-        )
-
-    def direct(self, input, output):
-        np.dot(self.data, input.ravel(), output)
-
-    def todense(self, shapein=None):
-        return self.data
 
 
 @linear

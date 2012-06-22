@@ -8,9 +8,9 @@ from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
          BlockRowOperator, BlockSliceOperator, CompositionOperator,
-         ConstantOperator, DiagonalOperator, IdentityOperator, MaskOperator,
-         MultiplicationOperator, HomothetyOperator, ZeroOperator, asoperator, I,
-         O)
+         ConstantOperator, DenseOperator, DiagonalOperator, IdentityOperator,
+         MaskOperator, MultiplicationOperator, HomothetyOperator, ZeroOperator,
+         asoperator, I, O)
 from pyoperators.utils import ndarraywrap, first_is_not, merge_none
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
@@ -2086,3 +2086,28 @@ def test_identity():
         pass
     o = Op()
     assert type(MultiplicationOperator([o, I])) is Op
+
+def test_denseoperator():
+
+    def func(m, d, v):
+        expected = np.dot(m, v)
+        assert_eq(d(v), expected)
+        if d.flags.square:
+            w = v.copy()
+            d(w, w)
+            assert_eq(w, expected)
+
+    m = np.array([[1,1j],[2,2]])
+    d = DenseOperator(m)
+    for v in np.array([1+0j,0]), np.array([0+0j,1]):
+        yield func, m, d, v
+        yield func, m.T, d.T, v
+        yield func, m.T.conj(), d.H, v
+
+    m = np.array([[1,2],[3,4j],[5,6]])
+    d = DenseOperator(m)
+    for v in np.array([1+0j,0]), np.array([0+0j,1]):
+        yield func, m, d, v
+    for v in np.array([1+0j,0, 0]), np.array([0j,1, 0]), np.array([0j,0,1]):
+        yield func, m.T, d.T, v
+        yield func, m.T.conj(), d.H, v
