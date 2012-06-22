@@ -18,7 +18,7 @@ from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
 from .utils import (all_eq, first_is_not, inspect_special_values, isclassattr,
                     isscalar, merge_none, ndarraywrap, operation_assignment,
-                    strenum, strshape, tointtuple)
+                    product, strenum, strshape, tointtuple)
 from .utils.mpi import MPI
 from .decorators import (linear, real, idempotent, involutary, square,
                          symmetric, inplace)
@@ -532,7 +532,7 @@ class Operator(object):
 
     @property
     def shape(self):
-        return (np.product(self.shapeout), np.product(self.shapein))
+        return (product(self.shapeout), product(self.shapein))
 
     @staticmethod
     def same_data(array1, array2):
@@ -559,7 +559,7 @@ class Operator(object):
             raise ValueError("The operator has not an explicit input shape. Use"
                              " the 'shapein' keyword.")
         shapeout = self.validatereshapein(shapein)
-        m, n = np.product(shapeout), np.product(shapein)
+        m, n = product(shapeout), product(shapein)
         d = np.empty((n,m), self.dtype)
 
         if not inplace or not self.flags.inplace:
@@ -2005,7 +2005,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                              "perator by an unconstrained output shape operator"
                              " is ambiguous.")
         sizeouts = self._get_sizeouts(shapeouts)
-        nbytes = reduce(lambda x,y:x*y, shapeout, 1) * dtype.itemsize
+        nbytes = product(shapeout) * dtype.itemsize
         outplaces, reuse_output = self._get_outplaces(nbytes,
             inplace_composition, inplace_reduction, sizeouts)
         v = shapeouts, sizeouts, outplaces, reuse_output
@@ -2938,7 +2938,7 @@ class ReshapeOperator(Operator):
             raise ValueError('The output shape is None.')
         shapein = tointtuple(shapein)
         shapeout = tointtuple(shapeout)
-        if np.product(shapein) != np.product(shapeout):
+        if product(shapein) != product(shapeout):
             raise ValueError('The total size of the output must be unchanged.')
         if shapein == shapeout:
             self.__class__ = IdentityOperator
