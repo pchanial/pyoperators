@@ -2111,3 +2111,40 @@ def test_denseoperator():
     for v in np.array([1+0j,0, 0]), np.array([0j,1, 0]), np.array([0j,0,1]):
         yield func, m.T, d.T, v
         yield func, m.T.conj(), d.H, v
+
+
+#=================
+# Test asoperator
+#=================
+
+def test_asoperator_scalar():
+    scalars = [np.array(1, d) for d in dtypes]
+    def func(s):
+        o = asoperator(s)
+        assert_is_instance(o, HomothetyOperator)
+    for s in scalars:
+        yield func, s
+        
+def test_asoperator_ndarray():
+    values = ([[1]], [[1,2],[2,3]], np.matrix([[3,2.],[0,1]]))
+    def func(v):
+        o = asoperator(v)
+        assert_is_instance(o, DenseOperator)
+        assert_eq(np.array(v).shape, o.shape)
+    for v in values:
+        yield func, v
+
+def test_asoperator_func():
+    f = lambda x: x**2
+    o = asoperator(f)
+    assert_is_instance(o, Operator)
+    assert_flags(o, 'inplace')
+    def func(v):
+        assert_eq(o(v), f(np.array(v)))
+    for v in (2, [2], [2,3]):
+        yield func, v
+
+def test_asoperator_ufunc():
+    assert_raises(TypeError, asoperator, np.maximum)
+    o = asoperator(np.cos)
+    assert_flags(o, 'real,inplace,square,universal')
