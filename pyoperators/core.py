@@ -1097,7 +1097,23 @@ class Operator(object):
                 self._set_flags('orthogonal, unitary, involutary')
 
         if isinstance(self.direct, np.ufunc):
+            if self.direct.nin != 1 or self.direct.nout != 1:
+                raise TypeError(
+                    'An ufunc with several inputs or outputs cannot'
+                    ' be converted to an Operator.'
+                )
+            real = True
+            for t in self.direct.types:
+                i, o = t[0], t[3]
+                if o not in 'FDG':
+                    continue
+                if i not in 'FDG':
+                    real = False
+                    break
+            if real:
+                self._set_flags('real')
             self._set_flags('inplace')
+            self._set_flags('square')
             self._set_flags('universal')
             if self.flags.inplace_reduction:
                 raise ValueError('Ufuncs do not handle inplace reductions.')
