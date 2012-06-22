@@ -1409,46 +1409,62 @@ def ReverseOperatorFactory(cls, source, *args, **keywords):
                dtype=source.dtype, flags=source.flags, *args, **keywords)
 
 
-def asoperator(operator, shapein=None, shapeout=None):
-    if isinstance(operator, Operator):
-        if shapein and operator.shapein and shapein != operator.shapein:
-            raise ValueError('The input shapein ' + str(shapein) + ' is incompa'
-                'atible with that of the input ' + str(operator.shapein) + '.')
-        if shapeout and operator.shapeout and shapeout != operator.shapeout:
-            raise ValueError('The input shapeout ' + str(shapeout) + ' is incom'
-                'patible with that of the input ' + str(operator.shapeout) +  \
-                '.')
-        if shapein and not operator.shapein or \
-           shapeout and not operator.shapeout:
-            operator = copy.copy(operator)
-            operator.shapein = shapein
-            operator.shapeout = shapeout
-        return operator
+def asoperator(x, **keywords):
+    """
+    Return input as an Operator.
 
-    if hasattr(operator, 'matvec') and hasattr(operator, 'rmatvec') and \
-       hasattr(operator, 'shape'):
+    The input can be one of the following:
+        - a callable (including ufuncs)
+        - array_like (including matrices)
+        - a numpy or python scalar
+        - scipy.sparse.linalg.LinearOperator
+
+    """
+    if isinstance(x, Operator):
+        return x
+
+    if hasattr(x, 'matvec') and hasattr(x, 'rmatvec') and \
+       hasattr(x, 'shape'):
         def direct(input, output):
-            output[...] = operator.matvec(input)
+            output[...] = x.matvec(input)
         def transpose(input, output):
-            output[...] = operator.rmatvec(input)
-        return Operator(direct=direct,
-                        transpose=transpose,
-                        shapein=shapein or operator.shape[1],
-                        shapeout=shapeout or operator.shape[0],
-                        dtype=operator.dtype,
-                        flags='linear')
+            output[...] = x.rmatvec(input)
+        keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}),
+                                                    linear=True)
+        return Operator(direct=direct, transpose=transpose,
+                        shapein=x.shape[1], shapeout=x.shape[0],
+                        dtype=x.dtype, **keywords)
     
-    if isscalar(operator):
-        return HomothetyOperator(operator)
+    if isinstance(x, np.ufunc):
+        return Operator(x, **keywords)
 
-    return asoperator(scipy.sparse.linalg.aslinearoperator(operator))
+    if callable(x):
+        def direct(input, output):
+            output[...] = x(input)
+        keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}),
+                                                    inplace=True)
+        return Operator(direct, **keywords)
+
+    if isinstance(x, (list, tuple)) and len(x) > 0 and \
+       isinstance(x[0], (list, tuple)):
+        x = np.array(x)
+
+    if isinstance(x, (np.matrix, np.ndarray)):
+        if x.ndim > 0:
+            return DenseOperator(x, **keywords)
+        x = x[()]
+            
+    if isinstance(x, (np.number, complex, int, float)):
+        return HomothetyOperator(x, **keywords)
+
+    return asoperator(scipy.sparse.linalg.aslinearoperator(x), **keywords)
 
 
-def asoperator1d(operator):
-    operator = asoperator(operator)
-    r = ReshapeOperator(operator.shape[1], operator.shapein)
-    s = ReshapeOperator(operator.shapeout, operator.shape[0])
-    return s * operator * r
+def asoperator1d(x):
+    x = asoperator(x)
+    r = ReshapeOperator(x.shape[1], x.shapein)
+    s = ReshapeOperator(x.shapeout, x.shape[0])
+    return s * x * r
 
 
 class CompositeOperator(Operator):
