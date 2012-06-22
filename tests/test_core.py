@@ -119,7 +119,19 @@ class HomothetyOutplaceOperator(Operator):
 #===========
 
 def test_flags():
-    def func(o):
+    def func(op):
+        try:
+            o = op()
+        except:
+            try:
+                v = np.arange(10.)
+                o = op(v)
+            except:
+                print 'Cannot test: ' + op.__name__
+                return
+        if type(o) is not op:
+            print 'Cannot test: ' + op.__name__
+            return
         if o.flags.idempotent:
             assert_is(o, o * o)
         if o.flags.real:
@@ -134,20 +146,8 @@ def test_flags():
             assert_is(o.T, o.I)
         if o.flags.unitary:
             assert_is(o.H, o.I)
-    v = np.arange(10.)
     for op in ALL_OPS:
-        try:
-            o = op()
-        except:
-            try:
-                o = op(v)
-            except:
-                print 'Cannot test: ' + op.__name__
-                continue
-        if type(o) is not op:
-            print 'Cannot test: ' + op.__name__
-            continue
-        yield func, o
+        yield func, op
 
 def test_symmetric():    
     mat = np.matrix([[2,1],[1,2]])
