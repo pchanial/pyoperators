@@ -59,6 +59,25 @@ __all__ = [
     'O',
 ]
 
+OPERATOR_ATTRIBUTES = [
+    'attrin',
+    'attrout',
+    'classin',
+    'classout',
+    'commin',
+    'commout',
+    'reshapein',
+    'reshapeout',
+    'shapein',
+    'shapeout',
+    'toshapein',
+    'toshapeout',
+    'validatein',
+    'validateout',
+    'dtype',
+    'flags',
+]
+
 
 class OperatorFlags(
     namedtuple(
@@ -1549,49 +1568,25 @@ class Operator(object):
 
 
 def DirectOperatorFactory(cls, source, *args, **keywords):
-    return cls(
-        attrin=source.attrin,
-        attrout=source.attrout,
-        classin=source.classin,
-        classout=source.classout,
-        commin=source.commin,
-        commout=source.commout,
-        reshapein=source.reshapein,
-        reshapeout=source.reshapeout,
-        shapein=source.shapein,
-        shapeout=source.shapeout,
-        toshapein=source.toshapein,
-        toshapeout=source.toshapeout,
-        validatein=source.validatein,
-        validateout=source.validateout,
-        dtype=source.dtype,
-        flags=source.flags,
-        *args,
-        **keywords,
-    )
+    for attr in OPERATOR_ATTRIBUTES:
+        if attr in keywords or attr in ['dtype', 'flags']:
+            continue
+        keywords[attr] = getattr(source, attr)
+    return cls(*args, **keywords)
 
 
 def ReverseOperatorFactory(cls, source, *args, **keywords):
-    return cls(
-        attrin=source.attrout,
-        attrout=source.attrin,
-        classin=source.classout,
-        classout=source.classin,
-        commin=source.commout,
-        commout=source.commin,
-        reshapein=source.reshapeout,
-        reshapeout=source.reshapein,
-        shapein=source.shapeout,
-        shapeout=source.shapein,
-        toshapein=source.toshapeout,
-        toshapeout=source.toshapein,
-        validatein=source.validateout,
-        validateout=source.validatein,
-        dtype=source.dtype,
-        flags=source.flags,
-        *args,
-        **keywords,
-    )
+    for attr in OPERATOR_ATTRIBUTES:
+        if attr in keywords or attr in ['dtype', 'flags']:
+            continue
+        if attr.endswith('in'):
+            attr_source = attr[:-2] + 'out'
+        elif attr.endswith('out'):
+            attr_source = attr[:-3] + 'in'
+        else:
+            attr_source = attr
+        keywords[attr] = getattr(source, attr_source)
+    return cls(*args, **keywords)
 
 
 def asoperator(x, **keywords):
