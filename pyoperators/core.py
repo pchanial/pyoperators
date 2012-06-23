@@ -36,6 +36,7 @@ __all__ = [
     'ConstantOperator',
     'DenseOperator',
     'DiagonalOperator',
+    'GroupOperator',
     'HomothetyOperator',
     'IdentityOperator',
     'MaskOperator',
@@ -2210,6 +2211,14 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             if None not in (commin, commout) and commin is not commout:
                 raise ValueError('The MPI communicators are incompatible.')
         return operands
+
+
+class GroupOperator(CompositionOperator):
+    def __init__(self, operands, **keywords):
+        CompositionOperator.__init__(self, operands, **keywords)
+        self.del_rule('.{self}', CompositionOperator)
+        self.del_rule('.{Operator}', CompositionOperator)
+        self.del_rule('{Operator}.', CompositionOperator)
 
 
 class BlockOperator(NonCommutativeCompositeOperator):
