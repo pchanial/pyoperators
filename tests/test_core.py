@@ -8,9 +8,9 @@ from pyoperators import memory, decorators
 from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockOperator, BlockColumnOperator, BlockDiagonalOperator,
          BlockRowOperator, BlockSliceOperator, CompositionOperator,
-         ConstantOperator, DenseOperator, DiagonalOperator, IdentityOperator,
-         MaskOperator, MultiplicationOperator, HomothetyOperator, ZeroOperator,
-         asoperator, I, O)
+         GroupOperator, ConstantOperator, DenseOperator, DiagonalOperator,
+         IdentityOperator, MaskOperator, MultiplicationOperator,
+         HomothetyOperator, ZeroOperator, asoperator, I, O)
 from pyoperators.utils import ndarraywrap, first_is_not, merge_none
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
@@ -1238,6 +1238,17 @@ def test_associativity():
                       CompositionOperator):
         yield func2, operation, operation([operation([Op1(), Op2()]),
                                            operation([Op3(), Op4()])])
+
+    a = GroupOperator([Op1(), Op2()])
+    b = GroupOperator([Op3(), Op4()])
+    def func3(o1, o2):
+        op = o1 * o2
+        assert_is_instance(op, CompositionOperator)
+        assert_eq(len(op.operands), 2)
+        assert_is(op.operands[0], o1)
+        assert_is(op.operands[1], o2)
+    for o1, o2 in [(Op1(), a), (a, Op1()), (a, b)]:
+        yield func3, o1, o2
 
 
 #===============
