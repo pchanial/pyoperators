@@ -3097,14 +3097,11 @@ class BroadcastingOperator(Operator):
         b = self.broadcast
         ndim = self.data.ndim
         axis_ = first_is_not([axis, new_axis], None)
-        if b == 'scalar' and self.shapeout is not None:
-            data = self._as_strided(shape)
-        else:
-            data = self.data
-            
+
+        # determine if the broadcasting data should be replicated or sliced
         do_replicate = False
         if b == 'scalar':
-            if self.shapeout is None:
+            if shape is None:
                 do_replicate = True
         elif b == 'disabled':
             pass
@@ -3133,29 +3130,44 @@ class BroadcastingOperator(Operator):
                     new_axis = new_axis - len(shape)
                 if axis_ - len(shape) < -ndim:
                     do_replicate = True
+
         if do_replicate:
             ops = [func_operation(self, o) for o in op.operands]
         else:
+            data = self._as_strided(shape)
+            def has_arg_func(func):
+                spec = inspect.getargspec(func)
+                nkeyed = 0 if spec.defaults is None else len(spec.defaults)
+                nargs = len(spec.args) - nkeyed
+                return nargs > 1
+            has_arg = has_arg_func(type(self).__init__)
             slices = op._get_slices(partition, axis, new_axis)
-            ops = [func_operation(type(self)(func_data(data)[s], broadcast=b),
-                   o) for s, o in zip(slices, op.operands)]
+            ops = []
+            for s, o in zip(slices, op.operands):
+                if not has_arg:
+                    replicated = type(self)(shapeout=data[s].shape)
+                else:
+                    replicated = type(self)(func_data(data)[s], broadcast=b)
+                ops.append(func_operation(replicated, o))
 
         return BlockOperator(ops, op.partitionin, op.partitionout, op.axisin,
                              op.axisout, op.new_axisin, op.new_axisout)
 
     @staticmethod
-    def _rule_left_block(self, op, cls):
-        func = lambda d, b: cls([d, b])
+    def _rule_left_block(self, op, cls, func_data=lambda x: x):
+        func_op = lambda d, b: cls([d, b])
         return self._rule_block(self, op, op.shapeout, op.partitionout,
-                                op.axisout, op.new_axisout, func)
+                                op.axisout, op.new_axisout, func_op, func_data)
 
     @staticmethod
-    def _rule_right_block(op, self, cls):
-        func = lambda d, b: cls([b, d])
+    def _rule_right_block(op, self, cls, func_data=lambda x: x):
+        func_op = lambda d, b: cls([b, d])
         return self._rule_block(self, op, op.shapein, op.partitionin,
-                                op.axisin, op.new_axisin, func)
+                                op.axisin, op.new_axisin, func_op, func_data)
 
     def _as_strided(self, shape):
+        if shape is None:
+            return self.data
         strides = len(shape) * [0]
         if self.broadcast == 'rightward':
             delta = 0
@@ -3326,19 +3338,13 @@ class MaskOperator(DiagonalOperator):
 
     @staticmethod
     def _rule_left_block(self, op, cls):
-        func_operation = lambda d, b: cls([d, b])
-        func_data = lambda d: ~d
-        return self._rule_block(self, op, op.shapeout, op.partitionout,
-                                op.axisout, op.new_axisout, func_operation,
-                                func_data)
+        return BroadcastingOperator._rule_left_block(self, op, cls,
+                                                     lambda x: ~x)
 
     @staticmethod
     def _rule_right_block(op, self, cls):
-        func_operation = lambda d, b: cls([b, d])
-        func_data = lambda d: ~d
-        return self._rule_block(self, op, op.shapein, op.partitionin,
-                                op.axisin, op.new_axisin, func_operation,
-                                func_data)
+        return BroadcastingOperator._rule_right_block(op, self, cls,
+                                                      lambda x: ~x)
 
 
 @inplace
@@ -3488,7 +3494,7 @@ class ConstantOperator(BroadcastingOperator):
 
     @staticmethod
     def _rule_mul(self, op):
-        return CompositionOperator([DiagonalOperator(self.data, broadcast= \
+        return CompositionOperator([DiagonalOperator(self.data, broadcast=
             self.broadcast, shapein=self.shapeout), op])
 
     @staticmethod
@@ -3497,9 +3503,10 @@ class ConstantOperator(BroadcastingOperator):
             return
         if self.shapeout != op.shapeout:
             return
-        func = lambda c, b: CompositionOperator([c, b])
+        func_op = lambda c, b: CompositionOperator([c, b])
+        func_data = lambda x: x
         return self._rule_block(self, op, op.shapeout, op.partitionout,
-                                op.axisout, op.new_axisout, func)
+                                op.axisout, op.new_axisout, func_op, func_data)
 
     @staticmethod
     def _rule_right_block_composition(op, self):
