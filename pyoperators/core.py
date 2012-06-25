@@ -3528,14 +3528,14 @@ class BroadcastingOperator(Operator):
     a broadcasting along the fast dimension.
     """
 
-    def __init__(
-        self, data, broadcast='disabled', shapeout=None, dtype=None, **keywords
-    ):
+    def __init__(self, data, broadcast='disabled', shapeout=None, **keywords):
         if data is None:
             raise ValueError('The input data is None.')
-        data = np.asarray(data)
-        if dtype is None:
-            dtype = data.dtype
+        if 'dtype' in keywords:
+            dtype = keywords['dtype']
+        else:
+            data = np.asarray(data)
+            dtype = keywords['dtype'] = data.dtype
         data = np.array(data, dtype, order='c', copy=False)
         if data.ndim == 0:
             broadcast = 'scalar'
@@ -3554,7 +3554,7 @@ class BroadcastingOperator(Operator):
             shapeout = data.shape
         self.broadcast = broadcast
         self.data = data
-        Operator.__init__(self, shapeout=shapeout, dtype=dtype, **keywords)
+        Operator.__init__(self, shapeout=shapeout, **keywords)
         self.set_rule(
             '{BroadcastingOperator}.',
             lambda b1, b2: self._rule_broadcast(b1, b2, np.add),
@@ -3778,6 +3778,8 @@ class DiagonalOperator(BroadcastingOperator):
             keywords['shapeout'] = data.shape
         n = data.size
         nmones, nzeros, nones, other, same = inspect_special_values(data)
+        if 'dtype' not in keywords and nzeros + nones == n:
+            keywords['dtype'] = None
         if nzeros == n and not isinstance(self, ZeroOperator):
             self.__class__ = ZeroOperator
             self.__init__(**keywords)
