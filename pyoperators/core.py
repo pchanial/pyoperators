@@ -52,6 +52,7 @@ __all__ = [
     'MaskOperator',
     'MultiplicationOperator',
     'ReshapeOperator',
+    'ReductionOperator',
     'ZeroOperator',
     'DirectOperatorFactory',
     'ReverseOperatorFactory',
@@ -4241,6 +4242,94 @@ class DenseOperator(Operator):
 
     def todense(self, shapein=None):
         return self.data
+
+
+@real
+class ReductionOperator(Operator):
+    """
+    Reduction-along-axis operator.
+
+    Parameters
+    ----------
+    func : ufunc or function
+        Function used for the reduction. If the input is a ufunc, its 'reduce'
+        method is used.
+    axis : integer, optional
+        Axis along which the reduction is performed. If None, all dimensions
+        are collapsed.
+    dtype : dtype, optional
+        Reduction data type.
+    skipna : boolean, optional
+        If this is set to True, the reduction is done as if any NA elements
+        were not counted in the array. The default, False, causes the NA values
+        to propagate, so if any element in a set of elements being reduced is
+        NA, the result will be NA.
+
+    Example
+    -------
+    >>> op = ReductionOperator(np.nansum)
+    >>> op([np.nan, 1, 2])
+    array(3.0)
+
+    """
+
+    def __init__(self, func, axis=None, dtype=None, skipna=False, **keywords):
+        if axis is None:
+            keywords['shapeout'] = ()
+        if isinstance(func, np.ufunc):
+            if func.nin != 2:
+                raise TypeError(
+                    "The input ufunc '{0}' has {1} input argument. "
+                    "Expected number is 2.".format(func.__name__, func.nin)
+                )
+            if func.nout != 1:
+                raise TypeError(
+                    "The input ufunc '{0}' has {1} output arguments"
+                    ". Expected number is 1.".format(func.__name__, func.nout)
+                )
+            if np.__version__ < '1.7':
+                if axis is None:
+                    direct = lambda x, out: func.reduce(x.flat, 0, dtype, out)
+                else:
+                    direct = lambda x, out: func.reduce(x, axis, dtype, out)
+            else:
+                direct = lambda x, out: func.reduce(x, axis, dtype, out, skipna)
+        elif isinstance(func, types.FunctionType):
+            vars, junk, junk, junk = inspect.getargspec(func)
+            if 'axis' not in vars:
+                raise TypeError(
+                    "The input function '{0}' does not have an 'axi"
+                    "s' argument.".format(func.__name__)
+                )
+            kw = {}
+            if 'dtype' in vars:
+                kw['dtype'] = dtype
+            if 'skipna' in vars:
+                kw['skipna'] = skipna
+            if 'out' not in vars:
+
+                def direct(x, out):
+                    out[...] = func(x, axis=axis, **kw)
+
+            else:
+                direct = lambda x, out: func(x, axis=axis, out=out, **kw)
+        Operator.__init__(self, direct=direct, dtype=dtype, **keywords)
+        self.axis = axis
+
+    def reshapein(self, shape):
+        if self.axis == -1:
+            return shape[:-1]
+        return shape[: self.axis] + shape[self.axis + 1 :]
+
+    def validatein(self, shape):
+        if len(shape) == 0:
+            raise TypeError('Cannot reduce on scalars.')
+        if self.axis is None:
+            return
+        if len(shape) < self.axis + 1 if self.axis >= 0 else abs(self.axis):
+            raise ValueError(
+                'The input shape has an insufficient number of dim' 'ensions.'
+            )
 
 
 I = IdentityOperator()

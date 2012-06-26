@@ -5,13 +5,20 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, symmetric, inplace
-from .core import Operator, CompositionOperator, DiagonalOperator, asoperator
+from .core import (
+    Operator,
+    CompositionOperator,
+    DiagonalOperator,
+    ReductionOperator,
+    asoperator,
+)
 from .utils import isscalar
 
 __all__ = [
     'BandOperator',
     'EigendecompositionOperator',
     'PackOperator',
+    'SumOperator',
     'SymmetricBandOperator',
     'TridiagonalOperator',
     'UnpackOperator',
@@ -57,6 +64,51 @@ class UnpackOperator(Operator):
     def direct(self, input, output):
         output[...] = 0
         output[self.mask] = input
+
+
+@linear
+class SumOperator(ReductionOperator):
+    """
+    Sum-along-axis operator.
+
+    Parameters
+    ----------
+    axis : integer, optional
+        Axis along which the reduction is performed. If None, all dimensions
+        are collapsed.
+    dtype : dtype, optional
+        Reduction data type.
+    skipna : boolean, optional
+        If this is set to True, the reduction is done as if any NA elements
+        were not counted in the array. The default, False, causes the NA values
+        to propagate, so if any element in a set of elements being reduced is
+        NA, the result will be NA.
+
+    Example
+    -------
+    >>> op = SumOperator()
+    >>> op([1,2,3])
+    array(6)
+
+    """
+
+    def __init__(self, axis=None, dtype=None, skipna=True, **keywords):
+        if np.__version__ < '1.7':
+            func = np.nansum if skipna else np.add
+        else:
+            func = np.add
+        ReductionOperator.__init__(
+            self, func, axis=axis, dtype=dtype, skipna=skipna, **keywords
+        )
+
+    def transpose(self, input, output):
+        if self.axis is None:
+            shape = None
+        elif self.axis == -1:
+            shape = input.shape + (1,)
+        else:
+            shape = input.shape[: self.axis] + (1,) + input.shape[self.axis :]
+        output[...] = input.reshape(shape)
 
 
 @linear
