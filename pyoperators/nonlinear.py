@@ -1,20 +1,24 @@
 import numexpr
+
 if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
 from . import memory
-from .decorators import square, idempotent inplace, universal
+from .decorators import square, idempotent, inplace, universal
 from .core import Operator, CompositionOperator, IdentityOperator
 from .utils import operation_assignment, operation_symbol, strenum
 
-__all__ = ['ClipOperator',
-           'HardThresholdingOperator',
-           'MaximumOperator',
-           'MinimumOperator',
-           'NumexprOperator',
-           'RoundOperator',
-           'SoftThresholdingOperator']
+__all__ = [
+    'ClipOperator',
+    'HardThresholdingOperator',
+    'MaximumOperator',
+    'MinimumOperator',
+    'NumexprOperator',
+    'RoundOperator',
+    'SoftThresholdingOperator',
+]
+
 
 @square
 @inplace
@@ -48,9 +52,10 @@ class ClipOperator(Operator):
     --------
     MaximumOperator, MinimumOperator, np.clip
     """
+
     def __init__(self, vmin, vmax, **keywords):
-        Operator.__init__(self, lambda i,o: np.clip(i, vmin, vmax, out=o),
-                          **keywords)
+        Operator.__init__(self, lambda i, o: np.clip(i, vmin, vmax, out=o), **keywords)
+
 
 @square
 @inplace
@@ -77,11 +82,12 @@ class MaximumOperator(Operator):
     --------
     ClipOperator, MinimumOperator, np.maximum
     """
+
     def __init__(self, value, **keywords):
-        Operator.__init__(self, lambda i,o: np.maximum(i, value, o), **keywords)
+        Operator.__init__(self, lambda i, o: np.maximum(i, value, o), **keywords)
 
 
-@square 
+@square
 @inplace
 @universal
 class MinimumOperator(Operator):
@@ -106,8 +112,9 @@ class MinimumOperator(Operator):
     --------
     ClipOperator, MaximumOperator, np.minimum
     """
+
     def __init__(self, value, **keywords):
-        Operator.__init__(self, lambda i,o: np.minimum(i, value, o), **keywords)
+        Operator.__init__(self, lambda i, o: np.minimum(i, value, o), **keywords)
 
 
 # numexpr 2.0 cannot handle inplace reductions
@@ -116,7 +123,7 @@ class MinimumOperator(Operator):
 class NumexprOperator(Operator):
     """
     Return an operator evaluating an expression using numexpr.
-    
+
     Parameters
     ----------
     expr : string
@@ -133,11 +140,13 @@ class NumexprOperator(Operator):
     >>> print op(1) == np.exp(2.2)
     True
     """
+
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
         self.expr = expr
         self.global_dict = global_dict
-        Operator.__init__(self, dtype=dtype, flags={'inplace_reduction':False},
-                          **keywords)
+        Operator.__init__(
+            self, dtype=dtype, flags={'inplace_reduction': False}, **keywords
+        )
 
     def direct(self, input, output, operation=operation_assignment):
         if operation is operation_assignment:
@@ -154,7 +163,7 @@ class NumexprOperator(Operator):
 @universal
 class RoundOperator(Operator):
     """Rounding operator.
-    
+
     The rounding method may be one of the following:
         - rtz : round towards zero (truncation)
         - rti : round towards infinity (Not implemented)
@@ -164,124 +173,143 @@ class RoundOperator(Operator):
         - rhti : round half towards infinity (Fortran's nint)
         - rhtmi : round half towards minus infinity
         - rhtpi : round half towards positive infinity
-        - rhte : round half to even (numpy's round), 
+        - rhte : round half to even (numpy's round),
         - rhto : round half to odd
         - rhs : round half stochastically (Not implemented)
 
     """
+
     def __init__(self, method='rhte', **keywords):
         method = method.lower()
-        table = {'rtz'   : np.trunc,
-                 #'rti'
-                 'rtmi'  : np.floor,
-                 'rtpi'  : np.ceil,
-                 #'rhtz'
-                 #'rhti'
-                 'rhtmi' : self._direct_rhtmi,
-                 'rhtpi' : self._direct_rhtpi,
-                 'rhte'  : lambda i,o: np.round(i,0,o),
-                 #'rhs'
-                 }
+        table = {
+            'rtz': np.trunc,
+            #'rti'
+            'rtmi': np.floor,
+            'rtpi': np.ceil,
+            #'rhtz'
+            #'rhti'
+            'rhtmi': self._direct_rhtmi,
+            'rhtpi': self._direct_rhtpi,
+            'rhte': lambda i, o: np.round(i, 0, o),
+            #'rhs'
+        }
         if method not in table:
-            raise ValueError('Invalid rounding method. Expected values are {0}.'
-                             .format(strenum(table.keys())))
+            raise ValueError(
+                'Invalid rounding method. Expected values are {0}.'.format(
+                    strenum(table.keys())
+                )
+            )
         Operator.__init__(self, table[method], **keywords)
         self.method = method
 
     @staticmethod
     def _direct_rhtmi(input, output):
-        """ Round half to -inf. """
+        """Round half to -inf."""
         np.add(input, 0.5, output)
         np.ceil(output, output)
         np.add(output, -1, output)
 
     @staticmethod
     def _direct_rhtpi(input, output):
-        """ Round half to +inf. """
+        """Round half to +inf."""
         np.add(input, -0.5, output)
         np.floor(output, output)
         np.add(output, 1, output)
 
 
 if numexpr.__version__ > '2.0.1':
- @square
- @idempotent
- @inplace
- @universal
- class HardThresholdingOperator(NumexprOperator):
-    """
-    Hard thresholding operator.
 
-    Ha(x) = 0 if |x| <= a
-          = x otherwise
+    @square
+    @idempotent
+    @inplace
+    @universal
+    class HardThresholdingOperator(NumexprOperator):
+        """
+        Hard thresholding operator.
 
-    Parameter
-    ---------
-    a : positive float or array
-        Hard threshold
+        Ha(x) = 0 if |x| <= a
+              = x otherwise
 
-    """
-    def __init__(self, a, **keywords):
-        if np.any(a < 0):
-            raise ValueError('Negative hard threshold.')
-        if np.all(a == 0):
-            self.__class__ = IdentityOperator
-            IdentityOperator.__init__(self, **keywords)
-            return
-        a = np.asarray(a)
-        shapein = a.shape if a.ndim > 0 else None
-        NumexprOperator.__init__(self, 'where(abs(input) <= a, 0, input)',
-                                 {'a':a}, shapein=shapein, dtype=float, 
-                                 **keywords)
-        self.a = a
-        self.set_rule('.{HardThresholdingOperator}', lambda s, o:
-                      HardThresholdingOperator(np.maximum(s.a, o.a)),
-                      CompositionOperator)
+        Parameter
+        ---------
+        a : positive float or array
+            Hard threshold
+
+        """
+
+        def __init__(self, a, **keywords):
+            if np.any(a < 0):
+                raise ValueError('Negative hard threshold.')
+            if np.all(a == 0):
+                self.__class__ = IdentityOperator
+                IdentityOperator.__init__(self, **keywords)
+                return
+            a = np.asarray(a)
+            shapein = a.shape if a.ndim > 0 else None
+            NumexprOperator.__init__(
+                self,
+                'where(abs(input) <= a, 0, input)',
+                {'a': a},
+                shapein=shapein,
+                dtype=float,
+                **keywords,
+            )
+            self.a = a
+            self.set_rule(
+                '.{HardThresholdingOperator}',
+                lambda s, o: HardThresholdingOperator(np.maximum(s.a, o.a)),
+                CompositionOperator,
+            )
+
 else:
- @square
- @idempotent
- @inplace
- @universal
- class HardThresholdingOperator(Operator):
-    """
-    Hard thresholding operator.
 
-    Ha(x) = 0 if |x| <= a
-          = x otherwise
+    @square
+    @idempotent
+    @inplace
+    @universal
+    class HardThresholdingOperator(Operator):
+        """
+        Hard thresholding operator.
 
-    Parameter
-    ---------
-    a : positive float or array
-        Hard threshold
+        Ha(x) = 0 if |x| <= a
+              = x otherwise
 
-    """
-    def __init__(self, a, **keywords):
-        if np.any(a < 0):
-            raise ValueError('Negative hard threshold.')
-        if np.all(a == 0):
-            self.__class__ = IdentityOperator
-            IdentityOperator.__init__(self, **keywords)
-            return
-        a = np.asarray(a)
-        shapein = a.shape if a.ndim > 0 else None
-        Operator.__init__(self, shapein=shapein, dtype=float, **keywords)
-        self.a = a
-        self.set_rule('.{HardThresholdingOperator}', lambda s, o:
-                      HardThresholdingOperator(np.maximum(s.a, o.a)),
-                      CompositionOperator)
+        Parameter
+        ---------
+        a : positive float or array
+            Hard threshold
 
-    def direct(self, input, output):
-        if not self.same_data(input, output):
-            output[...] = input
-        memory.up()
-        mask = memory.get(input.shape, bool, self.__name__)
-        memory.up()
-        tmp = memory.get(input.shape, input.dtype, self.__name__)
-        np.abs(input, tmp)
-        mask[...] = tmp <= self.a
-        memory.down()
-        output[mask] = 0
-        memory.down()
+        """
+
+        def __init__(self, a, **keywords):
+            if np.any(a < 0):
+                raise ValueError('Negative hard threshold.')
+            if np.all(a == 0):
+                self.__class__ = IdentityOperator
+                IdentityOperator.__init__(self, **keywords)
+                return
+            a = np.asarray(a)
+            shapein = a.shape if a.ndim > 0 else None
+            Operator.__init__(self, shapein=shapein, dtype=float, **keywords)
+            self.a = a
+            self.set_rule(
+                '.{HardThresholdingOperator}',
+                lambda s, o: HardThresholdingOperator(np.maximum(s.a, o.a)),
+                CompositionOperator,
+            )
+
+        def direct(self, input, output):
+            if not self.same_data(input, output):
+                output[...] = input
+            memory.up()
+            mask = memory.get(input.shape, bool, self.__name__)
+            memory.up()
+            tmp = memory.get(input.shape, input.dtype, self.__name__)
+            np.abs(input, tmp)
+            mask[...] = tmp <= self.a
+            memory.down()
+            output[mask] = 0
+            memory.down()
 
 
 @square
@@ -299,6 +327,7 @@ class SoftThresholdingOperator(Operator):
         Soft threshold
 
     """
+
     def __init__(self, a, **keywords):
         if np.any(a < 0):
             raise ValueError('Negative soft threshold.')
