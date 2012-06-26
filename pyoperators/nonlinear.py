@@ -4,7 +4,7 @@ if numexpr.__version__ < 2.0:
 
 import numpy as np
 from . import memory
-from .decorators import square, idempotent inplace, universal
+from .decorators import square, idempotent, inplace, universal
 from .core import Operator, CompositionOperator, IdentityOperator
 from .utils import operation_assignment, operation_symbol, strenum
 
