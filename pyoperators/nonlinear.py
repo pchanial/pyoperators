@@ -5,14 +5,18 @@ if numexpr.__version__ < 2.0:
 import numpy as np
 from . import memory
 from .decorators import square, idempotent, inplace, universal
-from .core import Operator, CompositionOperator, IdentityOperator
+from .core import (Operator, CompositionOperator, IdentityOperator,
+                   ReductionOperator)
 from .utils import operation_assignment, operation_symbol, strenum
 
 __all__ = ['ClipOperator',
            'HardThresholdingOperator',
+           'MaxOperator',
+           'MinOperator',
            'MaximumOperator',
            'MinimumOperator',
            'NumexprOperator',
+           'ProductOperator',
            'RoundOperator',
            'SoftThresholdingOperator']
 
@@ -47,10 +51,106 @@ class ClipOperator(Operator):
     See also
     --------
     MaximumOperator, MinimumOperator, np.clip
+
     """
     def __init__(self, vmin, vmax, **keywords):
         Operator.__init__(self, lambda i,o: np.clip(i, vmin, vmax, out=o),
                           **keywords)
+
+
+class ProductOperator(ReductionOperator):
+    """
+    Product-along-axis operator.
+
+    Parameters
+    ----------
+    axis : integer, optional
+        Axis along which the reduction is performed. If None, all dimensions
+        are collapsed.
+    dtype : dtype, optional
+        Reduction data type.
+    skipna : boolean, optional
+        If this is set to True, the reduction is done as if any NA elements
+        were not counted in the array. The default, False, causes the NA values
+        to propagate, so if any element in a set of elements being reduced is
+        NA, the result will be NA.
+
+    Example
+    -------
+    >>> op = ProductOperator()
+    >>> op([1,2,3])
+    array(6)
+
+    """
+    def __init__(self, axis=None, dtype=None, skipna=True, **keywords):
+        ReductionOperator.__init__(self, np.multiply, axis=axis, dtype=dtype,
+                                   skipna=skipna, **keywords)
+
+class MaxOperator(ReductionOperator):
+    """
+    Max-along-axis operator.
+
+    Parameters
+    ----------
+    axis : integer, optional
+        Axis along which the reduction is performed. If None, all dimensions
+        are collapsed.
+    dtype : dtype, optional
+        Reduction data type.
+    skipna : boolean, optional
+        If this is set to True, the reduction is done as if any NA elements
+        were not counted in the array. The default, False, causes the NA values
+        to propagate, so if any element in a set of elements being reduced is
+        NA, the result will be NA.
+
+    Example
+    -------
+    >>> op = MaxOperator()
+    >>> op([1,2,3])
+    array(3)
+
+    """
+    def __init__(self, axis=None, dtype=None, skipna=False, **keywords):
+        if np.__version__ < '1.7':
+            func = np.nanmax if skipna else np.max
+        else:
+            func = np.max
+        ReductionOperator.__init__(self, func, axis=axis, dtype=dtype,
+                                   skipna=skipna, **keywords)
+
+
+class MinOperator(ReductionOperator):
+    """
+    Min-along-axis operator.
+
+    Parameters
+    ----------
+    axis : integer, optional
+        Axis along which the reduction is performed. If None, all dimensions
+        are collapsed.
+    dtype : dtype, optional
+        Reduction data type.
+    skipna : boolean, optional
+        If this is set to True, the reduction is done as if any NA elements
+        were not counted in the array. The default, False, causes the NA values
+        to propagate, so if any element in a set of elements being reduced is
+        NA, the result will be NA.
+
+    Example
+    -------
+    >>> op = MinOperator()
+    >>> op([1,2,3])
+    array(1)
+
+    """
+    def __init__(self, axis=None, dtype=None, skipna=False, **keywords):
+        if np.__version__ < '1.7':
+            func = np.nanmin if skipna else np.min
+        else:
+            func = np.min
+        ReductionOperator.__init__(self, func, axis=axis, dtype=dtype,
+                                   skipna=skipna, **keywords)
+
 
 @square
 @inplace
@@ -76,6 +176,7 @@ class MaximumOperator(Operator):
     See also
     --------
     ClipOperator, MinimumOperator, np.maximum
+
     """
     def __init__(self, value, **keywords):
         Operator.__init__(self, lambda i,o: np.maximum(i, value, o), **keywords)
@@ -105,6 +206,7 @@ class MinimumOperator(Operator):
     See also
     --------
     ClipOperator, MaximumOperator, np.minimum
+
     """
     def __init__(self, value, **keywords):
         Operator.__init__(self, lambda i,o: np.minimum(i, value, o), **keywords)
@@ -132,6 +234,7 @@ class NumexprOperator(Operator):
     >>> op = NumexprOperator('exp(input+k)', {'k':k})
     >>> print op(1) == np.exp(2.2)
     True
+
     """
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
         self.expr = expr

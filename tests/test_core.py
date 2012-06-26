@@ -10,8 +10,8 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockRowOperator, BlockSliceOperator, CompositionOperator,
          GroupOperator, ConstantOperator, DenseOperator, DiagonalOperator,
          IdentityOperator, MaskOperator, MultiplicationOperator,
-         HomothetyOperator, ZeroOperator, asoperator, I, O)
-from pyoperators.utils import ndarraywrap, first_is_not, merge_none
+         HomothetyOperator, ReductionOperator, ZeroOperator, asoperator, I, O)
+from pyoperators.utils import ndarraywrap, first_is_not, merge_none, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises)
@@ -2159,3 +2159,41 @@ def test_asoperator_ufunc():
     assert_raises(TypeError, asoperator, np.maximum)
     o = asoperator(np.cos)
     assert_flags(o, 'real,inplace,square,universal')
+
+
+#========================
+# Test ReductionOperator
+#========================
+
+def test_reduction_operator1():
+    def func(f, s, a):
+        op = ReductionOperator(f, axis=a)
+        v = np.arange(product(s)).reshape(s)
+        if isinstance(f, np.ufunc):
+            if np.__version__ < '1.7' and a is None:
+                expected = f.reduce(v.flat, 0)
+            else:
+                expected = f.reduce(v, a)
+        else:
+            expected = f(v, axis=a)
+        assert_eq(op(v), expected)
+        out = np.empty_like(expected)
+        op(v, out)
+        assert_eq(out, expected)
+    for f in (np.add, np.multiply, np.min, np.max, np.sum, np.prod):
+        for s in SHAPES[2:]:
+            for a in [None] + list(range(len(s))):
+                yield func, f, s, a
+
+def test_reduction_operator2():
+    for f in (np.cos, np.modf):
+        assert_raises(TypeError, ReductionOperator, f)
+    f = np.add
+    def func(n, op):
+        v = np.empty(n * [2])
+        assert_raises(TypeError if n == 0 else ValueError, op, v)
+    for a in (1,2,3):
+        op = ReductionOperator(f, axis=a)
+        for n in range(0, a+1):
+            yield func, n, op
+
