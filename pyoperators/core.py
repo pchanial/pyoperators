@@ -545,26 +545,39 @@ class Operator(object):
         return array1.__array_interface__['data'][0] == \
                array2.__array_interface__['data'][0]
 
-    def todense(self, shapein=None, inplace=False):
+    def todense(self, shapein=None, shapeout=None, inplace=False):
         """
         Output the dense representation of the Operator as a ndarray.
 
         Arguments
         ---------
-        shapein : (default None) None or tuple
-            If a shapein is not already associated with the Operator,
-            it must me passed to the todense method.
+        shapein : tuple of ints, (default: None)
+            The operator's input shape if it is not explicit.
+        shapeout : tuple of ints (default: None)
+            The operator's output shape if it is not explicit.
         inplace : boolean
             For testing purposes only. By default, this method uses
             out-of-place operations that directly fill the output array.
             By setting inplace to True, one can test in-place operations, at
             the cost of additional copies.
+
         """
-        shapein = tointtuple(shapein) if shapein is not None else self.shapein
+        shapein = tointtuple(shapein)
+        shapeout = tointtuple(shapeout)
+        shapein_ = self.validatereshapeout(shapeout)
+        shapeout_ = self.validatereshapein(shapein)
+        if None not in (shapein, shapein_) and  shapein != shapein_:
+            raise ValueError("Invalid input shape '{0}'.".format(shapein))
+        if None not in (shapeout, shapeout_) and  shapeout != shapeout_:
+            raise ValueError("Invalid output shape '{0}'.".format(shapeout))
+        shapein = first_is_not([shapein, shapein_], None)
+        shapeout = first_is_not([shapeout, shapeout_], None)
         if shapein is None:
-            raise ValueError("The operator has not an explicit input shape. Use"
-                             " the 'shapein' keyword.")
-        shapeout = self.validatereshapein(shapein)
+            raise ValueError("The operator's input shape is not explicit. Speci"
+                             "fy it with the 'shapein' keyword.")
+        if shapeout is None:
+            raise ValueError("The operator's output shape is not explicit. Spec"
+                             "ify it with the 'shapeout' keyword.")
         m, n = product(shapeout), product(shapein)
         d = np.empty((n,m), self.dtype)
 
