@@ -7,7 +7,7 @@ import numpy as np
 from . import memory
 from .decorators import square, inplace, universal
 from .core import Operator, CompositionOperator, IdentityOperator
-from .utils import operation_assignment, operation_symbol
+from .utils import operation_assignment, operation_symbol, strenum
 
 __all__ = [
     'ClipOperator',
@@ -193,11 +193,12 @@ class RoundOperator(Operator):
         }
         if method not in table:
             raise ValueError(
-                'The rounding method must be one of the following:'
-                ' ' + ','.join("'" + k + "'" for k in table.keys()) + '.'
+                'Invalid rounding method. Expected values are {0}.'.format(
+                    strenum(table.keys())
+                )
             )
         Operator.__init__(self, table[method], **keywords)
-        self.__name__ += ' [' + method + ']'
+        self.method = method
 
 
 if numexpr.__version__ > '2.0.1':
