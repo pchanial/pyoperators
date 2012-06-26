@@ -161,14 +161,14 @@ class RoundOperator(Operator):
         - rtmi : round towards minus infinity (floor)
         - rtpi : round towards positive infinity (ceil)
         - rhtz : round half towards zero (Not implemented)
-        - rhti : round half towards infinity (numpy's round, fortran's nint)
-        - rhtmi : round half towards minus infinity (Not implemented)
-        - rhtpi : round half towards positive infinity (Not implemented)
-        - rhte : round half to even
+        - rhti : round half towards infinity (Fortran's nint)
+        - rhtmi : round half towards minus infinity
+        - rhtpi : round half towards positive infinity
+        - rhte : round half to even (numpy's round), 
         - rhto : round half to odd
         - rhs : round half stochastically (Not implemented)
-    """
 
+    """
     def __init__(self, method='rhte', **keywords):
         method = method.lower()
         table = {'rtz'   : np.trunc,
@@ -177,8 +177,8 @@ class RoundOperator(Operator):
                  'rtpi'  : np.ceil,
                  #'rhtz'
                  #'rhti'
-                 #'rhtmi'
-                 #'rhtpi'
+                 'rhtmi' : self._direct_rhtmi,
+                 'rhtpi' : self._direct_rhtpi,
                  'rhte'  : lambda i,o: np.round(i,0,o),
                  #'rhs'
                  }
@@ -187,6 +187,20 @@ class RoundOperator(Operator):
                              .format(strenum(table.keys())))
         Operator.__init__(self, table[method], **keywords)
         self.method = method
+
+    @staticmethod
+    def _direct_rhtmi(input, output):
+        """ Round half to -inf. """
+        np.add(input, 0.5, output)
+        np.ceil(output, output)
+        np.add(output, -1, output)
+
+    @staticmethod
+    def _direct_rhtpi(input, output):
+        """ Round half to +inf. """
+        np.add(input, -0.5, output)
+        np.floor(output, output)
+        np.add(output, 1, output)
 
 
 if numexpr.__version__ > '2.0.1':
