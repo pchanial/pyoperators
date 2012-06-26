@@ -23,10 +23,10 @@ def test_rounding():
     # yield assert_equal, r(a), [-3, -3, -3, -2, -2, 0, 0, 0, 1, 1, 1]
     # r = RoundOperator('rhti')
     # yield assert_equal, r(a), [-4, -3, -3, -3, -2, 0, 0, 1, 1, 2]
-    # r = RoundOperator('rhtmi')
-    # yield assert_equal, r(a), [-4, -3, -3, -3, -2, 0, 0, 0, 1, 1, 1]
-    # r = RoundOperator('rhtpi')
-    # yield assert_equal, r(a), [-3, -3, -3, -2, -2, 0, 0, 1, 1, 1, 2]
+    r = RoundOperator('rhtmi')
+    yield assert_equal, r(a), [-4, -3, -3, -3, -2, 0, 0, 0, 1, 1, 1]
+    r = RoundOperator('rhtpi')
+    yield assert_equal, r(a), [-3, -3, -3, -2, -2, 0, 0, 1, 1, 1, 2]
     r = RoundOperator('rhte')
     yield assert_equal, r(a), [-4, -3, -3, -2, -2, 0, 0, 0, 1, 1, 2]
     # r = RoundOperator('rhto')
