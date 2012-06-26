@@ -11,6 +11,7 @@ import types
 from . import cythonutils as cu
 
 __all__ = ['all_eq',
+           'find',
            'first_is_not',
            'inspect_special_values',
            'isclassattr',
@@ -66,6 +67,26 @@ def all_eq(a, b):
             return False
         return a.func_code is b.func_code
     return a == b
+
+def find(l, f):
+    """
+    Return first item in list that verifies a certain condition, and None
+    otherwise.
+
+    Parameters
+    ----------
+    l : list
+        List of elements to be searched for.
+    f : function
+        Function that evaluates to True to match an element.
+
+    Example:
+    --------
+    >>> find([1,2,3], lambda x: x > 1.5)
+    2
+
+    """
+    return next((_ for _ in l if f(_)), None)
 
 def first_is_not(l, v):
     """

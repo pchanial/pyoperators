@@ -3,8 +3,9 @@ from nose.tools import eq_
 from numpy.testing import assert_array_equal
 
 from pyoperators import Operator
-from pyoperators.utils import (first_is_not, inspect_special_values, isscalar,
-                               product, strenum, strplural, strshape)
+from pyoperators.utils import (find, first_is_not, inspect_special_values,
+                               isscalar, product, strenum, strplural, strshape)
+from pyoperators.utils.testing import assert_is_none
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
@@ -12,8 +13,15 @@ dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
 
 def assert_is_scalar(o):
     assert isscalar(o)
+
 def assert_is_not_scalar(o):
     assert not isscalar(o)
+
+def test_find1():
+    assert find([1,2,3], lambda x: x > 1.5) == 2
+
+def test_find2():
+    assert_is_none(find([1,2,3], lambda x: x > 3))
 
 def test_first_is_not():
     assert first_is_not([1,2], 1) == 2
