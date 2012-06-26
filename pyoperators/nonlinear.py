@@ -4,7 +4,7 @@ if numexpr.__version__ < 2.0:
 
 import numpy as np
 from . import memory
-from .decorators import square, inplace, universal
+from .decorators import square, idempotent inplace, universal
 from .core import Operator, CompositionOperator, IdentityOperator
 from .utils import operation_assignment, operation_symbol, strenum
 
@@ -149,6 +149,7 @@ class NumexprOperator(Operator):
 
 
 @square
+@idempotent
 @inplace
 @universal
 class RoundOperator(Operator):
@@ -190,6 +191,7 @@ class RoundOperator(Operator):
 
 if numexpr.__version__ > '2.0.1':
  @square
+ @idempotent
  @inplace
  @universal
  class HardThresholdingOperator(NumexprOperator):
@@ -223,6 +225,7 @@ if numexpr.__version__ > '2.0.1':
                       CompositionOperator)
 else:
  @square
+ @idempotent
  @inplace
  @universal
  class HardThresholdingOperator(Operator):
