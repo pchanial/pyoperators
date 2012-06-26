@@ -53,7 +53,7 @@ dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
           np.float128, np.complex64, np.complex128, np.complex256)]
 
-shapes = (None, (), (1,), (2,3))
+SHAPES = (None, (), (1,), (3,), (2,3))
 
 class ndarray2(np.ndarray):
     pass
@@ -235,7 +235,7 @@ def test_shape_implicit():
         yield func, o, eout, ein
 
 def test_shapeout_unconstrained1():
-    for shape in shapes:
+    for shape in SHAPES:
         op = Operator(shapein=shape)
         assert_is_none(op.shapeout)
 
@@ -249,8 +249,8 @@ def test_shapeout_unconstrained2():
             assert op.shapeout == s1
         else:
             assert op.shapeout is None
-    for s1 in shapes:
-        for s2 in shapes:
+    for s1 in SHAPES:
+        for s2 in SHAPES:
             yield func, s1, s2
 
 def test_shapeout_implicit():
@@ -264,7 +264,7 @@ def test_shapeout_implicit():
             assert op.shapeout is None
         else:
             assert op.shapeout == shapein + (2,)
-    for shapein in shapes:
+    for shapein in SHAPES:
         op = Op(shapein=shapein)
         yield func, op, shapein
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
@@ -273,7 +273,7 @@ def test_shapein_unconstrained1():
     def func(shape):
         op = Operator(shapeout=shape)
         assert_is_none(op.shapein)
-    for shape in shapes[1:]:
+    for shape in SHAPES[1:]:
         yield func, shape
 
 def test_shapein_unconstrained2():
@@ -284,7 +284,7 @@ def test_shapein_unconstrained2():
         assert_flags_false(op, 'square')
         assert op.shapeout == shapeout
         assert op.shapein == shapeout + (2,)
-    for shape in shapes[1:]:
+    for shape in SHAPES[1:]:
         op = Op(shapeout=shape)
         yield func, op, shape
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
@@ -319,7 +319,7 @@ def test_shapein_unconstrained3():
     def func(op, shape):
         assert_square(op)
         assert_eq(op.shapein, shape)
-    for shape in shapes[1:]:
+    for shape in SHAPES[1:]:
         for cls in (Op1, Op2, Op3, Op4):
             op = cls(shapeout=shape)
             yield func, op, shape
@@ -1356,12 +1356,12 @@ def test_composition1():
         assert_eq(op.shapeout, shapeout)
         if shapein is not None and shapein == shapeout:
             assert_flags(op, 'square')
-    for shapein in shapes:
-        for shapemid in shapes:
+    for shapein in SHAPES:
+        for shapemid in SHAPES:
             if shapemid is None and shapein is not None:
                 continue
             op1 = Operator(shapein=shapein, shapeout=shapemid)
-            for shapeout in shapes:
+            for shapeout in SHAPES:
                 if shapeout is None and shapemid is not None:
                     continue
                 op2 = Operator(shapein=shapemid, shapeout=shapeout)
@@ -1377,7 +1377,7 @@ def test_composition2():
         assert op.shapein is None
         assert op.shapeout == (2*shape if shape is not None else None)
         assert_flags_false(op, 'square')
-    for shape in shapes:
+    for shape in SHAPES:
         op = Op() * Operator(shapeout=shape)
         yield func, op, shape
 
