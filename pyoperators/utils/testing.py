@@ -9,7 +9,8 @@ __all__ = ['assert_eq',
            'assert_is_instance',
            'assert_is_not_instance',
            'assert_is_none',
-           'assert_is_not_none']
+           'assert_is_not_none',
+           'skiptest']
 
 def assert_eq(a, b, msg=None):
     """ Assert that the two arguments are (almost) equal. """
@@ -87,3 +88,10 @@ def _get_msg(msg):
     if not msg:
         return '.'
     return ': ' + str(msg) + '.'
+
+def skiptest(func):
+    from nose.plugins.skip import SkipTest
+    def _():
+        raise SkipTest()
+    _.__name__ = func.__name__
+    return _
