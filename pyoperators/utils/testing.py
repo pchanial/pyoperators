@@ -11,6 +11,7 @@ __all__ = [
     'assert_is_not_instance',
     'assert_is_none',
     'assert_is_not_none',
+    'skiptest',
 ]
 
 
@@ -101,3 +102,13 @@ def _get_msg(msg):
     if not msg:
         return '.'
     return ': ' + str(msg) + '.'
+
+
+def skiptest(func):
+    from nose.plugins.skip import SkipTest
+
+    def _():
+        raise SkipTest()
+
+    _.__name__ = func.__name__
+    return _
