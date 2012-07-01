@@ -5,18 +5,34 @@ import numpy as np
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, symmetric, inplace
-from .core import Operator, CompositionOperator, DiagonalOperator, ReductionOperator, asoperator
+from .core import Operator, BlockRowOperator, CompositionOperator, DiagonalOperator, ReductionOperator, asoperator
 from .utils import isscalar
 
 __all__ = [
     'BandOperator',
     'EigendecompositionOperator',
+    'IntegrationTrapezeOperator',
     'PackOperator',
     'SumOperator',
     'SymmetricBandOperator',
     'TridiagonalOperator',
     'UnpackOperator',
 ]
+
+
+class IntegrationTrapezeOperator(Operator):
+    def __new__(cls, x, new_axisin=0):
+        x = np.asarray(x)
+        if x.size < 2:
+            raise ValueError('At least two abscissa are required.')
+        if np.any(np.diff(x) < 0) and np.any(np.diff(x) > 0):
+            raise ValueError('The abscissa are not monotonous.')
+
+        w = np.empty_like(x)
+        w[0] = 0.5 * (x[1] - x[0])
+        w[1:-1] = 0.5 * (x[2:]-x[:-2])
+        w[-1] = 0.5 * (x[-1] - x[-2])
+        return BlockRowOperator(list(w), new_axisin=new_axisin)
 
 
 @linear
