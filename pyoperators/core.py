@@ -4326,7 +4326,7 @@ class ReductionOperator(Operator):
             raise TypeError('Cannot reduce on scalars.')
         if self.axis is None:
             return
-        if len(shape) < self.axis + 1 if self.axis >= 0 else abs(self.axis):
+        if len(shape) < (self.axis + 1 if self.axis >= 0 else abs(self.axis)):
             raise ValueError(
                 'The input shape has an insufficient number of dim' 'ensions.'
             )
