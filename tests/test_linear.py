@@ -1,10 +1,39 @@
 from __future__ import division
 
 import numpy as np
-from pyoperators.linear import PackOperator, UnpackOperator, SumOperator
+import pyoperators
+
+from pyoperators import Operator, BlockColumnOperator
+from pyoperators.linear import (
+    IntegrationTrapezeOperator,
+    PackOperator,
+    UnpackOperator,
+    SumOperator,
+)
 from pyoperators.utils.testing import assert_eq
 
 SHAPES = (None, (), (1,), (3,), (2, 3), (2, 3, 4))
+
+
+def test_integration_trapeze():
+    @pyoperators.decorators.square
+    class Op(Operator):
+        """output[i] = value ** (i + input[i])"""
+
+        def __init__(self, x):
+            Operator.__init__(self, dtype=float)
+            self.x = x
+
+        def direct(self, input, output):
+            output[...] = self.x ** (np.arange(input.size) + input)
+
+    value = range(3)
+    x = [0.5, 1, 2, 4]
+    func_op = BlockColumnOperator([Op(_) for _ in x], new_axisout=0)
+    eval_ = func_op(value)
+    expected = np.trapz(eval_, x=x, axis=0)
+    integ = IntegrationTrapezeOperator(x) * func_op
+    assert_eq(integ(value), expected)
 
 
 def test_packing():
