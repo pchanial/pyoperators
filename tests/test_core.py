@@ -1814,20 +1814,33 @@ def test_denseoperator():
 
 def test_asoperator_scalar():
     scalars = [np.array(1, d) for d in dtypes]
-    def func(s):
+    def func1(s):
         o = asoperator(s)
         assert_is_instance(o, HomothetyOperator)
+    def func2(s):
+        o = asoperator(s, constant=True)
+        assert_is_instance(o, ConstantOperator)
     for s in scalars:
-        yield func, s
-        
+        yield func1, s
+        yield func2, s
+
 def test_asoperator_ndarray():
     values = ([[1]], [[1,2],[2,3]], np.matrix([[3,2.],[0,1]]))
-    def func(v):
+    def func1(v):
         o = asoperator(v)
         assert_is_instance(o, DenseOperator)
         assert_eq(np.array(v).shape, o.shape)
+    def func2(v):
+        o = asoperator(v, constant=True)
+        if isinstance(v, np.matrix):
+            assert_is_instance(o, DenseOperator)
+            assert_eq(np.array(v).shape, o.shape)
+        else:
+            assert_is_instance(o, ConstantOperator)
+            assert_eq(np.array(v).shape, o.shapeout)
     for v in values:
-        yield func, v
+        yield func1, v
+        yield func2, v
 
 def test_asoperator_func():
     f = lambda x: x**2
