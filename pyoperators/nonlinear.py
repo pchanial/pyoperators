@@ -4,10 +4,11 @@ if numexpr.__version__ < 2.0:
 
 import numpy as np
 from . import memory
-from .decorators import square, idempotent, inplace, universal
+from .decorators import real, square, idempotent, inplace, universal
 from .core import (Operator, CompositionOperator, IdentityOperator,
                    ReductionOperator)
 from .utils import operation_assignment, operation_symbol, strenum
+from .utils.ufuncs import hard_thresholding, soft_thresholding
 
 __all__ = ['ClipOperator',
            'HardThresholdingOperator',
@@ -306,51 +307,17 @@ class RoundOperator(Operator):
         np.add(output, 1, output)
 
 
-if numexpr.__version__ > '2.0.1':
- @square
- @idempotent
- @inplace
- @universal
- class HardThresholdingOperator(NumexprOperator):
+@real
+@square
+@idempotent
+@inplace
+@universal
+class HardThresholdingOperator(Operator):
     """
     Hard thresholding operator.
 
-    Ha(x) = 0 if |x| <= a
-          = x otherwise
-
-    Parameter
-    ---------
-    a : positive float or array
-        Hard threshold
-
-    """
-    def __init__(self, a, **keywords):
-        if np.any(a < 0):
-            raise ValueError('Negative hard threshold.')
-        if np.all(a == 0):
-            self.__class__ = IdentityOperator
-            IdentityOperator.__init__(self, **keywords)
-            return
-        a = np.asarray(a)
-        shapein = a.shape if a.ndim > 0 else None
-        NumexprOperator.__init__(self, 'where(abs(input) <= a, 0, input)',
-                                 {'a':a}, shapein=shapein, dtype=float, 
-                                 **keywords)
-        self.a = a
-        self.set_rule('.{HardThresholdingOperator}', lambda s, o:
-                      HardThresholdingOperator(np.maximum(s.a, o.a)),
-                      CompositionOperator)
-else:
- @square
- @idempotent
- @inplace
- @universal
- class HardThresholdingOperator(Operator):
-    """
-    Hard thresholding operator.
-
-    Ha(x) = 0 if |x| <= a
-          = x otherwise
+    Ha(x) = x if |x| > a,
+            0 otherwise.
 
     Parameter
     ---------
@@ -374,19 +341,10 @@ else:
                       CompositionOperator)
 
     def direct(self, input, output):
-        if not self.same_data(input, output):
-            output[...] = input
-        memory.up()
-        mask = memory.get(input.shape, bool, self.__name__)
-        memory.up()
-        tmp = memory.get(input.shape, input.dtype, self.__name__)
-        np.abs(input, tmp)
-        mask[...] = tmp <= self.a
-        memory.down()
-        output[mask] = 0
-        memory.down()
+        hard_thresholding(input, self.a, output)
 
 
+@real
 @square
 @inplace
 @universal
@@ -415,11 +373,4 @@ class SoftThresholdingOperator(Operator):
         self.a = a
 
     def direct(self, input, output):
-        memory.up()
-        mask = memory.get(input.shape, bool, self.__name__)
-        mask[...] = input < 0
-        np.abs(input, output)
-        output -= self.a
-        np.maximum(output, 0, output)
-        output[mask] *= -1
-        memory.down()
+        soft_thresholding(input, self.a, output)
