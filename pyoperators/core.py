@@ -1428,15 +1428,21 @@ def ReverseOperatorFactory(cls, source, *args, **keywords):
     return cls(*args, **keywords)
 
 
-def asoperator(x, **keywords):
+def asoperator(x, constant=False, **keywords):
     """
     Return input as an Operator.
 
-    The input can be one of the following:
-        - a callable (including ufuncs)
-        - array_like (including matrices)
-        - a numpy or python scalar
-        - scipy.sparse.linalg.LinearOperator
+    Parameters
+    ----------
+    x : object
+        The input can be one of the following:
+            - a callable (including ufuncs)
+            - array_like (including matrices)
+            - a numpy or python scalar
+            - scipy.sparse.linalg.LinearOperator
+    constant : boolean, optional
+        If True, return a ConstantOperator instead of a HomothetyOperator for
+        scalars. Default is False.
 
     """
     if isinstance(x, Operator):
@@ -1468,12 +1474,16 @@ def asoperator(x, **keywords):
        isinstance(x[0], (list, tuple)):
         x = np.array(x)
 
+    if constant and isinstance(x, (int, float, complex, np.bool_, np.number,
+                               np.ndarray)) and not isinstance(x, np.matrix):
+        return ConstantOperator(x, **keywords)
+
     if isinstance(x, (np.matrix, np.ndarray)):
         if x.ndim > 0:
             return DenseOperator(x, **keywords)
         x = x[()]
             
-    if isinstance(x, (np.number, complex, int, float)):
+    if isinstance(x, (int, float, complex, np.bool_, np.number)):
         return HomothetyOperator(x, **keywords)
 
     return asoperator(scipy.sparse.linalg.aslinearoperator(x), **keywords)
