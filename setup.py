@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import numpy as np
-from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
+from numpy.distutils.core import setup
+from numpy.distutils.command.build_ext import build_ext
+from numpy.distutils.misc_util import get_info
 
 
 def version():
@@ -23,7 +24,12 @@ ext_modules = [
         "pyoperators.utils.cythonutils",
         sources=["pyoperators/utils/cythonutils.pyx"],
         include_dirs=['.', np.get_include()],
-    )
+    ),
+    Extension(
+        "pyoperators.utils.ufuncs",
+        sources=["pyoperators/utils/ufuncs.c.src"],
+        extra_info=get_info("npymath"),
+    ),
 ]
 
 setup(
