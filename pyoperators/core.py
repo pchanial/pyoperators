@@ -1535,7 +1535,7 @@ class CompositeOperator(Operator):
 
     @classmethod
     def _validate_operands(cls, operands):
-        if isinstance(operands, Operator):
+        if not isinstance(operands, (list, tuple)):
             operands = [operands]
         return [asoperator(op) for op in operands]
 
