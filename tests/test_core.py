@@ -102,7 +102,7 @@ def test_flags():
             print 'Cannot test: ' + op.__name__
             return
         if o.flags.idempotent:
-            assert_is(o, o * o)
+            assert_eq(o, o * o)
         if o.flags.real:
             assert_is(o, o.C)
         if o.flags.symmetric:
@@ -711,9 +711,6 @@ def test_comm_composite():
     comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
     def func(cls, comms, inout):
         ops = [Operator(**{'comm'+inout:c}) for c in comms]
-        if MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms:
-            assert_raises(ValueError, cls, ops)
-            return
         keywords = {}
         args = ()
         if cls in (BlockDiagonalOperator, BlockRowOperator):
@@ -724,6 +721,9 @@ def test_comm_composite():
             args = [tuple(slice(i,i+1) for i in range(len(comms)))]
         else:
             keywords = {}
+        if MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms:
+            assert_raises(ValueError, cls, ops, *args, **keywords)
+            return
         op = cls(ops, *args, **keywords)
         assert_is(getattr(op, 'comm'+inout), first_is_not(comms, None))
     for cls in (AdditionOperator, MultiplicationOperator, BlockRowOperator,
@@ -1566,7 +1566,7 @@ def test_masking():
 
 def test_masking2():
     m = MaskOperator([True, False, True])
-    assert m * m is m
+    assert_eq(m * m,  m)
 
 def test_homothety_operator():
     s = HomothetyOperator(1)
@@ -1768,7 +1768,7 @@ def test_zero6():
     
 def test_zero7():
     z = ZeroOperator()
-    assert_is(z*z, z)
+    assert_eq(z*z, z)
 
 def test_zero8():
     class Op(Operator):

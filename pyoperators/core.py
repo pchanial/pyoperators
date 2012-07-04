@@ -1498,24 +1498,40 @@ def asoperator1d(x):
 
 class CompositeOperator(Operator):
     """
-    Abstract class for grouping operands.
+    Abstract class for handling a list of operands.
+
+    Attributes
+    ----------
+    operands : list of Operators
+        List of operands.
+
+    Methods
+    -------
+    can_morph : boolean method
+        If the composite operator has only one operand (being the argument
+        itself or being the result of simplifications by binary rules),
+        this method specifues if the composite should morph into its operand.
+        Default is False.
+
+    Notes
+    -----
+    Composites can morph into their single operand during the call to
+    CompositeOperator.__init__, As a consequence, one should make sure to return
+    right after the call in the parent __init__ method.
+
+    class MyCompositeOperator(CompositeOperator):
+        def __init__(self, operands, **keywords):
+            ...
+            CompositeOperator.__init__(self, operands)
+            if not isinstance()
 
     """
-    def __new__(cls, operands=None, *args, **keywords):
-        if operands is not None:
-            operands = cls._validate_operands(operands)
-            operands = cls._apply_rules(operands)
-            if len(operands) == 1:
-                return operands[0]
-            cls._validate_comm(operands)
-        instance = super(CompositeOperator, cls).__new__(cls)
-        instance.operands = operands
-        return instance
-
-    def __init__(self, operands=None, *args, **keywords):
-        if operands is None:
-            return
-        dtype = self._find_common_type([o.dtype for o in self.operands])
+    def __init__(self, operands, dtype=None, *args, **keywords):
+        operands = self._validate_operands(operands)
+        self._validate_comm(operands)
+        if dtype is None:
+            dtype = self._find_common_type([o.dtype for o in operands])
+        self.operands = operands
         Operator.__init__(self, dtype=dtype, **keywords)
         self.propagate_commin(self.commin)
         self.propagate_commout(self.commout)
@@ -1539,18 +1555,15 @@ class CompositeOperator(Operator):
            self.operands[i] = op.propagate_commout(commout)
         return self
 
-    @classmethod
-    def _apply_rules(cls, ops):
+    def _apply_rules(self, ops):
         return ops
 
-    @classmethod
-    def _validate_operands(cls, operands):
+    def _validate_operands(self, operands, constant=False):
         if not isinstance(operands, (list, tuple)):
             operands = [operands]
-        return [asoperator(op) for op in operands]
+        return [asoperator(op, constant=constant) for op in operands]
 
-    @classmethod
-    def _validate_comm(cls, operands):
+    def _validate_comm(self, operands):
         comms = [op.commin for op in operands if op.commin is not None]
         if len(set(id(c) for c in comms)) > 1:
             raise ValueError('The input MPI communicators are incompatible.')
@@ -1599,21 +1612,17 @@ class CommutativeCompositeOperator(CompositeOperator):
     """
     Abstract class for commutative composite operators, such as the addition or
     the element-wise multiplication.
-    """
-    def __new__(cls, operands=None, operation=None, *args, **keywords):
-        if operands is not None:
-            operands = cls._validate_constants(operands)
-        return CompositeOperator.__new__(cls, operands, *args, **keywords)
 
-    def __init__(self, operands=None, operation=None, *args, **keywords):
-        if operands is None:
-            return
-        classin = first_is_not([o.classin for o in self.operands], None)
-        classout = first_is_not([o.classout for o in self.operands], None)
-        commin = first_is_not([o.commin for o in self.operands], None)
-        commout = first_is_not([o.commout for o in self.operands], None)
+    """
+    def __init__(self, operands, operation=None, *args, **keywords):
+        classin = first_is_not([o.classin for o in operands], None)
+        classout = first_is_not([o.classout for o in operands], None)
+        commin = first_is_not([o.commin for o in operands], None)
+        commout = first_is_not([o.commout for o in operands], None)
         CompositeOperator.__init__(self, operands, commin=commin, commout= \
             commout, classin=classin, classout=classout, *args, **keywords)
+        if not isinstance(self, CommutativeCompositeOperator):
+            return
         self.set_rule('.{Operator}', lambda s,o: type(s)(s.operands + [o]),
                       type(self), merge=False)
         self.set_rule('.{self}', lambda s,o: type(s)(s.operands + o.operands),
@@ -1686,20 +1695,19 @@ class CommutativeCompositeOperator(CompositeOperator):
                                  "}'.".format(shapein, shapein_))
         return shapein
 
-    @classmethod
-    def _apply_rules(cls, ops):
+    def _apply_rules(self, ops):
         if len(ops) <= 1:
             return ops
         i = 0
         while i < len(ops):
-            if cls not in ops[i].rules:
+            if type(self) not in ops[i].rules:
                 i += 1
                 continue
             j = 0
             consumed = False
             while j < len(ops):
                 if j != i:
-                    for rule in ops[i].rules[cls]:
+                    for rule in ops[i].rules[type(self)]:
                         new_ops = rule(ops[i], ops[j])
                         if new_ops is None:
                             continue
@@ -1727,15 +1735,6 @@ class CommutativeCompositeOperator(CompositeOperator):
                 del ops[0]
         return ops
 
-    @classmethod
-    def _validate_constants(cls, operands):
-        """ Convert constants into ConstantOperator. """
-        for i, op in enumerate(operands):
-            if isinstance(op, (int, float, complex, np.bool_, np.number,
-                          np.ndarray)):
-                operands[i] = ConstantOperator(op)
-        return operands
-
 
 class AdditionOperator(CommutativeCompositeOperator):
     """
@@ -1744,27 +1743,28 @@ class AdditionOperator(CommutativeCompositeOperator):
     If at least one of the input already is the result of an addition,
     a flattened list of operators is created by associativity, to simplify
     reduction.
-    """
-    def __new__(cls, operands=None):
-        return CommutativeCompositeOperator.__new__(cls, operands,
-                                                    operator.iadd)
 
-    def __init__(self, operands=None):
-        if operands is None:
+    """
+    def __init__(self, operands):
+        operands = self._validate_operands(operands, constant=True)
+        operands = self._apply_rules(operands)
+        if len(operands) == 1:
+            self.__class__ = operands[0].__class__
+            self.__dict__ = operands[0].__dict__.copy()
             return
         flags = {
-            'linear':all([op.flags.linear for op in self.operands]),
-            'real':all([op.flags.real for op in self.operands]),
-            'square':all([op.flags.square for op in self.operands]),
-            'symmetric':all([op.flags.symmetric for op in self.operands]),
-            'hermitian':all([op.flags.hermitian for op in self.operands]),
-            'universal':all([op.flags.universal for op in self.operands])}
+            'linear':all([op.flags.linear for op in operands]),
+            'real':all([op.flags.real for op in operands]),
+            'square':all([op.flags.square for op in operands]),
+            'symmetric':all([op.flags.symmetric for op in operands]),
+            'hermitian':all([op.flags.hermitian for op in operands]),
+            'universal':all([op.flags.universal for op in operands])}
         CommutativeCompositeOperator.__init__(self, operands, operator.iadd,
                                               flags=flags)
         self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands]))
         self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands]))
         self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
-                
+
 
 class MultiplicationOperator(CommutativeCompositeOperator):
     """
@@ -1773,18 +1773,19 @@ class MultiplicationOperator(CommutativeCompositeOperator):
     If at least one of the input already is the result of an multiplication,
     a flattened list of operators is created by associativity, to simplify
     reduction.
-    """
-    def __new__(cls, operands=None):
-        return CommutativeCompositeOperator.__new__(cls, operands,
-                                                    operator.imul)
 
-    def __init__(self, operands=None):
-        if operands is None:
+    """
+    def __init__(self, operands):
+        operands = self._validate_operands(operands, constant=True)
+        operands = self._apply_rules(operands)
+        if len(operands) == 1:
+            self.__class__ = operands[0].__class__
+            self.__dict__ = operands[0].__dict__.copy()
             return
         flags = {
-            'real':all([op.flags.real for op in self.operands]),
-            'square':all([op.flags.square for op in self.operands]),
-            'universal':all([op.flags.universal for op in self.operands])}
+            'real':all([op.flags.real for op in operands]),
+            'square':all([op.flags.square for op in operands]),
+            'universal':all([op.flags.universal for op in operands])}
         CommutativeCompositeOperator.__init__(self, operands, operator.imul,
                                               flags=flags)
         self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
@@ -1819,23 +1820,25 @@ class BlockSliceOperator(CommutativeCompositeOperator):
 
     """
     def __init__(self, operands, slices, **keywords):
+
+        operands = self._validate_operands(operands)
+
         if any(not op.flags.square and op.flags.shape_output != 'unconstrained'
-               for op in self.operands):
+               for op in operands):
             raise ValueError('Input operands must be square.')
         if not isinstance(slices, (list, tuple, slice)):
             raise TypeError('Invalid input slices.')
         if isinstance(slices, slice):
             slices = (slices,)
-        if len(self.operands) != len(slices):
+        if len(operands) != len(slices):
             raise ValueError("The number of slices '{0}' is not equal to the nu"
-                "mber of operands '{1}'.".format(len(slices), len(self.operands)
-                ))
+                "mber of operands '{1}'.".format(len(slices), len(operands)))
 
         flags = {
-            'linear':all(op.flags.linear for op in self.operands),
-            'real':all(op.flags.real for op in self.operands),
-            'symmetric':all(op.flags.symmetric for op in self.operands),
-            'inplace':all(op.flags.inplace for op in self.operands),
+            'linear':all(op.flags.linear for op in operands),
+            'real':all(op.flags.real for op in operands),
+            'symmetric':all(op.flags.symmetric for op in operands),
+            'inplace':all(op.flags.inplace for op in operands),
         }
 
         CommutativeCompositeOperator.__init__(self, operands, flags=flags)
@@ -1868,11 +1871,12 @@ class NonCommutativeCompositeOperator(CompositeOperator):
     """
     Abstract class for non-commutative composite operators, such as
     the composition.
+
     """
-    @classmethod
-    def _apply_rules(cls, ops):
+    def _apply_rules(self, ops):
         if len(ops) <= 1:
             return ops
+        cls = type(self)
         i = len(ops) - 2
 
         # loop over the len(ops)-1 pairs of operands
@@ -1932,18 +1936,22 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     If at least one of the input already is the result of a composition,
     a flattened list of operators is created by associativity, to simplify
     reduction.
-    """
 
-    def __init__(self, operands=None):
-        flags = self._merge_flags(self.operands)
-        flags['inplace_reduction'] = self.operands[0].flags.inplace_reduction
-        classin = first_is_not([o.classin for o in self.operands[::-1]], None)
-        classout = first_is_not([o.classout for o in self.operands], None)
-        commin = first_is_not([o.commin for o in self.operands[::-1]], None)
-        commout = first_is_not([o.commout for o in self.operands], None)
+    """
+    def __init__(self, operands):
+        operands = self._validate_operands(operands)
+        operands = self._apply_rules(operands)
+        if len(operands) == 1:
+            self.__class__ = operands[0].__class__
+            self.__dict__ = operands[0].__dict__.copy()
+            return
+        flags = self._merge_flags(operands)
+        classin = first_is_not([o.classin for o in operands[::-1]], None)
+        classout = first_is_not([o.classout for o in operands], None)
+        commin = first_is_not([o.commin for o in operands[::-1]], None)
+        commout = first_is_not([o.commout for o in operands], None)
         NonCommutativeCompositeOperator.__init__(self, operands, flags=flags,
             classin=classin, classout=classout, commin=commin, commout=commout)
-
         self._info = {}
         self.set_rule('.C', lambda s:type(s)([m.C for m in s.operands]))
         self.set_rule('.T', lambda s:type(s)([m.T for m in s.operands[::-1]]))
@@ -2204,6 +2212,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'real':all([op.flags.real for op in ops]),
             'square':all([op.flags.square for op in ops]),
             'universal':all([op.flags.universal for op in ops]),
+            'inplace_reduction':ops[0].flags.inplace_reduction,
         }
         return flags
 
@@ -2227,8 +2236,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             return op2.reshapeout(op1.reshapeout(shape))
         return reshapeout
 
-    @classmethod
-    def _validate_comm(cls, operands):
+    def _validate_comm(self, operands):
         for op1, op2 in zip(operands[:-1], operands[1:]):
             commin = op1.commin
             commout = op2.commout
@@ -2240,6 +2248,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 class GroupOperator(CompositionOperator):
     def __init__(self, operands, **keywords):
         CompositionOperator.__init__(self, operands, **keywords)
+        if not isinstance(self, GroupOperator):
+            return
         self.del_rule('.{self}', CompositionOperator)
         self.del_rule('.{Operator}', CompositionOperator)
         self.del_rule('{Operator}.', CompositionOperator)
@@ -2254,6 +2264,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
     def __init__(self, operands, partitionin=None, partitionout=None,
                  axisin=None, axisout=None, new_axisin=None, new_axisout=None,
                  flags=None):
+
+        operands = self._validate_operands(operands)
 
         if not isinstance(self, BlockRowOperator) and axisout is None and \
            new_axisout is None:
@@ -2273,14 +2285,14 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
         if new_axisin is not None:
             if partitionin is None:
-                partitionin = len(self.operands) * (1,)
+                partitionin = len(operands) * (1,)
             elif any(p not in (None, 1) for p in partitionin):
                 raise ValueError('If the block operator input shape has one mor'
                                  'e dimension than its blocks, the input partit'
                                  'ion must be a tuple of ones.')
         if new_axisout is not None:
             if partitionout is None:
-                partitionout = len(self.operands) * (1,)
+                partitionout = len(operands) * (1,)
             elif any(p not in (None, 1) for p in partitionout):
                 raise ValueError('If the block operator output shape has one mo'
                                  're dimension than its blocks, the output part'
@@ -2296,14 +2308,14 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitionin is partitionout is None:
             raise ValueError('No partition is provided.')
         if partitionin is not None:
-            if len(partitionin) != len(self.operands):
+            if len(partitionin) != len(operands):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the input partition.')
             partitionin = merge_none(partitionin, self._get_partitionin(
                                       operands, partitionout, axisin, axisout,
                                       new_axisin, new_axisout))
         if partitionout is not None:
-            if len(partitionout) != len(self.operands):
+            if len(partitionout) != len(operands):
                 raise ValueError('The number of operators must be the same as t'
                                  'he length of the output partition.')
             partitionout = merge_none(partitionout, self._get_partitionout(
@@ -2313,13 +2325,14 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if flags is None:
             flags = {}
         if 'linear' not in flags:
-            flags['linear'] = all(op.flags.linear for op in self.operands)
+            flags['linear'] = all(op.flags.linear for op in operands)
         if 'real' not in flags:
-            flags['real'] = all(op.flags.real for op in self.operands)
+            flags['real'] = all(op.flags.real for op in operands)
         if partitionin is not None and partitionout is not None:
-            flags['square'] = all(op.flags.square for op in self.operands)
-            flags['symmetric'] = all(op.flags.symmetric for op in self.operands)
-            flags['hermitian'] = all(op.flags.hermitian for op in self.operands)
+            flags['square'] = all(op.flags.square for op in operands)
+            flags['symmetric'] = all(op.flags.symmetric for op in operands)
+            flags['hermitian'] = all(op.flags.hermitian for op in operands)
+        flags['inplace_reduction'] = False
 
         self.partitionin = tointtuple(partitionin)
         self.partitionout = tointtuple(partitionout)
@@ -2333,8 +2346,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             self.__class__ = BlockRowOperator
         else:
             self.__class__ = BlockDiagonalOperator
-        commin = first_is_not([o.commin for o in self.operands], None)
-        commout = first_is_not([o.commout for o in self.operands], None)
+        commin = first_is_not([o.commin for o in operands], None)
+        commout = first_is_not([o.commout for o in operands], None)
         CompositeOperator.__init__(self, operands, commin=commin,
                                    commout=commout, flags=flags)
 
@@ -2375,11 +2388,12 @@ class BlockOperator(NonCommutativeCompositeOperator):
                       s.operands], s.partitionin, s.axisin, s.axisout,
                       s.new_axisin, s.new_axisout))
 
-        self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator)
+        self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator,
+                      merge=False)
         self.set_rule('.{Operator}', self._rule_left_operator,
-                      CompositionOperator)
+                      CompositionOperator, merge=False)
         self.set_rule('{Operator}.', self._rule_right_operator,
-                      CompositionOperator)
+                      CompositionOperator, merge=False)
         self.set_rule('{self}.', self._rule_add_blockoperator,
                       AdditionOperator, merge=False)
         self.set_rule('{self}.', self._rule_mul_blockoperator,
@@ -2807,6 +2821,8 @@ class BlockDiagonalOperator(BlockOperator):
     def __init__(self, operands, partitionin=None, axisin=None, axisout=None,
                  new_axisin=None, new_axisout=None):
    
+        operands = self._validate_operands(operands)
+
         if axisin is None and new_axisin is None:
             raise NotImplementedError('Free partitioning not implemented yet.')
 
@@ -2817,7 +2833,7 @@ class BlockDiagonalOperator(BlockOperator):
 
         if partitionin is None:
             partitionin = self._get_partition([op.shapein \
-                for op in self.operands], axisin, new_axisin)
+                for op in operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
         partitionout = len(partitionin) * (None,)
 
@@ -2876,12 +2892,15 @@ class BlockColumnOperator(BlockOperator):
     """   
     def __init__(self, operands, partitionout=None, axisout=None,
                  new_axisout=None):
+
+        operands = self._validate_operands(operands)
+
         if axisout is None and new_axisout is None:
             raise NotImplementedError('Free partitioning not implemented yet.')
 
         if partitionout is None:
             partitionout = self._get_partition([op.shapeout \
-                for op in self.operands], axisout, new_axisout)
+                for op in operands], axisout, new_axisout)
         partitionout = tointtuple(partitionout)
 
         BlockOperator.__init__(self, operands, partitionout=partitionout,
@@ -2935,12 +2954,15 @@ class BlockRowOperator(BlockOperator):
     """   
     def __init__(self, operands, partitionin=None, axisin=None,
                  new_axisin=None, operation=operator.iadd):
+
+        operands = self._validate_operands(operands)
+
         if axisin is None and new_axisin is None:
             raise NotImplementedError('Free partitioning not implemented yet.')
 
         if partitionin is None:
             partitionin = self._get_partition([op.shapein for op in
-                self.operands], axisin, new_axisin)
+                operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
 
         flags = {'linear':operation is operator.iadd}
@@ -3065,13 +3087,14 @@ class BroadcastingOperator(Operator):
         self.set_rule('{BroadcastingOperator}.', lambda b1, b2: \
             self._rule_broadcast(b1, b2, np.multiply), CompositionOperator)
         self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, CompositionOperator), CompositionOperator)
+                      o, CompositionOperator), CompositionOperator, merge=False)
         self.set_rule('{BlockOperator}.', lambda o,s: self._rule_right_block(o,
-                      s, CompositionOperator), CompositionOperator)
+                      s, CompositionOperator), CompositionOperator, merge=False)
         self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, AdditionOperator), AdditionOperator)
+                      o, AdditionOperator), AdditionOperator, merge=False)
         self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, MultiplicationOperator), MultiplicationOperator)
+                      o, MultiplicationOperator), MultiplicationOperator,
+                      merge=False)
 
     @staticmethod
     def _rule_broadcast(b1, b2, operation):
@@ -3492,9 +3515,11 @@ class ConstantOperator(BroadcastingOperator):
         self.set_rule('.{DiagonalOperator}', self._rule_mul,
                       MultiplicationOperator)
         self.set_rule('.{BlockOperator}', lambda s,o: self.
-                      _rule_left_block_composition(s, o), CompositionOperator)
+                      _rule_left_block_composition(s, o), CompositionOperator,
+                      merge=False)
         self.set_rule('{BlockOperator}.', lambda o,s: self.
-                      _rule_right_block_composition(o, s), CompositionOperator)
+                      _rule_right_block_composition(o, s), CompositionOperator,
+                      merge=False)
 
     def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'rightward':
