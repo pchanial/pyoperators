@@ -3035,7 +3035,7 @@ class BroadcastingOperator(Operator):
     dimensions, if the array is stored in C order. Rightward broadcasting is
     a broadcasting along the fast dimension.
     """
-    def __init__(self, data, broadcast='disabled', shapeout=None, **keywords):
+    def __init__(self, data, broadcast=None, shapeout=None, **keywords):
         if data is None:
             raise ValueError('The input data is None.')
         if 'dtype' in keywords:
@@ -3044,9 +3044,10 @@ class BroadcastingOperator(Operator):
             data = np.asarray(data)
             dtype = keywords['dtype'] = data.dtype
         data = np.array(data, dtype, order='c', copy=False)
-        if data.ndim == 0:
-            broadcast = 'scalar'
-        broadcast = broadcast.lower()
+        if broadcast is None:
+            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
+        else:
+            broadcast = broadcast.lower()
         values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError("Invalid value '{0}' for the broadcast keyword. Ex"
@@ -3241,9 +3242,11 @@ class DiagonalOperator(BroadcastingOperator):
            [0, 0, 0, 2]])
 
     """
-    def __init__(self, data, broadcast='disabled', **keywords):
+    def __init__(self, data, broadcast=None, **keywords):
         data = np.asarray(data)
-        if broadcast == 'disabled' and data.ndim > 0:
+        if broadcast is None:
+            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
+        if broadcast == 'disabled':
             keywords['shapein'] = data.shape
             keywords['shapeout'] = data.shape
         n = data.size
@@ -3461,13 +3464,16 @@ class IdentityOperator(HomothetyOperator):
 class ConstantOperator(BroadcastingOperator):
     """
     Non-linear constant operator.
+
     """
-    def __init__(self, data, broadcast='disabled', **keywords):
+    def __init__(self, data, broadcast=None, **keywords):
         data = np.asarray(data)
+        if broadcast is None:
+            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
+        if broadcast == 'disabled':
+            keywords['shapeout'] = data.shape
         if data.ndim > 0 and np.all(data == data.flat[0]):
-            if broadcast in ('disabled', 'scalar'):
-                keywords['shapeout'] = data.shape
-            self.__init__(data.flat[0], 'scalar', **keywords)
+            self.__init__(data.flat[0], **keywords)
             return
         if not isinstance(self, ZeroOperator) and data.ndim == 0  and data == 0:
             self.__class__ = ZeroOperator
