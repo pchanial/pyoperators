@@ -1443,6 +1443,8 @@ def asoperator(x, constant=False, **keywords):
     constant : boolean, optional
         If True, return a ConstantOperator instead of a HomothetyOperator for
         scalars. Default is False.
+    flags : dictionary
+        The operator flags.
 
     """
     if isinstance(x, Operator):
