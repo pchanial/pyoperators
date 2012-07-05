@@ -1,7 +1,6 @@
 import itertools
 import numpy as np
 import operator
-import pyoperators
 
 from nose.plugins.skip import SkipTest
 from pyoperators import memory, decorators
@@ -15,10 +14,7 @@ from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises)
-from .common import HomothetyOutplaceOperator
-
-ALL_OPS = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
-            'Operator') ]
+from .common import OPS, ALL_OPS, HomothetyOutplaceOperator
 
 np.seterr(all='raise')
 
@@ -136,6 +132,16 @@ def test_symmetric():
     assert op is op.H
     assert_eq(op([1,1]), np.array(mat * [[1],[1]]).ravel())
 
+def test_shape_input_and_output():
+    ops = tuple(cls() for cls in OPS)
+    kind = {'Expl':'explicit', 'Impl': 'implicit', 'Unco':'unconstrained'}
+    def func(flags, name):
+        assert_eq(flags.shape_output, kind[name[:4]])
+        assert_eq(flags.shape_input, kind[name[4:]])
+
+    for op in ops:
+        yield func, op.flags, type(op).__name__
+
 
 #========================
 # Test input/output shape
@@ -143,7 +149,6 @@ def test_symmetric():
 
 def test_shape_is_inttuple():
     def func(o):
-        shapein = o.shapein
         assert_is_inttuple(o.shapein)
         assert_is_inttuple(o.shapeout)
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
@@ -299,7 +304,6 @@ def test_shapein_unconstrained3():
 #================
 
 def test_validation():
-    from .test_shared import Ops
     class ValidationError(ValueError):
         pass
     def vin(shape):
@@ -328,7 +332,7 @@ def test_validation():
         if op.flags.shape_input == 'implicit':
             assert_raises(ValidationError, cls, validatein=vin,
                           shapeout=y_err.shape)
-    for cls in Ops:
+    for cls in OPS:
         yield func, cls
 
 
@@ -376,17 +380,16 @@ def test_dtype2():
     for di in dtypes:
         yield func, di
 
+
 #=========================
 # Test operator comparison
 #=========================
 
 def test_eq():
-    from .test_shared import ops as ops1
-    ops2 = [type(o)() for o in ops1]
     def func(op1, op2):
         assert_eq(op1, op2)
-    for op1, op2 in zip(ops1, ops2):
-        yield func, op1, op2
+    for cls in OPS:
+        yield func, cls(), cls()
 
 
 #================
@@ -394,7 +397,6 @@ def test_eq():
 #================
 
 def test_iadd_imul():
-    from .test_shared import ops
     def func(op1, op2, operation):
         if operation is operator.iadd:
             op = op1 + op2
@@ -404,9 +406,10 @@ def test_iadd_imul():
             op1 *= op2.T
         assert_eq(op1, op)
     for operation in (operator.iadd, operator.imul):
-        for op2 in ops:
-            for op1 in ops:
-                yield func, op1, op2, operation
+        for cls2 in OPS:
+            for cls1 in OPS:
+                yield func, cls1(), cls2(), operation
+
 
 #===========================
 # Test attribute propagation
@@ -1167,7 +1170,6 @@ def test_inplace_cannot_use_output():
             while len(strops) != n:
                 strops = '0' + strops
             yield func_inplace, n, i, expected, strops
-
 
     
 #====================
