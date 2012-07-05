@@ -1456,7 +1456,7 @@ def test_block_slice():
 
 
 #=============================
-# Test non-composite operators
+# Test broadcasting operators
 #=============================
 
 def test_broadcasting_as_strided():
@@ -1810,6 +1810,43 @@ def test_denseoperator():
         yield func, m.T.conj(), d.H, v
 
 
+#========================
+# Test ReductionOperator
+#========================
+
+def test_reduction_operator1():
+    def func(f, s, a):
+        op = ReductionOperator(f, axis=a)
+        v = np.arange(product(s)).reshape(s)
+        if isinstance(f, np.ufunc):
+            if np.__version__ < '1.7' and a is None:
+                expected = f.reduce(v.flat, 0)
+            else:
+                expected = f.reduce(v, a)
+        else:
+            expected = f(v, axis=a)
+        assert_eq(op(v), expected)
+        out = np.empty_like(expected)
+        op(v, out)
+        assert_eq(out, expected)
+    for f in (np.add, np.multiply, np.min, np.max, np.sum, np.prod):
+        for s in SHAPES[2:]:
+            for a in [None] + list(range(len(s))):
+                yield func, f, s, a
+
+def test_reduction_operator2():
+    for f in (np.cos, np.modf):
+        assert_raises(TypeError, ReductionOperator, f)
+    f = np.add
+    def func(n, op):
+        v = np.empty(n * [2])
+        assert_raises(TypeError if n == 0 else ValueError, op, v)
+    for a in (1,2,3):
+        op = ReductionOperator(f, axis=a)
+        for n in range(0, a+1):
+            yield func, n, op
+
+
 #=================
 # Test asoperator
 #=================
@@ -1858,41 +1895,3 @@ def test_asoperator_ufunc():
     assert_raises(TypeError, asoperator, np.maximum)
     o = asoperator(np.cos)
     assert_flags(o, 'real,inplace,square,universal')
-
-
-#========================
-# Test ReductionOperator
-#========================
-
-def test_reduction_operator1():
-    def func(f, s, a):
-        op = ReductionOperator(f, axis=a)
-        v = np.arange(product(s)).reshape(s)
-        if isinstance(f, np.ufunc):
-            if np.__version__ < '1.7' and a is None:
-                expected = f.reduce(v.flat, 0)
-            else:
-                expected = f.reduce(v, a)
-        else:
-            expected = f(v, axis=a)
-        assert_eq(op(v), expected)
-        out = np.empty_like(expected)
-        op(v, out)
-        assert_eq(out, expected)
-    for f in (np.add, np.multiply, np.min, np.max, np.sum, np.prod):
-        for s in SHAPES[2:]:
-            for a in [None] + list(range(len(s))):
-                yield func, f, s, a
-
-def test_reduction_operator2():
-    for f in (np.cos, np.modf):
-        assert_raises(TypeError, ReductionOperator, f)
-    f = np.add
-    def func(n, op):
-        v = np.empty(n * [2])
-        assert_raises(TypeError if n == 0 else ValueError, op, v)
-    for a in (1,2,3):
-        op = ReductionOperator(f, axis=a)
-        for n in range(0, a+1):
-            yield func, n, op
-
