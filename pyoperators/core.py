@@ -403,8 +403,6 @@ class Operator(object):
         if self.inverse is None:
             self.inverse_conjugate = None
 
-        self._C = self._T = self._H = self._I = None
-
         self._init_dtype(dtype)
         self._init_flags(flags)
         self._init_rules()
@@ -415,6 +413,12 @@ class Operator(object):
 
     dtype = None
     flags = OperatorFlags()
+    rules = None
+
+    _C = None
+    _T = None
+    _H = None
+    _I = None
 
     attrin = {}
     attrout = {}
@@ -1057,10 +1061,10 @@ class Operator(object):
                     raise TypeError("The direct method of an inplace-reduction "
                             "operator must have an 'operation' keyword.")
 
-
     def _init_rules(self):
         """ Translate flags into rules. """
-        self.rules = {}
+        if self.rules is None:
+            self.rules = {}
 
         if self.flags.real:
             self.set_rule('.C', '.')
@@ -1085,13 +1089,6 @@ class Operator(object):
         """
         Set methods and attributes dealing with the input and output handling.
         """
-
-        # reset attributes
-        for attr in ('attr', 'class', 'comm', 'reshape', 'shape', 'toshape',
-                     'validate'):
-            for inout in ('in', 'out'):
-                if attr + inout in self.__dict__:
-                    del self.__dict__[attr + inout]
 
         if isinstance(attrin, (dict, types.FunctionType, types.MethodType)):
             if not isinstance(attrin, dict) or len(attrin) > 0:
@@ -2178,12 +2175,25 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         toshapeout = op1.toshapeout
         validatein = op2.validatein
         validateout = op1.validateout
+
+        # reset attributes
+        for attr in ('attr', 'class', 'comm', 'reshape', 'shape', 'toshape',
+                     'validate'):
+            for inout in ('in', 'out'):
+                if attr + inout in op.__dict__:
+                    del op.__dict__[attr + inout]
+        if 'flags' in op.__dict__:
+            del op.__dict__['flags']
         op._C = op._T = op._H = op._I = None
-        op._init_dtype(dtype)
-        op._init_flags(flags)
-        op._init_inout(attrin, attrout, classin, classout, commin, commout,
-                       reshapein, reshapeout, shapein, shapeout, toshapein,
-                       toshapeout, validatein, validateout)
+
+        # re-init operator with merged attributes
+        Operator.__init__(op, attrin=attrin, attrout=attrout, classin=classin,
+                          classout=classout, commin=commin, commout=commout,
+                          reshapein=reshapein, reshapeout=reshapeout,
+                          shapein=shapein, shapeout=shapeout,
+                          toshapein=toshapein, toshapeout=toshapeout,
+                          validatein=validatein, validateout=validateout,
+                          dtype=dtype, flags=flags)
 
     @staticmethod
     def _merge_attr(attr1, attr2):
