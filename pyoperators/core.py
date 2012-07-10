@@ -1811,17 +1811,9 @@ class CommutativeCompositeOperator(CompositeOperator):
         CompositeOperator.__init__(self, operands, **keywords)
         if not isinstance(self, CommutativeCompositeOperator):
             return
+        self.set_rule('.{Operator}', lambda s, o: type(s)(s.operands + [o]), type(self))
         self.set_rule(
-            '.{Operator}',
-            lambda s, o: type(s)(s.operands + [o]),
-            type(self),
-            merge=False,
-        )
-        self.set_rule(
-            '.{self}',
-            lambda s, o: type(s)(s.operands + o.operands),
-            type(self),
-            merge=False,
+            '.{self}', lambda s, o: type(s)(s.operands + o.operands), type(self)
         )
         self.operation = operation
 
