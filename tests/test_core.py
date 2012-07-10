@@ -14,7 +14,7 @@ from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises)
-from .common import OPS, ALL_OPS, HomothetyOutplaceOperator
+from .common import OPS, ALL_OPS, HomothetyOutplaceOperator, ExplExpl
 
 np.seterr(all='raise')
 
@@ -451,11 +451,16 @@ def test_propagation_attribute1():
 
         op = AddAttribute2() * AddAttribute()
         assert not op(i).newattr_direct
+        assert_eq(op.attrout, {'newattr_direct':False})
+        assert_eq(op.attrin, {'newattr_transpose':True})
         assert op.T(i).newattr_transpose
 
         op = AddAttribute3() * AddAttribute()
         assert op(i).newattr_direct
         assert op(i).newattr3_direct
+        assert_eq(op.attrout, {'newattr_direct':True, 'newattr3_direct':True})
+        assert_eq(op.attrin, {'newattr_transpose':True,
+                              'newattr3_transpose':True})
         assert op.T(i).newattr_transpose
         assert op.T(i).newattr3_transpose
     for i in inputs:
@@ -1422,6 +1427,42 @@ def test_composition_flags():
         assert getattr(o.flags, f)
     for f in 'linear,real,square,universal,inplace_reduction'.split(','):
         yield func, f
+
+def test_composition_shapes():
+    def func(OP1, OP2):
+        n1 = OP1.__name__
+        n2 = OP2.__name__
+        if n1[4:] == 'Expl' and n2[:4] == 'Expl':
+            op = OP1() * OP2(shapeout=3)
+        else:
+            op = OP1() * OP2()
+
+        shape_output = op.flags.shape_output
+        if n1[:4] == 'Unco':
+            assert shape_output == 'unconstrained'
+        elif n1[:4] == 'Expl':
+            assert shape_output == 'explicit'
+        elif n2[:4] == 'Expl':
+            assert shape_output == 'explicit'
+        elif n2[:4] == 'Impl':
+            assert shape_output == 'implicit'
+        else:
+            assert shape_output == 'unconstrained'
+
+        shape_input = op.flags.shape_input
+        if n2[4:] == 'Unco':
+            assert shape_input == 'unconstrained'
+        elif n2[4:] == 'Expl':
+            assert shape_input == 'explicit'
+        elif n1[4:] == 'Expl':
+            assert shape_input == 'explicit'
+        elif n1[4:] == 'Impl':
+            assert shape_input == 'implicit'
+        else:
+            assert shape_input == 'unconstrained'
+
+    for OP1, OP2 in itertools.product(OPS, repeat=2):
+        yield func, OP1, OP2
 
 
 #==================

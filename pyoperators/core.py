@@ -1712,7 +1712,7 @@ class CompositeOperator(Operator):
 
     """
 
-    def __init__(self, operands, dtype=None, *args, **keywords):
+    def __init__(self, operands, dtype=None, **keywords):
         operands = self._validate_operands(operands)
         self._validate_comm(operands)
         if dtype is None:
@@ -2165,27 +2165,15 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
     """
 
-    def __init__(self, operands):
+    def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands)
         operands = self._apply_rules(operands)
         if len(operands) == 1:
             self.__class__ = operands[0].__class__
             self.__dict__ = operands[0].__dict__.copy()
             return
-        flags = self._merge_flags(operands)
-        classin = first_is_not([o.classin for o in operands[::-1]], None)
-        classout = first_is_not([o.classout for o in operands], None)
-        commin = first_is_not([o.commin for o in operands[::-1]], None)
-        commout = first_is_not([o.commout for o in operands], None)
-        NonCommutativeCompositeOperator.__init__(
-            self,
-            operands,
-            flags=flags,
-            classin=classin,
-            classout=classout,
-            commin=commin,
-            commout=commout,
-        )
+        keywords = self._get_attributes(operands, **keywords)
+        NonCommutativeCompositeOperator.__init__(self, operands, **keywords)
         self._info = {}
         self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
         self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands[::-1]]))
@@ -2198,19 +2186,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             '.{self}',
             lambda s, o: type(s)(s.operands + o.operands),
             CompositionOperator,
-            merge=False,
         )
         self.set_rule(
-            '.{Operator}',
-            lambda s, o: type(s)(s.operands + [o]),
-            CompositionOperator,
-            merge=False,
+            '.{Operator}', lambda s, o: type(s)(s.operands + [o]), CompositionOperator
         )
         self.set_rule(
-            '{Operator}.',
-            lambda o, s: type(s)([o] + s.operands),
-            CompositionOperator,
-            merge=False,
+            '{Operator}.', lambda o, s: type(s)([o] + s.operands), CompositionOperator
         )
 
     def direct(self, input, output, operation=operation_assignment):
@@ -2420,27 +2401,43 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return outplaces, reuse_output
 
     @classmethod
-    def _merge(cls, op, op1, op2):
+    def _get_attributes(cls, operands, **keywords):
         """
         Ensure that op = op1*op2 has a correct shapein, shapeout, etc.
         """
-        attrout = cls._merge_attr(op1.attrout, op2.attrout)
-        attrin = cls._merge_attr(op2.attrin, op1.attrin)
-        classout = op1.classout or op2.classout
-        classin = op2.classin or op1.classin
-        commout = op1.commout or op2.commout
-        commin = op2.commin or op1.commin
-        dtype = cls._find_common_type([op1.dtype, op2.dtype])
-        flags = cls._merge_flags([op1, op2])
-        shapes = cls._get_shapes(op2.shapein, op1.shapeout, [op1, op2])
-        shapein = shapes[-1]
-        shapeout = shapes[0]
-        reshapein = cls._mergereshapein(op1, op2)
-        reshapeout = cls._mergereshapeout(op1, op2)
-        toshapein = op2.toshapein
-        toshapeout = op1.toshapeout
-        validatein = op2.validatein
-        validateout = op1.validateout
+        shapes = cls._get_shapes(operands[-1].shapein, operands[0].shapeout, operands)
+        attr = {
+            'attrin': cls._merge_attr([o.attrin for o in operands]),
+            'attrout': cls._merge_attr([o.attrout for o in operands[::-1]]),
+            'classin': first_is_not([o.classin for o in operands[::-1]], None),
+            'classout': first_is_not([o.classout for o in operands], None),
+            'commin': first_is_not([o.commin for o in operands[::-1]], None),
+            'commout': first_is_not([o.commout for o in operands], None),
+            'dtype': cls._find_common_type([o.dtype for o in operands]),
+            'flags': cls._merge_flags(operands),
+            'shapein': shapes[-1],
+            'shapeout': shapes[0],
+            'reshapein': cls._merge_reshapein(operands),
+            'reshapeout': cls._merge_reshapeout(operands),
+            'toshapein': operands[-1].toshapein,
+            'toshapeout': operands[0].toshapeout,
+            'validatein': operands[-1].validatein,
+            'validateout': operands[0].validateout,
+        }
+        attr.update(keywords)
+        return attr
+
+    @classmethod
+    def _merge(cls, op, op1, op2):
+        """
+        Ensure that op = op1*op2 has a correct shapein, shapeout, etc.
+
+        """
+        # bail if the merging has already been done
+        if any(isinstance(o, CompositionOperator) for o in [op1, op2]):
+            return
+
+        keywords = cls._get_attributes([op1, op2])
 
         # reset attributes
         for attr in (
@@ -2460,86 +2457,63 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         op._C = op._T = op._H = op._I = None
 
         # re-init operator with merged attributes
-        Operator.__init__(
-            op,
-            attrin=attrin,
-            attrout=attrout,
-            classin=classin,
-            classout=classout,
-            commin=commin,
-            commout=commout,
-            reshapein=reshapein,
-            reshapeout=reshapeout,
-            shapein=shapein,
-            shapeout=shapeout,
-            toshapein=toshapein,
-            toshapeout=toshapeout,
-            validatein=validatein,
-            validateout=validateout,
-            dtype=dtype,
-            flags=flags,
-        )
+        Operator.__init__(op, **keywords)
 
     @staticmethod
-    def _merge_attr(attr1, attr2):
-        if None in (attr1, attr2):
-            return attr1 or attr2
-        if isinstance(attr1, dict) and isinstance(attr2, dict):
-            attr = attr2.copy()
-            attr.update(attr1)
+    def _merge_attr(attrs):
+        if all(a is None for a in attrs):
+            return None
+        if all(a is None or isinstance(a, dict) for a in attrs):
+            attr = {}
+            for a in attrs:
+                if a is not None:
+                    attr.update(a)
             return attr
-        if isinstance(attr1, dict):
 
-            def func(attr):
-                attr2(attr)
-                attr.update(attr1)
-
-        elif isinstance(attr2, dict):
-
-            def func(attr):
-                attr.update(attr2)
-                attr1(attr)
-
-        else:
-
-            def func(attr):
-                attr2(attr)
-                attr1(attr)
+        def func(attr):
+            for a in attrs:
+                if isinstance(a, dict):
+                    attr.update(a)
+                else:
+                    a(attr)
 
         return func
 
     @staticmethod
-    def _merge_flags(ops):
-        flags = {
-            'linear': all([op.flags.linear for op in ops]),
-            'real': all([op.flags.real for op in ops]),
-            'square': all([op.flags.square for op in ops]),
-            'universal': all([op.flags.universal for op in ops]),
-            'inplace_reduction': ops[0].flags.inplace_reduction,
+    def _merge_flags(operands):
+        return {
+            'linear': all([op.flags.linear for op in operands]),
+            'real': all([op.flags.real for op in operands]),
+            'square': all([op.flags.square for op in operands]),
+            'universal': all([op.flags.universal for op in operands]),
+            'inplace_reduction': operands[0].flags.inplace_reduction,
         }
-        return flags
 
     @staticmethod
-    def _mergereshapein(op1, op2):
-        if any(o.flags.shape_output != 'implicit' for o in [op1, op2]):
+    def _merge_reshapein(operands):
+        if any(o.flags.shape_output != 'implicit' for o in operands):
             return None
-        if op1.flags.square and op2.flags.square:
-            return op1.validatereshapein
+        if all(o.flags.square for o in operands):
+            return operands[-1].reshapein
 
-        def reshapein(shapein):
-            return op1.reshapein(op2.reshapein(shapein))
+        def reshapein(shape):
+            for o in operands[::-1]:
+                shape = tointtuple(o.reshapein(shape))
+            return shape
 
         return reshapein
 
     @staticmethod
-    def _mergereshapeout(op1, op2):
-        if any(o.flags.shape_input != 'implicit' for o in [op1, op2]):
+    def _merge_reshapeout(operands):
+        if any(o.flags.shape_input != 'implicit' for o in operands):
             return None
-        if op1.flags.square and op2.flags.square:
-            return op1.reshapeout
+        if all(o.flags.square for o in operands):
+            return operands[0].reshapeout
 
         def reshapeout(shape):
-            return op2.reshapeout(op1.reshapeout(shape))
+            for o in operands:
+                shape = tointtuple(o.reshapeout(shape))
+            return shape
 
         return reshapeout
 
