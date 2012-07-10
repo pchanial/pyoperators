@@ -1757,7 +1757,7 @@ class CommutativeCompositeOperator(CompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        return {}
+        raise NotImplementedError()
 
     @staticmethod
     def _merge_reshapein(operands):
@@ -1880,14 +1880,8 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             raise ValueError("The number of slices '{0}' is not equal to the nu"
                 "mber of operands '{1}'.".format(len(slices), len(operands)))
 
-        flags = {
-            'linear':all(op.flags.linear for op in operands),
-            'real':all(op.flags.real for op in operands),
-            'symmetric':all(op.flags.symmetric for op in operands),
-            'inplace':all(op.flags.inplace for op in operands),
-        }
-
-        CommutativeCompositeOperator.__init__(self, operands, flags=flags)
+        keywords = self._get_attributes(operands, **keywords)
+        CommutativeCompositeOperator.__init__(self, operands, **keywords)
         self.slices = tuple(slices)
         self.set_rule('.C', lambda s: 
                       BlockSliceOperator([op.C for op in s.operands], s.slices))
@@ -1911,6 +1905,24 @@ class BlockSliceOperator(CommutativeCompositeOperator):
 
     def validatereshapeout(self, shapeout):
         return super(CompositeOperator, self).validatereshapeout(shapeout)
+
+    @classmethod
+    def _get_attributes(cls, operands, **keywords):
+        attr = {
+            'dtype':cls._find_common_type([o.dtype for o in operands]),
+            'flags':cls._merge_flags(operands),
+        }
+        attr.update(keywords)
+        return attr
+
+    @staticmethod
+    def _merge_flags(operands):
+        return {
+            'linear':all([op.flags.linear for op in operands]),
+            'real':all([op.flags.real for op in operands]),
+            'symmetric':all([op.flags.symmetric for op in operands]),
+            'hermitian':all([op.flags.hermitian for op in operands]),
+            'inplace':all([op.flags.inplace for op in operands])}
 
 
 class NonCommutativeCompositeOperator(CompositeOperator):
