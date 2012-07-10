@@ -1620,9 +1620,9 @@ class CommutativeCompositeOperator(CompositeOperator):
         if not isinstance(self, CommutativeCompositeOperator):
             return
         self.set_rule('.{Operator}', lambda s,o: type(s)(s.operands + [o]),
-                      type(self), merge=False)
+                      type(self))
         self.set_rule('.{self}', lambda s,o: type(s)(s.operands + o.operands),
-                      type(self), merge=False)
+                      type(self))
         self.operation = operation
 
     def direct(self, input, output):
