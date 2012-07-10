@@ -725,8 +725,6 @@ def test_comm_composite():
             keywords = {'axisin':0}
         elif cls is BlockColumnOperator:
             keywords = {'axisout':0}
-        elif cls is BlockSliceOperator:
-            args = [tuple(slice(i,i+1) for i in range(len(comms)))]
         else:
             keywords = {}
         if MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms:
@@ -735,7 +733,7 @@ def test_comm_composite():
         op = cls(ops, *args, **keywords)
         assert_is(getattr(op, 'comm'+inout), first_is_not(comms, None))
     for cls in (AdditionOperator, MultiplicationOperator, BlockRowOperator,
-                BlockDiagonalOperator, BlockColumnOperator, BlockSliceOperator):
+                BlockDiagonalOperator, BlockColumnOperator):
         for comms in itertools.combinations_with_replacement(comms_all, 3):
             for inout in ('in', 'out'):
                 yield func, cls, comms, inout
@@ -1350,6 +1348,37 @@ def test_commutative_shapes():
 
 
 #==================
+# Test Block slice
+#==================
+
+def test_block_slice():
+    size = 4
+    def func(o, input, expected):
+        actual = o(input)
+        assert_eq(actual, expected)
+        o(input, input)
+        assert_eq(input, expected)
+    for ndim in range(1,5):
+        for nops in range(1,5):
+            for Op in [HomothetyOperator, HomothetyOutplaceOperator]:
+                slices_ = [
+                    [distribute_slice(size, i, nops) for i in range(nops)],
+                    [distribute_slice(size, i, size) for i in range(nops)],
+                    [ndim * [slice(i, None, nops)] for i in range(nops)],
+                ]
+                for slices in slices_:
+                    input = np.zeros(ndim*(size,))
+                    expected = np.zeros_like(input)
+                    ops = [Op(i+1) for i in range(nops)]
+                    for i, s in enumerate(slices):
+                        input[s] = 10 * (i+1)
+                        expected[s] = input[s] * (i+1)
+                    o = BlockSliceOperator(ops, slices)
+                    assert o.flags.inplace is Op.flags.inplace
+                    yield func, o, input, expected
+
+
+#==================
 # Test composition
 #==================
 
@@ -1490,37 +1519,6 @@ def test_composition_shapes():
 
     for OP1, OP2 in itertools.product(OPS, repeat=2):
         yield func, OP1, OP2
-
-
-#==================
-# Test Block slice
-#==================
-
-def test_block_slice():
-    size = 4
-    def func(o, input, expected):
-        actual = o(input)
-        assert_eq(actual, expected)
-        o(input, input)
-        assert_eq(input, expected)
-    for ndim in range(1,5):
-        for nops in range(1,5):
-            for Op in [HomothetyOperator, HomothetyOutplaceOperator]:
-                slices_ = [
-                    [distribute_slice(size, i, nops) for i in range(nops)],
-                    [distribute_slice(size, i, size) for i in range(nops)],
-                    [ndim * [slice(i, None, nops)] for i in range(nops)],
-                ]
-                for slices in slices_:
-                    input = np.zeros(ndim*(size,))
-                    expected = np.zeros_like(input)
-                    ops = [Op(i+1) for i in range(nops)]
-                    for i, s in enumerate(slices):
-                        input[s] = 10 * (i+1)
-                        expected[s] = input[s] * (i+1)
-                    o = BlockSliceOperator(ops, slices)
-                    assert o.flags.inplace is Op.flags.inplace
-                    yield func, o, input, expected
 
 
 #=============================
