@@ -980,16 +980,17 @@ class Operator(object):
         IH._C, IH._T, IH._H, IH._I = IT, IC, I, H
 
     def _init_dtype(self, dtype):
-        """ A non-complex dtype sets the real flag to true. """
         if dtype is not None:
             dtype = np.dtype(dtype)
         self.dtype = dtype
-        if self.dtype is None or self.dtype.kind != 'c':
-            self._set_flags('real')
 
     def _init_flags(self, flags):
 
         self._set_flags(flags)
+
+        # A non-complex dtype sets the real flag to true.
+        if self.dtype is None or self.dtype.kind != 'c':
+            self._set_flags('real')
 
         if self.flags.real:
             if self.flags.symmetric:
