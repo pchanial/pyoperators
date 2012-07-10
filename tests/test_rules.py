@@ -154,7 +154,7 @@ def test_merge_identity():
     for op1 in ops:
         for op2 in ids_right:
             op = op1 * op2
-            func(op, op1, op2, op1)
+            yield func, op, op1, op2, op1
         for op2 in ids_left:
             op = op2 * op1
             yield func, op, op2, op1, op1
