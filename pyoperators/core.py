@@ -2690,12 +2690,6 @@ class BlockOperator(NonCommutativeCompositeOperator):
         self.new_axisin = new_axisin
         self.axisout = axisout
         self.new_axisout = new_axisout
-        if partitionin is None:
-            self.__class__ = BlockColumnOperator
-        elif partitionout is None:
-            self.__class__ = BlockRowOperator
-        else:
-            self.__class__ = BlockDiagonalOperator
         commin = first_is_not([o.commin for o in operands], None)
         commout = first_is_not([o.commout for o in operands], None)
         CompositeOperator.__init__(
