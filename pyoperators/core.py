@@ -1806,21 +1806,9 @@ class CommutativeCompositeOperator(CompositeOperator):
 
     """
 
-    def __init__(self, operands, operation=None, *args, **keywords):
-        classin = first_is_not([o.classin for o in operands], None)
-        classout = first_is_not([o.classout for o in operands], None)
-        commin = first_is_not([o.commin for o in operands], None)
-        commout = first_is_not([o.commout for o in operands], None)
-        CompositeOperator.__init__(
-            self,
-            operands,
-            commin=commin,
-            commout=commout,
-            classin=classin,
-            classout=classout,
-            *args,
-            **keywords,
-        )
+    def __init__(self, operands, operation=None, **keywords):
+        keywords = self._get_attributes(operands, **keywords)
+        CompositeOperator.__init__(self, operands, **keywords)
         if not isinstance(self, CommutativeCompositeOperator):
             return
         self.set_rule(
@@ -1866,9 +1854,7 @@ class CommutativeCompositeOperator(CompositeOperator):
             memory.down()
 
     def propagate_attributes(self, cls, attr):
-        for op in self.operands:
-            cls = op.propagate_attributes(cls, attr)
-        return cls
+        return Operator.propagate_attributes(self, cls, attr)
 
     def validatereshapein(self, shapein):
         shapeout = super(CommutativeCompositeOperator, self).validatereshapein(shapein)
@@ -1946,6 +1932,52 @@ class CommutativeCompositeOperator(CompositeOperator):
                 del ops[0]
         return ops
 
+    @classmethod
+    def _get_attributes(cls, operands, **keywords):
+        """
+        Ensure that op = op1 + op2 has a correct shapein, shapeout, etc.
+        """
+        attr = {
+            'attrin': first_is_not([o.attrin for o in operands], None),
+            'attrout': first_is_not([o.attrout for o in operands], None),
+            'classin': first_is_not([o.classin for o in operands], None),
+            'classout': first_is_not([o.classout for o in operands], None),
+            'commin': first_is_not([o.commin for o in operands], None),
+            'commout': first_is_not([o.commout for o in operands], None),
+            'dtype': cls._find_common_type([o.dtype for o in operands]),
+            'flags': cls._merge_flags(operands),
+            'reshapein': cls._merge_reshapein(operands),
+            'reshapeout': cls._merge_reshapeout(operands),
+            'shapein': first_is_not([o.shapein for o in operands], None),
+            'shapeout': first_is_not([o.shapeout for o in operands], None),
+            'toshapein': first_is_not([o.toshapein for o in operands], None),
+            'toshapeout': first_is_not([o.toshapeout for o in operands], None),
+            'validatein': first_is_not([o.validatein for o in operands], None),
+            'validateout': first_is_not([o.validateout for o in operands], None),
+        }
+        attr.update(keywords)
+        return attr
+
+    @staticmethod
+    def _merge_flags(operands):
+        return {}
+
+    @staticmethod
+    def _merge_reshapein(operands):
+        if any(o.flags.shape_output == 'explicit' for o in operands):
+            return None
+        if all(o.flags.shape_output == 'unconstrained' for o in operands):
+            return None
+        return first_is_not((o.reshapein for o in operands), None)
+
+    @staticmethod
+    def _merge_reshapeout(operands):
+        if any(o.flags.shape_input == 'explicit' for o in operands):
+            return None
+        if all(o.flags.shape_input == 'unconstrained' for o in operands):
+            return None
+        return first_is_not((o.reshapeout for o in operands), None)
+
 
 class AdditionOperator(CommutativeCompositeOperator):
     """
@@ -1957,14 +1989,21 @@ class AdditionOperator(CommutativeCompositeOperator):
 
     """
 
-    def __init__(self, operands):
+    def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands, constant=True)
         operands = self._apply_rules(operands)
         if len(operands) == 1:
             self.__class__ = operands[0].__class__
             self.__dict__ = operands[0].__dict__.copy()
             return
-        flags = {
+        CommutativeCompositeOperator.__init__(self, operands, operator.iadd, **keywords)
+        self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands]))
+        self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands]))
+        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
+
+    @staticmethod
+    def _merge_flags(operands):
+        return {
             'linear': all([op.flags.linear for op in operands]),
             'real': all([op.flags.real for op in operands]),
             'square': all([op.flags.square for op in operands]),
@@ -1972,12 +2011,6 @@ class AdditionOperator(CommutativeCompositeOperator):
             'hermitian': all([op.flags.hermitian for op in operands]),
             'universal': all([op.flags.universal for op in operands]),
         }
-        CommutativeCompositeOperator.__init__(
-            self, operands, operator.iadd, flags=flags
-        )
-        self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands]))
-        self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands]))
-        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
 
 
 class MultiplicationOperator(CommutativeCompositeOperator):
@@ -1990,22 +2023,23 @@ class MultiplicationOperator(CommutativeCompositeOperator):
 
     """
 
-    def __init__(self, operands):
+    def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands, constant=True)
         operands = self._apply_rules(operands)
         if len(operands) == 1:
             self.__class__ = operands[0].__class__
             self.__dict__ = operands[0].__dict__.copy()
             return
-        flags = {
+        CommutativeCompositeOperator.__init__(self, operands, operator.imul, **keywords)
+        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
+
+    @staticmethod
+    def _merge_flags(operands):
+        return {
             'real': all([op.flags.real for op in operands]),
             'square': all([op.flags.square for op in operands]),
             'universal': all([op.flags.universal for op in operands]),
         }
-        CommutativeCompositeOperator.__init__(
-            self, operands, operator.imul, flags=flags
-        )
-        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
 
 
 @square

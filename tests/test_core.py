@@ -14,7 +14,7 @@ from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises)
-from .common import OPS, ALL_OPS, HomothetyOutplaceOperator, ExplExpl
+from .common import OPS, ALL_OPS, HomothetyOutplaceOperator
 
 np.seterr(all='raise')
 
@@ -1227,9 +1227,9 @@ def test_associativity():
         yield func3, o1, o2
 
 
-#===============
-# Test addition
-#===============
+#==================
+# Test commutative
+#==================
 
 def test_addition():
     @decorators.square
@@ -1275,11 +1275,6 @@ def test_addition_flags():
     for f in 'linear,real,square,symmetric,hermitian,universal'.split(','):
         yield func, f
 
-
-#=====================
-# Test multiplication
-#=====================
-
 def test_multiplication():
     @decorators.square
     class Op(Operator):
@@ -1320,6 +1315,38 @@ def test_multiplication_flags():
         assert getattr(o.flags, f)
     for f in 'real,square,universal'.split(','):
         yield func, f
+
+def test_commutative_shapes():
+    def func(cls, OP1, OP2):
+        n1 = OP1.__name__
+        n2 = OP2.__name__
+        op = cls([OP1(), OP2()])
+
+        shape_output = op.flags.shape_output
+        if 'Expl' in (n1[:4], n2[:4]):
+            assert shape_output == 'explicit'
+        elif n1[4:] == 'Expl' and n2[:4] == 'Impl' or \
+             n2[4:] == 'Expl' and n1[:4] == 'Impl':
+            assert shape_output == 'explicit'
+        elif 'Impl' in (n1[:4], n2[:4]):
+            assert shape_output == 'implicit'
+        else:
+            assert shape_output == 'unconstrained'
+
+        shape_input = op.flags.shape_input
+        if 'Expl' in (n1[4:], n2[4:]):
+            assert shape_input == 'explicit'
+        elif n1[:4] == 'Expl' and n2[4:] == 'Impl' or \
+             n2[:4] == 'Expl' and n1[4:] == 'Impl':
+            assert shape_input == 'explicit'
+        elif 'Impl' in (n1[4:], n2[4:]):
+            assert shape_input == 'implicit'
+        else:
+            assert shape_input == 'unconstrained'
+
+    for cls in (AdditionOperator, MultiplicationOperator):
+        for OP1, OP2 in itertools.product(OPS, repeat=2):
+            yield func, cls, OP1, OP2
 
 
 #==================
