@@ -2332,10 +2332,10 @@ class GroupOperator(CompositionOperator):
 
 class BlockOperator(NonCommutativeCompositeOperator):
     """
-    Abstract base class for BlockDiagonalOperator, BlockColumnOperator and
+    Abstract base class for BlockColumnOperator, BlockDiagonalOperator and
     BlockRowOperator.
-    """
 
+    """
     def __init__(self, operands, partitionin=None, partitionout=None,
                  axisin=None, axisout=None, new_axisin=None, new_axisout=None,
                  flags=None):
