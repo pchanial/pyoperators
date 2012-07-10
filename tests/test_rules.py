@@ -8,9 +8,10 @@ from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import assert_eq, assert_is, assert_is_none, assert_is_not_none, assert_is_instance
 
-from .test_shared import ops, ndarray2, attr2
+from .common import OPS, ndarray2, attr2
 
 op = Operator()
+ops = [OP() for OP in OPS]
 
 ids_left = (IdentityOperator(classout=ndarray2, attrout=attr2),
             IdentityOperator(shapein=4, classout=ndarray2, attrout=attr2))
