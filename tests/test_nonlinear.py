@@ -3,10 +3,12 @@ from numpy.testing import assert_equal
 
 from pyoperators import (
     HardThresholdingOperator,
+    IdentityOperator,
     NumexprOperator,
     RoundOperator,
     SoftThresholdingOperator,
 )
+from pyoperators.utils.testing import assert_is_instance
 
 
 def test_rounding():
@@ -64,11 +66,23 @@ def test_hard_thresholding():
     G = HardThresholdingOperator(lbda2)
     assert_equal(G.shapein, shape)
     K = G * H
+    assert_is_instance(K, HardThresholdingOperator)
     assert_equal(K.a, np.maximum(lbda, lbda2))
     assert_equal(K.shapein, shape)
     K = H * G
+    assert_is_instance(K, HardThresholdingOperator)
     assert_equal(K.a, np.maximum(lbda, lbda2))
     assert_equal(K.shapein, shape)
+
+    H = HardThresholdingOperator([0, 0])
+    assert_is_instance(H, IdentityOperator)
+    assert_equal(H.shapein, (2,))
+
+    H = HardThresholdingOperator(0)
+    assert_is_instance(H, IdentityOperator)
+    assert H.flags.square
+    assert_equal(H.flags.shape_input, 'implicit')
+    assert_equal(H.flags.shape_output, 'implicit')
 
 
 def test_soft_thresholding():
@@ -84,3 +98,13 @@ def test_soft_thresholding():
     shape = np.asarray(lbda2).shape
     T = SoftThresholdingOperator(lbda2)
     assert_equal(T.shapein, shape)
+
+    S = SoftThresholdingOperator([0, 0])
+    assert_is_instance(S, IdentityOperator)
+    assert_equal(S.shapein, (2,))
+
+    S = SoftThresholdingOperator(0)
+    assert_is_instance(S, IdentityOperator)
+    assert S.flags.square
+    assert_equal(S.flags.shape_input, 'implicit')
+    assert_equal(S.flags.shape_output, 'implicit')
