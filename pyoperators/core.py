@@ -2347,7 +2347,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
     """
     def __init__(self, operands, partitionin=None, partitionout=None,
                  axisin=None, axisout=None, new_axisin=None, new_axisout=None,
-                 flags=None):
+                 **keywords):
 
         operands = self._validate_operands(operands)
 
@@ -2367,6 +2367,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
                           new_axisout)
             return
 
+        # from now on, self is of type Block(Column|Diagonal|Row)Operator
         if new_axisin is not None:
             if partitionin is None:
                 partitionin = len(operands) * (1,)
@@ -2406,28 +2407,15 @@ class BlockOperator(NonCommutativeCompositeOperator):
                                       operands, partitionin, axisin, axisout,
                                       new_axisin, new_axisout))
 
-        if flags is None:
-            flags = {}
-        if 'linear' not in flags:
-            flags['linear'] = all(op.flags.linear for op in operands)
-        if 'real' not in flags:
-            flags['real'] = all(op.flags.real for op in operands)
-        if partitionin is not None and partitionout is not None:
-            flags['square'] = all(op.flags.square for op in operands)
-            flags['symmetric'] = all(op.flags.symmetric for op in operands)
-            flags['hermitian'] = all(op.flags.hermitian for op in operands)
-        flags['inplace_reduction'] = False
-
         self.partitionin = tointtuple(partitionin)
         self.partitionout = tointtuple(partitionout)
         self.axisin = axisin
         self.new_axisin = new_axisin
         self.axisout = axisout
         self.new_axisout = new_axisout
-        commin = first_is_not([o.commin for o in operands], None)
-        commout = first_is_not([o.commout for o in operands], None)
-        CompositeOperator.__init__(self, operands, commin=commin,
-                                   commout=commout, flags=flags)
+
+        keywords = self._get_attributes(operands, **keywords)
+        CompositeOperator.__init__(self, operands, **keywords)
 
         if self.shapein is not None:
             n = len(self.shapein)
@@ -2565,6 +2553,31 @@ class BlockOperator(NonCommutativeCompositeOperator):
             return v.reshape((p,-1))
         return v.reshape((-1,p))
 
+    def _get_attributes(self, operands, **keywords):
+        attr = {
+            'attrin':first_is_not([o.attrin for o in operands], None),
+            'attrout':first_is_not([o.attrout for o in operands], None),
+            'classin':first_is_not([o.classin for o in operands], None),
+            'classout':first_is_not([o.classout for o in operands], None),
+            'commin':first_is_not([o.commin for o in operands], None),
+            'commout':first_is_not([o.commout for o in operands], None),
+            'dtype':self._find_common_type([o.dtype for o in operands]),
+            'flags':self._merge_flags(operands),
+            'reshapein':None,
+            'reshapeout':None,
+            'shapein':None,
+            'shapeout':None,
+            'toshapein':None,
+            'toshapeout':None,
+            'validatein':None,
+            'validateout':None,
+        }
+        for k, v in keywords.items():
+            if k is not 'flags':
+                attr[k] = v
+        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
+        return attr
+
     @staticmethod
     def _get_partition(shapes, axis, new_axis):
         if new_axis is not None:
@@ -2697,6 +2710,13 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitionout is None:
             partitionout = self.partitionout
         return self._get_slices(partitionout, self.axisout, self.new_axisout)
+
+    @staticmethod
+    def _merge_flags(operands):
+        return {'linear':all([op.flags.linear for op in operands]),
+                'real':all([op.flags.real for op in operands]),
+                'inplace':all([op.flags.inplace for op in operands]),
+                'inplace_reduction':False}
 
     @staticmethod
     def _validate_commutative(op1, op2):
@@ -2897,7 +2917,7 @@ class BlockDiagonalOperator(BlockOperator):
 
     """
     def __init__(self, operands, partitionin=None, axisin=None, axisout=None,
-                 new_axisin=None, new_axisout=None):
+                 new_axisin=None, new_axisout=None, **keywords):
    
         operands = self._validate_operands(operands)
 
@@ -2916,7 +2936,8 @@ class BlockDiagonalOperator(BlockOperator):
         partitionout = len(partitionin) * (None,)
 
         BlockOperator.__init__(self, operands, partitionin, partitionout,
-                               axisin, axisout, new_axisin, new_axisout)
+                               axisin, axisout, new_axisin, new_axisout,
+                               **keywords)
 
     def direct(self, input, output):
         if None in self.partitionout:
@@ -2941,6 +2962,14 @@ class BlockDiagonalOperator(BlockOperator):
             with memory.push_and_pop(o):
                 op.direct(input[sin], o)
         memory.down()
+
+    @staticmethod
+    def _merge_flags(operands):
+        flags = BlockOperator._merge_flags(operands)
+        flags.update({'square':all([op.flags.square for op in operands]),
+                      'symmetric':all([op.flags.symmetric for op in operands]),
+                      'hermitian':all([op.flags.hermitian for op in operands])})
+        return flags
 
 
 class BlockColumnOperator(BlockOperator):
@@ -2969,7 +2998,7 @@ class BlockColumnOperator(BlockOperator):
 
     """   
     def __init__(self, operands, partitionout=None, axisout=None,
-                 new_axisout=None):
+                 new_axisout=None, **keywords):
 
         operands = self._validate_operands(operands)
 
@@ -2982,7 +3011,8 @@ class BlockColumnOperator(BlockOperator):
         partitionout = tointtuple(partitionout)
 
         BlockOperator.__init__(self, operands, partitionout=partitionout,
-                               axisout=axisout, new_axisout=new_axisout)
+                               axisout=axisout, new_axisout=new_axisout,
+                               **keywords)
         
     def direct(self, input, output):
         if None in self.partitionout:
@@ -3030,8 +3060,8 @@ class BlockRowOperator(BlockOperator):
            [ 0.,  0.,  1., 0., 0., 2.]])
 
     """   
-    def __init__(self, operands, partitionin=None, axisin=None,
-                 new_axisin=None, operation=operator.iadd):
+    def __init__(self, operands, partitionin=None, axisin=None, new_axisin=None,
+                 operation=operator.iadd, **keywords):
 
         operands = self._validate_operands(operands)
 
@@ -3043,10 +3073,10 @@ class BlockRowOperator(BlockOperator):
                 operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
 
-        flags = {'linear':operation is operator.iadd}
-
+        keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}),
+                                linear=operation is operator.iadd)
         BlockOperator.__init__(self, operands, partitionin=partitionin, axisin=
-                               axisin, new_axisin=new_axisin, flags=flags)
+                               axisin, new_axisin=new_axisin, **keywords)
 
         self.operation = operation
         self._need_temporary = any(not o.flags.inplace_reduction for o in
