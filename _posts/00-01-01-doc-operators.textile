@@ -713,9 +713,8 @@ Let see how this property can be used to further remove the use of intermediate 
 The following steps are performed:
 
 * the variable @y@ is used as @o1@ 's output,
-* a temporary variable is allocated (or retrieved from the memory manager),
-* it is used as @o2@ 's output
-* and is then added in-place to the @y@ variable.
+* a temporary variable is allocated (or retrieved from the memory manager) and is used as @o2@ 's output,
+* that is then added in-place to the @y@ variable.
 
 If we now assume that the operator @o2@ can do in-place reductions, the intermediate variable is not required anymore:
 
