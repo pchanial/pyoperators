@@ -43,6 +43,7 @@ def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
     assert_eq(op.shapein, op.shapeout)
     assert_eq(op.reshapein, op.reshapeout)
+    assert_eq(op.validatein, op.validateout)
     if op.shapein is None:
         assert_eq(op.toshapein, op.toshapeout)
 
@@ -195,14 +196,14 @@ def test_shape_implicit():
         def reshapeout(self, shape):
             return shape[0]/self.factor
         def __str__(self):
-            return super(Op, self).__str__() + ' {0}'.format(self.factor)
-    o1, o2, o3 = (Op(2), Op(3), Op(4))
+            return super(Op, self).__str__() + 'x{0}'.format(self.factor)
+    o1, o2, o3 = Op(2), Op(3), Op(4)
     assert o1.shapein is o2.shapein is o3.shapein is None
     shapein = (1,)
     shapeout = (24,)
     def func(o, eout, ein):
-        assert_eq(o.validatereshapein(shapein), eout)
-        assert_eq(o.validatereshapeout(shapeout), ein)
+        assert_eq(o.reshapein(shapein), eout)
+        assert_eq(o.reshapeout(shapeout), ein)
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
                             ((6,),(12,),(24,)),
                             ((4,),(2,),(1,))):
