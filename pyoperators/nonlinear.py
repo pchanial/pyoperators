@@ -322,19 +322,22 @@ class HardThresholdingOperator(Operator):
     Parameter
     ---------
     a : positive float or array
-        Hard threshold
+        The hard threshold.
 
     """
     def __init__(self, a, **keywords):
+        a = np.asarray(a)
         if np.any(a < 0):
             raise ValueError('Negative hard threshold.')
+        if a.ndim > 0:
+            keywords['shapein'] = a.shape
+        if 'dtype' not in keywords:
+            keywords['dtype'] = float
         if np.all(a == 0):
             self.__class__ = IdentityOperator
-            IdentityOperator.__init__(self, **keywords)
+            self.__init__(**keywords)
             return
-        a = np.asarray(a)
-        shapein = a.shape if a.ndim > 0 else None
-        Operator.__init__(self, shapein=shapein, dtype=float, **keywords)
+        Operator.__init__(self, **keywords)
         self.a = a
         self.set_rule('.{HardThresholdingOperator}', lambda s, o:
                       HardThresholdingOperator(np.maximum(s.a, o.a)),
@@ -357,19 +360,22 @@ class SoftThresholdingOperator(Operator):
     Parameter
     ---------
     a : positive float or array
-        Soft threshold
+        The soft threshold.
 
     """
     def __init__(self, a, **keywords):
+        a = np.asarray(a)
         if np.any(a < 0):
             raise ValueError('Negative soft threshold.')
+        if a.ndim > 0:
+            keywords['shapein'] = a.shape
+        if 'dtype' not in keywords:
+            keywords['dtype'] = float
         if np.all(a == 0):
             self.__class__ = IdentityOperator
-            IdentityOperator.__init__(self, **keywords)
+            self.__init__(**keywords)
             return
-        a = np.asarray(a)
-        shapein = a.shape if a.ndim > 0 else None
-        Operator.__init__(self, shapein=shapein, dtype=float, **keywords)
+        Operator.__init__(self, **keywords)
         self.a = a
 
     def direct(self, input, output):
