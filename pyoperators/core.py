@@ -2488,21 +2488,9 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         keywords = cls._get_attributes([op1, op2])
 
         # reset attributes
-        for attr in (
-            'attr',
-            'class',
-            'comm',
-            'reshape',
-            'shape',
-            'toshape',
-            'validate',
-        ):
-            for inout in ('in', 'out'):
-                if attr + inout in op.__dict__:
-                    del op.__dict__[attr + inout]
-        if 'flags' in op.__dict__:
-            del op.__dict__['flags']
-        op._C = op._T = op._H = op._I = None
+        for attr in OPERATOR_ATTRIBUTES + ['_C', '_T', '_H', '_I']:
+            if attr in op.__dict__:
+                del op.__dict__[attr]
 
         # re-init operator with merged attributes
         Operator.__init__(op, **keywords)
