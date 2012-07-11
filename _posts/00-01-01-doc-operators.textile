@@ -824,14 +824,7 @@ h2. <a name="list"></a> 2.15. List of available operators
 
 h3. Linear operators
 
-* AdditionOperator
 * BandOperator
-* BlockRowOperator
-* BlockDiagonalOperator
-* BlockColumnOperator
-* BlockSliceOperator
-* CompositionOperator
-* ConstantOperator
 * DenseOperator
 * DiagonalOperator
 * DistributionIdentityOperator
@@ -840,7 +833,6 @@ h3. Linear operators
 * HomothetyOperator
 * IdentityOperator
 * MaskOperator
-* MultiplicationOperator
 * PackOperator
 * ReshapeOperator
 * SymmetricBandOperator
@@ -861,6 +853,17 @@ h3. Non-linear operators
 * NumexprOperator
 * RoundOperator
 * SoftThresholdingOperator
+
+
+h3. Composite operators
+
+* AdditionOperator
+* BlockColumnOperator
+* BlockRowOperator
+* BlockDiagonalOperator
+* BlockSliceOperator
+* CompositionOperator
+* MultiplicationOperator
 
 More operators can be found in the project "Tamasis/PACS":http://pchanial.github.com/tamasis-pacs, such as complex and real fft operators, convolution, projection, discrete differences, compression, downsampling, MPI operators, etc.
 There is an on-going work consisting in migrating the most generic ones into the pyoperators package.
