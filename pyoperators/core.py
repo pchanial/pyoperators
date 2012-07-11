@@ -1947,7 +1947,10 @@ class CommutativeCompositeOperator(CompositeOperator):
             'validatein': first_is_not([o.validatein for o in operands], None),
             'validateout': first_is_not([o.validateout for o in operands], None),
         }
-        attr.update(keywords)
+        for k, v in keywords.items():
+            if k is not 'flags':
+                attr[k] = v
+        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @staticmethod
@@ -2117,7 +2120,10 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             'dtype': cls._find_common_type([o.dtype for o in operands]),
             'flags': cls._merge_flags(operands),
         }
-        attr.update(keywords)
+        for k, v in keywords.items():
+            if k is not 'flags':
+                attr[k] = v
+        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @staticmethod
@@ -2463,7 +2469,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'validatein': operands[-1].validatein,
             'validateout': operands[0].validateout,
         }
-        attr.update(keywords)
+        for k, v in keywords.items():
+            if k is not 'flags':
+                attr[k] = v
+        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @classmethod
