@@ -37,6 +37,8 @@ def all_eq(a, b):
     """
     Return True if a and b are equal by recursively comparing them.
     """
+    if a is b:
+        return True
     if isinstance(a, collections.Mapping):
         if type(a) is not type(b):
             return False
