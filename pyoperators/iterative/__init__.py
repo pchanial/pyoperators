@@ -11,6 +11,7 @@ Contains the following modules:
 - dli: Defines the Lanczos algorithm and the DoubleLoopInference algorithm.
 """
 
+from .core import *
 from .criterions import *
 from .optimize import *
 from .algorithms import *
