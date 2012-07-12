@@ -2328,6 +2328,10 @@ class BlockOperator(NonCommutativeCompositeOperator):
                  **keywords):
 
         operands = self._validate_operands(operands)
+        if len(operands) == 1:
+            self.__class__ = operands[0].__class__
+            self.__dict__ = operands[0].__dict__.copy()
+            return
 
         if not isinstance(self, BlockRowOperator) and axisout is None and \
            new_axisout is None:
@@ -2432,18 +2436,16 @@ class BlockOperator(NonCommutativeCompositeOperator):
                       s.operands], s.partitionin, s.axisin, s.axisout,
                       s.new_axisin, s.new_axisout))
 
-        self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator,
-                      merge=False)
+        self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator)
         self.set_rule('.{Operator}', self._rule_left_operator,
-                      CompositionOperator, merge=False)
+                      CompositionOperator)
         self.set_rule('{Operator}.', self._rule_right_operator,
-                      CompositionOperator, merge=False)
-        self.set_rule('{self}.', self._rule_add_blockoperator,
-                      AdditionOperator, merge=False)
+                      CompositionOperator)
+        self.set_rule('{self}.', self._rule_add_blockoperator, AdditionOperator)
         self.set_rule('{self}.', self._rule_mul_blockoperator,
-                      MultiplicationOperator, merge=False)
+                      MultiplicationOperator)
         self.set_rule('{BlockOperator}.', self._rule_comp_blockoperator,
-                      CompositionOperator, merge=False)
+                      CompositionOperator)
 
     def toshapein(self, v):
         if self.shapein is not None:
@@ -2476,6 +2478,11 @@ class BlockOperator(NonCommutativeCompositeOperator):
         return v.reshape((-1,p))
 
     def _get_attributes(self, operands, **keywords):
+        # UGLY HACK: required by self.reshapein/out. It may be better to make
+        # the _get_attributes a class method, pass all partitionin/out etc
+        # stuff and inline the reshapein/out methods to get shapein/shapeout.
+        self.operands = operands
+
         attr = {
             'attrin':first_is_not([o.attrin for o in operands], None),
             'attrout':first_is_not([o.attrout for o in operands], None),
@@ -2485,14 +2492,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             'commout':first_is_not([o.commout for o in operands], None),
             'dtype':self._find_common_type([o.dtype for o in operands]),
             'flags':self._merge_flags(operands),
-            'reshapein':None,
-            'reshapeout':None,
-            'shapein':None,
-            'shapeout':None,
-            'toshapein':None,
-            'toshapeout':None,
-            'validatein':None,
-            'validateout':None,
+            'shapein':self.reshapeout(None),
+            'shapeout':self.reshapein(None),
         }
         for k, v in keywords.items():
             if k is not 'flags':
@@ -2535,7 +2536,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
                 if new_axisout is None:
                     shapeout[axisout] = partitionout[i]
                 try:
-                    shapein = op.reshapeout(shapeout)
+                    shapein = tointtuple(op.reshapeout(tuple(shapeout)))
                     pin.append(shapein[axisin])
                 except IndexError:
                     continue
@@ -2573,7 +2574,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
                 if new_axisin is None:
                     shapein[axisin] = partitionin[i]
                 try:
-                    shapeout = op.reshapein(shapein)
+                    shapeout = tointtuple(op.reshapein(tuple(shapein)))
                     pout.append(shapeout[axisout])
                 except IndexError:
                     continue
@@ -2583,8 +2584,55 @@ class BlockOperator(NonCommutativeCompositeOperator):
         return tuple(partitionout)
 
     @staticmethod
-    def _get_shapes(shape, partition, axis, new_axis):
-        if None in partition:
+    def _get_shape_composite(shapes, p, axis, new_axis):
+        """ Return composite shape from operand shapes. """
+        explicit = [s for s in shapes if s is not None]
+        if len(explicit) == 0:
+            return None
+        shape = explicit[0]
+
+        if p is None or new_axis is not None:
+            if any(s != shape for s in explicit):
+                raise ValueError("The operands have incompatible shapes: '{0}'"
+                                 ".".format(shapes))
+            if p is None:
+                return shape
+            a = new_axis
+            if new_axis < 0:
+                a += len(shape) + 1
+            return shape[:a] + (len(p),) + shape[a:]
+
+        rank = len(shape)
+        if any(len(s) != rank for s in explicit):
+            raise ValueError("The blocks do not have the same number of dimensi"
+                             "ons: '{0}'.".format(shapes))
+        if any(shapes[i] is not None and shapes[i][axis] != p[i]
+                for i in range(len(p)) if p[i] is not None):
+            raise ValueError("The blocks have shapes '{0}' incompatible with th"
+                             "e partition {1}.".format(shapes, p))
+        if len(explicit) != 1:
+            ok = [all(s is None or s[i] == shape[i] for s in shapes)
+                  for i in range(rank)]
+            ok[axis] = True
+            if not all(ok):
+                raise ValueError("The dimensions of the blocks '{0}' are not th"
+                                 "e same along axes other than that of the part"
+                                 "ition '{1}'.".format(shapes, p))
+
+        p = merge_none(p, [s[axis] if s is not None else None for s in shapes])
+        if None in p:
+            return None
+
+        shape = list(shape)
+        shape[axis] = sum(p)
+        return tointtuple(shape)
+
+    @staticmethod
+    def _get_shape_operands(shape, partition, partition_other, axis, new_axis):
+        """ Return operand shapes from composite shape. """
+        if partition is None:
+            return len(partition_other) * (shape,)
+        if None in partition or shape is None:
             return len(partition) * (None,)
         if new_axis is not None:
             shape_ = list(shape)
@@ -2595,23 +2643,18 @@ class BlockOperator(NonCommutativeCompositeOperator):
         for p in partition:
             shape_ = list(shape)
             shape_[axis] = p
-            shapes.append(shape_)
+            shapes.append(tuple(shape_))
         return tuple(shapes)
 
     @staticmethod
-    def _get_slice(axis, new_axis):
-        """ Compute the tuple of slices to extract a block from the input. """
-        axis = axis if axis is not None else new_axis
-        if axis is None:
-            return None
-        if axis >= 0:
-            return (axis+1) * [slice(None)] + [Ellipsis]
-        return [Ellipsis] + (-axis) * [slice(None)]
-
-    @staticmethod
     def _get_slices(partition, axis, new_axis):
-        """ Return iterator of the block slices. """
-        s = BlockOperator._get_slice(axis, new_axis)
+        """ Return an iterator of the block slices. """
+        if new_axis is not None:
+            axis = new_axis
+        if axis >= 0:
+            s = (axis+1) * [slice(None)] + [Ellipsis]
+        else:
+            s = [Ellipsis] + (-axis) * [slice(None)]
         dest = 0
         for n in partition:
             if new_axis is not None:
@@ -2622,13 +2665,13 @@ class BlockOperator(NonCommutativeCompositeOperator):
             yield list(s)
 
     def get_slicesin(self, partitionin=None):
-        """ Return iterator of the block input slices. """
+        """ Return an iterator of the block input slices. """
         if partitionin is None:
             partitionin = self.partitionin
         return self._get_slices(partitionin, self.axisin, self.new_axisin)
  
     def get_slicesout(self, partitionout=None):
-        """ Return iterator of the block output slices. """
+        """ Return an iterator of the block output slices. """
         if partitionout is None:
             partitionout = self.partitionout
         return self._get_slices(partitionout, self.axisout, self.new_axisout)
@@ -2637,11 +2680,26 @@ class BlockOperator(NonCommutativeCompositeOperator):
     def _merge_flags(operands):
         return {'linear':all([op.flags.linear for op in operands]),
                 'real':all([op.flags.real for op in operands]),
-                'inplace':all([op.flags.inplace for op in operands]),
                 'inplace_reduction':False}
 
+    def reshapein(self, shapein):
+        shapeins = self._get_shape_operands(shapein, self.partitionin,
+            self.partitionout, self.axisin, self.new_axisin)
+        shapeouts = [o.shapeout if s is None else tointtuple(o.reshapein(s))
+                     for o, s in zip(self.operands, shapeins)]
+        return self._get_shape_composite(shapeouts, self.partitionout,
+                                         self.axisout, self.new_axisout)
+
+    def reshapeout(self, shapeout):
+        shapeouts = self._get_shape_operands(shapeout, self.partitionout,
+            self.partitionin, self.axisout, self.new_axisout)
+        shapeins = [o.shapein if s is None else tointtuple(o.reshapeout(s))
+                    for o, s in zip(self.operands, shapeouts)]
+        return self._get_shape_composite(shapeins, self.partitionin,
+                                         self.axisin, self.new_axisin)
+
     @staticmethod
-    def _validate_commutative(op1, op2):
+    def _validate_partition_commutative(op1, op2):
         axisin1 = op1.axisin if op1.axisin is not None else op1.new_axisin
         axisin2 = op2.axisin if op2.axisin is not None else op2.new_axisin
         axisout1 = op1.axisout if op1.axisout is not None else op1.new_axisout
@@ -2661,7 +2719,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
             return None
 
     @staticmethod
-    def _validate_composition(op1, op2):
+    def _validate_partition_composition(op1, op2):
         axisin1= first_is_not([op1.axisin, op1.new_axisin], None)
         axisout2 = first_is_not([op2.axisout, op2.new_axisout], None)
         if axisin1 < 0 and op2.shapeout is not None:
@@ -2691,36 +2749,6 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
         return None if pout is None else merge_none(op1.partitionout, pout), \
                None if pin is None else merge_none(op2.partitionin, pin)
-
-    @staticmethod
-    def _validate_partition_shapes(shapes, p, axis, new_axis):
-        explicit = [s for s in shapes if s is not None]
-        if len(explicit) == 0:
-            return None
-        shape = explicit[0]
-        if p is None or new_axis is not None:
-            if any([s != shape for s in explicit]):
-                raise ValueError("The operands have incompatible shapes: '{0}'"
-                                 ".".format(shapes))
-            return shape
-        rank = len(shape)
-        if any([len(s) != rank for s in explicit]):
-            raise ValueError("The blocks do not have the same number of dimensi"
-                "ons: '{0}'.".format(shapes))
-        if any([shapes[i] is not None and shapes[i][axis] != p[i] \
-                for i in range(len(p)) if p[i] is not None]):
-            raise ValueError("The blocks have shapes '{0}' incompatible with th"
-                "e partition {1}.".format(shapes, p))
-        if len(explicit) == 1:
-            return shape
-        ok = [all([s is None or s[i] == shape[i] for s in shapes]) \
-              for i in range(rank)]
-        ok[axis] = True
-        if not all(ok):
-            raise ValueError("The dimensions of the blocks '{0}' are not the sa"
-                "me along axes other than that of the partition '{1}'.".format(
-                shapes, p))
-        return shape
 
     @staticmethod
     def _rule_add_operator(self, op):
@@ -2764,7 +2792,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
     @staticmethod
     def _rule_commutative_blockoperator(p1, p2, operation):
         """ Rule for BlockOperator + BlockOperator. """
-        partitions = p1._validate_commutative(p1, p2)
+        partitions = p1._validate_partition_commutative(p1, p2)
         if partitions is None:
             return None
         partitionout, partitionin = partitions
@@ -2784,7 +2812,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
     @staticmethod
     def _rule_comp_blockoperator(p1, p2):
         """ Rule for BlockOperator * BlockOperator. """
-        partitions = p1._validate_composition(p1, p2)
+        partitions = p1._validate_partition_composition(p1, p2)
         if partitions is None:
             return None
         partitionout, partitionin = partitions
@@ -2864,7 +2892,7 @@ class BlockDiagonalOperator(BlockOperator):
     def direct(self, input, output):
         if None in self.partitionout:
             partitionout = list(self.partitionout)
-            for i, op in enumerate(self.operands):
+            for i, o in enumerate(self.operands):
                 if partitionout[i] is not None:
                     continue
                 if self.partitionin[i] is None:
@@ -2872,7 +2900,7 @@ class BlockDiagonalOperator(BlockOperator):
                         'rtition cannot be inferred.')
                 shapein = list(input.shape)
                 shapein[self.axisin] = self.partitionin[i]
-                partitionout[i] = op.reshapein(shapein)[self.axisout]
+                partitionout[i] = tointtuple(o.reshapein(shapein))[self.axisout]
         else:
             partitionout = self.partitionout
 
@@ -2890,7 +2918,8 @@ class BlockDiagonalOperator(BlockOperator):
         flags = BlockOperator._merge_flags(operands)
         flags.update({'square':all([op.flags.square for op in operands]),
                       'symmetric':all([op.flags.symmetric for op in operands]),
-                      'hermitian':all([op.flags.hermitian for op in operands])})
+                      'hermitian':all([op.flags.hermitian for op in operands]),
+                      'inplace':all([op.flags.inplace for op in operands])})
         return flags
 
 
@@ -2941,7 +2970,8 @@ class BlockColumnOperator(BlockOperator):
             partitionout = list(self.partitionout)
             for i, op in enumerate(self.operands):
                 if partitionout[i] is None:
-                    partitionout[i] = op.reshapein(input.shape)[self.axisout]
+                    partitionout[i] = tointtuple(op.reshapein(input.shape)
+                                                 [self.axisout])
         else:
             partitionout = self.partitionout
 
@@ -3008,7 +3038,8 @@ class BlockRowOperator(BlockOperator):
             partitionin = list(self.partitionin)
             for i, op in enumerate(self.operands):
                 if partitionin[i] is None:
-                    partitionin[i] = op.reshapeout(output.shape)[self.axisin]
+                    partitionin[i] = tointtuple(op.reshapeout(output.shape)
+                                                [self.axisin])
         else:
             partitionin = self.partitionin
 
@@ -3115,14 +3146,13 @@ class BroadcastingOperator(Operator):
         self.set_rule('{BroadcastingOperator}.', lambda b1, b2: \
             self._rule_broadcast(b1, b2, np.multiply), CompositionOperator)
         self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, CompositionOperator), CompositionOperator, merge=False)
+                      o, CompositionOperator), CompositionOperator)
         self.set_rule('{BlockOperator}.', lambda o,s: self._rule_right_block(o,
-                      s, CompositionOperator), CompositionOperator, merge=False)
+                      s, CompositionOperator), CompositionOperator)
         self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, AdditionOperator), AdditionOperator, merge=False)
+                      o, AdditionOperator), AdditionOperator)
         self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, MultiplicationOperator), MultiplicationOperator,
-                      merge=False)
+                      o, MultiplicationOperator), MultiplicationOperator)
 
     @staticmethod
     def _rule_broadcast(b1, b2, operation):
@@ -3543,11 +3573,9 @@ class ConstantOperator(BroadcastingOperator):
         self.set_rule('.{DiagonalOperator}', self._rule_mul,
                       MultiplicationOperator)
         self.set_rule('.{BlockOperator}', lambda s,o: self.
-                      _rule_left_block_composition(s, o), CompositionOperator,
-                      merge=False)
+                      _rule_left_block_composition(s, o), CompositionOperator)
         self.set_rule('{BlockOperator}.', lambda o,s: self.
-                      _rule_right_block_composition(o, s), CompositionOperator,
-                      merge=False)
+                      _rule_right_block_composition(o, s), CompositionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'rightward':
