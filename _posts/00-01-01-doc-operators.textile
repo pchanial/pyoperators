@@ -232,9 +232,9 @@ Likewise, its input shape can be:
 
 The operator's flags record this information in the @shape_input@ and @shape_output@ attributes. If the output (input) shape is
 
-* explicit: the operator's attribute @shapeout@(@in@) is equal to that tuple. The @reshapein@(@out@) method does not need to be defined.
+* explicit: the operator's attribute @shapeout@(@in@) is equal to that tuple. The @reshapein@(@out@) method should not be overridden.
 * implicit: the attribute @shapeout@(@in@) is @None@ and the method @reshapein@(@out@) applied over the input (output) shape must return the output (input) shape.
-* unconstrained: the attribute @shapeout@(@in@) is @None@. The @reshapein@(@out@) must be @None@.
+* unconstrained: the attribute @shapeout@(@in@) is @None@. The @reshapein@(@out@) should not be overridden.
 
 h3. Operator with explicit input and output shape.
 
@@ -832,9 +832,11 @@ h3. Linear operators
 * EigendecompositionOperator
 * HomothetyOperator
 * IdentityOperator
+* IntegrationTrapezeWeightOperator
 * MaskOperator
 * PackOperator
 * ReshapeOperator
+* SumOperator
 * SymmetricBandOperator
 * TridiagonalOperator
 * UnpackOperator
@@ -848,9 +850,14 @@ h3. Non-linear operators
 * ClipOperator
 * ConstantOperator
 * HardThresholdingOperator
+* MaxOperator
 * MaximumOperator
+* MinOperator
 * MinimumOperator
+* MinMaxOperator
 * NumexprOperator
+* ProductOperator
+* ReductionOperator
 * RoundOperator
 * SoftThresholdingOperator
 
@@ -863,6 +870,7 @@ h3. Composite operators
 * BlockDiagonalOperator
 * BlockSliceOperator
 * CompositionOperator
+* GroupOperator
 * MultiplicationOperator
 
 More operators can be found in the project "Tamasis/PACS":http://pchanial.github.com/tamasis-pacs, such as complex and real fft operators, convolution, projection, discrete differences, compression, downsampling, MPI operators, etc.
