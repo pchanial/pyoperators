@@ -87,6 +87,7 @@ class ProductOperator(ReductionOperator):
         ReductionOperator.__init__(self, np.multiply, axis=axis, dtype=dtype,
                                    skipna=skipna, **keywords)
 
+
 class MaxOperator(ReductionOperator):
     """
     Max-along-axis operator.
