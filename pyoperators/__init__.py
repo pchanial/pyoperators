@@ -26,7 +26,7 @@ try:
 except(ImportError):
     pass
 
-__version__ = '0.5-dev'
+__version__ = '0.6-dev'
 
 import types
 __all__ = [ f for f in dir() if f[0] != '_' and not isinstance(eval(f),
