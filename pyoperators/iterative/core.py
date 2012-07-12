@@ -1,3 +1,6 @@
+f
+from __future__ import division, print_function
+
 __all__ = ['Algorithm']
 
 class Algorithm(object):
@@ -15,35 +18,33 @@ class Algorithm(object):
 
     initialize : Set variables to initial state.
 
+    run : performs the optimization until stop_condition is reached or
+          Ctrl-C is pressed.
+
     iterate : perform one iteration and return current solution.
 
     callback : user-defined function to print status or save variables.
 
     cont : continue the optimization skipping initialiaztion.
 
-    __call__ : performs the optimization until stop_condition is reached.
-
     """
     def initialize(self):
         self.iter_ = 0
         self.current_solution = None
+
     def callback(self):
         pass
-    def iterate(self):
+
+    def iterate(self, n=1):
         """
-        Perform one iteration and returns current solution.
+        Perform n iterations and return current solution.
         """
-        self.iter_ += 1
-        self.callback(self)
-        # return value not used in loop but usefull in "interactive mode"
+        for i in xrange(n):
+            self.iter_ += 1
+            self.callback(self)
         return self.current_solution
-    def at_exit(self):
-        """
-        Perform some task at exit.
-        Does nothing by default.
-        """
-        pass
-    def __call__(self):
+
+    def run(self):
         """
         Perform the optimization.
         """
@@ -52,6 +53,7 @@ class Algorithm(object):
         self.cont()
         self.at_exit()
         return self.current_solution
+
     def cont(self):
         """
         Continue an interrupted estimation (like call but avoid
@@ -60,4 +62,15 @@ class Algorithm(object):
         while not self.stop_condition(self):
             self.iterate()
         return self.current_solution
+
+    def at_exit(self):
+        """
+        Perform some task at exit.
+        Does nothing by default.
+        """
+        pass
+
+    def __call__(self):
+        print("Deprecation warning: use 'run' method instead.")
+        self.run()
 

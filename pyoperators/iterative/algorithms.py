@@ -333,7 +333,7 @@ def acg(model, data, priors=[], hypers=[], covariances=None, return_algo=False,
                                                stop_condition=stop_condition,
                                                callback=callback,
                                                **kwargs)
-        sol = algorithm()
+        sol = algorithm.run()
         if return_algo:
             return sol, algorithm
         else:
@@ -347,7 +347,7 @@ def hacg(model, data, priors=[], hypers=[], deltas=None, return_algo=False, **kw
                                        stop_condition=stop_condition,
                                        callback=callback,
                                        **kwargs)
-    sol = algorithm()
+    sol = algorithm.run()
     return sol
 
 # other
