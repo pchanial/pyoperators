@@ -2468,9 +2468,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         keywords = cls._get_attributes([op1, op2])
 
+        # The merged operator is not guaranteed to handle inplace reductions
+        del keywords['flags']['inplace_reduction']
+
         # reset attributes
         for attr in OPERATOR_ATTRIBUTES + ['_C', '_T', '_H', '_I']:
-            if attr in op.__dict__:
+            if attr in op.__dict__ and attr != 'flags':
                 del op.__dict__[attr]
 
         # re-init operator with merged attributes
