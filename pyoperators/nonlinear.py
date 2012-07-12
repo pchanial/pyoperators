@@ -3,10 +3,9 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from . import memory
 from .decorators import real, square, idempotent, inplace, universal
-from .core import (Operator, CompositionOperator, IdentityOperator,
-                   ReductionOperator)
+from .core import (Operator, BlockColumnOperator, CompositionOperator,
+                   IdentityOperator, ReductionOperator)
 from .utils import operation_assignment, operation_symbol, strenum
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 
@@ -14,6 +13,7 @@ __all__ = ['ClipOperator',
            'HardThresholdingOperator',
            'MaxOperator',
            'MinOperator',
+           'MinMaxOperator',
            'MaximumOperator',
            'MinimumOperator',
            'NumexprOperator',
@@ -151,6 +151,44 @@ class MinOperator(ReductionOperator):
             func = np.min
         ReductionOperator.__init__(self, func, axis=axis, dtype=dtype,
                                    skipna=skipna, **keywords)
+
+
+class MinMaxOperator(BlockColumnOperator):
+    """
+    MinMax-along-axis operator.
+
+    Parameters
+    ----------
+    axis : integer, optional
+        Axis along which the reduction is performed. If None, all dimensions
+        are collapsed.
+    new_axisout : integer, optional
+        Axis in which the minimum and maximum values are set.
+    dtype : dtype, optional
+        Reduction data type.
+    skipna : boolean, optional
+        If this is set to True, the reduction is done as if any NA elements
+        were not counted in the array. The default, False, causes the NA values
+        to propagate, so if any element in a set of elements being reduced is
+        NA, the result will be NA.
+
+    Example
+    -------
+    >>> op = MinMaxOperator()
+    >>> op([1,2,3])
+    array([1, 3])
+    >>> op = MinMaxOperator(axis=0, new_axisout=0)
+    >>> op([[1,2,3],[2,1,4],[0,1,8]])
+    array([[0, 1, 3],
+           [2, 2, 8]])
+
+    """
+    def __init__(self, axis=None, dtype=None, skipna=False, new_axisout=-1,
+                 **keywords):
+        operands = [MinOperator(axis=axis, dtype=dtype, skipna=skipna),
+                    MaxOperator(axis=axis, dtype=dtype, skipna=skipna)]
+        BlockColumnOperator.__init__(self, operands, new_axisout=new_axisout,
+                                     **keywords)
 
 
 @square
