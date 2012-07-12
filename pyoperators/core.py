@@ -1099,11 +1099,11 @@ class Operator(object):
         self.shapein = shapein
         self.shapeout = shapeout
         if shapein is not None:
-            shapeout = self.reshapein(shapein)
+            shapeout = tointtuple(self.reshapein(shapein))
             if self.shapeout is None:
                 self.shapeout = shapeout
         if shapeout is not None:
-            shapein = self.reshapeout(shapeout)
+            shapein = tointtuple(self.reshapeout(shapeout))
             if self.shapein is None:
                 self.shapein = shapein
 
@@ -2132,7 +2132,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             if shapes[i+1] is None:
                 s = op.shapeout
             else:
-                s = op.reshapein(shapes[i+1])
+                s = tointtuple(op.reshapein(shapes[i+1]))
             if i == 0 and None not in (shapes[0], s) and s != shapes[0]:
                 raise ValueError("Incompatible shape in composition.")
             if s is not None:
@@ -2144,7 +2144,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             if shapes[i] is None:
                 s = op.shapein
             else:
-                s = op.reshapeout(shapes[i])
+                s = tointtuple(op.reshapeout(shapes[i]))
             if None not in (shapes[i+1], s) and s != shapes[i+1]:
                 raise ValueError("Incompatible shape in composition.")
             if s is not None:
