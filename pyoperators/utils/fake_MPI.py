@@ -129,12 +129,16 @@ class Comm(object):
     def Allgatherv(self, i, o, op=None):
         if isinstance(i, int) and i == IN_PLACE:
             return
-        o[0][...] = i[0]
+        if isinstance(i, (list, tuple)):
+            i = i[0]
+        o[0][...] = i
 
     def Allreduce(self, i, o, op=None):
         if isinstance(i, int) and i == IN_PLACE:
             return
-        o[0][...] = i[0]
+        if isinstance(i, (list, tuple)):
+            i = i[0]
+        o[0][...] = i
 
     def Barrier(self):
         pass
