@@ -11,7 +11,7 @@ from .utils import isscalar
 __all__ = [
     'BandOperator',
     'EigendecompositionOperator',
-    'IntegrationTrapezeOperator',
+    'IntegrationTrapezeWeightOperator',
     'PackOperator',
     'SumOperator',
     'SymmetricBandOperator',
@@ -20,8 +20,40 @@ __all__ = [
 ]
 
 
-class IntegrationTrapezeOperator(Operator):
-    def __new__(cls, x, new_axisin=0):
+class IntegrationTrapezeWeightOperator(BlockRowOperator):
+    """
+    Return weights as a block row operator to perform trapeze integration.
+
+    This operator can be used to integrate over X the bivariate function 
+        f = f(X,Y).
+    Let's assume f is sampled at n abscissa x_n non necessarily equally spaced
+        f_i(Y) = f(x_i, Y).
+    The operator IntegrationTrapezeWeightOperator returns a block row operator
+        W = [ w_1 * I ... w_n * I]
+    such that, given the block column operator
+            [ f_1 ]
+        F = [ ... ]
+            [ f_n ],
+    the product
+        W * F = w_1 * f_1 + ... + w_n * f_n
+    performs a trapeze integration of f(X,Y) over the bins [x_i,x_(i+1)]
+    for i in 1..n-1.
+
+    Example
+    -------
+    >>> f = np.power
+    >>> x = [0.5,1,2,4]
+    >>> F = BlockColumnOperator([Operator(lambda i,o,v=v:f(v,i,o),
+    ...                         flags='square') for v in x], new_axisout=0)
+    >>> W = IntegrationTrapezeWeightOperator(x)
+    >>> int_f = W * F
+    >>> int_f([0,1,2])
+    array([  3.5   ,   7.875 ,  22.8125])
+    >>> [ trapz(f(x,a), x) for a in [0,1,2] ]
+    [3.5, 7.875, 22.8125]
+
+    """
+    def __init__(self, x, new_axisin=0, **keywords):
         x = np.asarray(x)
         if x.size < 2:
             raise ValueError('At least two abscissa are required.')
@@ -32,7 +64,8 @@ class IntegrationTrapezeOperator(Operator):
         w[0] = 0.5 * (x[1] - x[0])
         w[1:-1] = 0.5 * (x[2:]-x[:-2])
         w[-1] = 0.5 * (x[-1] - x[-2])
-        return BlockRowOperator(list(w), new_axisin=new_axisin)
+        BlockRowOperator.__init__(self, list(w), new_axisin=new_axisin,
+                                  **keywords)
 
 
 @linear
