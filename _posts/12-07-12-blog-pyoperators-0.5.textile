@@ -14,7 +14,7 @@ What's new ?
 * RoundOperator: add methods 'rhtmi' (round half to minus infinity), 'rhtpi' (round half to plus infinity).
 * Make todense method work with uncontrained output shape operators.
 * Set dtype to None for DiagonalOperators with only 1 and 0 on the diagonal.
-* set 'square' flag automatically for ufunc. Infer 'real' flag from ufunc's types.
+* set 'square' flag automatically for ufuncs. Infer 'real' flag from ufunc's types.
 * Fix flags shape_input, shape_output in CommutativeCompositeOperator and CompositionOperator.
 * Add 'idempotent' flag to RoundOperator and HardThresholdingOperator.
 
