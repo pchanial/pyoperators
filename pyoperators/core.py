@@ -650,8 +650,7 @@ class Operator(object):
     def rmatvec(self, v, output=None):
         return self.T.matvec(v, output)
 
-    def set_rule(self, subjects, predicate, operation=None, globals=None,
-                 merge=True):
+    def set_rule(self, subjects, predicate, operation=None, globals=None):
         """
         Add a rule to the rule list, taking care of duplicates and priorities.
         Class-matching rules have a lower priority than the others.
@@ -672,7 +671,6 @@ class Operator(object):
             which more than one class-matching rule is set.
         """
         rule = OperatorRule(subjects, predicate)
-        rule.merge = merge
 
         if len(rule.subjects) > 2:
             raise ValueError('Only unary and binary rules are allowed.')
@@ -1960,8 +1958,7 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                         raise NotImplementedError()
                     ops[i], ops[i+1] = new_ops
                     break
-                if rule.merge:
-                    cls._merge(new_ops, o1, o2)
+                cls._merge(new_ops, o1, o2)
                 del ops[i+1]
                 ops[i] = new_ops
                 break
