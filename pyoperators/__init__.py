@@ -26,7 +26,7 @@ try:
 except (ImportError):
     pass
 
-__version__ = '0.5-dev'
+__version__ = '0.5'
 
 import types
 
