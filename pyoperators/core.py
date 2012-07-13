@@ -434,9 +434,10 @@ class Operator(object):
         validateout=None,
         dtype=None,
         flags={},
+        name=None,
     ):
 
-        for method, name in zip(
+        for method, name_ in zip(
             (
                 direct,
                 transpose,
@@ -460,9 +461,9 @@ class Operator(object):
         ):
             if method is not None:
                 if not hasattr(method, '__call__'):
-                    raise TypeError("The method '%s' is not callable." % name)
+                    raise TypeError("The method '%s' is not callable." % name_)
                 # should also check that the method has at least two arguments
-                setattr(self, name, method)
+                setattr(self, name_, method)
 
         if self.transpose is None and self.adjoint is not None:
 
@@ -484,7 +485,7 @@ class Operator(object):
         self._init_dtype(dtype)
         self._init_flags(flags)
         self._init_rules()
-        self._init_name()
+        self._init_name(name)
         self._init_inout(
             attrin,
             attrout,
@@ -963,16 +964,18 @@ class Operator(object):
         elif '.C' in rules:
             C = rules['.C'](self)
         else:
-            C = DirectOperatorFactory(Operator, self, direct=self.conjugate_)
-            C.__name__ = self.__name__ + '.C'
+            C = DirectOperatorFactory(
+                Operator, self, direct=self.conjugate_, name=self.__name__ + '.C'
+            )
 
         if self.flags.symmetric:
             T = self
         elif '.T' in rules:
             T = rules['.T'](self)
         else:
-            T = ReverseOperatorFactory(Operator, self, direct=self.transpose)
-            T.__name__ = self.__name__ + '.T'
+            T = ReverseOperatorFactory(
+                Operator, self, direct=self.transpose, name=self.__name__ + '.T'
+            )
 
         if self.flags.hermitian:
             H = self
@@ -983,8 +986,9 @@ class Operator(object):
         elif self.flags.symmetric:
             H = C
         else:
-            H = ReverseOperatorFactory(Operator, self, direct=self.adjoint)
-            H.__name__ = self.__name__ + '.H'
+            H = ReverseOperatorFactory(
+                Operator, self, direct=self.adjoint, name=self.__name__ + '.H'
+            )
 
         if self.flags.involutary:
             I = self
@@ -995,8 +999,9 @@ class Operator(object):
         elif self.flags.unitary:
             I = H
         else:
-            I = ReverseOperatorFactory(Operator, self, direct=self.inverse)
-            I.__name__ = self.__name__ + '.I'
+            I = ReverseOperatorFactory(
+                Operator, self, direct=self.inverse, name=self.__name__ + '.I'
+            )
 
         if self.flags.real:
             IC = I
@@ -1009,8 +1014,12 @@ class Operator(object):
         elif self.flags.involutary:
             IC = C
         else:
-            IC = ReverseOperatorFactory(Operator, self, direct=self.inverse_conjugate)
-            IC.__name__ = self.__name__ + '.I.C'
+            IC = ReverseOperatorFactory(
+                Operator,
+                self,
+                direct=self.inverse_conjugate,
+                name=self.__name__ + '.I.C',
+            )
 
         if self.flags.orthogonal:
             IT = self
@@ -1023,8 +1032,12 @@ class Operator(object):
         elif '.IT' in rules:
             IT = rules['.IT'](self)
         else:
-            IT = DirectOperatorFactory(Operator, self, direct=self.inverse_transpose)
-            IT.__name__ = self.__name__ + '.I.T'
+            IT = DirectOperatorFactory(
+                Operator,
+                self,
+                direct=self.inverse_transpose,
+                name=self.__name__ + '.I.T',
+            )
 
         if self.flags.unitary:
             IH = self
@@ -1041,8 +1054,9 @@ class Operator(object):
         elif '.IH' in rules:
             IH = rules['.IH'](self)
         else:
-            IH = DirectOperatorFactory(Operator, self, direct=self.inverse_adjoint)
-            IH.__name__ = self.__name__ + '.I.H'
+            IH = DirectOperatorFactory(
+                Operator, self, direct=self.inverse_adjoint, name=self.__name__ + '.I.H'
+            )
 
         # once all the associated operators are instanciated, we set all their
         # associated operators. To do so, we use the fact that the transpose,
@@ -1304,14 +1318,18 @@ class Operator(object):
                 self.reshapein = Operator.reshapein.__get__(self, type(self))
                 self.validateout = Operator.validateout.__get__(self, type(self))
 
-    def _init_name(self):
+    def _init_name(self, name):
         """Set operator's __name__ attribute."""
-        if self.__class__ != 'Operator':
-            name = self.__class__.__name__
-        elif self.direct and self.direct.__name__ not in ('<lambda>', 'direct'):
-            name = self.direct.__name__
-        else:
-            name = 'Operator'
+        if name is None:
+            if self.__class__ != 'Operator':
+                name = self.__class__.__name__
+            elif self.direct is not None and self.direct.__name__ not in (
+                '<lambda>',
+                'direct',
+            ):
+                name = self.direct.__name__
+            else:
+                name = 'Operator'
         self.__name__ = name
 
     def _set_flags(self, flags=None, **keywords):
