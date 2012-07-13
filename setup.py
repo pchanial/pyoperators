@@ -22,7 +22,7 @@ platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 ext_modules = [
     Extension(
         "pyoperators.utils.cythonutils",
-        sources=["pyoperators/utils/cythonutils.pyx"],
+        sources=["pyoperators/utils/cythonutils.c"],
         include_dirs=['.', np.get_include()],
     ),
     Extension(
