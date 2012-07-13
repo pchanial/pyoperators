@@ -959,59 +959,102 @@ class Operator(object):
         else:
             rules = {}
 
-        if self.flags.real:
+        flags = self.flags
+
+        if flags.real:
             C = self
         elif '.C' in rules:
             C = rules['.C'](self)
         else:
             C = DirectOperatorFactory(
-                Operator, self, direct=self.conjugate_, name=self.__name__ + '.C'
+                Operator,
+                self,
+                direct=self.conjugate_,
+                name=self.__name__ + '.C',
+                flags={
+                    'linear': flags.linear,
+                    'symmetric': flags.symmetric,
+                    'hermitian': flags.hermitian,
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
-        if self.flags.symmetric:
+        if flags.symmetric:
             T = self
         elif '.T' in rules:
             T = rules['.T'](self)
         else:
             T = ReverseOperatorFactory(
-                Operator, self, direct=self.transpose, name=self.__name__ + '.T'
+                Operator,
+                self,
+                direct=self.transpose,
+                name=self.__name__ + '.T',
+                flags={
+                    'linear': flags.linear,
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
-        if self.flags.hermitian:
+        if flags.hermitian:
             H = self
         elif '.H' in rules:
             H = rules['.H'](self)
-        elif self.flags.real:
+        elif flags.real:
             H = T
-        elif self.flags.symmetric:
+        elif flags.symmetric:
             H = C
         else:
             H = ReverseOperatorFactory(
-                Operator, self, direct=self.adjoint, name=self.__name__ + '.H'
+                Operator,
+                self,
+                direct=self.adjoint,
+                name=self.__name__ + '.H',
+                flags={
+                    'linear': flags.linear,
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
-        if self.flags.involutary:
+        if flags.involutary:
             I = self
         elif '.I' in rules:
             I = rules['.I'](self)
-        elif self.flags.orthogonal:
+        elif flags.orthogonal:
             I = T
-        elif self.flags.unitary:
+        elif flags.unitary:
             I = H
         else:
             I = ReverseOperatorFactory(
-                Operator, self, direct=self.inverse, name=self.__name__ + '.I'
+                Operator,
+                self,
+                direct=self.inverse,
+                name=self.__name__ + '.I',
+                flags={
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
-        if self.flags.real:
+        if flags.real:
             IC = I
         elif '.IC' in rules:
             IC = rules['.IC'](self)
-        elif self.flags.orthogonal:
+        elif flags.orthogonal:
             IC = H
-        elif self.flags.unitary:
+        elif flags.unitary:
             IC = T
-        elif self.flags.involutary:
+        elif flags.involutary:
             IC = C
         else:
             IC = ReverseOperatorFactory(
@@ -1019,15 +1062,21 @@ class Operator(object):
                 self,
                 direct=self.inverse_conjugate,
                 name=self.__name__ + '.I.C',
+                flags={
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
-        if self.flags.orthogonal:
+        if flags.orthogonal:
             IT = self
-        elif self.flags.symmetric:
+        elif flags.symmetric:
             IT = I
-        elif self.flags.unitary:
+        elif flags.unitary:
             IT = C
-        elif self.flags.involutary:
+        elif flags.involutary:
             IT = T
         elif '.IT' in rules:
             IT = rules['.IT'](self)
@@ -1037,25 +1086,40 @@ class Operator(object):
                 self,
                 direct=self.inverse_transpose,
                 name=self.__name__ + '.I.T',
+                flags={
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
-        if self.flags.unitary:
+        if flags.unitary:
             IH = self
-        elif self.flags.hermitian:
+        elif flags.hermitian:
             IH = I
-        elif self.flags.orthogonal:
+        elif flags.orthogonal:
             IH = C
-        elif self.flags.involutary:
+        elif flags.involutary:
             IH = H
-        elif self.flags.symmetric:
+        elif flags.symmetric:
             IH = IC
-        elif self.flags.real:
+        elif flags.real:
             IH = IT
         elif '.IH' in rules:
             IH = rules['.IH'](self)
         else:
             IH = DirectOperatorFactory(
-                Operator, self, direct=self.inverse_adjoint, name=self.__name__ + '.I.H'
+                Operator,
+                self,
+                direct=self.inverse_adjoint,
+                name=self.__name__ + '.I.H',
+                flags={
+                    'idempotent': flags.idempotent,
+                    'involutary': flags.involutary,
+                    'orthogonal': flags.orthogonal,
+                    'unitary': flags.unitary,
+                },
             )
 
         # once all the associated operators are instanciated, we set all their
@@ -1611,6 +1675,11 @@ def DirectOperatorFactory(cls, source, *args, **keywords):
         if attr in keywords or attr in ['dtype', 'flags']:
             continue
         keywords[attr] = getattr(source, attr)
+    keywords['dtype'] = source.dtype
+    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
+    keywords['flags']['real'] = source.flags.real
+    keywords['flags']['square'] = source.flags.square
+    keywords['flags']['inplace'] = source.flags.inplace
     return cls(*args, **keywords)
 
 
@@ -1633,6 +1702,11 @@ def ReverseOperatorFactory(cls, source, *args, **keywords):
         else:
             attr_source = attr
         keywords[attr] = getattr(source, attr_source)
+    keywords['dtype'] = source.dtype
+    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
+    keywords['flags']['real'] = source.flags.real
+    keywords['flags']['square'] = source.flags.square
+    keywords['flags']['inplace'] = source.flags.inplace
     return cls(*args, **keywords)
 
 
