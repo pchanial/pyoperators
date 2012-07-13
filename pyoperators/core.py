@@ -1670,129 +1670,6 @@ class Operator(object):
         return name + '(' + ', '.join(a) + ')'
 
 
-def DirectOperatorFactory(cls, source, *args, **keywords):
-    for attr in OPERATOR_ATTRIBUTES:
-        if attr in keywords or attr in ['dtype', 'flags']:
-            continue
-        keywords[attr] = getattr(source, attr)
-    keywords['dtype'] = source.dtype
-    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
-    keywords['flags']['real'] = source.flags.real
-    keywords['flags']['square'] = source.flags.square
-    keywords['flags']['inplace'] = source.flags.inplace
-    return cls(*args, **keywords)
-
-
-def ReverseOperatorFactory(cls, source, *args, **keywords):
-    for attr in OPERATOR_ATTRIBUTES:
-        if attr in keywords or attr in ['dtype', 'flags']:
-            continue
-        if attr == 'reshapein' and source.reshapeout == Operator.reshapeout.__get__(
-            source, type(source)
-        ):
-            continue
-        if attr == 'reshapeout' and source.reshapein == Operator.reshapein.__get__(
-            source, type(source)
-        ):
-            continue
-        if attr.endswith('in'):
-            attr_source = attr[:-2] + 'out'
-        elif attr.endswith('out'):
-            attr_source = attr[:-3] + 'in'
-        else:
-            attr_source = attr
-        keywords[attr] = getattr(source, attr_source)
-    keywords['dtype'] = source.dtype
-    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
-    keywords['flags']['real'] = source.flags.real
-    keywords['flags']['square'] = source.flags.square
-    keywords['flags']['inplace'] = source.flags.inplace
-    return cls(*args, **keywords)
-
-
-def asoperator(x, constant=False, **keywords):
-    """
-    Return input as an Operator.
-
-    Parameters
-    ----------
-    x : object
-        The input can be one of the following:
-            - a callable (including ufuncs)
-            - array_like (including matrices)
-            - a numpy or python scalar
-            - scipy.sparse.linalg.LinearOperator
-    constant : boolean, optional
-        If True, return a ConstantOperator instead of a HomothetyOperator for
-        scalars. Default is False.
-    flags : dictionary
-        The operator flags.
-
-    """
-    if isinstance(x, Operator):
-        return x
-
-    if hasattr(x, 'matvec') and hasattr(x, 'rmatvec') and hasattr(x, 'shape'):
-
-        def direct(input, output):
-            output[...] = x.matvec(input)
-
-        def transpose(input, output):
-            output[...] = x.rmatvec(input)
-
-        keywords['flags'] = Operator.validate_flags(
-            keywords.get('flags', {}), linear=True
-        )
-        return Operator(
-            direct=direct,
-            transpose=transpose,
-            shapein=x.shape[1],
-            shapeout=x.shape[0],
-            dtype=x.dtype,
-            **keywords,
-        )
-
-    if isinstance(x, np.ufunc):
-        return Operator(x, **keywords)
-
-    if callable(x):
-
-        def direct(input, output):
-            output[...] = x(input)
-
-        keywords['flags'] = Operator.validate_flags(
-            keywords.get('flags', {}), inplace=True
-        )
-        return Operator(direct, **keywords)
-
-    if isinstance(x, (list, tuple)) and len(x) > 0 and isinstance(x[0], (list, tuple)):
-        x = np.array(x)
-
-    if (
-        constant
-        and isinstance(x, (int, float, complex, np.bool_, np.number, np.ndarray))
-        and not isinstance(x, np.matrix)
-    ):
-        return ConstantOperator(x, **keywords)
-
-    if isinstance(x, (np.matrix, np.ndarray)):
-        if x.ndim > 0:
-            return DenseOperator(x, **keywords)
-        x = x[()]
-
-    if isinstance(x, (int, float, complex, np.bool_, np.number)):
-        return HomothetyOperator(x, **keywords)
-
-    return asoperator(scipy.sparse.linalg.aslinearoperator(x), **keywords)
-
-
-def asoperator1d(x):
-    x = asoperator(x)
-    r = ReshapeOperator(x.shape[1], x.shapein)
-    s = ReshapeOperator(x.shapeout, x.shape[0])
-    return s * x * r
-
-
 class CompositeOperator(Operator):
     """
     Abstract class for handling a list of operands.
@@ -4555,6 +4432,129 @@ class ReductionOperator(Operator):
             raise ValueError(
                 'The input shape has an insufficient number of dim' 'ensions.'
             )
+
+
+def DirectOperatorFactory(cls, source, *args, **keywords):
+    for attr in OPERATOR_ATTRIBUTES:
+        if attr in keywords or attr in ['dtype', 'flags']:
+            continue
+        keywords[attr] = getattr(source, attr)
+    keywords['dtype'] = source.dtype
+    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
+    keywords['flags']['real'] = source.flags.real
+    keywords['flags']['square'] = source.flags.square
+    keywords['flags']['inplace'] = source.flags.inplace
+    return cls(*args, **keywords)
+
+
+def ReverseOperatorFactory(cls, source, *args, **keywords):
+    for attr in OPERATOR_ATTRIBUTES:
+        if attr in keywords or attr in ['dtype', 'flags']:
+            continue
+        if attr == 'reshapein' and source.reshapeout == Operator.reshapeout.__get__(
+            source, type(source)
+        ):
+            continue
+        if attr == 'reshapeout' and source.reshapein == Operator.reshapein.__get__(
+            source, type(source)
+        ):
+            continue
+        if attr.endswith('in'):
+            attr_source = attr[:-2] + 'out'
+        elif attr.endswith('out'):
+            attr_source = attr[:-3] + 'in'
+        else:
+            attr_source = attr
+        keywords[attr] = getattr(source, attr_source)
+    keywords['dtype'] = source.dtype
+    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
+    keywords['flags']['real'] = source.flags.real
+    keywords['flags']['square'] = source.flags.square
+    keywords['flags']['inplace'] = source.flags.inplace
+    return cls(*args, **keywords)
+
+
+def asoperator(x, constant=False, **keywords):
+    """
+    Return input as an Operator.
+
+    Parameters
+    ----------
+    x : object
+        The input can be one of the following:
+            - a callable (including ufuncs)
+            - array_like (including matrices)
+            - a numpy or python scalar
+            - scipy.sparse.linalg.LinearOperator
+    constant : boolean, optional
+        If True, return a ConstantOperator instead of a HomothetyOperator for
+        scalars. Default is False.
+    flags : dictionary
+        The operator flags.
+
+    """
+    if isinstance(x, Operator):
+        return x
+
+    if hasattr(x, 'matvec') and hasattr(x, 'rmatvec') and hasattr(x, 'shape'):
+
+        def direct(input, output):
+            output[...] = x.matvec(input)
+
+        def transpose(input, output):
+            output[...] = x.rmatvec(input)
+
+        keywords['flags'] = Operator.validate_flags(
+            keywords.get('flags', {}), linear=True
+        )
+        return Operator(
+            direct=direct,
+            transpose=transpose,
+            shapein=x.shape[1],
+            shapeout=x.shape[0],
+            dtype=x.dtype,
+            **keywords,
+        )
+
+    if isinstance(x, np.ufunc):
+        return Operator(x, **keywords)
+
+    if callable(x):
+
+        def direct(input, output):
+            output[...] = x(input)
+
+        keywords['flags'] = Operator.validate_flags(
+            keywords.get('flags', {}), inplace=True
+        )
+        return Operator(direct, **keywords)
+
+    if isinstance(x, (list, tuple)) and len(x) > 0 and isinstance(x[0], (list, tuple)):
+        x = np.array(x)
+
+    if (
+        constant
+        and isinstance(x, (int, float, complex, np.bool_, np.number, np.ndarray))
+        and not isinstance(x, np.matrix)
+    ):
+        return ConstantOperator(x, **keywords)
+
+    if isinstance(x, (np.matrix, np.ndarray)):
+        if x.ndim > 0:
+            return DenseOperator(x, **keywords)
+        x = x[()]
+
+    if isinstance(x, (int, float, complex, np.bool_, np.number)):
+        return HomothetyOperator(x, **keywords)
+
+    return asoperator(scipy.sparse.linalg.aslinearoperator(x), **keywords)
+
+
+def asoperator1d(x):
+    x = asoperator(x)
+    r = ReshapeOperator(x.shape[1], x.shapein)
+    s = ReshapeOperator(x.shapeout, x.shape[0])
+    return s * x * r
 
 
 I = IdentityOperator()
