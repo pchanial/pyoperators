@@ -4,7 +4,7 @@ import numpy as np
 import pyoperators
 
 from pyoperators import Operator, BlockColumnOperator
-from pyoperators.linear import IntegrationTrapezeOperator, PackOperator, UnpackOperator, SumOperator
+from pyoperators.linear import IntegrationTrapezeWeightOperator, PackOperator, UnpackOperator, SumOperator
 from pyoperators.utils.testing import assert_eq
 
 SHAPES = (None, (), (1,), (3,), (2,3), (2,3,4))
@@ -25,7 +25,7 @@ def test_integration_trapeze():
     func_op = BlockColumnOperator([Op(_) for _ in x], new_axisout=0)
     eval_ = func_op(value)
     expected = np.trapz(eval_, x=x, axis=0)
-    integ = IntegrationTrapezeOperator(x) * func_op
+    integ = IntegrationTrapezeWeightOperator(x) * func_op
     assert_eq(integ(value), expected)
     
 
