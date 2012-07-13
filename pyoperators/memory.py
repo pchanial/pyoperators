@@ -180,7 +180,6 @@ def push_and_pop(array):
                           ' at istack=' + str(istack) + ':')
                     print_stack({self.address : 'pushed array'})
                     stack.pop(istack)
-                    assert False
             else:
                 istack = self.istack
                 if not array.flags.contiguous:
