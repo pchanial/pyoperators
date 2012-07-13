@@ -953,7 +953,10 @@ class Operator(object):
         Compute at once the conjugate, transpose, adjoint and inverse operators
         of the instance and of themselves.
         """
-        rules = dict((r.subjects[0], r) for r in self.rules[None])
+        if None in self.rules:
+            rules = dict((r.subjects[0], r) for r in self.rules[None])
+        else:
+            rules = {}
 
         if self.flags.real:
             C = self
