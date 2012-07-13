@@ -2640,10 +2640,86 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
 
 class GroupOperator(CompositionOperator):
+    """
+    CompositionOperator subclass, without the associativity rules.
+
+    Use this operator to make sure that properties such as dtype are not
+    lost by composing with other operators.
+
+    """
+
     def __init__(self, operands, **keywords):
         CompositionOperator.__init__(self, operands, **keywords)
         if not isinstance(self, GroupOperator):
             return
+
+        dtype = self._find_common_type(o.dtype for o in operands)
+        switch_T_H = self.flags.real and dtype is not None and dtype.kind == 'c'
+        if switch_T_H:
+            T, H, IT, IH = '.H', '.T', '.IH', '.IT'
+        else:
+            T, H, IT, IH = '.T', '.H', '.IT', '.IH'
+
+        self.set_rule(
+            '.C',
+            lambda s: DirectOperatorFactory(
+                GroupOperator, s, [m.C for m in s.operands], name=self.__name__ + '.C'
+            ),
+        )
+        self.set_rule(
+            T,
+            lambda s: ReverseOperatorFactory(
+                GroupOperator,
+                s,
+                [m.T for m in s.operands[::-1]],
+                name=self.__name__ + '.T',
+            ),
+        )
+        self.set_rule(
+            H,
+            lambda s: ReverseOperatorFactory(
+                GroupOperator,
+                s,
+                [m.H for m in s.operands[::-1]],
+                name=self.__name__ + '.H',
+            ),
+        )
+        self.set_rule(
+            '.I',
+            lambda s: ReverseOperatorFactory(
+                GroupOperator,
+                s,
+                [m.I for m in s.operands[::-1]],
+                name=self.__name__ + '.I',
+            ),
+        )
+        self.set_rule(
+            '.IC',
+            lambda s: ReverseOperatorFactory(
+                GroupOperator,
+                s,
+                [m.I.C for m in s.operands[::-1]],
+                name=self.__name__ + '.I.C',
+            ),
+        )
+        self.set_rule(
+            IT,
+            lambda s: DirectOperatorFactory(
+                GroupOperator,
+                s,
+                [m.I.T for m in s.operands],
+                name=self.__name__ + '.I.T',
+            ),
+        )
+        self.set_rule(
+            IH,
+            lambda s: DirectOperatorFactory(
+                GroupOperator,
+                s,
+                [m.I.H for m in s.operands],
+                name=self.__name__ + '.I.H',
+            ),
+        )
         self.del_rule('.{self}', CompositionOperator)
         self.del_rule('.{Operator}', CompositionOperator)
         self.del_rule('{Operator}.', CompositionOperator)
