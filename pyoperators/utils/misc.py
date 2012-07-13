@@ -100,10 +100,7 @@ def first_is_not(l, v):
     Return first item in list which is not the specified value.
     If all items are the specified value, return it.
     """
-    for a in l:
-        if a is not v:
-            return a
-    return v
+    return next((_ for _ in l if _ is not v), v)
 
 
 def inspect_special_values(x):
