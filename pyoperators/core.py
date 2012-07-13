@@ -1968,7 +1968,7 @@ class AdditionOperator(CommutativeCompositeOperator):
         return {
             'linear': all([op.flags.linear for op in operands]),
             'real': all([op.flags.real for op in operands]),
-            'square': all([op.flags.square for op in operands]),
+            'square': any([op.flags.square for op in operands]),
             'symmetric': all([op.flags.symmetric for op in operands]),
             'hermitian': all([op.flags.hermitian for op in operands]),
             'universal': all([op.flags.universal for op in operands]),
@@ -1999,7 +1999,7 @@ class MultiplicationOperator(CommutativeCompositeOperator):
     def _merge_flags(operands):
         return {
             'real': all([op.flags.real for op in operands]),
-            'square': all([op.flags.square for op in operands]),
+            'square': any([op.flags.square for op in operands]),
             'universal': all([op.flags.universal for op in operands]),
         }
 
