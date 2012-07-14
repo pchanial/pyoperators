@@ -79,15 +79,15 @@ class OperatorFlags(namedtuple('OperatorFlags',
         return super(OperatorFlags, cls).__new__(cls, *t)
 
     def __str__(self):
-        n = max([len(f) for f in self._fields])
+        n = max(len(f) for f in self._fields)
         fields = [ '  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
         return '\n'.join([f + str(v) for f,v in zip(fields,self)])
 
     def __repr__(self):
-        n = max([len(f) for f in self._fields])
+        n = max(len(f) for f in self._fields)
         fields = [ f.ljust(n) + '= ' for f in self._fields]
-        return self.__class__.__name__ + '(\n  ' + ',\n  '.join([f + repr(v) \
-            for f,v in zip(fields,self)]) + ')'
+        return self.__class__.__name__ + '(\n  ' + ',\n  '.join(f + repr(v)
+            for f,v in zip(fields,self)) + ')'
 
 
 class OperatorRule(object):
@@ -313,7 +313,7 @@ class OperatorBinaryRule(OperatorRule):
         if isinstance(predicate, (list,tuple)) and len(predicate) == 1:
             predicate = predicate[0]
         if not isinstance(predicate, Operator) and not (isinstance(predicate,
-           (list,tuple)) and all([isinstance(o, Operator) for o in predicate])):
+           (list,tuple)) and all(isinstance(o, Operator) for o in predicate)):
             raise TypeError("The predicate '{0}' is not an operator.".format(
                             predicate))
         return predicate
@@ -1493,7 +1493,7 @@ class CompositeOperator(Operator):
         operands = self._validate_operands(operands)
         self._validate_comm(operands)
         if dtype is None:
-            dtype = self._find_common_type([o.dtype for o in operands])
+            dtype = self._find_common_type(o.dtype for o in operands)
         self.operands = operands
         Operator.__init__(self, dtype=dtype, **keywords)
         self.propagate_commin(self.commin)
@@ -1662,22 +1662,22 @@ class CommutativeCompositeOperator(CompositeOperator):
     @classmethod
     def _get_attributes(cls, operands, **keywords):
         attr = {
-            'attrin':first_is_not([o.attrin for o in operands], None),
-            'attrout':first_is_not([o.attrout for o in operands], None),
-            'classin':first_is_not([o.classin for o in operands], None),
-            'classout':first_is_not([o.classout for o in operands], None),
-            'commin':first_is_not([o.commin for o in operands], None),
-            'commout':first_is_not([o.commout for o in operands], None),
-            'dtype':cls._find_common_type([o.dtype for o in operands]),
+            'attrin':first_is_not((o.attrin for o in operands), None),
+            'attrout':first_is_not((o.attrout for o in operands), None),
+            'classin':first_is_not((o.classin for o in operands), None),
+            'classout':first_is_not((o.classout for o in operands), None),
+            'commin':first_is_not((o.commin for o in operands), None),
+            'commout':first_is_not((o.commout for o in operands), None),
+            'dtype':cls._find_common_type(o.dtype for o in operands),
             'flags':cls._merge_flags(operands),
             'reshapein':cls._merge_reshapein(operands),
             'reshapeout':cls._merge_reshapeout(operands),
-            'shapein':cls._merge_shape([o.shapein for o in operands], 'in'),
-            'shapeout':cls._merge_shape([o.shapeout for o in operands], 'out'),
-            'toshapein':first_is_not([o.toshapein for o in operands], None),
-            'toshapeout':first_is_not([o.toshapeout for o in operands], None),
-            'validatein':first_is_not([o.validatein for o in operands], None),
-            'validateout':first_is_not([o.validateout for o in operands], None),
+            'shapein':cls._merge_shape((o.shapein for o in operands), 'in'),
+            'shapeout':cls._merge_shape((o.shapeout for o in operands), 'out'),
+            'toshapein':first_is_not((o.toshapein for o in operands), None),
+            'toshapeout':first_is_not((o.toshapeout for o in operands), None),
+            'validatein':first_is_not((o.validatein for o in operands), None),
+            'validateout':first_is_not((o.validateout for o in operands), None),
         }
         for k, v in keywords.items():
             if k is not 'flags':
@@ -1743,12 +1743,12 @@ class AdditionOperator(CommutativeCompositeOperator):
     @staticmethod
     def _merge_flags(operands):
         return {
-            'linear':all([op.flags.linear for op in operands]),
-            'real':all([op.flags.real for op in operands]),
-            'square':any([op.flags.square for op in operands]),
-            'symmetric':all([op.flags.symmetric for op in operands]),
-            'hermitian':all([op.flags.hermitian for op in operands]),
-            'universal':all([op.flags.universal for op in operands])}
+            'linear':all(op.flags.linear for op in operands),
+            'real':all(op.flags.real for op in operands),
+            'square':any(op.flags.square for op in operands),
+            'symmetric':all(op.flags.symmetric for op in operands),
+            'hermitian':all(op.flags.hermitian for op in operands),
+            'universal':all(op.flags.universal for op in operands)}
 
 
 class MultiplicationOperator(CommutativeCompositeOperator):
@@ -1774,9 +1774,9 @@ class MultiplicationOperator(CommutativeCompositeOperator):
     @staticmethod
     def _merge_flags(operands):
         return {
-            'real':all([op.flags.real for op in operands]),
-            'square':any([op.flags.square for op in operands]),
-            'universal':all([op.flags.universal for op in operands])}
+            'real':all(op.flags.real for op in operands),
+            'square':any(op.flags.square for op in operands),
+            'universal':all(op.flags.universal for op in operands)}
 
 
 @square
@@ -1845,7 +1845,7 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     @classmethod
     def _get_attributes(cls, operands, **keywords):
         attr = {
-            'dtype':cls._find_common_type([o.dtype for o in operands]),
+            'dtype':cls._find_common_type(o.dtype for o in operands),
             'flags':cls._merge_flags(operands),
         }
         for k, v in keywords.items():
@@ -1857,11 +1857,11 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     @staticmethod
     def _merge_flags(operands):
         return {
-            'linear':all([op.flags.linear for op in operands]),
-            'real':all([op.flags.real for op in operands]),
-            'symmetric':all([op.flags.symmetric for op in operands]),
-            'hermitian':all([op.flags.hermitian for op in operands]),
-            'inplace':all([op.flags.inplace for op in operands])}
+            'linear':all(op.flags.linear for op in operands),
+            'real':all(op.flags.real for op in operands),
+            'symmetric':all(op.flags.symmetric for op in operands),
+            'hermitian':all(op.flags.hermitian for op in operands),
+            'inplace':all(op.flags.inplace for op in operands)}
 
 
 class NonCommutativeCompositeOperator(CompositeOperator):
@@ -2146,11 +2146,11 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         attr = {
             'attrin':cls._merge_attr([o.attrin for o in operands]),
             'attrout':cls._merge_attr([o.attrout for o in operands[::-1]]),
-            'classin':first_is_not([o.classin for o in operands[::-1]], None),
-            'classout':first_is_not([o.classout for o in operands], None),
-            'commin':first_is_not([o.commin for o in operands[::-1]], None),
-            'commout':first_is_not([o.commout for o in operands], None),
-            'dtype':cls._find_common_type([o.dtype for o in operands]),
+            'classin':first_is_not((o.classin for o in operands[::-1]), None),
+            'classout':first_is_not((o.classout for o in operands), None),
+            'commin':first_is_not((o.commin for o in operands[::-1]), None),
+            'commout':first_is_not((o.commout for o in operands), None),
+            'dtype':cls._find_common_type(o.dtype for o in operands),
             'flags':cls._merge_flags(operands),
             'shapein':shapes[-1],
             'shapeout':shapes[0],
@@ -2211,10 +2211,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     @staticmethod
     def _merge_flags(operands):
         return {
-            'linear':all([op.flags.linear for op in operands]),
-            'real':all([op.flags.real for op in operands]),
-            'square':all([op.flags.square for op in operands]),
-            'universal':all([op.flags.universal for op in operands]),
+            'linear':all(op.flags.linear for op in operands),
+            'real':all(op.flags.real for op in operands),
+            'square':all(op.flags.square for op in operands),
+            'universal':all(op.flags.universal for op in operands),
             'inplace_reduction':operands[0].flags.inplace_reduction}
 
     @staticmethod
@@ -2456,13 +2456,13 @@ class BlockOperator(NonCommutativeCompositeOperator):
         self.operands = operands
 
         attr = {
-            'attrin':first_is_not([o.attrin for o in operands], None),
-            'attrout':first_is_not([o.attrout for o in operands], None),
-            'classin':first_is_not([o.classin for o in operands], None),
-            'classout':first_is_not([o.classout for o in operands], None),
-            'commin':first_is_not([o.commin for o in operands], None),
-            'commout':first_is_not([o.commout for o in operands], None),
-            'dtype':self._find_common_type([o.dtype for o in operands]),
+            'attrin':first_is_not((o.attrin for o in operands), None),
+            'attrout':first_is_not((o.attrout for o in operands), None),
+            'classin':first_is_not((o.classin for o in operands), None),
+            'classout':first_is_not((o.classout for o in operands), None),
+            'commin':first_is_not((o.commin for o in operands), None),
+            'commout':first_is_not((o.commout for o in operands), None),
+            'dtype':self._find_common_type(o.dtype for o in operands),
             'flags':self._merge_flags(operands),
             'shapein':self.reshapeout(None),
             'shapeout':self.reshapein(None),
@@ -2512,7 +2512,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
                     pin.append(shapein[axisin])
                 except IndexError:
                     continue
-            if len(pin) == 0 or any([p != pin[0] for p in pin]):
+            if len(pin) == 0 or any(p != pin[0] for p in pin):
                 continue
             partitionin[i] = pin[0]
         return tuple(partitionin)
@@ -2550,7 +2550,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
                     pout.append(shapeout[axisout])
                 except IndexError:
                     continue
-            if len(pout) == 0 or any([p != pout[0] for p in pout]):
+            if len(pout) == 0 or any(p != pout[0] for p in pout):
                 continue
             partitionout[i] = pout[0]
         return tuple(partitionout)
@@ -2650,8 +2650,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        return {'linear':all([op.flags.linear for op in operands]),
-                'real':all([op.flags.real for op in operands]),
+        return {'linear':all(op.flags.linear for op in operands),
+                'real':all(op.flags.real for op in operands),
                 'inplace_reduction':False}
 
     def reshapein(self, shapein):
@@ -2888,10 +2888,10 @@ class BlockDiagonalOperator(BlockOperator):
     @staticmethod
     def _merge_flags(operands):
         flags = BlockOperator._merge_flags(operands)
-        flags.update({'square':all([op.flags.square for op in operands]),
-                      'symmetric':all([op.flags.symmetric for op in operands]),
-                      'hermitian':all([op.flags.hermitian for op in operands]),
-                      'inplace':all([op.flags.inplace for op in operands])})
+        flags.update({'square':all(op.flags.square for op in operands),
+                      'symmetric':all(op.flags.symmetric for op in operands),
+                      'hermitian':all(op.flags.hermitian for op in operands),
+                      'inplace':all(op.flags.inplace for op in operands)})
         return flags
 
 

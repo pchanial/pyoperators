@@ -229,7 +229,7 @@ class TridiagonalOperator(Operator):
         r = [repr(self.diag), repr(self.subdiag)]
         if self.subdiag is not self.superdiag:
             r += ['superdiag=' + repr(self.superdiag)]
-        if any([len(_) > 70 for _ in r]):
+        if any(len(_) > 70 for _ in r):
             sep = ',\n'
             r[0] = '\n' + r[0]
         else:
