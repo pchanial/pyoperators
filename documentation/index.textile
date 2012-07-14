@@ -24,3 +24,5 @@ h1. {{ page.title }}
 ## "Operator partition":{{ site.baseurl }}/2000/doc-operators/#partition
 ## "List of available operators":{{ site.baseurl }}/2000/doc-operators/#list
 # "Solvers":{{ site.baseurl }}/2000/doc-solvers/
+## "Scipy's solvers":{{ site.baseurl }}/2000/doc-solvers/#scipy_solvers
+## "PyOperators' solvers":{{ site.baseurl }}/2000/doc-solvers/#pyoperators_solvers

@@ -1,0 +1,31 @@
+---
+layout: post
+title: 2. Solvers
+category: doc
+---
+
+h2. 2.1. <a name="scipy_solvers"></a> Scipy's solvers
+
+Since an @Operator@ is callable, it can readily be used by the minimisers in @scipy.optimize@, although the (soon-to-disappear) lack of an implementation of norms as an @Operator@ makes these solvers not so useful.
+
+<hr>
+Operators also implement the @scipy.sparse.linalg.LinearOperator@ interface, so the following solvers are also useable as-is:
+
+<div class="definition">
+| @bicg@     | Use BIConjugate Gradient iteration to solve A x = b            |
+| @bicgstab@ | Use BIConjugate Gradient STABilized iteration to solve A x = b |
+| @cg@       | Use Conjugate Gradient iteration to solve A x = b              |
+| @cgs@      | Use Conjugate Gradient Squared iteration to solve A x = b      |
+| @gmres@    | Use Generalized Minimal RESidual iteration to solve A x = b    |
+| @lgmres@   | Solve a matrix equation using the LGMRES algorithm             |
+| @minres@   | Use MINimum RESidual iteration to solve Ax = b                 |
+| @qmr@      | Use Quasi-Minimal Residual iteration to solve A x = b          |
+</div>
+Note that these solvers do not handle MPI-distributed unknowns.
+ <hr>
+
+h2. <a name="pyoperators_solvers"></a> 2.2 PyOperators' solvers
+
+PyOperator also provide solvers, through a very flexible Algorithm class.
+Work is currently undergoing in this area and this class hasn't stabilised yet.
+
