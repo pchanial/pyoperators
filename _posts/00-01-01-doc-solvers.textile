@@ -6,7 +6,7 @@ category: doc
 
 h2. 2.1. <a name="scipy_solvers"></a> Scipy's solvers
 
-Operators implement the @scipy.sparse.linalg.LinearOperator@ interface, so the following solvers are also useable as-is:
+Operators implement the @scipy.sparse.linalg.LinearOperator@ interface, so the following solvers are useable as-is, as long as the operator has explicit input and output shapes:
 
 <div class="definition">
 | @bicg@     | Use BIConjugate Gradient iteration to solve A x = b            |
