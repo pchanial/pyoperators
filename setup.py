@@ -9,8 +9,8 @@ from numpy.distutils.misc_util import get_info
 def version():
     import os, re
 
-    f = open(os.path.join('pyoperators', '__init__.py')).read()
-    m = re.search(r"__version__ = '(.*)'", f)
+    f = open(os.path.join('pyoperators', 'config.py')).read()
+    m = re.search(r"VERSION = '(.*)'", f)
     return m.groups()[0]
 
 
