@@ -8,12 +8,13 @@ from pyoperators.utils import (
     first_is_not,
     inspect_special_values,
     isscalar,
+    least_greater_multiple,
     product,
     strenum,
     strplural,
     strshape,
 )
-from pyoperators.utils.testing import assert_is_none
+from pyoperators.utils.testing import assert_eq, assert_is_none
 
 dtypes = [
     np.dtype(t)
@@ -101,6 +102,16 @@ def test_is_scalar():
 def test_is_not_scalar():
     for o in ([], (), np.ones(1), np.ones(2)):
         yield assert_is_not_scalar, o
+
+
+def test_least_greater_multiple():
+    def func(lgm, expected):
+        assert_eq(lgm, expected)
+
+    a, b, c = np.ogrid[[slice(4, 11) for m in range(3)]]
+    expected = 2**a * 3**b * 5**c
+    yield func, least_greater_multiple(expected, [2, 3, 5]), expected
+    yield func, least_greater_multiple(expected - 1, [2, 3, 5]), expected
 
 
 def test_product():
