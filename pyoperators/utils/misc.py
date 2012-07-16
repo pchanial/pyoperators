@@ -16,6 +16,7 @@ __all__ = ['all_eq',
            'inspect_special_values',
            'isclassattr',
            'isscalar',
+           'least_greater_multiple',
            'merge_none',
            'ndarraywrap',
            'openmp_num_threads',
@@ -150,6 +151,38 @@ def isscalar(data):
     if isinstance(data, (collections.Container, scipy.sparse.base.spmatrix)):
         return False
     return True
+
+def least_greater_multiple(a, l, out=None):
+    """
+    Return the least multiple of values in a list greater than a given number.
+
+    Example
+    -------
+    >>> least_greater_multiple(2253, [2,3])
+    2304
+
+    """
+    if any(v <= 0 for v in l):
+        raise ValueError('The list of multiple is not positive;')
+    it = np.nditer([a, out],
+                   op_flags = [['readonly'],
+                               ['writeonly', 'allocate', 'no_broadcast']])
+    max_power = [int(np.ceil(np.log(np.max(a))/np.log(v))) for v in l]
+    slices = [slice(0, m+1) for m in max_power]
+    powers = np.ogrid[slices]
+    values = 1
+    for v, p in zip(l, powers):
+        values = values * v**p
+    for v, o in it:
+        if np.__version__ >= '1.7':
+            o[...] = np.amin(values, where=values>=v)
+        else:
+            values_ = np.ma.MaskedArray(values, mask=values<v, copy=False)
+            o[...] = np.min(values_)
+    out = it.operands[1]
+    if out.ndim == 0:
+        return out.flat[0]
+    return out
 
 def merge_none(a, b):
     """
