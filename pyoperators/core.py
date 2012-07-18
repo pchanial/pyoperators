@@ -2202,9 +2202,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     def direct(self, input, output, operation=operation_assignment):
 
         inplace_composition = self.same_data(input, output)
-        shapeouts, sizeouts, outplaces, reuse_output = self._get_info(
+        shapeouts, dtypes, outplaces, reuse_output = self._get_info(
             input.shape,
             output.shape,
+            input.dtype,
             output.dtype,
             inplace_composition,
             operation is not operation_assignment,
@@ -2224,12 +2225,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             nswaps += 1
 
         i = input
-        for iop, (op, shapeout, sizeout, outplace) in enumerate(
-            zip(self.operands, shapeouts, sizeouts, outplaces)[:0:-1]
+        for iop, (op, shapeout, dtype, outplace) in enumerate(
+            zip(self.operands, shapeouts, dtypes, outplaces)[:0:-1]
         ):
             if outplace and iop > 0:
                 memory.up()
-                o = memory.get(shapeout, output.dtype, self.__name__)
+                o = memory.get(shapeout, dtype, self.__name__)
                 op.direct(i, o)
                 i = o
                 memory.down()
@@ -2237,7 +2238,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 nswaps += 1
             else:
                 # we keep reusing the same stack element for inplace operators
-                o = memory.get(shapeout, output.dtype, self.__name__)
+                o = memory.get(shapeout, dtype, self.__name__)
                 op.direct(i, o)
                 i = o
 
@@ -2290,11 +2291,40 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return self
 
     def _get_info(
-        self, shapein, shapeout, dtype, inplace_composition, inplace_reduction
+        self,
+        shapein,
+        shapeout,
+        dtypein,
+        dtypeout,
+        inplace_composition,
+        inplace_reduction,
     ):
+        """
+        Given the context in which the composition is taking place:
+            - composition input shape
+            - composition output shape
+            - input dtype
+            - output dtype
+            - in-place or out-of-place composition
+            - in-place reduction or not,
+        return the requirements for the intermediate buuffers of the
+        composition and instructions to perform the composition:
+            - shape
+            - dtype
+            - operand should operate in-place or out-place
+            - the composition output should be re-used
+
+        """
         try:
             return self._info[
-                (shapein, shapeout, dtype, inplace_composition, inplace_reduction)
+                (
+                    shapein,
+                    shapeout,
+                    dtypein,
+                    dtypeout,
+                    inplace_composition,
+                    inplace_reduction,
+                )
             ]
         except KeyError:
             pass
@@ -2305,14 +2335,22 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 "perator by an unconstrained output shape operator"
                 " is ambiguous."
             )
-        sizeouts = self._get_sizeouts(shapeouts)
-        nbytes = product(shapeout) * dtype.itemsize
+        dtypes = self._get_dtypes(dtypein)
+        sizeouts = [product(s) * d.itemsize for s, d in zip(shapeouts, dtypes)]
+        nbytes = product(shapeout) * dtypeout.itemsize
         outplaces, reuse_output = self._get_outplaces(
             nbytes, inplace_composition, inplace_reduction, sizeouts
         )
-        v = shapeouts, sizeouts, outplaces, reuse_output
+        v = shapeouts, dtypes, outplaces, reuse_output
         self._info[
-            (shapein, shapeout, dtype, inplace_composition, inplace_reduction)
+            (
+                shapein,
+                shapeout,
+                dtypein,
+                dtypeout,
+                inplace_composition,
+                inplace_reduction,
+            )
         ] = v
         return v
 
@@ -2351,14 +2389,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         return shapes
 
-    def _get_sizeouts(self, shapeouts):
-        # assuming input's dtype is float64
-        sizeouts = []
-        dtype = np.dtype(np.float64)
-        for op, shapeout in reversed(zip(self.operands, shapeouts)):
+    def _get_dtypes(self, dtype):
+        dtypes = []
+        for op in self.operands[::-1]:
             dtype = self._find_common_type([dtype, op.dtype])
-            sizeouts.insert(0, dtype.itemsize * np.prod(shapeout))
-        return sizeouts
+            dtypes.insert(0, dtype)
+        return dtypes
 
     def _get_outplaces(
         self, output_nbytes, inplace_composition, inplace_reduction, sizeouts
