@@ -14,7 +14,7 @@ from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises)
-from .common import OPS, ALL_OPS, HomothetyOutplaceOperator
+from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
 np.seterr(all='raise')
 
@@ -46,10 +46,6 @@ def assert_square(op, msg=''):
     assert_eq(op.validatein, op.validateout)
     if op.shapein is None:
         assert_eq(op.toshapein, op.toshapeout)
-
-dtypes = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
-          np.uint32, np.int32, np.uint64, np.int64, np.float32, np.float64,
-          np.float128, np.complex64, np.complex128, np.complex256)]
 
 SHAPES = (None, (), (1,), (3,), (2,3))
 
@@ -359,8 +355,8 @@ def test_dtype1():
         assert_eq(o.dtype, (i*np.array(value,dop)).dtype, str((dop,di)))
         assert_eq(o, i*np.array(value,dop), str((dop,di)))
 
-    for dop in dtypes:
-        for di in dtypes:
+    for dop in DTYPES:
+        for di in DTYPES:
             yield func, dop, di
 
 def test_dtype2():
@@ -378,7 +374,7 @@ def test_dtype2():
         o = op(i)
         assert_eq(o.dtype, (i * i).dtype, str(di))
         assert_eq(o, i * i, str(di))
-    for di in dtypes:
+    for di in DTYPES:
         yield func, di
 
 
@@ -1919,7 +1915,7 @@ def test_reduction_operator2():
 #=================
 
 def test_asoperator_scalar():
-    scalars = [np.array(1, d) for d in dtypes]
+    scalars = [np.array(1, d) for d in DTYPES]
     def func1(s):
         o = asoperator(s)
         assert_is_instance(o, HomothetyOperator)
