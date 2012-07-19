@@ -1,15 +1,20 @@
 from __future__ import division
 
+import numexpr
 import numpy as np
 
 from scipy.sparse.linalg import eigsh
 
 from .decorators import linear, real, symmetric, inplace
-from .core import Operator, BlockRowOperator, CompositionOperator, DiagonalOperator, ReductionOperator, asoperator
+from .core import (Operator, BlockRowOperator, BroadcastingOperator,
+                   CompositionOperator, DiagonalOperator, ReductionOperator,
+                   asoperator)
 from .utils import isscalar
 
 __all__ = [
     'BandOperator',
+    'DiagonalNumexprOperator',
+    'DiagonalNumexprSeparableOperator',
     'EigendecompositionOperator',
     'IntegrationTrapezeWeightOperator',
     'PackOperator',
@@ -18,6 +23,115 @@ __all__ = [
     'TridiagonalOperator',
     'UnpackOperator',
 ]
+
+
+class DiagonalNumexprOperator(DiagonalOperator):
+    """
+    DiagonalOperator whose diagonal elements are calculated on the fly using
+    the numexpr package.
+
+    Notes
+    -----
+    - When such instance is added or multiplied to another DiagonalOperator
+    (or subclass, such as an instance of this class), an algebraic
+    simplification takes place, which results in a regular (dense) diagonal
+    operator.
+    - This operator can not be separated so that each part handles a block
+    of a block operator. Also, rightward broadcasting cannot be used. If one of
+    these properties is desired, use the class DiagonalNumexprSeparableOperator.
+    - If the operator's input shape is not specified, its inference costs
+    an evaluation of the expression.
+
+    Example
+    -------
+    >>> alpha = np.arange(100.)
+    >>> d = DiagonalNumexprOperator('(x/x0)**alpha',
+                                    {'alpha':alpha, 'x':1.2, 'x0':1.})
+
+    """
+    def __init__(self, expr, global_dict=None, dtype=float, **keywords):
+        if not isinstance(expr, str):
+            raise TypeError('The first argument is not a string expression.')
+        if 'broadcast' in keywords and keywords['broadcast'] == 'rightward':
+            raise ValueError('The class DiagonalNumexprOperator does not handle'
+                             ' rightward broadcasting. Use the class DiagonalNu'
+                             'exprSeparableOperator for this purpose.')
+        if 'broadcast' not in keywords or keywords['broadcast'] != 'leftward':
+            keywords['broadcast'] = 'disabled'
+        self.expr = expr
+        self.global_dict = global_dict
+        if 'shapein' not in keywords and 'shapeout' not in keywords and \
+           keywords['broadcast'] == 'disabled':
+            keywords['shapein'] = self.get_data().shape
+        BroadcastingOperator.__init__(self, 0, dtype=dtype, **keywords)
+
+    def direct(self, input, output):
+        numexpr.evaluate('(' + self.expr + ') * input',
+                         global_dict=self.global_dict, out=output)
+
+    def get_data(self):
+        return numexpr.evaluate(self.expr, global_dict=self.global_dict)
+
+    @staticmethod
+    def _rule_left_block(self, op, cls):
+        return None
+
+    @staticmethod
+    def _rule_right_block(self, op, cls):
+        return None
+
+
+class DiagonalNumexprSeparableOperator(DiagonalOperator):
+    """
+    DiagonalOperator whose diagonal elements are calculated on the fly using
+    the numexpr package and that can be seperated when added or multiplied
+    to a block operator.
+
+    Note
+    ----
+    When such instance is added or multiplied to another DiagonalOperator
+    (or subclass, such as an instance of this class), an algebraic
+    simplification takes place, which results in a regular (dense) diagonal
+    operator.
+
+    Example
+    -------
+    >>> alpha = np.arange(100.)
+    >>> d = SeparableDiagonalNumexprOperator(alpha, '(x/x0)**data',
+                                             {'x':1.2, 'x0':1.})
+
+    """
+    def __init__(self, data, expr, global_dict=None, var='data', dtype=float,
+                 **keywords):
+        if not isinstance(expr, str):
+            raise TypeError('The second argument is not a string expression.')
+        BroadcastingOperator.__init__(self, data, dtype=dtype, **keywords)
+        self.expr = expr
+        self.var = var
+        self.global_dict = global_dict
+        self._global_dict = {} if global_dict is None else global_dict.copy()
+        self._global_dict[var] = self.data.T if self.broadcast == \
+                                     'rightward' else self.data
+
+    def direct(self, input, output):
+        if self.broadcast == 'rightward':
+            input = input.T
+            output = output.T
+        numexpr.evaluate('(' + self.expr + ') * input',
+                         global_dict=self._global_dict, out=output)
+
+    def get_data(self):
+        local_dict = {self.var:self.data}
+        return numexpr.evaluate(self.expr, local_dict=local_dict,
+                                global_dict=self.global_dict)
+
+    @staticmethod
+    def _rule_block(self, op, shape, partition, axis, new_axis, func_operation):
+        if type(self) is not DiagonalNumexprSeparableOperator:
+            return None
+        return DiagonalOperator._rule_block(self, op, shape, partition, axis,
+                   new_axis, func_operation, self.expr, global_dict=
+                   self.global_dict, var=self.var)
 
 
 class IntegrationTrapezeWeightOperator(BlockRowOperator):
