@@ -1,6 +1,4 @@
 import numpy as np
-from nose.tools import eq_
-from numpy.testing import assert_array_equal
 
 from pyoperators import Operator
 from pyoperators.utils import (
@@ -78,7 +76,7 @@ def test_inspect_special_values():
         return nmones, nzeros, nones, nothers > 0, np.all(x == x.flat[0])
 
     def func(x):
-        assert_array_equal(inspect_special_values(x), ref(x))
+        assert_eq(inspect_special_values(x), ref(x))
 
     for d in dtypes:
         for x in (
@@ -123,12 +121,12 @@ def test_product():
 
 
 def test_strenum():
-    eq_(strenum(['blue', 'red', 'yellow'], 'or'), "'blue', 'red' or 'yellow'")
+    assert_eq(strenum(['blue', 'red', 'yellow'], 'or'), "'blue', 'red' or 'yellow'")
 
 
 def test_strplural():
     def func(n, prepend, s, expected):
-        eq_(strplural('cat', n, prepend=prepend, s=s), expected)
+        assert_eq(strplural('cat', n, prepend=prepend, s=s), expected)
 
     for n, prepend, s, expected in zip(
         4 * (0, 1, 2),
@@ -154,4 +152,4 @@ def test_strplural():
 
 def test_strshape():
     for shape, expected in zip(((1,), (2, 3)), ('1', '(2,3)')):
-        yield eq_, strshape(shape), expected
+        yield assert_eq, strshape(shape), expected
