@@ -95,13 +95,20 @@ def unitary(cls):
 
 def universal(cls):
     """
-    Decorator for universal operators, i.e. operators P which satisfy for  any
+    Obsolete decorator, use 'separable' instead.
+    """
+    return flags(cls, 'separable')
+
+
+def separable(cls):
+    """
+    Decorator for separable operators, i.e. operators P which satisfy for  any
     block operator B = [B1, ..., Bn] the property:
         P(B) = [P(B1), ..., P(Bn)] and
         B(P) = [B1(P), ..., Bn(P)]
-    It sets the 'universal' flags.
+    It sets the 'separable' flags.
     """
-    return flags(cls, 'universal')
+    return flags(cls, 'separable')
 
 
 def inplace(cls):

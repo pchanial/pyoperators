@@ -95,7 +95,7 @@ class OperatorFlags(
             'involutary',  # o * o = I
             'orthogonal',  # o * o.T = I
             'unitary',  # o * o.H = I
-            'universal',  # o*[B1...Bn] = [o*B1...o*Bn]
+            'separable',  # o*[B1...Bn] = [o*B1...o*Bn]
             'inplace',
             'inplace_reduction',
             'shape_input',
@@ -1203,7 +1203,7 @@ class Operator(object):
                 self._set_flags('real')
             self._set_flags('inplace')
             self._set_flags('square')
-            self._set_flags('universal')
+            self._set_flags('separable')
             if self.flags.inplace_reduction:
                 raise ValueError('Ufuncs do not handle inplace reductions.')
         else:
@@ -1972,7 +1972,7 @@ class AdditionOperator(CommutativeCompositeOperator):
             'square': any(op.flags.square for op in operands),
             'symmetric': all(op.flags.symmetric for op in operands),
             'hermitian': all(op.flags.hermitian for op in operands),
-            'universal': all(op.flags.universal for op in operands),
+            'separable': all(op.flags.separable for op in operands),
         }
 
 
@@ -2001,7 +2001,7 @@ class MultiplicationOperator(CommutativeCompositeOperator):
         return {
             'real': all(op.flags.real for op in operands),
             'square': any(op.flags.square for op in operands),
-            'universal': all(op.flags.universal for op in operands),
+            'separable': all(op.flags.separable for op in operands),
         }
 
 
@@ -2512,7 +2512,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'linear': all(op.flags.linear for op in operands),
             'real': all(op.flags.real for op in operands),
             'square': all(op.flags.square for op in operands),
-            'universal': all(op.flags.universal for op in operands),
+            'separable': all(op.flags.separable for op in operands),
             'inplace_reduction': operands[0].flags.inplace_reduction,
         }
 
@@ -3215,7 +3215,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
     @staticmethod
     def _rule_add_operator(self, op):
         """Rule for BlockOperator + Operator."""
-        if not op.flags.universal:
+        if not op.flags.separable:
             return None
         return BlockOperator(
             [o + op for o in self.operands],
@@ -3234,7 +3234,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
             return None
         if isinstance(op, BlockOperator):
             return None
-        if not op.flags.universal:
+        if not op.flags.separable:
             return None
         n = len(self.partitionout)
         partitionout = self._get_partitionout(
@@ -3260,7 +3260,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
         """Rule for BlockOperator * Operator."""
         if self.partitionin is None:
             return None
-        if not op.flags.universal:
+        if not op.flags.separable:
             return None
         n = len(self.partitionin)
         partitionin = self._get_partitionin(
