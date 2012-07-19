@@ -2,6 +2,7 @@ import numpy as np
 import pyoperators
 
 from pyoperators import Operator, decorators
+from pyoperators.utils.testing import assert_eq
 
 DTYPES = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
           np.uint32, np.int32, np.uint64, np.int64,
@@ -74,6 +75,10 @@ OPS = ExplExpl, UncoExpl, ImplImpl, UncoImpl, ExplUnco, ImplUnco, UncoUnco
 ALL_OPS = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
             'Operator') ]
 
+@decorators.square
+class TestIdentityOperator(Operator):
+    def direct(self, input, output):
+        output[...] = input
 
 @decorators.real
 @decorators.symmetric
@@ -107,3 +112,9 @@ class Stretch(Operator):
         shape_ = list(shape)
         shape_[self.axis] //= 2
         return shape_
+
+def assert_inplace_outplace(op, v, expected):
+    w = op(v)
+    assert_eq(w, expected)
+    op(v, out=w)
+    assert_eq(w, expected)
