@@ -143,7 +143,7 @@ class SumOperator(ReductionOperator):
     """
 
     def __init__(self, axis=None, dtype=None, skipna=True, **keywords):
-        if np.__version__ < '1.7':
+        if np.__version__ < '1.8':
             func = np.nansum if skipna else np.add
         else:
             func = np.add

@@ -4405,13 +4405,13 @@ class ReductionOperator(Operator):
                     "The input ufunc '{0}' has {1} output arguments"
                     ". Expected number is 1.".format(func.__name__, func.nout)
                 )
-            if np.__version__ < '1.7':
+            if np.__version__ < '1.8':
                 if axis is None:
                     direct = lambda x, out: func.reduce(x.flat, 0, dtype, out)
                 else:
                     direct = lambda x, out: func.reduce(x, axis, dtype, out)
             else:
-                direct = lambda x, out: func.reduce(x, axis, dtype, out, skipna)
+                direct = lambda x, out: func.reduce(x, axis, dtype, out, skipna=skipna)
         elif isinstance(func, types.FunctionType):
             vars, junk, junk, junk = inspect.getargspec(func)
             if 'axis' not in vars:

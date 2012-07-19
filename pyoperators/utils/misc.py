@@ -183,7 +183,7 @@ def least_greater_multiple(a, l, out=None):
     for v, p in zip(l, powers):
         values = values * v**p
     for v, o in it:
-        if np.__version__ >= '1.7':
+        if np.__version__ >= '1.8':
             o[...] = np.amin(values, where=values >= v)
         else:
             values_ = np.ma.MaskedArray(values, mask=values < v, copy=False)
