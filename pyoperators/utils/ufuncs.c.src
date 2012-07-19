@@ -1,8 +1,10 @@
 /*-*-c-*-*/
 
 /*
- * ufuncs to compute hard_thresholding(p) = log(p/(1-p)) and
- * soft_thresholding(x) = 1/(1+exp(-x))
+ * masking
+ * hard_thresholding
+ * soft_thresholding
+ *
  */
 
 #include <Python.h>
@@ -12,9 +14,126 @@
 #include "numpy/ndarraytypes.h"
 #include "numpy/ufuncobject.h"
 
-/*
- * Inner loops for hard_thresholding and soft_thresholding
+
+/***********
+ * Masking *
+ ***********/
+
+/**begin repeat
+ * #TYPE = BYTE, UBYTE, SHORT, USHORT, INT, UINT,
+ *         LONG, ULONG, LONGLONG, ULONGLONG,
+ *         HALF, FLOAT, DOUBLE, LONGDOUBLE#
+ * #type = npy_byte, npy_ubyte, npy_short, npy_ushort, npy_int, npy_uint,
+ *         npy_long, npy_ulong, npy_longlong, npy_ulonglong,
+ *         npy_half, npy_float, npy_double, npy_longdouble#
  */
+
+static void
+@TYPE@_masking_loop(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
+{
+    npy_intp i;
+    npy_intp n = dimensions[0];
+    char *in = args[0], *mask = args[1], *out = args[2];
+    npy_intp in_step = steps[0], mask_step = steps[1], out_step = steps[2];
+
+    if (in == out) {
+        for (i = 0; i < n; i++) {
+            if (*mask)
+                *((@type@ *)out) = 0;          
+            mask += mask_step;
+            out += out_step;
+        }
+    } else {
+        for (i = 0; i < n; i++) {
+            if (*mask)
+                *((@type@ *)out) = 0;
+            else
+                *((@type@ *)out) = *(@type@ *)in;
+            in += in_step;
+            mask += mask_step;
+            out += out_step;
+        }
+    }
+}
+
+/**end repeat**/
+
+/**begin repeat
+ * #TYPE = CFLOAT, CDOUBLE, CLONGDOUBLE#
+ * #type = npy_cfloat, npy_cdouble, npy_clongdouble#
+ * #ftype = npy_float, npy_double, npy_longdouble#
+ */
+
+static void
+@TYPE@_masking_loop(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
+{
+    npy_intp i;
+    npy_intp n = dimensions[0];
+    char *in = args[0], *mask = args[1], *out = args[2];
+    npy_intp in_step = steps[0], mask_step = steps[1], out_step = steps[2];
+
+    if (in == out) {
+        for (i = 0; i < n; i++) {
+            if (*mask) {
+                ((@ftype@ *)out)[0] = 0.;
+                ((@ftype@ *)out)[1] = 0.;
+            }
+            mask += mask_step;
+            out += out_step;
+        }
+    } else {
+        for (i = 0; i < n; i++) {
+            if (*mask) {
+                ((@ftype@ *)out)[0] = 0.;
+                ((@ftype@ *)out)[1] = 0.;
+            } else
+                *((@type@ *)out) = *(@type@ *)in;
+            in += in_step;
+            mask += mask_step;
+            out += out_step;
+        }
+    }
+}
+
+/**end repeat**/
+
+static PyUFuncGenericFunction masking_funcs[17] = 
+           {&BYTE_masking_loop, &UBYTE_masking_loop,
+            &SHORT_masking_loop, &USHORT_masking_loop,
+            &INT_masking_loop, &UINT_masking_loop,
+            &LONG_masking_loop, &ULONG_masking_loop,
+            &LONGLONG_masking_loop, &ULONGLONG_masking_loop,
+            &HALF_masking_loop, &FLOAT_masking_loop,
+            &DOUBLE_masking_loop, &LONGDOUBLE_masking_loop,
+            &CFLOAT_masking_loop, &CDOUBLE_masking_loop,
+            &CLONGDOUBLE_masking_loop};
+
+static char masking_types[17*3] = {NPY_BYTE, NPY_BOOL, NPY_BYTE,
+                                   NPY_UBYTE, NPY_BOOL, NPY_UBYTE,
+                                   NPY_SHORT, NPY_BOOL, NPY_SHORT,
+                                   NPY_USHORT, NPY_BOOL, NPY_USHORT,
+                                   NPY_INT, NPY_BOOL, NPY_INT,
+                                   NPY_UINT, NPY_BOOL, NPY_UINT,
+                                   NPY_LONG, NPY_BOOL, NPY_LONG,
+                                   NPY_ULONG, NPY_BOOL, NPY_ULONG,
+                                   NPY_LONGLONG, NPY_BOOL, NPY_LONGLONG,
+                                   NPY_ULONGLONG, NPY_BOOL, NPY_ULONGLONG,
+                                   NPY_HALF, NPY_BOOL, NPY_HALF,
+                                   NPY_FLOAT, NPY_BOOL, NPY_FLOAT,
+                                   NPY_DOUBLE, NPY_BOOL, NPY_DOUBLE,
+                                   NPY_LONGDOUBLE, NPY_BOOL, NPY_LONGDOUBLE,
+                                   NPY_CFLOAT, NPY_BOOL, NPY_CFLOAT,
+                                   NPY_CDOUBLE, NPY_BOOL, NPY_CDOUBLE,
+                                   NPY_CLONGDOUBLE, NPY_BOOL, NPY_CLONGDOUBLE};
+
+static void *masking_null_data[17] = {NULL, NULL, NULL, NULL, NULL, NULL,
+                                      NULL, NULL, NULL, NULL, NULL, NULL,
+                                      NULL, NULL, NULL, NULL, NULL};
+
+
+/*******************************************
+ * Hard_thresholding and soft_thresholding *
+ *******************************************/
 
 /**begin repeat
  * #type = npy_float, npy_double, npy_longdouble#
@@ -71,19 +190,21 @@ soft_thresholding_loop@c@(char **args, npy_intp *dimensions,
  * Definitions for the ufuncs.
  */
 
-static PyUFuncGenericFunction soft_thresholding_funcs[3] = {&soft_thresholding_loopf,
-                                                            &soft_thresholding_loop,
-                                                            &soft_thresholding_loopl};
+static PyUFuncGenericFunction soft_thresholding_funcs[3] = 
+           {&soft_thresholding_loopf,
+            &soft_thresholding_loop,
+            &soft_thresholding_loopl};
 
-static PyUFuncGenericFunction hard_thresholding_funcs[3] = {&hard_thresholding_loopf,
-                                                            &hard_thresholding_loop,
-                                                            &hard_thresholding_loopl};
+static PyUFuncGenericFunction hard_thresholding_funcs[3] =
+           {&hard_thresholding_loopf,
+            &hard_thresholding_loop,
+            &hard_thresholding_loopl};
 
-static char types[9] = {NPY_FLOAT, NPY_FLOAT, NPY_FLOAT,
-                        NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,
-                        NPY_LONGDOUBLE, NPY_LONGDOUBLE, NPY_LONGDOUBLE};
+static char float2_types[9] = {NPY_FLOAT, NPY_FLOAT, NPY_FLOAT,
+                               NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,
+                               NPY_LONGDOUBLE, NPY_LONGDOUBLE, NPY_LONGDOUBLE};
 
-static void *data[3] = {NULL, NULL, NULL};
+static void *float_null_data[3] = {NULL, NULL, NULL};
 
 /* Module definition */
 
@@ -119,13 +240,21 @@ PyInit_ufuncs()
 
     d = PyModule_GetDict(m);
 
-    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs,data, types, 3, 2, 1,
-                                PyUFunc_None, "hard_thresholding", NULL , 0);
+    f = PyUFunc_FromFuncAndData(masking_funcs, masking_null_data,
+                                masking_types, 3, 2, 1, PyUFunc_None,
+                                "masking", NULL , 0);
+    PyDict_SetItemString(d, "masking", f);
+    Py_DECREF(f);
+
+    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, float_null_data,
+                                float2_types, 3, 2, 1, PyUFunc_None,
+                                "hard_thresholding", NULL , 0);
     PyDict_SetItemString(d, "hard_thresholding", f);
     Py_DECREF(f);
 
-    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs,data, types, 3, 2, 1,
-                                PyUFunc_None, "soft_thresholding", NULL , 0);
+    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs, float_null_data,
+                                float2_types, 3, 2, 1, PyUFunc_None,
+                                "soft_thresholding", NULL , 0);
     PyDict_SetItemString(d, "soft_thresholding", f);
     Py_DECREF(f);
 
@@ -149,14 +278,21 @@ initufuncs()
     import_array();
     import_umath();
 
-    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs,data, types, 3, 2, 1,
-                                PyUFunc_None, "hard_thresholding", "Compute y = x1 if |x1| > x2,\n            0  otherwise." , 0);
+    f = PyUFunc_FromFuncAndData(masking_funcs, masking_null_data,
+            masking_types, 17, 2, 1, PyUFunc_None, "masking",
+            "Set y = 0 where x2,\n        x1  otherwise." , 0);
+    PyDict_SetItemString(d , "masking", f);
+    Py_DECREF(f);
+
+    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, float_null_data,
+            float2_types, 3, 2, 1, PyUFunc_None, "hard_thresholding",
+            "Compute y = x1 if |x1| > x2,\n            0  otherwise." , 0);
     PyDict_SetItemString(d , "hard_thresholding", f);
     Py_DECREF(f);
 
-
-    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs,data, types, 3, 2, 1,
-                                PyUFunc_None, "soft_thresholding", "Compute y = sign(x1) * [|x1| - x2]+" , 0);
+    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs, float_null_data,
+            float2_types, 3, 2, 1, PyUFunc_None, "soft_thresholding",
+            "Compute y = sign(x1) * [|x1| - x2]+" , 0);
     PyDict_SetItemString(d , "soft_thresholding", f);
     Py_DECREF(f);
 }

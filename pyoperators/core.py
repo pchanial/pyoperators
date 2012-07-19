@@ -18,7 +18,7 @@ from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from . import memory
 from .utils import (all_eq, first_is_not, inspect_special_values, isclassattr,
                     isscalar, merge_none, ndarraywrap, operation_assignment,
-                    product, strenum, strshape, tointtuple)
+                    product, strenum, strshape, tointtuple, ufuncs)
 from .utils.mpi import MPI
 from .decorators import (linear, real, idempotent, involutary, square,
                          symmetric, inplace)
@@ -3414,7 +3414,7 @@ class DiagonalOperator(BroadcastingOperator):
 @idempotent
 class MaskOperator(DiagonalOperator):
     """
-    A subclass of DiagonalOperator with booleans on the diagonal.
+    A subclass of DiagonalOperator with 0 (True) and 1 (False) on the diagonal.
 
     Exemple
     -------
@@ -3442,6 +3442,8 @@ class MaskOperator(DiagonalOperator):
             return
         BroadcastingOperator.__init__(self, mask, **keywords)
 
+    def direct(self, input, output):
+        ufuncs.masking(input, self.data, output)
 
     def get_data(self):
         return ~self.data
