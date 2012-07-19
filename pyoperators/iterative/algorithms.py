@@ -3,7 +3,10 @@ Implements iterative algorithm class.
 """
 import numpy as np
 from copy import copy
-import pylab
+try:
+    import pylab
+except:
+    pass
 
 from .core import Algorithm
 from .linesearch import optimal_step
