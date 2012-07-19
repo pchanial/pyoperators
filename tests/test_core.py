@@ -1267,7 +1267,7 @@ def test_addition_flags():
     def func(f):
         o = AdditionOperator([Operator(flags=f), Operator(flags=f)])
         assert getattr(o.flags, f)
-    for f in 'linear,real,square,symmetric,hermitian,universal'.split(','):
+    for f in 'linear,real,square,symmetric,hermitian,separable'.split(','):
         yield func, f
 
 def test_multiplication():
@@ -1308,7 +1308,7 @@ def test_multiplication_flags():
     def func(f):
         o = MultiplicationOperator([Operator(flags=f), Operator(flags=f)])
         assert getattr(o.flags, f)
-    for f in 'real,square,universal'.split(','):
+    for f in 'real,square,separable'.split(','):
         yield func, f
 
 def test_commutative_shapes():
@@ -1478,7 +1478,7 @@ def test_composition_flags():
     def func(f):
         o = CompositionOperator([Operator(flags=f), Operator(flags=f)])
         assert getattr(o.flags, f)
-    for f in 'linear,real,square,universal,inplace_reduction'.split(','):
+    for f in 'linear,real,square,separable,inplace_reduction'.split(','):
         yield func, f
 
 def test_composition_shapes():
@@ -1957,4 +1957,4 @@ def test_asoperator_func():
 def test_asoperator_ufunc():
     assert_raises(TypeError, asoperator, np.maximum)
     o = asoperator(np.cos)
-    assert_flags(o, 'real,inplace,square,universal')
+    assert_flags(o, 'real,inplace,square,separable')

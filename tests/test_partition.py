@@ -41,7 +41,7 @@ def test_partition4():
     o1 = HomothetyOperator(1, shapein=1)
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=3)
-    @decorators.universal
+    @decorators.separable
     class Op(Operator):
         pass
     op=Op()
@@ -80,7 +80,7 @@ def test_block4():
     o1 = HomothetyOperator(1, shapein=2)
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=2)
-    @decorators.universal
+    @decorators.separable
     class Op(Operator):
         pass
     op=Op()

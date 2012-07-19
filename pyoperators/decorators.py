@@ -65,7 +65,7 @@ def involutary(cls):
     It sets the 'square' and 'involutary' flags.
     """
     return flags(cls, 'involutary')
-    
+
 def orthogonal(cls):
     """
     Decorator for orthogonal operators, i.e. real operators whose composition
@@ -73,7 +73,7 @@ def orthogonal(cls):
     It sets the 'real', 'linear', 'square' and 'orthogonal' flags.
     """
     return flags(cls, 'orthogonal')
-    
+
 def unitary(cls):
     """
     Decorator for orthogonal operators, i.e. operators whose composition
@@ -81,18 +81,23 @@ def unitary(cls):
     It sets the 'linear', 'square' and 'unitary' flags.
     """
     return flags(cls, 'unitary')
-    
-    
+
 def universal(cls):
     """
-    Decorator for universal operators, i.e. operators P which satisfy for  any
+    Obsolete decorator, use 'separable' instead.
+    """
+    return flags(cls, 'separable')
+
+def separable(cls):
+    """
+    Decorator for separable operators, i.e. operators P which satisfy for  any
     block operator B = [B1, ..., Bn] the property:
         P(B) = [P(B1), ..., P(Bn)] and
         B(P) = [B1(P), ..., Bn(P)]
-    It sets the 'universal' flags.
+    It sets the 'separable' flags.
     """
-    return flags(cls, 'universal')
-    
+    return flags(cls, 'separable')
+
 def inplace(cls):
     """
     Decorator for inplace operators, i.e operators that can handle input and

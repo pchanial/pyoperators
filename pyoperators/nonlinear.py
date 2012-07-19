@@ -3,7 +3,7 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import real, square, idempotent, inplace, universal
+from .decorators import real, square, idempotent, inplace, separable
 from .core import (Operator, BlockColumnOperator, CompositionOperator,
                    IdentityOperator, ReductionOperator)
 from .utils import operation_assignment, operation_symbol, strenum
@@ -23,7 +23,7 @@ __all__ = ['ClipOperator',
 
 @square
 @inplace
-@universal
+@separable
 class ClipOperator(Operator):
     """
     Clip (limit) the values in an array.
@@ -194,7 +194,7 @@ class MinMaxOperator(BlockColumnOperator):
 
 @square
 @inplace
-@universal
+@separable
 class MaximumOperator(Operator):
     """
     Set all input array values above a given value to this value.
@@ -224,7 +224,7 @@ class MaximumOperator(Operator):
 
 @square 
 @inplace
-@universal
+@separable
 class MinimumOperator(Operator):
     """
     Set all input array values above a given value to this value.
@@ -294,7 +294,7 @@ class NumexprOperator(Operator):
 @square
 @idempotent
 @inplace
-@universal
+@separable
 class RoundOperator(Operator):
     """Rounding operator.
     
@@ -350,7 +350,7 @@ class RoundOperator(Operator):
 @square
 @idempotent
 @inplace
-@universal
+@separable
 class HardThresholdingOperator(Operator):
     """
     Hard thresholding operator.
@@ -389,7 +389,7 @@ class HardThresholdingOperator(Operator):
 @real
 @square
 @inplace
-@universal
+@separable
 class SoftThresholdingOperator(Operator):
     """
     Soft thresholding operator.
