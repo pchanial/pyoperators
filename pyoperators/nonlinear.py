@@ -113,7 +113,7 @@ class MaxOperator(ReductionOperator):
 
     """
     def __init__(self, axis=None, dtype=None, skipna=False, **keywords):
-        if np.__version__ < '1.7':
+        if np.__version__ < '1.8':
             func = np.nanmax if skipna else np.max
         else:
             func = np.max
@@ -146,7 +146,7 @@ class MinOperator(ReductionOperator):
 
     """
     def __init__(self, axis=None, dtype=None, skipna=False, **keywords):
-        if np.__version__ < '1.7':
+        if np.__version__ < '1.8':
             func = np.nanmin if skipna else np.min
         else:
             func = np.min
