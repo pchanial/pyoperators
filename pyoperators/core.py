@@ -1330,6 +1330,9 @@ class Operator(object):
     def __mul__(self, other):
         if isinstance(other, np.ndarray):
             return self.matvec(other)
+        # ensure that A * A is A if A is idempotent
+        if self.flags.idempotent and self is other:
+            return self
         return CompositionOperator([self, other])
 
     def __rmul__(self, other):
@@ -1339,6 +1342,9 @@ class Operator(object):
         return CompositionOperator([other, self])
 
     def __imul__(self, other):
+        # ensure that A * A is A if A is idempotent
+        if self.flags.idempotent and self is other:
+            return self
         return CompositionOperator([self, other])
 
     def __add__(self, other):
