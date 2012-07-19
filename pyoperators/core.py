@@ -3735,9 +3735,12 @@ class BroadcastingOperator(Operator):
             MultiplicationOperator,
         )
 
+    def get_data(self):
+        return self.data
+
     @staticmethod
     def _rule_broadcast(b1, b2, operation):
-        # check the direct subclasses of Broadcasting for each operand
+        # this rule only returns direct subclasses of BroadcastingOperator:
         i1 = b1.__class__.__mro__.index(BroadcastingOperator) - 1
         try:
             i2 = b2.__class__.__mro__.index(BroadcastingOperator) - 1
@@ -3767,22 +3770,15 @@ class BroadcastingOperator(Operator):
         else:
             broadcast = 'scalar'
         if 'rightward' in b:
-            data = operation(b1.data.T, b2.data.T).T
+            data = operation(b1.get_data().T, b2.get_data().T).T
         else:
-            data = operation(b1.data, b2.data)
+            data = operation(b1.get_data(), b2.get_data())
 
         return cls(data, broadcast)
 
     @staticmethod
     def _rule_block(
-        self,
-        op,
-        shape,
-        partition,
-        axis,
-        new_axis,
-        func_operation,
-        func_data=lambda x: x,
+        self, op, shape, partition, axis, new_axis, func_operation, *args, **keywords
     ):
         if partition is None:
             return
@@ -3838,21 +3834,19 @@ class BroadcastingOperator(Operator):
             ops = [func_operation(self, o) for o in op.operands]
         else:
             data = self._as_strided(shape)
-
-            def has_arg_func(func):
-                spec = inspect.getargspec(func)
-                nkeyed = 0 if spec.defaults is None else len(spec.defaults)
-                nargs = len(spec.args) - nkeyed
-                return nargs > 1
-
-            has_arg = has_arg_func(type(self).__init__)
+            argspec = inspect.getargspec(type(self).__init__)
+            nargs = (
+                len(argspec.args)
+                - (len(argspec.defaults) if argspec.defaults is not None else 0)
+                - 1
+            )
             slices = op._get_slices(partition, axis, new_axis)
             ops = []
             for s, o in zip(slices, op.operands):
-                if not has_arg:
-                    replicated = type(self)(shapeout=data[s].shape)
+                if nargs == 0:
+                    replicated = type(self)(shapeout=data[s].shape, *args, **keywords)
                 else:
-                    replicated = type(self)(func_data(data)[s], broadcast=b)
+                    replicated = type(self)(data[s], broadcast=b, *args, **keywords)
                 ops.append(func_operation(replicated, o))
 
         return BlockOperator(
@@ -3866,31 +3860,17 @@ class BroadcastingOperator(Operator):
         )
 
     @staticmethod
-    def _rule_left_block(self, op, cls, func_data=lambda x: x):
+    def _rule_left_block(self, op, cls):
         func_op = lambda d, b: cls([d, b])
         return self._rule_block(
-            self,
-            op,
-            op.shapeout,
-            op.partitionout,
-            op.axisout,
-            op.new_axisout,
-            func_op,
-            func_data,
+            self, op, op.shapeout, op.partitionout, op.axisout, op.new_axisout, func_op
         )
 
     @staticmethod
-    def _rule_right_block(op, self, cls, func_data=lambda x: x):
+    def _rule_right_block(op, self, cls):
         func_op = lambda d, b: cls([b, d])
         return self._rule_block(
-            self,
-            op,
-            op.shapein,
-            op.partitionin,
-            op.axisin,
-            op.new_axisin,
-            func_op,
-            func_data,
+            self, op, op.shapein, op.partitionin, op.axisin, op.new_axisin, func_op
         )
 
     def _as_strided(self, shape):
@@ -3983,27 +3963,27 @@ class DiagonalOperator(BroadcastingOperator):
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
-            np.multiply(input.T, self.data.T, output.T)
+            np.multiply(input.T, self.get_data().T, output.T)
         else:
-            np.multiply(input, self.data, output)
+            np.multiply(input, self.get_data(), output)
 
     def conjugate_(self, input, output):
         if self.broadcast == 'rightward':
-            np.multiply(input.T, np.conjugate(self.data).T, output.T)
+            np.multiply(input.T, np.conjugate(self.get_data()).T, output.T)
         else:
-            np.multiply(input, np.conjugate(self.data), output)
+            np.multiply(input, np.conjugate(self.get_data()), output)
 
     def inverse(self, input, output):
         if self.broadcast == 'rightward':
-            np.divide(input.T, self.data.T, output.T)
+            np.divide(input.T, self.get_data().T, output.T)
         else:
-            np.divide(input, self.data, output)
+            np.divide(input, self.get_data(), output)
 
     def inverse_conjugate(self, input, output):
         if self.broadcast == 'rightward':
-            np.divide(input.T, np.conjugate(self.data).T, output.T)
+            np.divide(input.T, np.conjugate(self.get_data()).T, output.T)
         else:
-            np.divide(input, np.conjugate(self.data), output)
+            np.divide(input, np.conjugate(self.get_data()), output)
 
     def validatein(self, shape):
         if self.data.size == 1:
@@ -4069,16 +4049,20 @@ class MaskOperator(DiagonalOperator):
     """
 
     def __init__(self, mask, **keywords):
-        mask = np.array(mask, dtype=np.bool8)
-        DiagonalOperator.__init__(self, ~mask, **keywords)
+        mask = np.array(mask, dtype=np.bool8, copy=False)
+        nmones, nzeros, nones, other, same = inspect_special_values(mask)
+        if nzeros == mask.size:
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+        if nones == mask.size:
+            self.__class__ = ZeroOperator
+            self.__init__(**keywords)
+            return
+        BroadcastingOperator.__init__(self, mask, **keywords)
 
-    @staticmethod
-    def _rule_left_block(self, op, cls):
-        return BroadcastingOperator._rule_left_block(self, op, cls, lambda x: ~x)
-
-    @staticmethod
-    def _rule_right_block(op, self, cls):
-        return BroadcastingOperator._rule_right_block(op, self, cls, lambda x: ~x)
+    def get_data(self):
+        return ~self.data
 
 
 @inplace
@@ -4270,16 +4254,8 @@ class ConstantOperator(BroadcastingOperator):
         if self.shapeout != op.shapeout:
             return
         func_op = lambda c, b: CompositionOperator([c, b])
-        func_data = lambda x: x
         return self._rule_block(
-            self,
-            op,
-            op.shapeout,
-            op.partitionout,
-            op.axisout,
-            op.new_axisout,
-            func_op,
-            func_data,
+            self, op, op.shapeout, op.partitionout, op.axisout, op.new_axisout, func_op
         )
 
     @staticmethod
