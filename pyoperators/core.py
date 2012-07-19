@@ -3410,6 +3410,7 @@ class DiagonalOperator(BroadcastingOperator):
 
         return v
 
+
 @real
 @idempotent
 class MaskOperator(DiagonalOperator):
