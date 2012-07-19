@@ -3,6 +3,11 @@ import pyoperators
 
 from pyoperators import Operator, decorators
 
+DTYPES = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
+          np.uint32, np.int32, np.uint64, np.int64,
+          np.float16, np.float32, np.float64, np.float128,
+          np.complex64, np.complex128, np.complex256)]
+
 class ndarray1(np.ndarray):
     pass
 class ndarray2(np.ndarray):
