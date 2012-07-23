@@ -252,7 +252,6 @@ class MinimumOperator(Operator):
         Operator.__init__(self, lambda i,o: np.minimum(i, value, o), **keywords)
 
 
-# numexpr 2.0 cannot handle inplace reductions
 @square
 @inplace
 class NumexprOperator(Operator):
@@ -279,8 +278,10 @@ class NumexprOperator(Operator):
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
         self.expr = expr
         self.global_dict = global_dict
-        Operator.__init__(self, dtype=dtype, flags={'inplace_reduction':False},
-                          **keywords)
+        if numexpr.__version__ < '2.0.2':
+            keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
+                                                    inplace_reduction=False)
+        Operator.__init__(self, dtype=dtype, **keywords)
 
     def direct(self, input, output, operation=operation_assignment):
         if operation is operation_assignment:

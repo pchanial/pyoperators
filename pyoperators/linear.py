@@ -63,6 +63,9 @@ class DiagonalNumexprOperator(DiagonalOperator):
         if 'shapein' not in keywords and 'shapeout' not in keywords and \
            keywords['broadcast'] == 'disabled':
             keywords['shapein'] = self.get_data().shape
+        if numexpr.__version__ < '2.0.2':
+            keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
+                                                    inplace=False)
         BroadcastingOperator.__init__(self, 0, dtype=dtype, **keywords)
 
     def direct(self, input, output):
@@ -105,6 +108,9 @@ class DiagonalNumexprSeparableOperator(DiagonalOperator):
                  **keywords):
         if not isinstance(expr, str):
             raise TypeError('The second argument is not a string expression.')
+        if numexpr.__version__ < '2.0.2':
+            keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
+                                                    inplace=False)
         BroadcastingOperator.__init__(self, data, dtype=dtype, **keywords)
         self.expr = expr
         self.var = var
