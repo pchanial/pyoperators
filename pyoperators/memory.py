@@ -10,9 +10,10 @@ to avoid side effects.
 from __future__ import division
 
 import gc
+import inspect
 import numpy as np
 from . import utils
-from .utils import product
+from .utils import isscalar, product, strshape
 
 __all__ = []
 
@@ -20,21 +21,34 @@ verbose = False
 istack = 0
 stack = []
 
-def allocate(shape, dtype, description, verbose=None):
+def allocate(shape, dtype, description=None, verbose=None):
     """
     Return an array of given shape and dtype.
 
     """
-    if utils.isscalar(shape):
+    if isscalar(shape):
         shape = (shape,)
     dtype = np.dtype(dtype)
     if verbose is None:
         verbose = globals()['verbose']
 
     if verbose:
-        requested = dtype.itemsize * reduce(lambda x,y:x*y, shape, 1)
+        requested = dtype.itemsize * product(shape)
         if requested > 0:
-            print(utils.strinfo('Allocating ' + str(shape).replace(' ','') +
+            if description is None:
+                frames = inspect.getouterframes(inspect.currentframe())
+                i = 1
+                while True:
+                    if frames[i][1].replace('.pyc', '.py') != \
+                       __file__.replace('.pyc', '.py'):
+                        break
+                    i += 1
+                description = frames[i][3].replace('<module>', 'session')
+                if 'self' in frames[i][0].f_locals:
+                    cls = type(frames[i][0].f_locals['self']).__name__
+                    description = cls + '.' + description
+                description = 'in ' + description
+            print(utils.strinfo('Allocating ' + strshape(shape) +
                   ' ' + (str(dtype) if dtype.kind != 'V' else 'elements') +
                   ' = ' + utils.strnbytes(requested) + ' ' + description))
     try:
@@ -187,4 +201,3 @@ def push_and_pop(array):
             stack.pop(istack)
 
     return MemoryManager()
-
