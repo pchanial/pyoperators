@@ -1446,7 +1446,9 @@ class Operator(object):
                 )
             if shapeout is None:
                 shapeout = input.shape
-            output = memory.allocate(shapeout, dtype, 'in ' + self.__name__)
+            output = memory.allocate(
+                shapeout, dtype, "for {0}'s output.".format(self.__name__)
+            )
         return input, output
 
     @staticmethod
