@@ -1419,9 +1419,9 @@ class Operator(object):
         Return the input and output as ndarray instances.
         If required, allocate the output.
         """
-        input = np.array(input, copy=False, subok=True)
+        input = np.array(input, copy=False)
         dtype = self._find_common_type([input.dtype, self.dtype])
-        input = np.array(input, dtype=dtype, subok=False, copy=False)
+        input = np.array(input, dtype=dtype, copy=False)
         if output is not None:
             if not isinstance(output, np.ndarray):
                 raise TypeError('The output argument is not an ndarray.')
