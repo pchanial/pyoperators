@@ -8,12 +8,14 @@ import os
 import scipy.sparse
 import types
 
+from itertools import izip
 from . import cythonutils as cu
 
 __all__ = [
     'all_eq',
     'find',
     'first_is_not',
+    'ifind',
     'inspect_special_values',
     'isclassattr',
     'isscalar',
@@ -24,6 +26,7 @@ __all__ = [
     'operation_assignment',
     'operation_symbol',
     'product',
+    'renumerate',
     'strelapsed',
     'strenum',
     'strinfo',
@@ -60,7 +63,7 @@ def all_eq(a, b):
             return False
         if len(a) != len(b):
             return False
-        for a_, b_ in zip(a, b):
+        for a_, b_ in izip(a, b):
             if not all_eq(a_, b_):
                 return False
             return True
@@ -77,8 +80,8 @@ def all_eq(a, b):
 
 def find(l, f):
     """
-    Return first item in list that verifies a certain condition, and None
-    otherwise.
+    Return first item in list that verifies a certain condition, or raise
+    a ValueError exception otherwise.
 
     Parameters
     ----------
@@ -89,11 +92,14 @@ def find(l, f):
 
     Example:
     --------
-    >>> find([1,2,3], lambda x: x > 1.5)
-    2
+    >>> find([1.,2.,3.], lambda x: x > 1.5)
+    2.
 
     """
-    return next((_ for _ in l if f(_)), None)
+    try:
+        return next((_ for _ in l if f(_)))
+    except StopIteration:
+        raise ValueError('There is no matching item in the list.')
 
 
 def first_is_not(l, v):
@@ -102,6 +108,30 @@ def first_is_not(l, v):
     If all items are the specified value, return it.
     """
     return next((_ for _ in l if _ is not v), v)
+
+
+def ifind(l, f):
+    """
+    Return the number of the first item in a list that verifies a certain
+    condition or raise a ValueError exception otherwise.
+
+    Parameters
+    ----------
+    l : list
+        List of elements to be searched for.
+    f : function
+        Function that evaluates to True to match an element.
+
+    Example:
+    --------
+    >>> ifind([1.,2.,3.], lambda x: x > 1.5)
+    1
+
+    """
+    try:
+        return next((i for i, _ in enumerate(l) if f(_)))
+    except StopIteration:
+        raise ValueError('There is no matching item in the list.')
 
 
 def inspect_special_values(x):
@@ -180,7 +210,7 @@ def least_greater_multiple(a, l, out=None):
     slices = [slice(0, m + 1) for m in max_power]
     powers = np.ogrid[slices]
     values = 1
-    for v, p in zip(l, powers):
+    for v, p in izip(l, powers):
         values = values * v**p
     for v, o in it:
         if np.__version__ >= '1.8':
@@ -215,9 +245,9 @@ def merge_none(a, b):
         return None
     if len(a) != len(b):
         raise ValueError('The input sequences do not have the same length.')
-    if any(p != q for p, q in zip(a, b) if None not in (p, q)):
+    if any(p != q for p, q in izip(a, b) if None not in (p, q)):
         raise ValueError('The input sequences have incompatible values.')
-    return tuple(p if p is not None else q for p, q in zip(a, b))
+    return tuple(p if p is not None else q for p, q in izip(a, b))
 
 
 class ndarraywrap(np.ndarray):
@@ -257,6 +287,11 @@ def product(a):
 
     a = np.asarray(a)
     return np.product(a, dtype=a.dtype)
+
+
+def renumerate(l):
+    """Reversed enumerate."""
+    return izip(xrange(len(l) - 1, -1, -1), reversed(l))
 
 
 def strelapsed(t0, msg='Elapsed time'):

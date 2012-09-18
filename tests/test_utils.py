@@ -1,5 +1,6 @@
 import numpy as np
 
+from numpy.testing import assert_raises
 from pyoperators import Operator
 from pyoperators.utils import (
     find,
@@ -12,7 +13,7 @@ from pyoperators.utils import (
     strplural,
     strshape,
 )
-from pyoperators.utils.testing import assert_eq, assert_is_none
+from pyoperators.utils.testing import assert_eq
 
 dtypes = [
     np.dtype(t)
@@ -49,7 +50,7 @@ def test_find1():
 
 
 def test_find2():
-    assert_is_none(find([1, 2, 3], lambda x: x > 3))
+    assert_raises(ValueError, find, [1, 2, 3], lambda x: x > 3)
 
 
 def test_first_is_not():
