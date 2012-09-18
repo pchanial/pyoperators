@@ -1,11 +1,10 @@
 import numpy as np
 
-from numpy.testing import assert_raises
 from pyoperators import Operator
 from pyoperators.utils import (find, first_is_not, inspect_special_values,
                                isscalar, least_greater_multiple, product,
                                strenum, strplural, strshape)
-from pyoperators.utils.testing import assert_eq
+from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
