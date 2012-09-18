@@ -11,6 +11,7 @@ __all__ = [
     'assert_is_not_instance',
     'assert_is_none',
     'assert_is_not_none',
+    'assert_raises',
     'skiptest',
 ]
 
@@ -81,21 +82,6 @@ def assert_raises(*args, **kwargs):
 
 
 assert_raises.__doc__ = np.testing.assert_raises.__doc__
-
-
-def assert_raises_if(condition, *args, **kwargs):
-    """
-    assert_raises_if(condition, exception_class, callable, *args, **kwargs)
-
-    Fail if condition is true unless an exception of class exception_class is
-    thrown by the callable. If the condition is not true, the callable is still
-    called.
-    """
-    try:
-        np.testing.assert_raises(*args, **kwargs)
-    except AssertionError:
-        if condition:
-            raise
 
 
 def _get_msg(msg):

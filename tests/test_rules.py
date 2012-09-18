@@ -1,12 +1,13 @@
 import numpy as np
 
-from numpy.testing import assert_equal, assert_raises
+from numpy.testing import assert_equal
 from pyoperators import (Operator, AdditionOperator, CompositionOperator,
          MultiplicationOperator, ConstantOperator, IdentityOperator,
          HomothetyOperator, ZeroOperator)
 from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
 from pyoperators.utils import ndarraywrap
-from pyoperators.utils.testing import assert_eq, assert_is, assert_is_none, assert_is_not_none, assert_is_instance
+from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_none,
+         assert_is_not_none, assert_is_instance, assert_raises)
 
 from .common import OPS, ndarray2, attr2
 

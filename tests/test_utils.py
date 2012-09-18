@@ -1,6 +1,5 @@
 import numpy as np
 
-from numpy.testing import assert_raises
 from pyoperators import Operator
 from pyoperators.utils import (
     find,
@@ -13,7 +12,7 @@ from pyoperators.utils import (
     strplural,
     strshape,
 )
-from pyoperators.utils.testing import assert_eq
+from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [
     np.dtype(t)
