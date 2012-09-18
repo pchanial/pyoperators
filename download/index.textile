@@ -6,7 +6,7 @@ excerpt: Download pyoperators package
 
 h1. {{ page.title }}
 
-The pyoperators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators. The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
+The PyOperators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators. The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
 
 h2. The easy way
 
@@ -14,7 +14,7 @@ The easiest way to download and install the pyoperators package is by using the 
 
 bc. sudo easy_install pyoperators
 
-To upgrade an already installed PyOperator package:
+To upgrade an already installed PyOperators package:
 
 bc. sudo easy_install --upgrade pyoperators
 
@@ -26,7 +26,7 @@ bc. $ git clone git://github.com/pchanial/pyoperators.git
 $ cd pyoperators.git
 $ sudo python setup.py install
 
-This method is convenient to test pyoperators' development branch. The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
+This method is convenient to test PyOperators' development branch. The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
 
 bc. $ git pull
 Already up-to-date.
