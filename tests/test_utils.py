@@ -1,10 +1,11 @@
 import numpy as np
 
+from numpy.testing import assert_raises
 from pyoperators import Operator
 from pyoperators.utils import (find, first_is_not, inspect_special_values,
                                isscalar, least_greater_multiple, product,
                                strenum, strplural, strshape)
-from pyoperators.utils.testing import assert_eq, assert_is_none
+from pyoperators.utils.testing import assert_eq
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
@@ -20,7 +21,7 @@ def test_find1():
     assert find([1,2,3], lambda x: x > 1.5) == 2
 
 def test_find2():
-    assert_is_none(find([1,2,3], lambda x: x > 3))
+    assert_raises(ValueError, find, [1,2,3], lambda x: x > 3)
 
 def test_first_is_not():
     assert first_is_not([1,2], 1) == 2
