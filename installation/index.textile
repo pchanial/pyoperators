@@ -1,7 +1,7 @@
 ---
 layout: default
-title: Download
-excerpt: Download pyoperators package
+title: Installation
+excerpt: Install pyoperators package
 ---
 
 h1. {{ page.title }}
