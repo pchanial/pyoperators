@@ -1,3 +1,4 @@
+# stop
 # coding: utf-8
 """
 The core module defines the Operator class. Operators are functions
@@ -15,7 +16,8 @@ import scipy.sparse.linalg
 import types
 
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
-from . import memory
+from itertools import izip
+from .memory import empty, is_compatible, MemoryPool, MEMORY_ALIGNMENT
 from .utils import (
     all_eq,
     first_is_not,
@@ -26,6 +28,7 @@ from .utils import (
     ndarraywrap,
     operation_assignment,
     product,
+    renumerate,
     strenum,
     strshape,
     tointtuple,
@@ -98,6 +101,10 @@ class OperatorFlags(
             'separable',  # o*[B1...Bn] = [o*B1...o*Bn]
             'inplace',
             'inplace_reduction',
+            'alignment_input',  # op. requires aligned input
+            'alignment_output',  # op. requires aligned output
+            'contiguous_input',  # op. requires contig input
+            'contiguous_output',  # op. requires contig output
             'shape_input',
             'shape_output',
         ],
@@ -106,7 +113,7 @@ class OperatorFlags(
     """Informative flags about the operator."""
 
     def __new__(cls):
-        t = 12 * (False,) + ('', '')
+        t = 12 * (False,) + (1, 1, False, False, '', '')
         return super(OperatorFlags, cls).__new__(cls, *t)
 
     def __str__(self):
@@ -624,6 +631,10 @@ class Operator(object):
                 "of {1}: '{2}'.".format(shapeout, self.__name__, self.shapeout)
             )
 
+    # for the next methods, the following always stand:
+    #    - input and output are not in the memory pool
+    #    - input and output are compatible with the operator's requirements
+    #      in terms of shape, contiguity and alignment.
     direct = None
 
     def conjugate_(self, input, output):
@@ -641,7 +652,7 @@ class Operator(object):
     inverse_transpose = None
     inverse_adjoint = None
 
-    def __call__(self, x, out=None):
+    def __call__(self, x, out=None, preserve_input=True, propagate=True):
 
         if isinstance(x, Operator):
             return CompositionOperator([self, x])
@@ -650,18 +661,38 @@ class Operator(object):
             raise NotImplementedError(
                 'Call to ' + self.__name__ + ' is not imp' 'lemented.'
             )
-        i, o = self._validate_arguments(x, out)
-        with memory.push_and_pop(o):
-            if not self.flags.inplace and self.same_data(i, o):
-                memory.up()
-                o_ = memory.get(o.shape, o.dtype, self.__name__)
-            else:
-                o_ = o
-            self.direct(i, o_)
-            if not self.flags.inplace and self.same_data(i, o):
-                memory.down()
-                o[...] = o_
 
+        # get valid input and output
+        i, i_, o, o_ = self._validate_arguments(x, out)
+
+        # perform computation
+        reuse_x = (
+            isinstance(x, np.ndarray)
+            and not self.same_data(x, i)
+            and not preserve_input
+        )
+        reuse_out = (
+            isinstance(out, np.ndarray)
+            and not self.same_data(out, i)
+            and not self.same_data(out, o)
+        )
+        with _pool.set_if(reuse_x, x):
+            with _pool.set_if(reuse_out, out):
+                self.direct(i, o)
+
+        # add back temporaries for input & output in the memory pool
+        if i_ is not None:
+            _pool.add(i_)
+        if out is None:
+            out = o
+        elif not self.same_data(out, o):
+            out[...] = o
+            _pool.add(o_)
+
+        if not propagate:
+            return out
+
+        # copy over class and attributes
         cls = x.__class__ if isinstance(x, np.ndarray) else np.ndarray
         attr = x.__dict__.copy() if hasattr(x, '__dict__') else {}
         cls = self.propagate_attributes(cls, attr)
@@ -732,8 +763,7 @@ class Operator(object):
             for i in xrange(n):
                 v[i] = 1
                 o = d[i, :].reshape(shapeout)
-                with memory.push_and_pop(o):
-                    self.direct(v.reshape(shapein), o)
+                self.direct(v.reshape(shapein), o)
                 v[i] = 0
             return d.T
 
@@ -744,22 +774,23 @@ class Operator(object):
         for i in xrange(n):
             v[:] = 0
             v[i] = 1
-            with memory.push_and_pop(w):
-                self.direct(v.reshape(shapein), w.reshape(shapeout))
+            self.direct(v.reshape(shapein), w.reshape(shapeout))
             d[i, :] = w
         return d.T
 
-    def matvec(self, v, output=None):
-        v = self.toshapein(v)
-        if output is not None:
-            output = self.toshapeout(output)
-        input, output = self._validate_arguments(v, output)
-        with memory.push_and_pop(output):
-            self.direct(input, output)
-        return output.view(np.ndarray).ravel()
+    def matvec(self, x, out=None):
 
-    def rmatvec(self, v, output=None):
-        return self.T.matvec(v, output)
+        assert not isinstance(x, np.ndarray) or x.flags.contiguous
+        assert out is None or isinstance(out, np.ndarray) and out.flags.contiguous
+        x = self.toshapein(x)
+        if out is not None:
+            out = self.toshapeout(out)
+        out = self.__call__(x, out=out, propagate=False)
+
+        return out.ravel()
+
+    def rmatvec(self, x, out=None):
+        return self.T.matvec(x, out=out)
 
     def set_rule(self, subjects, predicate, operation=None, globals=None):
         """
@@ -1225,6 +1256,18 @@ class Operator(object):
                         "operator must have an 'operation' keyword."
                     )
 
+        if self.flags.inplace:
+            alignment = max(self.flags.alignment_input, self.flags.alignment_output)
+            contiguous = max(self.flags.contiguous_input, self.flags.contiguous_output)
+            self._set_flags(
+                {
+                    'alignment_input': alignment,
+                    'alignment_output': alignment,
+                    'contiguous_input': contiguous,
+                    'contiguous_output': contiguous,
+                }
+            )
+
     def _init_rules(self):
         """Translate flags into rules."""
         if self.rules is None:
@@ -1421,20 +1464,79 @@ class Operator(object):
         """
         input = np.array(input, copy=False)
         dtype = self._find_common_type([input.dtype, self.dtype])
-        input = np.array(input, dtype=dtype, copy=False)
+
+        input_ = None
+        output_ = None
+
+        # if the input is not compatible, copy it into a buffer from the pool
+        if input.dtype != dtype or not is_compatible(
+            input,
+            input.shape,
+            dtype,
+            self.flags.alignment_input,
+            self.flags.contiguous_input,
+        ):
+            if (
+                output is not None
+                and self.flags.inplace
+                and is_compatible(
+                    output,
+                    input.shape,
+                    dtype,
+                    self.flags.alignment_input,
+                    self.flags.contiguous_input,
+                )
+            ):
+                buf = output
+            else:
+                input_ = _pool.extract(
+                    input.shape,
+                    dtype,
+                    self.flags.alignment_input,
+                    self.flags.contiguous_input,
+                )
+                buf = input_
+            input, input[...] = _pool.view(buf, input.shape, dtype), input
+
+        # check compatibility of provided output
         if output is not None:
             if not isinstance(output, np.ndarray):
                 raise TypeError('The output argument is not an ndarray.')
+            output = output.view(np.ndarray)
             if output.dtype != dtype:
                 raise ValueError(
                     "The output has an invalid dtype '{0}'. Expect"
                     "ed dtype is '{1}'.".format(output.dtype, dtype)
                 )
-            output = output.view(np.ndarray)
+
+            # if the output does not fulfill the operator's alignment &
+            # contiguity requirements, or if the operator is out-of-place and
+            # an in-place operation is required, let's use a temporary buffer
+            if (
+                not is_compatible(
+                    output,
+                    output.shape,
+                    dtype,
+                    self.flags.alignment_output,
+                    self.flags.contiguous_output,
+                )
+                or self.same_data(input, output)
+                and not self.flags.inplace
+            ):
+                output_ = _pool.extract(
+                    output.shape,
+                    dtype,
+                    self.flags.alignment_output,
+                    self.flags.contiguous_output,
+                )
+                output = _pool.view(output_, output.shape, dtype)
             shapeout = output.shape
         else:
             shapeout = None
+
         shapein, shapeout = self._validate_shapes(input.shape, shapeout)
+
+        # if the output is not provided, allocate it
         if output is None:
             if (
                 self.flags.shape_input == 'implicit'
@@ -1446,10 +1548,8 @@ class Operator(object):
                 )
             if shapeout is None:
                 shapeout = input.shape
-            output = memory.allocate(
-                shapeout, dtype, "for {0}'s output.".format(self.__name__)
-            )
-        return input, output
+            output = empty(shapeout, dtype, "for {0}'s output.".format(self.__name__))
+        return input, input_, output, output_
 
     @staticmethod
     def validate_flags(flags, **keywords):
@@ -1819,6 +1919,8 @@ class CommutativeCompositeOperator(CompositeOperator):
         operands = list(self.operands)
         assert len(operands) > 1
 
+        # we need a temporary buffer if all operands can do inplace reductions
+        # except no more than one, which is move as first operand
         try:
             ir = [o.flags.inplace_reduction for o in operands]
             index = ir.index(False)
@@ -1827,21 +1929,17 @@ class CommutativeCompositeOperator(CompositeOperator):
         except ValueError:
             need_temporary = False
 
-        if need_temporary:
-            memory.up()
-            buf = memory.get(output.shape, output.dtype, self.__name__)
-
         operands[0].direct(input, output)
+        ii = 0
 
-        for op in operands[1:]:
-            if op.flags.inplace_reduction:
-                op.direct(input, output, operation=self.operation)
-            else:
-                op.direct(input, buf)
-                self.operation(output, buf)
-
-        if need_temporary:
-            memory.down()
+        with _pool.get_if(need_temporary, output.shape, output.dtype) as buf:
+            for op in operands[1:]:
+                if op.flags.inplace_reduction:
+                    op.direct(input, output, operation=self.operation)
+                else:
+                    op.direct(input, buf)
+                    self.operation(output, buf)
+                ii += 1
 
     def propagate_attributes(self, cls, attr):
         return Operator.propagate_attributes(self, cls, attr)
@@ -1914,7 +2012,13 @@ class CommutativeCompositeOperator(CompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        raise NotImplementedError()
+        return {
+            'real': all(o.flags.real for o in operands),
+            'alignment_input': max(o.flags.alignment_input for o in operands),
+            'alignment_output': max(o.flags.alignment_output for o in operands),
+            'contiguous_input': any(o.flags.contiguous_input for o in operands),
+            'contiguous_output': any(o.flags.contiguous_output for o in operands),
+        }
 
     @staticmethod
     def _merge_reshapein(operands):
@@ -1974,14 +2078,17 @@ class AdditionOperator(CommutativeCompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        return {
-            'linear': all(op.flags.linear for op in operands),
-            'real': all(op.flags.real for op in operands),
-            'square': any(op.flags.square for op in operands),
-            'symmetric': all(op.flags.symmetric for op in operands),
-            'hermitian': all(op.flags.hermitian for op in operands),
-            'separable': all(op.flags.separable for op in operands),
-        }
+        flags = CommutativeCompositeOperator._merge_flags(operands)
+        flags.update(
+            {
+                'linear': all(op.flags.linear for op in operands),
+                'separable': all(o.flags.separable for o in operands),
+                'square': any(o.flags.square for o in operands),
+                'symmetric': all(op.flags.symmetric for op in operands),
+                'hermitian': all(op.flags.symmetric for op in operands),
+            }
+        )
+        return flags
 
 
 class MultiplicationOperator(CommutativeCompositeOperator):
@@ -2006,11 +2113,14 @@ class MultiplicationOperator(CommutativeCompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        return {
-            'real': all(op.flags.real for op in operands),
-            'square': any(op.flags.square for op in operands),
-            'separable': all(op.flags.separable for op in operands),
-        }
+        flags = CommutativeCompositeOperator._merge_flags(operands)
+        flags.update(
+            {
+                'separable': all(o.flags.separable for o in operands),
+                'square': any(o.flags.square for o in operands),
+            }
+        )
+        return flags
 
 
 @square
@@ -2077,12 +2187,9 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     def direct(self, input, output):
         if not self.same_data(input, output):
             output[...] = input
-        memory.up()
         for s, op in zip(self.slices, self.operands):
             o = output[s]
-            with memory.push_and_pop(o):
-                op.direct(input[s], o)
-        memory.down()
+            op.direct(input[s], o)
 
     @classmethod
     def _get_attributes(cls, operands, **keywords):
@@ -2098,13 +2205,16 @@ class BlockSliceOperator(CommutativeCompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        return {
-            'linear': all(op.flags.linear for op in operands),
-            'real': all(op.flags.real for op in operands),
-            'symmetric': all(op.flags.symmetric for op in operands),
-            'hermitian': all(op.flags.hermitian for op in operands),
-            'inplace': all(op.flags.inplace for op in operands),
-        }
+        flags = CommutativeCompositeOperator._merge_flags(operands)
+        flags.update(
+            {
+                'linear': all(op.flags.linear for op in operands),
+                'symmetric': all(op.flags.symmetric for op in operands),
+                'hermitian': all(op.flags.hermitian for op in operands),
+                'inplace': all(op.flags.inplace for op in operands),
+            }
+        )
+        return flags
 
 
 class NonCommutativeCompositeOperator(CompositeOperator):
@@ -2210,63 +2320,71 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
     def direct(self, input, output, operation=operation_assignment):
 
-        inplace_composition = self.same_data(input, output)
-        shapeouts, dtypes, outplaces, reuse_output = self._get_info(
-            input.shape,
-            output.shape,
-            input.dtype,
-            output.dtype,
-            inplace_composition,
-            operation is not operation_assignment,
+        preserve_input = not self.same_data(input, output)
+        preserve_output = operation is not operation_assignment or self.same_data(
+            input, output
         )
-        noutplaces = outplaces.count(True)
+        assert not preserve_input or not preserve_output
 
-        nswaps = 0
-        if not reuse_output:
-            memory.up()
-        elif (
-            inplace_composition
-            and outplaces[-1]
-            or not inplace_composition
-            and noutplaces % 2 == 0
-        ):
-            memory.swap()
-            nswaps += 1
+        (
+            shapeouts,
+            dtypes,
+            ninplaces,
+            bufsizes,
+            alignments,
+            contiguouss,
+        ) = self._get_info(input, output, preserve_input)
 
-        i = input
-        for iop, (op, shapeout, dtype, outplace) in enumerate(
-            zip(self.operands, shapeouts, dtypes, outplaces)[:0:-1]
-        ):
-            if outplace and iop > 0:
-                memory.up()
-                o = memory.get(shapeout, dtype, self.__name__)
-                op.direct(i, o)
-                i = o
-                memory.down()
-                memory.swap()
-                nswaps += 1
-            else:
-                # we keep reusing the same stack element for inplace operators
-                o = memory.get(shapeout, dtype, self.__name__)
-                op.direct(i, o)
-                i = o
-
-        if outplaces[0]:
-            memory.up()
-        if self.flags.inplace_reduction:
-            self.operands[0].direct(i, output, operation=operation)
+        i = i_ = input
+        if self.same_data(input, output):
+            o_ = output if output.nbytes > input.nbytes else input
         else:
-            self.operands[0].direct(i, output)
-        if outplaces[0]:
-            memory.down()
-            memory.swap()
-            nswaps += 1
+            o_ = output
+        iop = len(self.operands) - 1
+        ngroups = len(ninplaces)
 
-        if nswaps % 2 == 1:
-            memory.swap()
+        if ngroups > 2 and not preserve_output:
+            _pool.add(output)
 
-        if not reuse_output:
-            memory.down()
+        # outer loop over operators
+        for igroup, (ninplace, bufsize, alignment, contiguous) in renumerate(
+            zip(ninplaces, bufsizes, alignments, contiguouss)
+        ):
+
+            if igroup != ngroups - 1:
+
+                # get output for the current outplace operator
+                if igroup == 1 and not preserve_output:
+                    _pool.remove(output)
+                if igroup == 0:
+                    o_ = output
+                else:
+                    o_ = _pool.extract(bufsize, np.int8, alignment, contiguous)
+                o = _pool.view(o_, shapeouts[iop], dtypes[iop])
+                op = self.operands[iop]
+
+                # perform out-of place operation
+                if iop == 0 and self.flags.inplace_reduction:
+                    op.direct(i, o, operation=operation)
+                else:
+                    op.direct(i, o)
+                iop -= 1
+
+                # set the input buffer back in the pool
+                if igroup < ngroups - 2 or not preserve_input:
+                    _pool.add(i_)
+                i = o
+                i_ = o_
+
+            # loop over inplace operations
+            for n in range(ninplace):
+                o = _pool.view(o_, shapeouts[iop], dtypes[iop])
+                op = self.operands[iop]
+                op.direct(i, o)
+                i = o
+                iop -= 1
+        if ngroups >= 2 and not preserve_input:
+            _pool.remove(input)
 
     def propagate_attributes(self, cls, attr):
         for op in reversed(self.operands):
@@ -2299,69 +2417,156 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 commout = op.commin or commout
         return self
 
-    def _get_info(
-        self,
-        shapein,
-        shapeout,
-        dtypein,
-        dtypeout,
-        inplace_composition,
-        inplace_reduction,
-    ):
+    def _get_info(self, input, output, preserve_input):
         """
         Given the context in which the composition is taking place:
-            - composition input shape
-            - composition output shape
-            - input dtype
-            - output dtype
-            - in-place or out-of-place composition
-            - in-place reduction or not,
-        return the requirements for the intermediate buuffers of the
-        composition and instructions to perform the composition:
-            - shape
-            - dtype
-            - operand should operate in-place or out-place
-            - the composition output should be re-used
+            1) input and output shape, dtype, alignment and contiguity
+            2) in-place or out-of-place composition
+            3) whether the input should be preserved,
+
+        the routine returns the requirements for the intermediate buffers of the
+        composition and the information to perform the composition:
+            1) output shape and dtype of each operator
+            2) groups of operators that will operate on the same output buffer
+        Except for the innermost group, which only contains in-place operators
+        a group is an out-of-place operator followed by a certain number of
+        in-place operators
+            3) minimum buffer size, alignment and contiguity requirements
+        for each group.
+
+        For example, in the composition of I*I*O*I*O*I*I*I*O*I (I:in-place,
+        O:out-of-place operator), the groups are 'IIO', 'IO', 'IIIO' and 'I'.
+        For 'I*O', the groups are 'IO' and an empty group ''.
 
         """
+        shapein = input.shape
+        shapeout = output.shape
+        dtypein = input.dtype
+        dtypeout = output.dtype
+        alignedin = input.__array_interface__['data'][0] % MEMORY_ALIGNMENT == 0
+        alignedout = output.__array_interface__['data'][0] % MEMORY_ALIGNMENT == 0
+        contiguousin = input.flags.contiguous
+        contiguousout = output.flags.contiguous
+
+        id_ = (
+            shapein,
+            shapeout,
+            dtypein,
+            dtypeout,
+            alignedin,
+            alignedout,
+            contiguousin,
+            contiguousout,
+            preserve_input,
+        )
+
         try:
-            return self._info[
-                (
-                    shapein,
-                    shapeout,
-                    dtypein,
-                    dtypeout,
-                    inplace_composition,
-                    inplace_reduction,
-                )
-            ]
+            return self._info[id_]
         except KeyError:
             pass
-        shapeouts = self._get_shapes(shapein, shapeout, self.operands)[:-1]
-        if None in shapeouts:
+
+        shapes = self._get_shapes(shapein, shapeout, self.operands)[:-1]
+        if None in shapes:
             raise ValueError(
                 "The composition of an unconstrained input shape o"
                 "perator by an unconstrained output shape operator"
                 " is ambiguous."
             )
-        dtypes = self._get_dtypes(dtypein)
-        sizeouts = [product(s) * d.itemsize for s, d in zip(shapeouts, dtypes)]
-        nbytes = product(shapeout) * dtypeout.itemsize
-        outplaces, reuse_output = self._get_outplaces(
-            nbytes, inplace_composition, inplace_reduction, sizeouts
-        )
-        v = shapeouts, dtypes, outplaces, reuse_output
-        self._info[
-            (
-                shapein,
-                shapeout,
-                dtypein,
-                dtypeout,
-                inplace_composition,
-                inplace_reduction,
-            )
-        ] = v
+        dtypes = self._get_dtypes(input.dtype)
+        sizes = [product(s) * d.itemsize for s, d in izip(shapes, dtypes)]
+
+        ninplaces, alignments, contiguouss = self._get_requirements()
+
+        # make last operand out-of-place
+        if (
+            preserve_input
+            and self.operands[-1].flags.inplace
+            or not alignedin
+            and alignments[-1] > 1
+            or not contiguousin
+            and contiguouss[-1]
+        ):
+            assert ninplaces[-1] > 0
+            ninplaces[-1] -= 1
+            ninplaces += [0]
+            alignments += [MEMORY_ALIGNMENT if alignedin else 1]
+            contiguouss += [contiguousin]
+
+        # make first operand out-of-place
+        if (
+            sizes[0] < max([s for s in sizes[: ninplaces[0] + 1]])
+            or not alignedout
+            and alignments[0] > 1
+            or not contiguousout
+            and contiguouss[0]
+        ):
+            assert ninplaces[0] > 0
+            ninplaces[0] -= 1
+            ninplaces.insert(0, 0)
+            alignments.insert(0, MEMORY_ALIGNMENT if alignedout else 1)
+            contiguouss.insert(0, contiguousout)
+
+        bufsizes = self._get_bufsizes(sizes, ninplaces)
+
+        v = shapes, dtypes, ninplaces, bufsizes, alignments, contiguouss
+        self._info[id_] = v
+
         return v
+
+    def _get_bufsizes(self, sizes, ninplaces):
+        bufsizes = []
+        iop = 0
+        for n in ninplaces[:-1]:
+            bufsizes.append(max(sizes[iop : iop + n + 1]))
+            iop += n + 1
+        bufsizes.append(sizes[-1])
+        return bufsizes
+
+    def _get_dtypes(self, dtype):
+        dtypes = []
+        for op in self.operands[::-1]:
+            dtype = self._find_common_type([dtype, op.dtype])
+            dtypes.insert(0, dtype)
+        return dtypes
+
+    def _get_requirements(self):
+        alignments = []
+        contiguouss = []
+        ninplaces = []
+        ninplace = 0
+        alignment = 1
+        contiguity = False
+        iop = len(self.operands) - 1
+
+        # loop over operators
+        while iop >= 0:
+
+            # loop over in-place operators
+            while iop >= 0:
+                op = self.operands[iop]
+                iop -= 1
+                if not op.flags.inplace:
+                    alignment = max(alignment, op.flags.alignment_input)
+                    contiguity = max(contiguity, op.flags.contiguous_input)
+                    break
+                ninplace += 1
+                alignment = max(alignment, op.flags.alignment_input)
+                contiguity = max(contiguity, op.flags.contiguous_input)
+
+            ninplaces.insert(0, ninplace)
+            alignments.insert(0, alignment)
+            contiguouss.insert(0, contiguity)
+
+            ninplace = 0
+            alignment = op.flags.alignment_output
+            contiguity = op.flags.contiguous_output
+
+        if not op.flags.inplace:
+            ninplaces.insert(0, ninplace)
+            alignments.insert(0, alignment)
+            contiguouss.insert(0, contiguity)
+
+        return ninplaces, alignments, contiguouss
 
     @staticmethod
     def _get_shapes(shapein, shapeout, operands):
@@ -2398,51 +2603,40 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         return shapes
 
-    def _get_dtypes(self, dtype):
-        dtypes = []
-        for op in self.operands[::-1]:
-            dtype = self._find_common_type([dtype, op.dtype])
-            dtypes.insert(0, dtype)
-        return dtypes
+    # if inplace_composition -> preserve_input = False
+    # if preserve_input and last operand is inplace: make it outplace
+    # find from left-to-right the first operand that can not have
+    # the composition output as its output -> define first temporary
+    # find from right-to-left the first operand that can not have
+    # the composition input as its input.
 
-    def _get_outplaces(
-        self, output_nbytes, inplace_composition, inplace_reduction, sizeouts
-    ):
-        outplaces = [not op.flags.inplace for op in self.operands]
-        if not inplace_composition:
-            outplaces[-1] = True
+    # ex : I1 * I2 * O3 * I4 * I5 out-of-place composition, preserve_input:
+    #    B    B    B    C    B    A
+    # the first operand that can not have the composition output B as its output
+    # is I4. B is in the pool for operands > 4
+    # the first operand that can not have the composition input A as its input
+    # is I4.
 
-        noutplaces = outplaces.count(True)
-        if (
-            inplace_composition
-            and noutplaces % 2 == 1
-            and noutplaces == len(self.operands)
-            or inplace_reduction
-        ):
-            return outplaces, False
+    # ex : I1 * I2 * O3 * I4 * I5 out-of-place composition, not preserve_input:
+    #    B    B    B    A    A    A
+    # the first operand that can not have the composition output B as its output
+    # is I4. B is in the pool for operands > 4
+    # the first operand that can not have the composition input A as its input
+    # is O3.
 
-        last_inplace_changed_to_outplace = False
-        if inplace_composition:
-            # if composition is inplace, enforce  even number of outplace
-            if noutplaces % 2 == 1 and False in outplaces:
-                index = outplaces.index(False)
-                outplaces[index] = True
-                last_inplace_changed_to_outplace = True
-            output_is_requested = True  # we start with the input=output
-        else:
-            output_is_requested = noutplaces % 2 == 0
+    # ex : I1 * I2 * O3 * I4 * I5 in-place composition, preserve_input:
+    #    A    A    A    B    B    A
+    # the first operand that can not have the composition output A as its output
+    # is I4. A is in the pool for operands > 4
+    # the first operand that can not have the composition input A as its input
+    # is I4.
 
-        reuse_output = False
-        for op, outplace, nbytes in zip(self.operands, outplaces, sizeouts)[:0:-1]:
-            if outplace:
-                output_is_requested = not output_is_requested
-            if output_is_requested:
-                if nbytes > output_nbytes:
-                    if last_inplace_changed_to_outplace:
-                        outplaces[index] = False  # revert back
-                    return outplaces, False
-                reuse_output = True
-        return outplaces, reuse_output
+    # ex : I1 * I2 * O3 * I4 * I5 in-place composition, not preserve_input:
+    #    A    A    A    B    A    A
+    # the first operand that can not have the composition output A as its output
+    # is I4. A is in the pool for operands > 4
+    # the first operand that can not have the composition input A as its input
+    # is O3.
 
     @classmethod
     def _get_attributes(cls, operands, **keywords):
@@ -2522,6 +2716,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'square': all(op.flags.square for op in operands),
             'separable': all(op.flags.separable for op in operands),
             'inplace_reduction': operands[0].flags.inplace_reduction,
+            'alignment_input': operands[-1].flags.alignment_input,
+            'alignment_output': operands[0].flags.alignment_output,
+            'contiguous_input': operands[-1].flags.contiguous_input,
+            'contiguous_output': operands[0].flags.contiguous_output,
         }
 
     @staticmethod
@@ -3437,17 +3635,12 @@ class BlockDiagonalOperator(BlockOperator):
         else:
             partitionout = self.partitionout
 
-        memory.up()
-        for i, op, sin, sout in zip(
-            range(len(self.operands)),
-            self.operands,
-            self.get_slicesin(),
-            self.get_slicesout(partitionout),
+        for op, sin, sout in zip(
+            self.operands, self.get_slicesin(), self.get_slicesout(partitionout)
         ):
+            i = input[sin]
             o = output[sout]
-            with memory.push_and_pop(o):
-                op.direct(input[sin], o)
-        memory.down()
+            op.direct(i, o)
 
     @staticmethod
     def _merge_flags(operands):
@@ -3524,12 +3717,9 @@ class BlockColumnOperator(BlockOperator):
         else:
             partitionout = self.partitionout
 
-        memory.up()
         for op, sout in zip(self.operands, self.get_slicesout(partitionout)):
             o = output[sout]
-            with memory.push_and_pop(o):
-                op.direct(input, o)
-        memory.down()
+            op.direct(input, o)
 
     def __str__(self):
         operands = ['[{0}]'.format(o) for o in self.operands]
@@ -3610,22 +3800,19 @@ class BlockRowOperator(BlockOperator):
         else:
             partitionin = self.partitionin
 
-        if self._need_temporary:
-            memory.up()
-            buf = memory.get(output.shape, output.dtype, self.__name__)
-
         sins = tuple(self.get_slicesin(partitionin))
         self.operands[0].direct(input[sins[0]], output)
 
-        for op, sin in zip(self.operands, sins)[1:]:
-            if op.flags.inplace_reduction:
-                op.direct(input[sin], output, operation=self.operation)
-            else:
-                op.direct(input[sin], buf)
-                self.operation(output, buf)
+        with _pool.get_if(
+            self._need_temporary, output.shape, output.dtype, self.__name__
+        ) as buf:
 
-        if self._need_temporary:
-            memory.down()
+            for op, sin in zip(self.operands, sins)[1:]:
+                if op.flags.inplace_reduction:
+                    op.direct(input[sin], output, operation=self.operation)
+                else:
+                    op.direct(input[sin], buf)
+                    self.operation(output, buf)
 
     def __str__(self):
         operands = [str(o) for o in self.operands]
@@ -4583,3 +4770,5 @@ def asoperator1d(x):
 
 I = IdentityOperator()
 O = ZeroOperator()
+
+_pool = MemoryPool()

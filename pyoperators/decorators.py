@@ -3,6 +3,8 @@ Define decorators for Operator subclasses. These decorators update
 their 'flags' attribute to specify properties such as linear, square etc.
 """
 
+from .memory import MEMORY_ALIGNMENT
+
 
 def flags(cls, *arg, **keywords):
     """
@@ -119,3 +121,55 @@ def inplace(cls):
     It sets the 'inplace' attribute to True.
     """
     return flags(cls, 'inplace')
+
+
+def aligned(cls):
+    """
+    Decorator to ensure that both input and output of the operator are
+    aligned in memory. It sets the alignment_input and alignment_output
+    attributes to True.
+    """
+    return flags(
+        cls, {'alignment_input': MEMORY_ALIGNMENT, 'alignment_output': MEMORY_ALIGNMENT}
+    )
+
+
+def aligned_input(cls):
+    """
+    Decorator to ensure that operator's input is aligned in memory.
+    It sets the alignment_input attribute to True.
+    """
+    return flags(cls, {'alignment_input': MEMORY_ALIGNMENT})
+
+
+def aligned_output(cls):
+    """
+    Decorator to ensure that operator's output is aligned in memory.
+    It sets the alignment_output attribute to True.
+    """
+    return flags(cls, {'alignment_output': MEMORY_ALIGNMENT})
+
+
+def contiguous(cls):
+    """
+    Decorator to ensure that both input and output of the operator are
+    C-contiguous in memory. It sets the contiguous_input and contiguous_output
+    attributes to True.
+    """
+    return flags(cls, 'contiguous_input,contiguous_output')
+
+
+def contiguous_input(cls):
+    """
+    Decorator to ensure that operator's input is C-contiguous in memory.
+    It sets the contiguous_input attribute to True.
+    """
+    return flags(cls, 'contiguous_input')
+
+
+def contiguous_output(cls):
+    """
+    Decorator to ensure that operator's output is C-contiguous in memory.
+    It sets the contiguous_output attribute to True.
+    """
+    return flags(cls, 'contiguous_output')

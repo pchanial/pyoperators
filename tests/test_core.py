@@ -9,11 +9,12 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          BlockRowOperator, BlockSliceOperator, CompositionOperator,
          GroupOperator, ConstantOperator, DenseOperator, DiagonalOperator,
          IdentityOperator, MaskOperator, MultiplicationOperator,
-         HomothetyOperator, ReductionOperator, ZeroOperator, asoperator, I, O)
+         HomothetyOperator, ReductionOperator, ZeroOperator, asoperator,
+         _pool as pool, I, O)
 from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance, assert_raises)
+         assert_is_none, assert_not_in, assert_is_instance, assert_raises,skiptest)
 from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
 np.seterr(all='raise')
@@ -464,18 +465,29 @@ def test_propagation_attribute1():
         yield func1, i
 
     def func2(i_):
+        print
+        print 'op'
+        print '=='
         op = AddAttribute()
         i = i_.copy()
         assert op(i,i).newattr_direct
         i = i_.copy()
         assert op.T(i,i).newattr_transpose
 
+        pool.clear()
+        print
+        print 'op2 * op'
+        print '======='
         op = AddAttribute2() * AddAttribute()
         i = i_.copy()
         assert not op(i,i).newattr_direct
         i = i_.copy()
         assert op.T(i,i).newattr_transpose
 
+        pool.clear()
+        print
+        print 'op3 * op'
+        print '======='
         op = AddAttribute3() * AddAttribute()
         i = i_.copy()
         o = op(i,i)
@@ -688,10 +700,12 @@ def test_propagation_class_nested():
             output[...] = input
 
     def func2(op1, op2, expected):
-        assert_is((op1*op2)(1).__class__, expected)
+        o = op1 * op2
+        assert_is(o(1).__class__, expected)
 
     def func3(op1, op2, op3, expected):
-        assert_is((op1*op2*op3)(1).__class__, expected)
+        o = op1 * op2 * op3
+        assert_is(o(1).__class__, expected)
 
     o1 = O1()
     o2 = O2()
@@ -872,19 +886,20 @@ def test_comm_propagation():
 #===========================
 
 def test_inplace1():
-    memory.stack = []
     @decorators.square
     class NotInplace(Operator):
         def direct(self, input, output):
             output[...] = 0
             output[0] = input[0]
+    pool.clear()
     op = NotInplace()
     v = np.array([2., 0., 1.])
     op(v,v)
     assert_eq(v,[2,0,0])
-    assert_eq(len(memory.stack), 1)
+    assert_eq(len(pool), 1)
 
 
+@skiptest
 def test_inplace_can_use_output():
 
     A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
@@ -900,6 +915,7 @@ def test_inplace_can_use_output():
     class Op(Operator):
         def __init__(self, inplace, log):
             Operator.__init__(self, flags={'inplace':inplace})
+            self.inplace = inplace
             self.log = log
         def direct(self, input, output):
             if self.flags.inplace:
@@ -919,7 +935,7 @@ def test_inplace_can_use_output():
 
     def show_stack():
         return ''.join([ids[s.__array_interface__['data'][0]] \
-                            for s in memory.stack])
+                            for s in pool])
 
     expecteds_outplace = {
         2 : ['BBA',   #II
@@ -982,7 +998,7 @@ def test_inplace_can_use_output():
              'ABABA']}#OOOO
 
     def func_outplace(n, i, expected, strops):
-        memory.stack = [C, D]
+        pool._buffers = [C, D]
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
@@ -1000,7 +1016,7 @@ def test_inplace_can_use_output():
         assert_eq(w, w2, strops)
 
     def func_inplace(n, i, expected, strops):
-        memory.stack = [B, C]
+        pool._buffers = [B, C]
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
@@ -1031,6 +1047,8 @@ def test_inplace_can_use_output():
                 strops = '0' + strops
             yield func_inplace, n, i, expected, strops
 
+
+@skiptest
 def test_inplace_cannot_use_output():
 
     A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
@@ -1059,7 +1077,7 @@ def test_inplace_cannot_use_output():
 
     def show_stack():
         return ''.join([ids[s.__array_interface__['data'][0]] \
-                            for s in memory.stack])
+                            for s in pool])
 
     expecteds_outplace = {
         2 : ['BCA',   #II
@@ -1122,7 +1140,7 @@ def test_inplace_cannot_use_output():
              'ABCBA']}#OOOO
 
     def func_outplace(n, i, expected, strops):
-        memory.stack = [C, D]
+        pool._buffers = [C, D]
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
@@ -1140,7 +1158,7 @@ def test_inplace_cannot_use_output():
         assert_eq(w, w2, strops)
 
     def func_inplace(n, i, expected, strops):
-        memory.stack = [B, C]
+        pool._buffers = [B, C]
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
@@ -1241,27 +1259,27 @@ def test_addition():
     op = np.sum([Op(v) for v in [1,2]])
     assert_eq(op.__class__, AdditionOperator)
 
-    memory.clear()
+    pool.clear()
     assert_eq(op(1), 3)
-    assert_eq(len(memory.stack), 1)
+    assert_eq(len(pool), 1)
 
     op = np.sum([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, AdditionOperator)
 
-    memory.clear()
+    pool.clear()
     input = np.array(1, int)
     output = np.array(0, int)
     assert_eq(op(input, output), 7)
     assert_eq(input, 1)
     assert_eq(output, 7)
-    assert_eq(len(memory.stack), 1)
+    assert_eq(len(pool), 1)
 
-    memory.clear()
+    pool.clear()
     output = input
     assert_eq(op(input, output), 7)
     assert_eq(input, 7)
     assert_eq(output, 7)
-    assert_eq(len(memory.stack), 2)
+    assert_eq(len(pool), 2)
 
 def test_addition_flags():
     def func(f):
@@ -1279,14 +1297,14 @@ def test_multiplication():
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
-    memory.stack = []
+    pool.clear()
     op = MultiplicationOperator([Op(v) for v in [1]])
     assert_is(op.__class__, Op)
 
     op = MultiplicationOperator([Op(v) for v in [1,2]])
     assert_eq(op.__class__, MultiplicationOperator)
     assert_eq(op(1), 2)
-    assert_eq(len(memory.stack), 1)
+    assert_eq(len(pool), 1)
 
     op = MultiplicationOperator([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, MultiplicationOperator)
@@ -1296,13 +1314,13 @@ def test_multiplication():
     assert_eq(op(input, output), 8)
     assert_eq(input, 1)
     assert_eq(output, 8)
-    assert_eq(len(memory.stack), 1)
+    assert_eq(len(pool), 1)
 
     output = input
     assert_eq(op(input, output), 8)
     assert_eq(input, 8)
     assert_eq(output, 8)
-    assert_eq(len(memory.stack), 2)
+    assert_eq(len(pool), 2)
 
 def test_multiplication_flags():
     def func(f):
@@ -1425,54 +1443,53 @@ def test_composition3():
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
-    memory.stack = []
+    pool.clear()
     op = np.product([Op(v) for v in [1]])
     assert_is(op.__class__, Op)
     op(1)
-    assert_eq(len(memory.stack), 0)
+    assert_eq(len(pool), 0)
 
-    memory.stack = []
+    pool.clear()
     op = np.product([Op(v) for v in [1,2]])
     assert_is(op.__class__, CompositionOperator)
     assert_eq(op(1), 2)
-    assert_eq(len(memory.stack), 0)
-
-    memory.stack = []
+    assert_eq(len(pool), 0)
+ 
+    pool.clear()
     assert_eq(op([1]), 2)
-    assert_eq(len(memory.stack), 0)
+    assert_eq(len(pool), 0)
 
     op = np.product([Op(v) for v in [1,2,4]])
     assert_is(op.__class__, CompositionOperator)
 
+    pool.clear()
     input = np.array(1, int)
     output = np.array(0, int)
-    memory.stack = []
     assert_eq(op(input, output), 8)
     assert_eq(input, 1)
     assert_eq(output, 8)
-    assert_eq(len(memory.stack), 0)
+    assert_eq(len(pool), 0)
 
+    pool.clear()
     output = input
-    memory.stack = []
     assert_eq(op(input, output), 8)
     assert_eq(input, 8)
-    assert_eq(output, 8)
-    assert_eq(len(memory.stack), 0)
+    assert_eq(len(pool), 0)
 
+    pool.clear()
     input = np.array([1], int)
     output = np.array([0], int)
-    memory.stack = []
     assert_eq(op(input, output), 8)
     assert_eq(input, 1)
     assert_eq(output, 8)
-    assert_eq(len(memory.stack), 0)
+    assert_eq(len(pool), 0)
 
+    pool.clear()
     output = input
-    memory.stack = []
     assert_eq(op(input, output), 8)
     assert_eq(input, 8)
     assert_eq(output, 8)
-    assert_eq(len(memory.stack), 0)
+    assert_eq(len(pool), 0)
 
 def test_composition_flags():
     def func(f):
@@ -1516,6 +1533,79 @@ def test_composition_shapes():
 
     for OP1, OP2 in itertools.product(OPS, repeat=2):
         yield func, OP1, OP2
+
+def test_composition_get_requirements():
+
+    @decorators.inplace
+    class I__(Operator):
+        pass
+    @decorators.aligned
+    @decorators.contiguous
+    class IAC(I__):
+        pass
+    class O____(Operator):
+        pass
+    @decorators.aligned_input
+    @decorators.contiguous_input
+    class O__AC(O____):
+        pass
+    @decorators.aligned_output
+    @decorators.contiguous_output
+    class OAC__(O____):
+        pass
+    @decorators.aligned
+    @decorators.contiguous
+    class OACAC(O____):
+        pass
+
+    Is = [I__(), IAC()]
+    Os = [O____(), O__AC(), OAC__(), OACAC()]
+
+    tests ={ 'I'  : [[0]],
+             'O'  : [[0],[]],
+             'II' : [[0,1]],
+             'IO' : [[0,1],[]],
+             'OI' : [[0],[1]],
+             'OO' : [[0],[1],[]],
+             'III': [[0,1,2]],
+             'IIO': [[0,1,2],[]],
+             'IOI': [[0,1],[2]],
+             'IOO': [[0,1],[2],[]],
+             'OII': [[0],[1,2]],
+             'OIO': [[0],[1,2],[]],
+             'OOI': [[0],[1],[2]],
+             'OOO': [[0],[1],[2],[]]}
+
+    def get_requirements(ops, t, g):
+        rn = [len(_) for _ in g]
+        for i in range(len(rn)-1):
+            rn[i] -= 1
+
+        ra = [max(ops[i].flags.alignment_output for i in g[0])] + \
+             [max([ops[_[0]-1].flags.alignment_input] +
+                  [ops[i].flags.alignment_output for i in _])for _ in g[1:-1]]+\
+             ([max(ops[i].flags.alignment_input for i in  range(t.rfind('O'),
+              len(ops)))] if len(g) > 1 else [])
+        
+        rc = [max(ops[i].flags.contiguous_output for i in g[0])] + \
+             [max([ops[_[0]-1].flags.contiguous_input] +
+                 [ops[i].flags.contiguous_output for i in _])for _ in g[1:-1]]+\
+             ([max(ops[i].flags.contiguous_input for i in  range(t.rfind('O'),
+              len(ops)))] if len(g) > 1 else [])
+        
+        return rn, ra, rc
+
+    c = CompositionOperator(Is)
+    def func(t, rn1, rn2, ra1, ra2, rc1, rc2):
+        assert rn1 == rn2
+        assert ra1 == ra2
+    for t, g in tests.items():
+        it = [Is if _ == 'I' else Os for _ in t]
+        for ops in itertools.product(*it):
+            c.operands = ops
+            rn1, ra1, rc1 = c._get_requirements()
+            rn2, ra2, rc2 = get_requirements(ops, t, g)
+            yield func, t, rn1, rn2, ra1, ra2, rc1, rc2
 
 
 #=============================
