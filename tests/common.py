@@ -132,7 +132,7 @@ ALL_OPS = [
 
 
 @decorators.square
-class TestIdentityOperator(Operator):
+class IdentityOutplaceOperator(Operator):
     def direct(self, input, output):
         output[...] = input
 
