@@ -10,7 +10,7 @@ from pyoperators.linear import (DiagonalNumexprOperator,
                                 PackOperator, UnpackOperator, SumOperator)
 from pyoperators.utils.testing import (assert_eq, assert_is_instance,
                                        assert_is_none, assert_raises)
-from .common import TestIdentityOperator, assert_inplace_outplace
+from .common import IdentityOutplaceOperator, assert_inplace_outplace
 
 SHAPES = (None, (), (1,), (3,), (2,3), (2,3,4))
 
@@ -55,7 +55,7 @@ def test_diagonal_numexpr2():
     assert_eq(d.broadcast, 'disabled')
     assert_eq(d.shapein, (3,))
     assert_eq(d.data, [60, 72, 72])
-    c = BlockColumnOperator(3*[TestIdentityOperator()], new_axisout=0)
+    c = BlockColumnOperator(3*[IdentityOutplaceOperator()], new_axisout=0)
     v = 2
     assert_inplace_outplace(d1*c, v, d1(c(v)))
 
@@ -67,7 +67,7 @@ def test_diagonal_numexpr3():
     assert_is_instance(d, DiagonalOperator)
     assert_eq(d.broadcast, 'disabled')
     assert_eq(d.data, [60, 72, 72])
-    c = BlockColumnOperator(3*[TestIdentityOperator()], new_axisout=0)
+    c = BlockColumnOperator(3*[IdentityOutplaceOperator()], new_axisout=0)
     v = [1,2]
     assert_inplace_outplace(d1*c, v, d1(c(v)))
 

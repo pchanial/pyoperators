@@ -76,7 +76,7 @@ ALL_OPS = [ eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
             'Operator') ]
 
 @decorators.square
-class TestIdentityOperator(Operator):
+class IdentityOutplaceOperator(Operator):
     def direct(self, input, output):
         output[...] = input
 
