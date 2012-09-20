@@ -16,7 +16,7 @@ from contextlib import contextmanager
 from . import utils
 from .utils import ifind, product, strshape, tointtuple
 
-__all__ = ['empty']
+__all__ = ['empty', 'ones', 'zeros']
 
 MEMORY_ALIGNMENT = 32
 MEMORY_TOLERANCE = 1.2 # We allow reuse of pool variables only if they do not
@@ -26,7 +26,8 @@ verbose = False
 
 def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
     """
-    Return a contiguous and aligned array of given shape and dtype.
+    Return a new aligned and contiguous array of given shape and type, without
+    initializing entries.
 
     """
     shape = tointtuple(shape)
@@ -63,6 +64,26 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
 
     return np.frombuffer(buf.data, np.int8, count=requested, offset=offset) \
              .view(dtype).reshape(shape, order=order)
+
+def ones(shape, dtype=np.float, order='c', description=None, verbose=None):
+    """
+    Return a new aligned and contiguous array of given shape and type, filled
+    with ones.
+
+    """
+    a = empty(shape, dtype, order, description, verbose)
+    a[...] = 1
+    return a
+
+def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
+    """
+    Return a new aligned and contiguous array of given shape and type, filled
+    with zeros.
+
+    """
+    a = empty(shape, dtype, order, description, verbose)
+    a[...] = 0
+    return a
 
 def is_compatible(array, shape, dtype, alignment=1, contiguous=False,
                   tolerance=np.inf):
