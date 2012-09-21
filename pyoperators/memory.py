@@ -135,6 +135,24 @@ class MemoryPool(object):
         self._buffers = []
         gc.collect()
 
+    def extract(self, shape, dtype, alignment=1, contiguous=False,
+                description=None, verbose=None):
+        """
+        Extract a buffer from the pool given the following requirements:
+        shape, dtype, alignment, contiguity.
+
+        """
+        shape = tointtuple(shape)
+        dtype = np.dtype(dtype)
+        compatible = lambda x: is_compatible(x, shape, dtype, alignment,
+                                             contiguous, MEMORY_TOLERANCE)
+        try:
+            i = ifind(self._buffers, compatible)
+            v = self._buffers.pop(i)
+        except ValueError:
+            v = empty(shape, dtype, description, verbose)
+        return v
+
     @contextmanager
     def get(self, shape, dtype, alignment=1, contiguous=False, description=None,
             verbose=None):
@@ -163,24 +181,6 @@ class MemoryPool(object):
             with self.get(shape, dtype, description=description,
                           verbose=verbose) as v:
                 yield v
-
-    def extract(self, shape, dtype, alignment=1, contiguous=False,
-                description=None, verbose=None):
-        """
-        Extract a buffer from the pool given the following requirements:
-        shape, dtype, alignment, contiguity.
-
-        """
-        shape = tointtuple(shape)
-        dtype = np.dtype(dtype)
-        compatible = lambda x: is_compatible(x, shape, dtype, alignment,
-                                             contiguous, MEMORY_TOLERANCE)
-        try:
-            i = ifind(self._buffers, compatible)
-            v = self._buffers.pop(i)
-        except ValueError:
-            v = empty(shape, dtype, description, verbose)
-        return v
 
     def remove(self, v):
         """
