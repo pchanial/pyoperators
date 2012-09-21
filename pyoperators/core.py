@@ -4626,8 +4626,8 @@ class ReductionOperator(Operator):
 
             else:
                 direct = lambda x, out: func(x, axis=axis, out=out, **kw)
-        Operator.__init__(self, direct=direct, dtype=dtype, **keywords)
         self.axis = axis
+        Operator.__init__(self, direct=direct, dtype=dtype, **keywords)
 
     def reshapein(self, shape):
         if self.axis == -1:
