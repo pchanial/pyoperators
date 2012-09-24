@@ -11,6 +11,7 @@ from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
          IdentityOperator, MaskOperator, MultiplicationOperator,
          HomothetyOperator, ReductionOperator, ZeroOperator, asoperator,
          _pool as pool, I, O)
+from pyoperators.memory import zeros
 from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
@@ -902,10 +903,10 @@ def test_inplace1():
 @skiptest
 def test_inplace_can_use_output():
 
-    A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    B = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    C = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    D = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    A = zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    B = zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    C = zeros(10*8, dtype=np.int8).view(ndarraywrap)
+    D = zeros(10*8, dtype=np.int8).view(ndarraywrap)
     ids = {A.__array_interface__['data'][0] : 'A',
            B.__array_interface__['data'][0] : 'B',
            C.__array_interface__['data'][0] : 'C',
@@ -932,10 +933,14 @@ def test_inplace_can_use_output():
                 self.log.insert(0, 'unknown')
         def reshapein(self, shape):
             return (shape[0]+1,)
-
-    def show_stack():
-        return ''.join([ids[s.__array_interface__['data'][0]] \
-                            for s in pool])
+    def show_pool():
+        result = ''
+        for s in pool:
+            try:
+                result += ids[s.__array_interface__['data'][0]]
+            except:
+                result += 'U'
+        return result
 
     expecteds_outplace = {
         2 : ['BBA',   #II
@@ -1002,14 +1007,13 @@ def test_inplace_can_use_output():
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
-        op.show_stack = show_stack
+        op.show_pool = show_pool # debug
         v = A[:8].view(float); v[0] = 1
         w = B[:(n+1)*8].view(float)
         op(v, w)
-        delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
         assert_eq(log, expected, strops)
-        assert_eq(show_stack(), 'CD', strops)
+        assert_eq(show_pool(), 'CD', strops)
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
@@ -1020,19 +1024,19 @@ def test_inplace_can_use_output():
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
-        op.show_stack = show_stack
         v = A[:8].view(float); v[0] = 1
         w = A[:(n+1)*8].view(float)
         op(v, w)
-        delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
         assert_eq(log, expected, strops)
-        assert_eq(show_stack(), 'BC', strops)
+        assert_eq(show_pool(), 'BC', strops)
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
         assert_eq(w, w2, strops)
 
+    # prevent memory manager from allocating buffer: only use the provided pool
+    memory.MEMORY_TOLERANCE = np.inf
     for n in [2, 3, 4]:
         for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
             strops = bin(i)[2:]
