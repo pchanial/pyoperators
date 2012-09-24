@@ -36,7 +36,10 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
         verbose = globals()['verbose']
 
     requested = product(shape) * dtype.itemsize
-    if verbose and requested > 0:
+    if requested == 0:
+        return np.empty(shape, dtype, order)
+
+    if verbose:
         if description is None:
             frames = inspect.getouterframes(inspect.currentframe())
             i = 1
@@ -85,8 +88,8 @@ def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
     a[...] = 0
     return a
 
-def is_compatible(array, shape, dtype, alignment=1, contiguous=False,
-                  tolerance=np.inf):
+def iscompatible(array, shape, dtype, alignment=1, contiguous=False,
+                 tolerance=np.inf):
     """
     Return True if a buffer with specified requirements can be extracted
     from an numpy array.
@@ -122,7 +125,7 @@ class MemoryPool(object):
             raise ValueError('There already is an entry in the pool pointing to'
                              ' this memory location.')
         try:
-            i = ifind(self._buffers, lambda x: x.nbytes > v.nbytes)
+            i = ifind(self._buffers, lambda x: x.nbytes >= v.nbytes)
         except ValueError:
             i = len(self._buffers)
         self._buffers.insert(i, v)
@@ -135,6 +138,24 @@ class MemoryPool(object):
         self._buffers = []
         gc.collect()
 
+    @contextmanager
+    def copy_if(self, v, alignment=1, contiguous=False):
+        """
+        Return a context manager which may copy the input array into
+        a buffer from the pool to ensure alignment and contiguity requirements.
+
+        """
+        if not isinstance(v, np.ndarray):
+            raise TypeError('The input is not an ndarray.')
+        if v.__array_interface__['data'][0] % alignment != 0 or \
+           contiguous and not v.flags.contiguous:
+            with self.get(v.shape, v.dtype) as buf:
+                buf[...] = v
+                yield buf
+                v[...] = buf
+        else:
+            yield v
+
     def extract(self, shape, dtype, alignment=1, contiguous=False,
                 description=None, verbose=None):
         """
@@ -144,8 +165,8 @@ class MemoryPool(object):
         """
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)
-        compatible = lambda x: is_compatible(x, shape, dtype, alignment,
-                                             contiguous, MEMORY_TOLERANCE)
+        compatible = lambda x: iscompatible(x, shape, dtype, alignment,
+                                            contiguous, MEMORY_TOLERANCE)
         try:
             i = ifind(self._buffers, compatible)
             v = self._buffers.pop(i)
