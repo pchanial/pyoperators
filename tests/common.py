@@ -24,6 +24,7 @@ DTYPES = [
         np.complex256,
     )
 ]
+COMPLEX_DTYPES = [np.dtype(t) for t in (np.complex64, np.complex128, np.complex256)]
 
 
 class ndarray1(np.ndarray):
