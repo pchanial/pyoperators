@@ -14,6 +14,12 @@
 #include "numpy/ndarraytypes.h"
 #include "numpy/ufuncobject.h"
 
+#define BINARY_LOOP\
+    char *ip1 = args[0], *ip2 = args[1], *op1 = args[2];\
+    npy_intp is1 = steps[0], is2 = steps[1], os1 = steps[2];\
+    npy_intp n = dimensions[0];\
+    npy_intp i;\
+    for(i = 0; i < n; i++, ip1 += is1, ip2 += is2, op1 += os1)
 
 /***********
  * Masking *
@@ -206,6 +212,62 @@ static char float2_types[9] = {NPY_FLOAT, NPY_FLOAT, NPY_FLOAT,
 
 static void *float_null_data[3] = {NULL, NULL, NULL};
 
+
+
+/****************************
+ * Conjugate multiplication *
+ ****************************/
+
+/**begin repeat
+ * complex types
+ * #ftype = npy_float, npy_double, npy_longdouble#
+ * #c = f, , l#
+ */
+
+static void
+multiply_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *NPY_UNUSED(func))
+{
+    BINARY_LOOP {
+        const @ftype@ in1r = *(@ftype@ *)ip1;
+        const @ftype@ in1i = ((@ftype@ *)ip1)[1];
+        const @ftype@ in2r = ((@ftype@ *)ip2)[0];
+        const @ftype@ in2i = ((@ftype@ *)ip2)[1];
+        ((@ftype@ *)op1)[0] =  in1r*in2r + in1i*in2i;
+        ((@ftype@ *)op1)[1] = -in1r*in2i + in1i*in2r;
+    }
+}
+
+static void
+multiply_real_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *NPY_UNUSED(func))
+{
+    BINARY_LOOP {
+        const @ftype@ in1r = ((@ftype@ *)ip1)[0];
+        const @ftype@ in2r = ((@ftype@ *)ip2)[0];
+        const @ftype@ in2i = ((@ftype@ *)ip2)[1];
+        ((@ftype@ *)op1)[0] =  in1r*in2r;
+        ((@ftype@ *)op1)[1] = -in1r*in2i;
+    }
+}
+
+/**end repeat**/
+
+static PyUFuncGenericFunction multiply_conjugate_funcs[6] = 
+           {&multiply_conjugatef,
+            &multiply_conjugate,
+            &multiply_conjugatel,
+            &multiply_real_conjugatef,
+            &multiply_real_conjugate,
+            &multiply_real_conjugatel};
+
+static char complex2_types[18] =
+    {NPY_CFLOAT, NPY_CFLOAT, NPY_CFLOAT,
+     NPY_CDOUBLE, NPY_CDOUBLE, NPY_CDOUBLE,
+     NPY_CLONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE,
+     NPY_FLOAT, NPY_CFLOAT, NPY_CFLOAT,
+     NPY_DOUBLE, NPY_CDOUBLE, NPY_CDOUBLE,
+     NPY_LONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE};
+
+
 /* Module definition */
 
 static PyMethodDef module_methods[] = {
@@ -241,21 +303,27 @@ PyInit_ufuncs()
     d = PyModule_GetDict(m);
 
     f = PyUFunc_FromFuncAndData(masking_funcs, masking_null_data,
-                                masking_types, 3, 2, 1, PyUFunc_None,
-                                "masking", NULL , 0);
-    PyDict_SetItemString(d, "masking", f);
+            masking_types, 17, 2, 1, PyUFunc_None, "masking",
+            "Set y = 0 where x2,\n        x1  otherwise." , 0);
+    PyDict_SetItemString(d , "masking", f);
     Py_DECREF(f);
 
     f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, float_null_data,
-                                float2_types, 3, 2, 1, PyUFunc_None,
-                                "hard_thresholding", NULL , 0);
-    PyDict_SetItemString(d, "hard_thresholding", f);
+            float2_types, 3, 2, 1, PyUFunc_None, "hard_thresholding",
+            "Compute y = x1 if |x1| > x2,\n            0  otherwise." , 0);
+    PyDict_SetItemString(d , "hard_thresholding", f);
     Py_DECREF(f);
 
     f = PyUFunc_FromFuncAndData(soft_thresholding_funcs, float_null_data,
-                                float2_types, 3, 2, 1, PyUFunc_None,
-                                "soft_thresholding", NULL , 0);
-    PyDict_SetItemString(d, "soft_thresholding", f);
+            float2_types, 3, 2, 1, PyUFunc_None, "soft_thresholding",
+            "Compute y = sign(x1) * [|x1| - x2]+" , 0);
+    PyDict_SetItemString(d , "soft_thresholding", f);
+    Py_DECREF(f);
+
+    f = PyUFunc_FromFuncAndData(multiply_conjugate_funcs, float_null_data,
+            complex2_types, 3, 2, 1, PyUFunc_None, "multiply_conjugate",
+            "Compute y = x1 * conjugate(x2)", 0);
+    PyDict_SetItemString(d, "multiply_conjugate", f);
     Py_DECREF(f);
 
     return m;
@@ -294,6 +362,12 @@ initufuncs()
             float2_types, 3, 2, 1, PyUFunc_None, "soft_thresholding",
             "Compute y = sign(x1) * [|x1| - x2]+" , 0);
     PyDict_SetItemString(d , "soft_thresholding", f);
+    Py_DECREF(f);
+
+    f = PyUFunc_FromFuncAndData(multiply_conjugate_funcs, float_null_data,
+            complex2_types, 3, 2, 1, PyUFunc_None, "multiply_conjugate",
+            "Compute y = x1 * conjugate(x2)", 0);
+    PyDict_SetItemString(d, "multiply_conjugate", f);
     Py_DECREF(f);
 }
 
