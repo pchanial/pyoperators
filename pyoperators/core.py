@@ -1981,6 +1981,7 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                     if len(new_ops) != 2:
                         raise NotImplementedError()
                     ops[i], ops[i+1] = new_ops
+                    i += 1
                     break
                 cls._merge(new_ops, o1, o2)
                 del ops[i+1]
