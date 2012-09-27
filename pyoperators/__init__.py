@@ -13,6 +13,7 @@ The pyoperator package contains the following modules or packages:
 from .config import VERSION as __version__
 from .utils import *
 from .core import *
+from .fft import *
 from .linear import *
 from .nonlinear import *
 from .iterative import *
