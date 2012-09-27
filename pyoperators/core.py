@@ -193,7 +193,7 @@ class OperatorRule(object):
         if symbol == '.':
             return op
         try:
-            return {'.C': op.C, '.T': op.T, '.H': op.H, '.I': op.I}[symbol]
+            return {'.C': op._C, '.T': op._T, '.H': op._H, '.I': op._I}[symbol]
         except (KeyError):
             raise ValueError("Invalid symbol: '{0}'.".format(symbol))
 
@@ -271,6 +271,8 @@ class OperatorUnaryRule(OperatorRule):
 
     def __call__(self, reference):
         predicate = self._symbol2operator(reference, self.predicate)
+        if predicate is None:
+            return None
         if not isinstance(predicate, Operator) and callable(predicate):
             predicate = predicate(reference)
         if not isinstance(predicate, Operator):
@@ -334,6 +336,8 @@ class OperatorBinaryRule(OperatorRule):
         reference, other = (o1, o2) if self.reference == 0 else (o2, o1)
         subother = self._symbol2operator(reference, self.other)
         predicate = self._symbol2operator(reference, self.predicate)
+        if predicate is None:
+            return None
 
         if isinstance(subother, str):
             if subother == 'self':
@@ -806,7 +810,7 @@ class Operator(object):
             the value must be None.
         globals : dict, optional
             Dictionary containing the operator classes used in class-matching
-            rules. It is required for classes not from pyoperators.ocre and for
+            rules. It is required for classes not from pyoperators.core and for
             which more than one class-matching rule is set.
         """
         rule = OperatorRule(subjects, predicate)
