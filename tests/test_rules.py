@@ -58,6 +58,17 @@ def test_unaryrule2():
     assert_raises(ValueError, OperatorUnaryRule, '.T', '.I')
 
 def test_binaryrule1():
+    op.T # generate associated operators
+    def func(s1, s2, s3, o1, o2, ref):
+            rule = OperatorBinaryRule(s1+s2, s3)
+            result = rule(o1, o2)
+            assert_is_not_none(result)
+            assert_is_instance(result, Operator)
+            if s3 == '1':
+                assert_is_instance(result, IdentityOperator)
+                return
+            o3 = eval('ref'+s3) if s3 != '.' else ref
+            assert_is(result, o3)
     for s1 in ('.', '.C', '.T', '.H', '.I'):
         o1 = eval('op'+s1) if s1 != '.' else op
         for s2 in ('.', '.C', '.T', '.H', '.I'):
@@ -66,16 +77,7 @@ def test_binaryrule1():
             o2 = eval('op'+s2) if s2 != '.' else op
             ref = o1 if s2[-1] != '.' else o2
             for s3 in ('1', '.', '.C', '.T', '.H', '.I'):
-                rule = OperatorBinaryRule(s1+s2, s3)
-                result = rule(o1, o2)
-                yield assert_is_not_none, result
-                yield assert_is_instance, result, Operator
-                if s3 == '1':
-                    yield assert_is_instance, result, IdentityOperator
-                    continue
-                o3 = eval('ref'+s3) if s3 != '.' else ref
-                print result, o3
-                yield assert_is, result, o3
+                yield func, s1, s2, s3, o1, o2, ref
 
 def test_binaryrule2():
     rule = OperatorBinaryRule('..T', p1)
