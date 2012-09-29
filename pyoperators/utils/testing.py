@@ -84,12 +84,6 @@ def assert_raises(*args, **kwargs):
 assert_raises.__doc__ = np.testing.assert_raises.__doc__
 
 
-def _get_msg(msg):
-    if not msg:
-        return '.'
-    return ': ' + str(msg) + '.'
-
-
 def skiptest(func):
     from nose.plugins.skip import SkipTest
 
@@ -98,3 +92,9 @@ def skiptest(func):
 
     _.__name__ = func.__name__
     return _
+
+
+def _get_msg(msg):
+    if not msg:
+        return '.'
+    return ': ' + str(msg) + '.'
