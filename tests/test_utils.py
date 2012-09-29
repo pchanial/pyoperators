@@ -5,12 +5,14 @@ from pyoperators.utils import (
     find,
     first_is_not,
     inspect_special_values,
+    interruptible,
     isscalar,
     least_greater_multiple,
     product,
     strenum,
     strplural,
     strshape,
+    uninterruptible,
 )
 from pyoperators.utils.testing import assert_eq, assert_raises
 
@@ -90,6 +92,31 @@ def test_inspect_special_values():
         ):
             x = np.asarray(x).astype(d)
             yield func, x
+
+
+def test_interruptible():
+    import signal
+
+    def func_interruptible():
+        assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
+
+    def func_uninterruptible():
+        assert signal.getsignal(signal.SIGINT) is not signal.default_int_handler
+
+    with interruptible():
+        func_interruptible()
+        with uninterruptible():
+            func_uninterruptible()
+            with uninterruptible():
+                func_uninterruptible()
+                with interruptible():
+                    func_interruptible()
+                    with interruptible():
+                        func_interruptible()
+                    func_interruptible()
+                func_uninterruptible()
+            func_uninterruptible()
+        func_interruptible()
 
 
 def test_is_scalar():
