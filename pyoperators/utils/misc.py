@@ -6,8 +6,10 @@ import numpy as np
 import operator
 import os
 import scipy.sparse
+import signal
 import types
 
+from contextlib import contextmanager
 from itertools import izip
 from . import cythonutils as cu
 
@@ -16,6 +18,8 @@ __all__ = ['all_eq',
            'first_is_not',
            'ifind',
            'inspect_special_values',
+           'interruptible',
+           'interruptible_if',
            'isclassattr',
            'isscalar',
            'least_greater_multiple',
@@ -32,7 +36,9 @@ __all__ = ['all_eq',
            'strnbytes',
            'strplural',
            'strshape',
-           'tointtuple']
+           'tointtuple',
+           'uninterruptible',
+           'uninterruptible_if']
 
 def all_eq(a, b):
     """
@@ -163,6 +169,23 @@ def inspect_special_values(x):
     if kind == 'c':
         return cu.inspect_special_values_complex128(x.astype(np.complex128))
     return 0, 0, 0, True, False
+
+@contextmanager
+def interruptible():
+    """ Make a block of code interruptible with CTRL-C. """
+    signal_old = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, signal.default_int_handler)
+    yield
+    signal.signal(signal.SIGINT, signal_old)
+
+@contextmanager
+def interruptible_if(condition):
+    """ Conditionally make a block of code interruptible with CTRL-C. """
+    if not condition:
+        yield
+    else:
+        with interruptible():
+            yield
 
 def isclassattr(cls, a):
     """ Test if an attribute is a class attribute. """
@@ -421,3 +444,30 @@ def tointtuple(data):
         return tuple(None if d is None else int(d) for d in data)
     except TypeError:
         return (int(data),)
+
+@contextmanager
+def uninterruptible():
+    """
+    Make a block of code uninterruptible with CTRL-C.
+    The KeyboardInterrupt is re-raised after the block is executed.
+
+    """
+    signal_old = signal.getsignal(signal.SIGINT)
+    #XXX the nonlocal Python3 would be handy here
+    ctrlc_is_pressed = []
+    def signal_handler(signal, frame):
+        ctrlc_is_pressed.append(True)
+    signal.signal(signal.SIGINT, signal_handler)
+    yield
+    signal.signal(signal.SIGINT, signal_old)
+    if len(ctrlc_is_pressed) > 0:
+        raise KeyboardInterrupt()
+
+@contextmanager
+def uninterruptible_if(condition):
+    """ Conditionally make a block of code uninterruptible with CTRL-C. """
+    if not condition:
+        yield
+    else:
+        with uninterruptible():
+            yield

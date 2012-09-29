@@ -2,8 +2,9 @@ import numpy as np
 
 from pyoperators import Operator
 from pyoperators.utils import (find, first_is_not, inspect_special_values,
-                               isscalar, least_greater_multiple, product,
-                               strenum, strplural, strshape)
+                               interruptible, isscalar, least_greater_multiple,
+                               product, strenum, strplural, strshape,
+                               uninterruptible)
 from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
@@ -51,6 +52,27 @@ def test_inspect_special_values():
                   np.random.random_integers(-1,1,size=10)):
             x = np.asarray(x).astype(d)
             yield func, x
+
+def test_interruptible():
+    import signal
+    def func_interruptible():
+        assert signal.getsignal(signal.SIGINT) is signal.default_int_handler
+    def func_uninterruptible():
+        assert signal.getsignal(signal.SIGINT) is not signal.default_int_handler
+    with interruptible():
+        func_interruptible()
+        with uninterruptible():
+            func_uninterruptible()
+            with uninterruptible():
+                func_uninterruptible()
+                with interruptible():
+                    func_interruptible()
+                    with interruptible():
+                        func_interruptible()
+                    func_interruptible()
+                func_uninterruptible()
+            func_uninterruptible()
+        func_interruptible()
 
 def test_is_scalar():
     for o in (object, True, 1, 1., np.array(1), np.int8, slice, Operator()):
