@@ -10,7 +10,7 @@ The PyOperators package is under the "CECILL-B":http://www.cecill.info/licences/
 
 h2. The easy way
 
-The easiest way to download and install the PyOperators package is by using the "pip":http://www.pip-installer.org/en/latest/index.html utility. It will fetch the package and its dependencies from the Python Index and install them.
+The easiest way to download and install the PyOperators package is by using the "pip":http://www.pip-installer.org/en/latest/index.html utility. It will fetch the package and its dependencies from the "Python Package Index":http://pypi.python.org/pypi and install them.
 
 bc. pip install pyoperators --user
 
@@ -26,7 +26,7 @@ bc. $ git clone git://github.com/pchanial/pyoperators.git
 $ cd pyoperators.git
 $ sudo python setup.py install
 
-This method is convenient to test PyOperators' development branch but package dependencies must be installed beforehand (see the setup.py file for the list of requirements). The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
+This method is convenient to test PyOperators' development branch but package dependencies must be installed beforehand (see the "setup.py":https://github.com/pchanial/pyoperators/blob/v{{site.version_stable}}/setup.py file for the list of requirements). The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
 
 bc. $ git pull
 Already up-to-date.
