@@ -7,7 +7,8 @@ from pyoperators import Operator, BlockColumnOperator, DiagonalOperator
 from pyoperators.linear import (DiagonalNumexprOperator,
                                 DiagonalNumexprSeparableOperator,
                                 IntegrationTrapezeWeightOperator,
-                                PackOperator, UnpackOperator, SumOperator)
+                                PackOperator, TridiagonalOperator,
+                                UnpackOperator, SumOperator)
 from pyoperators.utils.testing import (assert_eq, assert_is_instance,
                                        assert_is_none, assert_raises)
 from .common import IdentityOutplaceOperator, assert_inplace_outplace
@@ -109,3 +110,32 @@ def test_sum_operator():
             d = op.todense(shapein=s)
             t = op.T.todense(shapeout=s)
             assert_eq(d, t.T)
+
+def test_tridiagonal_operator():
+    values = (
+        ([1,1,0], [2,1], [2,2]),
+        ([1,1,2], [2,1], None),
+        ([1j,1,0], [2,1], [-1j,2]),
+        ([1,1j,2], [2j,1], None)
+        )
+    expected = ([[1, 2, 0],
+                 [2, 1, 2],
+                 [0, 1, 0]],
+                [[1, 2, 0],
+                 [2, 1, 1],
+                 [0, 1, 2]],
+                [[1j,-1j, 0],
+                 [2,   1, 2],
+                 [0,   1, 0]],
+                [[1, -2j, 0],
+                 [2j, 1j, 1],
+                 [0,   1, 2]],
+               )
+    def func(v, e):
+        o = TridiagonalOperator(v[0], v[1], v[2])
+        assert_eq(o.todense(), e)
+        assert_eq(o.T.todense(), e.T)
+        assert_eq(o.C.todense(), e.conj())
+        assert_eq(o.H.todense(), e.T.conj())
+    for v, e in zip(values, expected):
+        yield func, v, np.array(e)

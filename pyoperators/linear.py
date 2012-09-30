@@ -8,8 +8,8 @@ from scipy.sparse.linalg import eigsh
 from .decorators import linear, real, symmetric, inplace
 from .core import (Operator, BlockRowOperator, BroadcastingOperator,
                    CompositionOperator, DiagonalOperator, ReductionOperator,
-                   asoperator)
-from .utils import isscalar
+                   DirectOperatorFactory, asoperator)
+from .utils import cast
 
 __all__ = [
     'BandOperator',
@@ -271,29 +271,28 @@ class SumOperator(ReductionOperator):
 
 
 @linear
+@square
 class TridiagonalOperator(Operator):
-    def __init__(self, diag, subdiag, superdiag=None, **kwargs):
+    def __init__(self, diagonal, subdiagonal, superdiagonal=None, dtype=None,
+                 **keywords):
         """
-        Store a tridiagonal operator in the form of 3 arrays
+        Store a tridiagonal operator in the form of 3 arrays.
+
+        TODO: there is no such gtmv in BLAS. Implement fast (r)matvec or
+              investigate making it a BandOperator subclass
+        =====
 
         Parameters
         ----------
-        shape : length 2 tuple.
-            The shape of the operator.
-
-        diag : ndarray of size shape[0]
+        diagonal : ndarray of size N
             The diagonal of the matrix.
 
-        subdiag : ndarray of size shape[0] - 1
+        subdiagonal : ndarray of size the size N-1
             The subdiagonal of the matrix.
 
-        superdiag : ndarray of size shape[0] - 1 or None (default:None)
-            The superdiagonal of the matrix.
-            If set to None, the Operator is symmetric.
-
-        Returns
-        -------
-        A Tridiagonal matrix operator instance.
+        superdiagonal : ndarray of size the size N-1
+            The superdiagonal of the matrix. If it is None, the superdiagonal
+            is assumed to be the conjugate of the subdiagonal.
 
         Exemple
         -------
@@ -303,114 +302,69 @@ class TridiagonalOperator(Operator):
         array([[1, 6, 0],
                [4, 2, 7],
                [0, 5, 3]])
+
         """
-        self.diag = np.asarray(diag)
-        shapein = (len(diag),)
-        # define subdiag
-        if np.iterable(subdiag) and len(subdiag) + 1 != len(diag):
-            if isscalar(subdiag):
-                subdiag *= np.ones(len(diag) - 1)
-            else:
-                raise ValueError("subdiagonal should be the length of the diagonal minus one or a scalar.")
-        self.subdiag = np.asarray(subdiag)
-        # define superdiag
-        if superdiag is None:
-            self.superdiag = self.subdiag
-        else:
-            self.superdiag = np.asarray(superdiag)
-        if np.iterable(self.superdiag) and len(self.superdiag) + 1 != len(diag):
-            if isscalar(self.superdiag):
-                self.superdiag *= np.ones(len(diag) - 1)
-            else:
-                raise ValueError("superdiagonal should be the length of the diagonal minus one.")
-        self.dtype = np.find_common_type([],[self.diag.dtype,
-                                             self.subdiag.dtype,
-                                             self.superdiag.dtype])
-        self.kwargs = kwargs
-        flags = {"symmetric":np.all(self.subdiag == self.superdiag)}
-        Operator.__init__(self, shapein=shapein, dtype=self.dtype, flags=flags,
-                          **kwargs)
-        self.set_rule('.T', lambda s: TridiagonalOperator(self.diag,
-                      self.superdiag, self.subdiag))
-        self.set_rule('.C', lambda s: TridiagonalOperator(np.conj(self.diag),
-                      np.conj(self.subdiag), np.conj(self.superdiag)))
+        diagonal, subdiagonal, superdiagonal = cast(
+            [diagonal, subdiagonal, superdiagonal], dtype=dtype)
+        dtype = diagonal.dtype
+
+        if diagonal.ndim != 1:
+            raise ValueError('The diagonal must be a 1-dimensional array.')
+        if subdiagonal.ndim != 1:
+            raise ValueError('The diagonal must be a 1-dimensional array.')
+        if superdiagonal is not None and superdiagonal.ndim != 1:
+            raise ValueError('The diagonal must be a 1-dimensional array.')
+
+        shapein = diagonal.size
+        if subdiagonal.size not in (1, shapein - 1):
+            raise ValueError('The sub diagonal should be the length of the diag'
+                             'onal minus one or a scalar.')
+        if superdiagonal is not None and \
+           superdiagonal.size not in (1, shapein - 1):
+            raise ValueError('The super diagonal should be the length of the di'
+                             'agonal minus one or a scalar.')
+
+        if superdiagonal is None:
+            superdiagonal = subdiagonal.conj()
+
+        self.diagonal = diagonal
+        self.subdiagonal = subdiagonal
+        self.superdiagonal = superdiagonal
+
+        flags = {'real': dtype.kind != 'c',
+                 'symmetric':np.allclose(self.subdiagonal, self.superdiagonal),
+                 'hermitian':np.allclose(self.diagonal.imag, 0) and np.allclose(
+                             self.subdiagonal, self.superdiagonal.conj())}
+        keywords['flags'] = flags
+        keywords['shapein'] = shapein
+
+        Operator.__init__(self, dtype=dtype, **keywords)
+        self.set_rule('.T', lambda s: DirectOperatorFactory(TridiagonalOperator,
+                      s, s.diagonal, s.superdiagonal, s.subdiagonal))
+        self.set_rule('.C', lambda s: DirectOperatorFactory(TridiagonalOperator,
+                      s, s.diagonal.conj(), s.subdiagonal.conj(),
+                      s.superdiagonal.conj()))
+        self.set_rule('.H', lambda s: DirectOperatorFactory(TridiagonalOperator,
+                      s, s.diagonal.conj(), s.superdiagonal.conj(),
+                      s.subdiagonal.conj()))
 
     def direct(self, input, output):
-        output[:] = self.diag * input
-        output[:-1] += self.superdiag * input[1:]
-        output[1:] += self.subdiag * input[:-1]
+        output[:] = self.diagonal * input
+        output[:-1] += self.superdiagonal * input[1:]
+        output[1:] += self.subdiagonal * input[:-1]
 
     def transpose(self, input, output):
-        output = self.diag * input
-        output[:-1] += self.subdiag * input[1:]
-        output[1:] += self.superdiag * input[:-1]
-
-    def __repr__(self):
-        r = [repr(self.diag), repr(self.subdiag)]
-        if self.subdiag is not self.superdiag:
-            r += ['superdiag=' + repr(self.superdiag)]
-        if any(len(_) > 70 for _ in r):
-            sep = ',\n'
-            r[0] = '\n' + r[0]
-        else:
-            sep = ', '
-        return self.__name__ + '(' + sep.join(r) + ')'
+        output = self.diagonal * input
+        output[:-1] += self.subdiagonal * input[1:]
+        output[1:] += self.superdiagonal * input[:-1]
 
     def todense(self):
+        #XXX optimize me
         out = np.zeros(self.shape, dtype=self.dtype)
-        out += np.diag(self.diag)
-        out += np.diag(self.subdiag, -1)
-        out += np.diag(self.superdiag, 1)
+        out += np.diag(self.diagonal)
+        out += np.diag(self.subdiagonal, -1)
+        out += np.diag(self.superdiagonal, 1)
         return out
-
-    def __getitem__(self, y):
-        # if tuple work on two dimensions
-        if isinstance(y, tuple):
-            # test dimension
-            if len(y) > 2:
-                raise IndexError("This is a 2-dimensional array.")
-            yi, yj = y
-            # single element case
-            if isinstance(yi, int) and isinstance(yj, int):
-                n = self.shape[0]
-                i, j = yi % n , yj % n
-                # outside
-                if np.abs(i - j) > 1:
-                    return self.dtype.type(0)
-                # subdiag
-                elif i == j + 1:
-                    # border case
-                    if i == self.shape[0] - 1:
-                        return self.dtype.type(0)
-                    else:
-                        return self.subdiag[i]
-                # superdiag
-                elif i == j - 1:
-                    # border case
-                    if i == self.shape[0]:
-                        return self.dtype.type(0)
-                    else:
-                        return self.superdiag[i]
-                # diag
-                else:
-                    return self.diag[i]
-            # case of tuple of length 1
-            elif len(y) == 1:
-                return self.__getitem__(self, y[0])
-            # get a column
-            elif yi == slice(None, None) and isinstance(yj, int):
-                x = np.zeros(self.shape[1], dtype=self.dtype)
-                x[yj] = 1.
-                return self * x
-            # general case: no better way than todense
-            else:
-                d = self.todense()
-                return d[y]
-        # Work on lines : same cost as recasting to a dense matrix as
-        # all columns need to be accessed.
-        else:
-            d = self.todense()
-            return d[y]
 
     def toband(self):
         """
@@ -419,19 +373,21 @@ class TridiagonalOperator(Operator):
         if not self.flags.symmetric:
             kl, ku = 1, 1
             n = self.shape[1]
-            ab = np.zeros((kl + ku + 1, n))
-            diags = (self.subdiag, self.diag, self.superdiag)
+            ab = np.zeros((kl + ku + 1, n), self.dtype)
+            diags = (self.subdiagonal, self.diagonal, self.superdiagonal)
             for i, d in zip((-1, 0, 1), diags):
                 ab[_band_diag(ku, i)] = d
-            return BandOperator(ab, kl, ku, **self.kwargs)
+            return DirectOperatorFactory(BandOperator, self, ab, kl, ku)
         else:
             u = 2 # tridiagonal
             n = self.shape[0]
             # convert to ab format (lower)
-            ab = np.zeros((u, n))
-            ab[0] = self.diag
-            ab[1, :-1] = self.subdiag
-            return SymmetricBandOperator(ab, lower=True, dtype=self.dtype)
+            ab = np.zeros((u, n), self.dtype)
+            ab[0] = self.diagonal
+            ab[1, :-1] = self.subdiagonal
+            return DirectOperatorFactory(SymmetricBandOperator, self, ab,
+                                         lower=True)
+
 
 @linear
 class BandOperator(Operator):
