@@ -15,6 +15,7 @@ from . import cythonutils as cu
 
 __all__ = [
     'all_eq',
+    'cast',
     'find',
     'first_is_not',
     'ifind',
@@ -82,6 +83,35 @@ def all_eq(a, b):
             return False
         return a.func_code is b.func_code
     return a == b
+
+
+def cast(arrays, dtype=None, order='c'):
+    """
+    Cast a list of arrays into a same data type.
+
+    Parameters
+    ----------
+    arrays : sequence of array-like or None
+        The list of arrays to be cast.
+    dtype : numpy.dtype
+        If specified, all arrays will be cast to this data type. Otherwise,
+        the data types is inferred from the arrays.
+
+    Example
+    -------
+    >>> cast([[1.,2.], None, array(2j)])
+    (array([ 1.+0.j,  2.+0.j]), None, array(2j))
+
+    """
+    arrays = tuple(arrays)
+    if dtype is None:
+        arrays_ = [np.array(a, copy=False) for a in arrays if a is not None]
+        dtype = np.result_type(*arrays_)
+    result = (
+        np.array(a, dtype=dtype, order=order, copy=False) if a is not None else None
+        for a in arrays
+    )
+    return tuple(result)
 
 
 def find(l, f):

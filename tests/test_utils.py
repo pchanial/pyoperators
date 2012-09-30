@@ -1,7 +1,9 @@
+import itertools
 import numpy as np
 
 from pyoperators import Operator
 from pyoperators.utils import (
+    cast,
     find,
     first_is_not,
     inspect_special_values,
@@ -14,7 +16,7 @@ from pyoperators.utils import (
     strshape,
     uninterruptible,
 )
-from pyoperators.utils.testing import assert_eq, assert_raises
+from pyoperators.utils.testing import assert_eq, assert_is_none, assert_raises
 
 dtypes = [
     np.dtype(t)
@@ -38,12 +40,36 @@ dtypes = [
 ]
 
 
+def assert_dtype(a, d):
+    if a is None:
+        return
+    assert_eq(a.dtype, d)
+
+
 def assert_is_scalar(o):
     assert isscalar(o)
 
 
 def assert_is_not_scalar(o):
     assert not isscalar(o)
+
+
+def test_cast():
+    dtypes = (float, complex, None)
+
+    def func(d1, d2):
+        a1 = None if d1 is None else np.array(1, dtype=d1)
+        a2 = None if d2 is None else np.array(1, dtype=d2)
+        if d1 is None and d2 is None:
+            assert_raises(ValueError, cast, [a1, a2])
+            return
+        expected = d1 if d2 is None else d2 if d1 is None else np.promote_types(d1, d2)
+        a1_, a2_ = cast([a1, a2])
+        assert_dtype(a1_, expected)
+        assert_dtype(a2_, expected)
+
+    for d1, d2 in itertools.product(dtypes, repeat=2):
+        yield func, d1, d2
 
 
 def test_find1():
