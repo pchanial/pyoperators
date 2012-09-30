@@ -9,7 +9,7 @@ h2. 2.1. <a name="using_operators"></a> Using operators
 The @Operator@ class and its subclasses are function factories. It means that in order to perform computations using an operator class, we first need to create an instance of it:
 
 {% highlight python %}
-A = FftOperator(1024)
+A = FFTOperator(1024)
 {% endhighlight %}
 
 and then use the instance as a function. The object @A@ is a Python callable and takes "numpy":http://numpy.scipy.org 's N-dimensional array object as inputs and outputs:
@@ -18,7 +18,7 @@ and then use the instance as a function. The object @A@ is a Python callable and
 >>> pyoperators.memory.verbose = True
 >>> x = np.arange(1024, dtype=complex)
 >>> y = A(x)
-Info: Allocating (1024,) complex128 = 0.015625 MiB in FftOperator.
+Info: Allocating (1024,) complex128 = 0.015625 MiB in FFTOperator.
 {% endhighlight %}
 
 When using the operator in such a way, a no-side-effect policy is enforced: it is garanteed that the input array will not be modified and as a consequence, a new buffer will be allocated every time the operator is called.
@@ -825,11 +825,13 @@ h2. <a name="list"></a> 2.15. List of available operators
 h3. Linear operators
 
 * BandOperator
+* ConvolutionOperator
 * DenseOperator
 * DiagonalOperator
 * DistributionIdentityOperator
 * DistributionGlobalOperator
 * EigendecompositionOperator
+* FFTOperator
 * HomothetyOperator
 * IdentityOperator
 * IntegrationTrapezeWeightOperator
