@@ -15,7 +15,7 @@ from .core import (
 )
 from .decorators import aligned, contiguous, inplace, linear, real, square, unitary
 from .memory import empty
-from .utils import isscalar, openmp_num_threads, product, tointtuple
+from .utils import openmp_num_threads, product, tointtuple
 from .utils.ufuncs import multiply_conjugate
 
 __all__ = ['ConvolutionOperator', 'FFTOperator']
