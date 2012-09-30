@@ -5,7 +5,7 @@ import numpy as np
 
 from scipy.sparse.linalg import eigsh
 
-from .decorators import linear, real, symmetric, inplace
+from .decorators import inplace, linear, real, square, symmetric
 from .core import (Operator, BlockRowOperator, BroadcastingOperator,
                    CompositionOperator, DiagonalOperator, ReductionOperator,
                    DirectOperatorFactory, asoperator)
@@ -390,10 +390,14 @@ class TridiagonalOperator(Operator):
 
 
 @linear
+@square
 class BandOperator(Operator):
     """
     Store a band matrix in ab format as defined in LAPACK
     documentation.
+
+    TODO: direct and transpose methods should call BLAS2 gbmv (not yet in scipy)
+    =====
 
     a[i, j] is stored in ab[ku + 1 + i - j, j]
 
@@ -503,6 +507,7 @@ def _band_diag(ku, i=0):
     if i < 0:
         return (slice(ku - i, ku - i + 1, None), slice(None, i, None))
 
+
 class LowerTriangularOperator(BandOperator):
     """
     A BandOperator with no upper diagonals (ku=0)
@@ -511,6 +516,7 @@ class LowerTriangularOperator(BandOperator):
         kl = ab.shape[0] - 1
         ku = 0
         BandOperator.__init__(self, ab, kl, ku, **kwargs)
+
 
 class UpperTriangularOperator(BandOperator):
     """
@@ -521,12 +527,17 @@ class UpperTriangularOperator(BandOperator):
         ku = ab.shape[0] - 1
         BandOperator.__init__(self, ab, kl, ku, **kwargs)
 
+
 @symmetric
 class SymmetricBandOperator(Operator):
     """
     SymmetricBandOperator do not store diagonal datas in the same
     format as BandOperator does. This is not a subclass of
     BandOperator.
+
+    TODO: direct method should call BLAS2 sbmv (not yet in scipy)
+    =====
+
     """
     def __init__(self, ab, lower=True, **kwargs):
         shapein = ab.shape[1]
