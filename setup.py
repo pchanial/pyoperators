@@ -42,7 +42,12 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
-    requires=['numpy (>1.6)', 'scipy (>0.9)', 'numexpr (>2.0)'],
+    install_requires=[
+        'numpy>=1.6',
+        'numexpr>2',
+        'pyfftw',
+        'scipy>=0.9',
+    ],
     packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
