@@ -1,21 +1,20 @@
 from __future__ import division
 import numpy as np
-import scipy.linalg
 
 from ..core import IdentityOperator, asoperator
 from ..memory import empty, zeros
-from .core import IterativeAlgorithm
+from .core import AbnormalStopIteration, IterativeAlgorithm
 from .stopconditions import MaxIterationStopCondition
 
-__all__ = ['PCGAlgorithm']
+__all__ = ['pcg']
 
 class PCGAlgorithm(IterativeAlgorithm):
     """
     OpenMP/MPI Preconditioned conjugate gradient iteration to solve A x = b.
 
     """
-    def __init__(self, A, b, x0=None, tol=1.e-5, maxiter=300, M=None,
-                 callback=None, reuse_initial_state=False):
+    def __init__(self, A, b, x0=None, tol=1.e-5, maxiter=300, disp=False,
+                 M=None, callback=None, reuse_initial_state=False):
         """
         Parameters
         ----------
@@ -129,8 +128,61 @@ class PCGAlgorithm(IterativeAlgorithm):
 
     @staticmethod
     def callback(self):
-        print '{0:4}: {1}'.format(self.niterations, self.error)
+        if self.disp:
+            print '{0:4}: {1}'.format(self.niterations, self.error)
 
+
+def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, disp=False, M=None,
+        callback=None, reuse_initial_state=False):
+    """
+    Parameters
+    ----------
+    A : {Operator, sparse matrix, dense matrix}
+        The real or complex N-by-N matrix of the linear system
+        ``A`` must represent a hermitian, positive definite matrix
+    b : {array, matrix}
+        Right hand side of the linear system. Has shape (N,) or (N,1).
+    x0  : {array, matrix}
+        Starting guess for the solution.
+    tol : float, optional
+        Tolerance to achieve. The algorithm terminates when either the
+        relative residual is below `tol`.
+    maxiter : integer, optional
+        Maximum number of iterations.  Iteration will stop after maxiter
+        steps even if the specified tolerance has not been achieved.
+    M : {Operator, sparse matrix, dense matrix}, optional
+        Preconditioner for A.  The preconditioner should approximate the
+        inverse of A.  Effective preconditioning dramatically improves the
+        rate of convergence, which implies that fewer iterations are needed
+        to reach a given error tolerance.
+    callback : function, optional
+        User-supplied function to call after each iteration.  It is called
+        as callback(self), where self is an instance of this class.
+    reuse_initial_state : boolean, optional
+        If set to True, the buffer initial guess (if provided) is reused
+        during the iterations. Beware of side effects!
+
+    Returns
+    -------
+    output : dict whose keys are
+        'x' : the converged solution.
+        'success' : boolean indicating success
+        'message' : string indicating cause of failure
+
+    """
+    algo = PCGAlgorithm(A, b, x0=x0, tol=tol, maxiter=maxiter, disp=disp,
+                        M=M, callback=callback,
+                        reuse_initial_state=reuse_initial_state)
+    try:
+        output = algo.run()
+        success = True
+        message = ''
+    except AbnormalStopIteration as e:
+        output = algo.finalize()
+        success = False
+        message = str(e)
+    return {'x':output, 'success':success, 'message':message,
+            'niterations':algo.niterations, 'error':algo.error}
 
 def _norm2(x, comm):
     x = x.ravel()
