@@ -6,4 +6,4 @@ baseurl: /pyoperators
 package: PyOperators
 meta_keywords: Pierre Chanial, Nicolas Barbey, Inverse problem, Signal Processing, High-performance computing, HPC, Python, Operator, Linear Operator, Simulators, Acquisition models, Astrophysics
 menu: <a href="http://pchanial.github.com/pysimulators">PySimulators</a><br/><a href="http://pchanial.github.com/tamasis-pacs">Tamasis/PACS</a>
-version_stable: 0.5
+version_stable: 0.6
