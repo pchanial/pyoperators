@@ -17,7 +17,7 @@ from .fft import *
 from .linear import *
 from .nonlinear import *
 from . import iterative
-from .iterative import PCGAlgorithm
+from .iterative import pcg
 
 try:
     from .operators_pywt import *
