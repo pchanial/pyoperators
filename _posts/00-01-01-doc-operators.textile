@@ -199,14 +199,15 @@ Other properties are described by the @flags@ attribute:
 
 <div class="definition">
 |  *square*            | input and output have the same shape |
-|  *shape_input*       | explicit, implicit or unconstrained ("more info":#operator_shapes) |
-|  *shape_output*      | explicit, implicit or unconstrained ("more info":#operator_shapes) |
+|  *separable* | can be separated if applied by or applying on a block operator|
 |  *inplace*           | handle inplace operations ("more info":#inplace_operators)|
 |  *inplace_reduction* | handle inplace reductions ("more info":#inplace_reductions)|
-|  *contiguous_input* | only handle contiguous input |
-|  *contiguous_output* | only handle contiguous output |
 |  *alignment_input* | only handle aligned input |
 |  *alignment_output* | only handle aligned output |
+|  *contiguous_input* | only handle contiguous input |
+|  *contiguous_output* | only handle contiguous output |
+|  *shape_input*       | explicit, implicit or unconstrained ("more info":#operator_shapes) |
+|  *shape_output*      | explicit, implicit or unconstrained ("more info":#operator_shapes) |
 </div>
 <hr>
 
