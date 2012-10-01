@@ -5,8 +5,8 @@ import pyoperators
 
 from pyoperators import Operator, BlockColumnOperator, DiagonalOperator
 from pyoperators.linear import (
+    DiagonalNumexprNonSeparableOperator,
     DiagonalNumexprOperator,
-    DiagonalNumexprSeparableOperator,
     IntegrationTrapezeWeightOperator,
     PackOperator,
     TridiagonalOperator,
@@ -46,11 +46,11 @@ def test_diagonal_numexpr():
         assert_inplace_outplace(op, values, expected)
 
     for cls, args in zip(
-        (DiagonalNumexprOperator, DiagonalNumexprSeparableOperator),
+        (DiagonalNumexprNonSeparableOperator, DiagonalNumexprOperator),
         ((expr, {'data': diag}), (diag, expr)),
     ):
         for broadcast in (None, 'rightward', 'leftward', 'disabled'):
-            if cls is DiagonalNumexprOperator and broadcast == 'rightward':
+            if cls is DiagonalNumexprNonSeparableOperator and broadcast == 'rightward':
                 yield func1, cls, args, broadcast
                 continue
             for values in (
@@ -64,8 +64,10 @@ def test_diagonal_numexpr():
 
 def test_diagonal_numexpr2():
     diag = np.array([1, 2, 3])
-    d1 = DiagonalNumexprOperator('(data+1)*3', {'data': diag})
-    d2 = DiagonalNumexprOperator('(data+2)*2', {'data': np.array([3, 2, 1])})
+    d1 = DiagonalNumexprNonSeparableOperator('(data+1)*3', {'data': diag})
+    d2 = DiagonalNumexprNonSeparableOperator(
+        '(data+2)*2', {'data': np.array([3, 2, 1])}
+    )
     d = d1 * d2
     assert_is_instance(d, DiagonalOperator)
     assert_eq(d.broadcast, 'disabled')
@@ -77,10 +79,8 @@ def test_diagonal_numexpr2():
 
 
 def test_diagonal_numexpr3():
-    d1 = DiagonalNumexprSeparableOperator(
-        [1, 2, 3], '(data+1)*3', broadcast='rightward'
-    )
-    d2 = DiagonalNumexprSeparableOperator([3, 2, 1], '(data+2)*2')
+    d1 = DiagonalNumexprOperator([1, 2, 3], '(data+1)*3', broadcast='rightward')
+    d2 = DiagonalNumexprOperator([3, 2, 1], '(data+2)*2')
     d = d1 * d2
     assert_is_instance(d, DiagonalOperator)
     assert_eq(d.broadcast, 'disabled')
