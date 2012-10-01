@@ -1,7 +1,7 @@
 ---
 layout: post
-title: PyOperators {{site.version_stable}}
-excerpt: Release of PyOperators {{site.version_stable}}
+title: PyOperators 0.6
+excerpt: Release of PyOperators 0.6
 category: blog
 ---
 
