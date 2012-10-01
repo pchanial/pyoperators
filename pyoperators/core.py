@@ -1394,6 +1394,14 @@ class Operator(object):
         return (first_is_not([shapein, shapein_], None),
                 first_is_not([shapeout, shapeout_], None))
 
+    def __truediv__(self, other):
+        return CompositionOperator([self, asoperator(other).I])
+    __div__ = __truediv__
+
+    def __rtruediv__(self, other):
+        return CompositionOperator([other, self.I])
+    __rdiv__ = __rtruediv__
+
     def __mul__(self, other):
         if isinstance(other, np.ndarray):
             return self.matvec(other)
