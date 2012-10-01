@@ -16,7 +16,8 @@ from .core import *
 from .fft import *
 from .linear import *
 from .nonlinear import *
-from .iterative import *
+from . import iterative
+from .iterative import PCGAlgorithm
 
 try:
     from .operators_pywt import *
@@ -31,4 +32,6 @@ except(ImportError):
 import types
 __all__ = [ f for f in dir() if f[0] != '_' and not isinstance(eval(f),
             types.ModuleType)]
+
+del f #XXX not necessary with Python3
 del types
