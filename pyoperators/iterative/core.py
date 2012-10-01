@@ -83,7 +83,8 @@ class IterativeAlgorithm(object):
 
     """
     def __init__(self, allocate_new_state=True, callback=None,
-                 clean_interrupt=True, dtype=float, inplace_recursion=False,
+                 clean_interrupt=True, disp=False, dtype=float,
+                 inplace_recursion=False,
                  normal_stop_condition=NO_STOP_CONDITION,
                  abnormal_stop_condition=NO_STOP_CONDITION,
                  reuse_initial_state=False, **keywords):
@@ -104,6 +105,8 @@ class IterativeAlgorithm(object):
             CTRL-C and still be restarted or iterated. There is a small
             overhead associated to it. To disable this feature, set this
             argument to False.
+        disp : boolean
+            If true, display iteration message
         dtype : numpy.dtype, optional
             Data type used to coerce the initial state variable to the same
             precision. It does not alter the data kind: complex variables stay
@@ -127,6 +130,7 @@ class IterativeAlgorithm(object):
 
         """
         self.clean_interrupt = clean_interrupt
+        self.disp = disp
         self._set_buffer_handling(inplace_recursion, allocate_new_state,
                                   reuse_initial_state)
         self._set_order(keywords)
@@ -142,7 +146,8 @@ class IterativeAlgorithm(object):
     @staticmethod
     def callback(self):
         """ Callback function, called after each iteration.. """
-        pass
+        if self.disp:
+            print('{0:4}: {1}'.format(self.niterations, self.finalize()))
 
     def cont(self):
         """ Continue an interrupted computation. """
