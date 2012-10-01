@@ -203,6 +203,10 @@ Other properties are described by the @flags@ attribute:
 |  *shape_output*      | explicit, implicit or unconstrained ("more info":#operator_shapes) |
 |  *inplace*           | handle inplace operations ("more info":#inplace_operators)|
 |  *inplace_reduction* | handle inplace reductions ("more info":#inplace_reductions)|
+|  *contiguous_input* | only handle contiguous input |
+|  *contiguous_output* | only handle contiguous output |
+|  *alignment_input* | only handle aligned input |
+|  *alignment_output* | only handle aligned output |
 </div>
 <hr>
 
@@ -828,6 +832,8 @@ h3. Linear operators
 * ConvolutionOperator
 * DenseOperator
 * DiagonalOperator
+* DiagonalNumexprOperator
+* DiagonalNumexprNonSeparableOperator
 * DistributionIdentityOperator
 * DistributionGlobalOperator
 * EigendecompositionOperator
