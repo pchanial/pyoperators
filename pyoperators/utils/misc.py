@@ -1,12 +1,15 @@
 from __future__ import division
 
 import collections
+import gc
 import multiprocessing
 import numpy as np
 import operator
 import os
+import cPickle as pickle
 import scipy.sparse
 import signal
+import timeit
 import types
 
 from contextlib import contextmanager
@@ -14,6 +17,7 @@ from itertools import izip
 from . import cythonutils as cu
 
 __all__ = ['all_eq',
+           'benchmark',
            'cast',
            'find',
            'first_is_not',
@@ -24,6 +28,7 @@ __all__ = ['all_eq',
            'isclassattr',
            'isscalar',
            'least_greater_multiple',
+           'memory_usage',
            'merge_none',
            'ndarraywrap',
            'openmp_num_threads',
@@ -107,6 +112,187 @@ def cast(arrays, dtype=None, order='c'):
     result = (np.array(a, dtype=dtype, order=order, copy=False)
               if a is not None else None for a in arrays)
     return tuple(result)
+
+def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
+              filename=None):
+    """
+    Automate the creation of benchmark tables for functions.
+
+    This tool benchmarks a function given a sequence of different arguments,
+    keywords or identifiers. Note that a little overhead is incurred.
+    It returns a tuple containing 1) an ordered dict, whose keys are formed
+    from the arguments and keywords if the identifiers are not provided and
+    whose values are the timings in seconds and 2) the memory usage difference
+    before and after each timing.
+
+    Parameters
+    ----------
+    stmt : callable or string
+        The function or snippet to be timed. In case of a string, arguments and
+        keywords are matched by the substrings '*args' and '*keywords'.
+        Caveat: these must be interpreted correctly through their repr.
+        Otherwise, they should be passed as a string (then both stmt and setup
+        should be a string). See example below.
+    args : sequence or iterator of sequences of arguments, optional
+        The different arguments that will be passed to the function.
+    keywords : sequence or iterator of dictionaries of keywords, optional
+        The different keywords that will be passed to the function.
+    ids : sequence or iterator of string, optional
+        The identifier for each timing. If not provided, it is inferred
+        from the arguments and the keywords.
+    setup : callable or string, optional
+        Initialisation before timing. In case of a string, arguments and
+        keywords are passed with the same mechanism as the stmt argument.
+    filename : string, optional
+        Name of the file to save the result as a pickle file.
+
+    Example
+    -------
+    >>> def f(dtype, n=10):
+    ...     return np.zeros(n, dtype)
+    >>> b = benchmark(f, [(float,), (int,)], [{'n':10}, {'n':100}],
+    ...               ['n=10', 'n=100'])
+    n=10: 100000 loops, best of 3: 2.12 usec per loop
+    n=100: 100000 loops, best of 3: 2.21 usec per loop
+
+    >>> class A():
+    ...     def __init__(self, n, dtype=float):
+    ...         self.a = 2 * np.ones(n, dtype)
+    ...     def run(self):
+    ...         np.sqrt(self.a)
+    >>> b = benchmark('a.run()', ['1,dtype=int', '10,dtype=float'],
+    ...               setup='from __main__ import A; a=A(*args)')
+
+    Overhead:
+    >>> def f():
+    ...     pass
+    >>> b = benchmark(f)
+    1000000 loops, best of 3: 0.562 usec per loop
+
+    """
+    if not callable(stmt) and not isinstance(stmt, str):
+        raise TypeError('The argument stmt is neither a string nor callable.')
+
+    if not callable(setup) and not isinstance(setup, str):
+        raise TypeError('The argument setup is neither a string nor callable.')
+
+    precision = 3
+    repeat = 3
+
+    class wrapper(object):
+        def __call__(self):
+            stmt(*self.args, **self.keywords)
+
+    w = wrapper()
+    single_test = args is keywords is None
+
+    def default_args():
+        while True:
+            yield ()
+    def default_keywords():
+        while True:
+            yield {}
+    def default_ids():
+        while True:
+            id_ = '' if len(w.args) == 0 else 'args:' + str(w.args)
+            if len(w.keywords) > 0:
+                id_ += ', ' + ', '.join([k + '=' + str(v)
+                                         for k, v in w.keywords.items()])
+            yield id_
+
+    # ensure args, keywords and ids are iterators
+    if args is None:
+        args = default_args()
+    elif isinstance(args, (list, tuple)):
+        args = iter(args)
+    if keywords is None:
+        keywords = default_keywords()
+    elif isinstance(keywords, (list, tuple)):
+        keywords = iter(keywords)
+    if ids is None:
+        ids = default_ids()
+    elif isinstance(ids, (list, tuple)):
+        ids = iter(ids)
+
+    timings = collections.OrderedDict()
+    memorys = collections.OrderedDict()
+
+    while True:
+
+        try:
+            arg = next(args)
+            keyword = next(keywords)
+            id_ = str(next(ids))
+        except StopIteration:
+            break
+
+        if not isinstance(arg, (list, tuple, str)):
+            raise TypeError('The function arguments must be supplied as a seque'
+                            'nce.')
+        if not isinstance(keyword, dict):
+            raise TypeError('The function keywords must be supplied as a dict.')
+
+            
+        stmt_ = stmt
+        if isinstance(stmt, str) and isinstance(arg, str):
+            while '*args' in stmt_:
+                stmt_ = stmt_.replace('*args', arg)
+        setup_ = setup
+        if isinstance(setup, str) and isinstance(arg, str):
+            while '*args' in setup_:
+                setup_ = setup_.replace('*args', arg)
+
+        if callable(stmt):
+            w.args = arg
+            w.keywords = keyword
+            t = timeit.Timer(w, setup=setup_)
+        else:
+            t = timeit.Timer(stmt_, setup=setup_)
+
+        # determine number so that 0.2 <= total time < 2.0
+        for i in range(10):
+            number = 10**i
+            x = t.timeit(number)
+            if x >= 0.2:
+                break
+
+        # actual runs
+        gc.collect()
+        memory = memory_usage()
+        if number > 1 or x <= 2:
+            r = t.repeat(repeat, number)
+        else:
+            r = t.repeat(repeat-1, number)
+            r = [x] + r
+        memory = memory_usage(since=memory)
+        memorys[id_] = memory
+        best = min(r)
+        timings[id_] = best / number
+
+        if id_ != '':
+            id_ += ': '
+        print id_ + "%d loops," % number,
+        usec = best * 1e6 / number
+        if usec < 1000:
+            print "best of %d: %.*g us per loop. " % (repeat,precision,usec),
+        else:
+            msec = usec / 1000
+            if msec < 1000:
+                print "best of %d: %.*g ms per loop. " %(repeat,precision,msec),
+            else:
+                sec = msec / 1000
+                print "best of %d: %.*g s per loop. " % (repeat,precision,sec),
+
+        print ', '.join([k + ':' + str(v) + 'MiB' for k,v in memory.items()])
+        if single_test:
+            break
+
+    results = timings, memorys
+    if filename is not None:
+        with open(filename, 'w') as f:
+            pickle.dump(results, f)
+
+    return results
 
 def find(l, f):
     """
@@ -263,6 +449,48 @@ def least_greater_multiple(a, l, out=None):
     if out.ndim == 0:
         return out.flat[0]
     return out
+
+def memory_usage(keys=('VmRSS', 'VmData', 'VmSize'), since=None):
+    """
+    Return a dict containing information about the process' memory usage.
+
+    Parameters
+    ----------
+    keys : sequence of strings
+        Process status identifiers (see /proc/###/status). Default are
+        the resident, data and virtual memory sizes.
+    since : dict
+        Dictionary as returned by a previous call to memory_usage function and
+        used to compute the difference of memory usage since then.
+        
+    """
+    proc_status = '/proc/%d/status' % os.getpid()
+    scale = {'kB': 1024, 'mB': 1024*1024,
+             'KB': 1024, 'MB': 1024*1024}
+
+    # get pseudo file  /proc/<pid>/status
+    with open(proc_status) as f:
+        status = f.read()
+
+    result = {}
+    for k in keys:
+        # get VmKey line e.g. 'VmRSS:  9999  kB\n ...'
+        i = status.index(k)
+        v = status[i:].split(None, 3)  # whitespace
+        if len(v) < 3:
+            raise ValueError('Invalid format.')
+
+        # convert Vm value to Mbytes
+        result[k] = float(v[1]) * scale[v[2]] / 2**20
+
+    if since is not None:
+        if not isinstance(since, dict):
+            raise TypeError('The input is not a dict.')
+        common_keys = set(result.keys())
+        common_keys.intersection_update(since.keys())
+        result = dict((k, result[k] - since[k]) for k in common_keys)
+
+    return result
 
 def merge_none(a, b):
     """
