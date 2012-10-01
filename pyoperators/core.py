@@ -110,7 +110,7 @@ class OperatorRule(object):
             raise TypeError("The input first argument '{0}' is not a string." \
                              .format(subjects))
 
-        subjects_ = self.split_subject(subjects)
+        subjects_ = self._split_subject(subjects)
         if len(subjects_) == 0:
             raise ValueError('No rule subject is specified.')
         if not isinstance(self, OperatorUnaryRule) and len(subjects_) == 1:
@@ -163,7 +163,7 @@ class OperatorRule(object):
             raise ValueError("Invalid symbol: '{0}'.".format(symbol))
 
     @classmethod
-    def split_subject(cls, subject):
+    def _split_subject(cls, subject):
         if isinstance(subject, (list, tuple)):
             return subject
         if not isinstance(subject, str):
@@ -173,13 +173,13 @@ class OperatorRule(object):
         associated = '.IC', '.IT', '.IH', '.C', '.T', '.H', '.I', '.'
         for a in associated:
             if subject[:len(a)] == a:
-                return [a] + cls.split_subject(subject[len(a):])
+                return [a] + cls._split_subject(subject[len(a):])
         if subject[0] == '{':
             try:
                 pos = subject.index('}')
             except ValueError:
                 raise ValueError("Invalid subject: no matching closing '}'.")
-            return [subject[:pos+1]] + cls.split_subject(subject[pos+1:])
+            return [subject[:pos+1]] + cls._split_subject(subject[pos+1:])
 
         raise ValueError("The subject {0} is not understood.".format(subject))
 
@@ -774,7 +774,7 @@ class Operator(object):
             CompositionOperator, AdditionOperator and MultiplicationOperator.
             For unary rules, the value must be None.
         """
-        subjects = OperatorRule.split_subject(subjects)
+        subjects = OperatorRule._split_subject(subjects)
         if len(subjects) > 2:
             raise ValueError('Only unary and binary rules are allowed.')
         if operation is None and len(subjects) == 2:
