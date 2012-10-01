@@ -498,6 +498,30 @@ class Operator(object):
                              "e an explicit shape.")
         return v.reshape(self.shapeout)
 
+    def propagate_attributes(self, cls, attr):
+        """
+        Propagate attributes according to operator's attrout. If the class
+        changes, class attributes are removed if they are not class attributes
+        of the new class.
+        """
+        if None not in (self.classout, cls) and self.classout is not cls:
+            for a in attr.keys():
+                if isclassattr(cls, a) and not isclassattr(self.classout, a):
+                    del attr[a]
+        if 'shape_global' in attr:
+            del attr['shape_global']
+        if isinstance(self.attrout, dict):
+            for k, v in self.attrout.items():
+                if isinstance(v, (MutableMapping, MutableSequence, MutableSet)):
+                    if hasattr(v, 'copy'):
+                        v = v.copy()
+                    elif type(v) is list:
+                        v = list(v)
+                attr[k] = v
+        else:
+            self.attrout(attr)
+        return self.classout or cls
+
     def propagate_commin(self, commin):
         """
         Propagate MPI communicator of the input to the operands.
@@ -830,30 +854,6 @@ class Operator(object):
     def copy(self):
         """ Return a copy of the operator. """
         return copy.copy(self)
-
-    def propagate_attributes(self, cls, attr):
-        """
-        Propagate attributes according to operator's output attributes.
-        If the class changes, class attributes are removed if they are
-        not class attributes of the new class.
-        """
-        if None not in (self.classout, cls) and self.classout is not cls:
-            for a in attr.keys():
-                if isclassattr(cls, a) and not isclassattr(self.classout, a):
-                    del attr[a]
-        if 'shape_global' in attr:
-            del attr['shape_global']
-        if isinstance(self.attrout, dict):
-            for k, v in self.attrout.items():
-                if isinstance(v, (MutableMapping, MutableSequence, MutableSet)):
-                    if hasattr(v, 'copy'):
-                        v = v.copy()
-                    elif type(v) is list:
-                        v = list(v)
-                attr[k] = v
-        else:
-            self.attrout(attr)
-        return self.classout or cls
 
     @staticmethod
     def _find_common_type(dtypes):
