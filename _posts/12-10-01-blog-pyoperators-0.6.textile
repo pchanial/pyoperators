@@ -6,22 +6,27 @@ category: blog
 ---
 
 What's new ?
-* New operators: FFTOperator (for complex transforms) and ConvolutionOperator (real and complex kernels) using the "pyFFTW":http://hgomersall.github.com/pyFFTW wrapper, which can also be used to use the MKL fft routines.
-* New operators: DiagonalNumexprOperator and DiagonalNumexprNonSeparableOperator.* New IterativeAlgorithm class
-* New utilities: benchmark (to create timing tables), memory_usage
+* New operators: FFTOperator (for complex transforms) and ConvolutionOperator (real and complex kernels) using the "pyFFTW":http://hgomersall.github.com/pyFFTW wrapper, which can also use seamlessly the MKL fft routines.
+* New operators: DiagonalNumexprOperator and DiagonalNumexprNonSeparableOperator.
+* New IterativeAlgorithm class.
+* New StopCondition class.
+* New OpenMP/MPI preconditioned conjugate gradient solver: PCGAlgorithm.
+* New utilities: benchmark (to create timing tables), memory_usage.
 * New context managers: to make block of code uninterruptible or interruptible.
-* Automatic download of dependencies using pip
-* New ufuncs: multiply_conjugate, masking (speeding up MaskOperator)
-* New operator decorators to enforce alignment or contiguity
-* New helper functions: cast, ifind, least_greater_multiple, renumerate
-* New functions empty, ones, zeros in the memory manager
+* New ufuncs: multiply_conjugate, masking (speeding up MaskOperator).
+* New operator decorators to enforce alignment or contiguity.
+* New helper functions: cast, ifind, least_greater_multiple, renumerate.
+* New functions empty, ones, zeros in the memory manager.
+* Given operators A and B: A / B now translates into A * B.I. Usefule when B is a scalar.
+* Automatic download of dependencies using pip.
 
 Under the hood:
-* New memory manager handling alignment and contiguity, rewrite of the chaining of operations
-* Propagate some flags into the associated operators
-* Propagation of square flags into Addition/MultiplicationOperator
+* New memory manager handling alignment and contiguity, rewrite of the chaining of operations.
+* Propagate some flags into the associated operators.
+* Propagation of square flags into Addition/MultiplicationOperator.
 * Make BroadcastingOperator more flexible by encapsulating its data attribute with get_data, which enables subclasses not to modify its input data during initialisation, but by doing it on-the-fly, hence sparing the storage of the modified data.
 * Make Pylab an optional dependency.
 * Ensure that A*A is A (and not simply equal to), if A is idempotent.
 * Enable inplace operations in NumexprOperator for numexpr version >= 2.0.2.
-* API changes: decorator universal->separable, memory.allocate->memory.empty, same_data->alias
+* TridiagonalOperator cleanup.
+* API changes: decorator universal->separable, memory.allocate->memory.empty, same_data->isalias.
