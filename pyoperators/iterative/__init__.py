@@ -12,9 +12,10 @@ Contains the following modules:
 """
 
 from .core import *
-from .criterions import *
-from .optimize import *
-from .algorithms import *
-from .dli import *
+from .stopconditions import *
+from .cg import *
+
+# these modules are WIP
+from . import algorithms, criterions, dli, optimize
 
 del core

@@ -20,7 +20,7 @@ from .optimize import FminNCG
 from ..core import DiagonalOperator, IdentityOperator, asoperator1d
 from ..linear import TridiagonalOperator, EigendecompositionOperator
 
-default_stop = StopCondition(maxiter=5)
+DEFAULT_STOP = StopCondition(maxiter=5)
 
 # reference recommands this initial z value
 Z0 = 0.05
@@ -274,7 +274,7 @@ class DoubleLoopAlgorithm(Algorithm):
         lanczos={"maxiter": 300},
         fmin_args={},
         callback=default_callback,
-        stop_condition=default_stop,
+        stop_condition=DEFAULT_STOP,
     ):
 
         self.model = asoperator1d(model)
