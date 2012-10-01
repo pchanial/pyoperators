@@ -286,7 +286,7 @@ class _FFTWComplexOperator(Operator):
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
     def direct(self, input, output):
-        if self.same_data(input, output):
+        if self.isalias(input, output):
             self.iplan.update_arrays(input, output)
             self.iplan.execute()
         else:

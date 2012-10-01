@@ -154,11 +154,11 @@ class DistributionIdentityOperator(Operator):
         )
 
     def direct(self, input, output):
-        if self.same_data(input, output):
+        if self.isalias(input, output):
             return
         output[...] = input
 
     def transpose(self, input, output):
-        if not self.same_data(input, output):
+        if not self.isalias(input, output):
             output[...] = input
         self.commout.Allreduce(MPI.IN_PLACE, as_mpi(output), op=MPI.SUM)
