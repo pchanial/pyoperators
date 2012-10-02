@@ -32,5 +32,6 @@ Results for 1, 2, 4 and 8 MPI processes are shown is the following figure.
 
 <img src="{{ site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
 
-h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOper
-ator
+h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOperator
+
+TBD
