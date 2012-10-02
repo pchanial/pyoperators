@@ -73,7 +73,7 @@ a:hover {
   color: #666;
 }
 
-a img {
+img {
   vertical-align: middle;
 }
 
@@ -119,12 +119,10 @@ table {
 }
 
 img {
-  -moz-border-radius: 5px;
-  -moz-box-shadow: 0 1px 0 #fff;
-  -webkit-border-radius: 5px;
-  -webkit-box-shadow: 0 1px 0 #fff;
-  border: 5px #333 solid;
+  display: block;
   width: 440px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 p {
