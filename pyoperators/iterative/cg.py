@@ -13,8 +13,8 @@ class PCGAlgorithm(IterativeAlgorithm):
     OpenMP/MPI Preconditioned conjugate gradient iteration to solve A x = b.
 
     """
-    def __init__(self, A, b, x0=None, tol=1.e-5, maxiter=300, disp=False,
-                 M=None, callback=None, reuse_initial_state=False):
+    def __init__(self, A, b, x0=None, tol=1.e-5, maxiter=300, M=None,
+                 disp=False, callback=None, reuse_initial_state=False):
         """
         Parameters
         ----------
@@ -36,6 +36,8 @@ class PCGAlgorithm(IterativeAlgorithm):
             inverse of A.  Effective preconditioning dramatically improves the
             rate of convergence, which implies that fewer iterations are needed
             to reach a given error tolerance.
+        disp : boolean
+            Set to True to display convergence message
         callback : function, optional
             User-supplied function to call after each iteration.  It is called
             as callback(self), where self is an instance of this class.
@@ -69,7 +71,7 @@ class PCGAlgorithm(IterativeAlgorithm):
             'rance.')
 
         IterativeAlgorithm.__init__(self, x=x0, abnormal_stop_condition=
-            abnormal_stop_condition, dtype=dtype,
+            abnormal_stop_condition, disp=disp, dtype=dtype,
             reuse_initial_state=reuse_initial_state, inplace_recursion=True,
             callback=callback)
 
@@ -132,7 +134,7 @@ class PCGAlgorithm(IterativeAlgorithm):
             print '{0:4}: {1}'.format(self.niterations, self.error)
 
 
-def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, disp=False, M=None,
+def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         callback=None, reuse_initial_state=False):
     """
     Parameters
@@ -155,6 +157,8 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, disp=False, M=None,
         inverse of A.  Effective preconditioning dramatically improves the
         rate of convergence, which implies that fewer iterations are needed
         to reach a given error tolerance.
+    disp : boolean
+        Set to True to display convergence message
     callback : function, optional
         User-supplied function to call after each iteration.  It is called
         as callback(self), where self is an instance of this class.
