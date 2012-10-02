@@ -6,7 +6,7 @@ category: doc
 
 h2. 6.1 <a name="distributeidentityoperator"></a> Using DistributeIdentityOperator
 
-In this example, we will tell each MPI process to randomly probe 20% of an input image.
+In this example, we will tell each MPI process to randomly and independly observe 20% of an input image and collect all this information to reconstruct the input image. Each observation is assumed to be affected by an independent gaussian noise.
 
 {% highlight python %}
 import numpy as np
@@ -21,14 +21,16 @@ H = MaskOperator(np.random.random(x0.shape) > 0.2) * \
 y = H(x0) + n
 
 A = H.T * H
-solution = pcg(A, H.T(y), disp=True)
+solution = pcg(A, H.T(y))
 
 if MPI.COMM_WORLD.rank == 0:
     np.save('mpi_n{}.npy'.format(MPI.COMM_WORLD.size), solution['x'])
 {% endhighlight %}
 
-The @DistributeIdentityOperator@ is a block column operator whose blocks are the identity and for which each block is handle by a MPI process according to its rank.
+The @DistributeIdentityOperator@ is a block column operator whose blocks are the identity and for which the output of each block is handled by an MPI process according to its rank. Hence the MPI reduction is performed by the transpose of this operator (present in @H.T@): a block row operator whose blocks are the identity.
+Results for 1, 2, 4 and 8 MPI processes are shown is the following figure.
 
 <img src="{{ site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
 
-h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOperator
+h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOper
+ator
