@@ -12,16 +12,19 @@ In this example, we will tell each MPI process to randomly and independly observ
 import numpy as np
 import scipy
 from mpi4py import MPI
-from pyoperators import DistributionIdentityOperator, MaskOperator, pcg
+from pyoperators import DistributionIdentityOperator, HomothetyOperator, MaskOperator, pcg
 
 x0 = scipy.misc.lena().astype(float)
-n = np.random.standard_normal(x0.shape) * 2
+sigma = 2.
+n = np.random.standard_normal(x0.shape) * sigma
+invN = HomothetyOperator(1 / sigma**2)
+
 H = MaskOperator(np.random.random(x0.shape) > 0.2) * \
     DistributionIdentityOperator()
 y = H(x0) + n
 
-A = H.T * H
-solution = pcg(A, H.T(y))
+A = H.T * invN * H
+solution = pcg(A, H.T(invN(y)))
 
 if MPI.COMM_WORLD.rank == 0:
     np.save('mpi_n{}.npy'.format(MPI.COMM_WORLD.size), solution['x'])
