@@ -6,6 +6,29 @@ category: doc
 
 h2. 6.1 <a name="distributeidentityoperator"></a> Using DistributeIdentityOperator
 
-<img href="{{ site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
+In this example, we will tell each MPI process to randomly probe 20% of an input image.
+
+{% highlight python %}
+import numpy as np
+import scipy
+from mpi4py import MPI
+from pyoperators import DistributionIdentityOperator, MaskOperator, pcg
+
+x0 = scipy.misc.lena().astype(float)
+n = np.random.standard_normal(x0.shape) * 2
+H = MaskOperator(np.random.random(x0.shape) > 0.2) * \
+    DistributionIdentityOperator()
+y = H(x0) + n
+
+A = H.T * H
+solution = pcg(A, H.T(y), disp=True)
+
+if MPI.COMM_WORLD.rank == 0:
+    np.save('mpi_n{}.npy'.format(MPI.COMM_WORLD.size), solution['x'])
+{% endhighlight %}
+
+The @DistributeIdentityOperator@ is a block column operator whose blocks are the identity and for which each block is handle by a MPI process according to its rank.
+
+<img src="{{ site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
 
 h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOperator
