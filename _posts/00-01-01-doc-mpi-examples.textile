@@ -1,0 +1,11 @@
+---
+layout: post
+title: 6. MPI examples
+category: doc
+---
+
+h2. 6.1 <a name="distributeidentityoperator"></a> Using DistributeIdentityOperator
+
+<img href="{{ site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
+
+h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOperator
