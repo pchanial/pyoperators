@@ -10,7 +10,7 @@ What's new ?
 * New operators: DiagonalNumexprOperator and DiagonalNumexprNonSeparableOperator.
 * New IterativeAlgorithm class.
 * New StopCondition class.
-* New OpenMP/MPI preconditioned conjugate gradient solver: PCGAlgorithm.
+* New OpenMP/MPI preconditioned conjugate gradient solver
 * New utilities: benchmark (to create timing tables), memory_usage.
 * New context managers: to make block of code uninterruptible or interruptible.
 * New ufuncs: multiply_conjugate, masking (speeding up MaskOperator).
