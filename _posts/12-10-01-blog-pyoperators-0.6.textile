@@ -6,7 +6,7 @@ category: blog
 ---
 
 What's new ?
-* New operators: FFTOperator (for complex transforms) and ConvolutionOperator (real and complex kernels) using the "pyFFTW":http://hgomersall.github.com/pyFFTW wrapper, which can also use seamlessly the MKL fft routines.
+* New operators: FFTOperator (for complex transforms) and ConvolutionOperator (real and complex kernels) using the "pyFFTW":http://hgomersall.github.com/pyFFTW wrapper, which can also seamlessly use the MKL fft routines.
 * New operators: DiagonalNumexprOperator and DiagonalNumexprNonSeparableOperator.
 * New IterativeAlgorithm class.
 * New StopCondition class.
