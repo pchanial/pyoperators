@@ -131,7 +131,7 @@ p {
   margin: 0;
 }
 
-div.container > pre {
+div.highlight > pre {
   -moz-border-radius: 5px;
   -moz-box-shadow: 0 -1px 0 #333;
   -webkit-border-radius: 5px;
