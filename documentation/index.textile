@@ -36,5 +36,5 @@ h1. {{ page.title }}
 ## "Output":{{ site.baseurl }}/2000/doc-iterative-algorithms/#output TBD
 # "Examples":{{ site.baseurl }}/2000/doc-examples/ TBD
 # "MPI examples":{{ site.baseurl }}/2000/doc-mpi-examples/
-## "Using DistributionIdentityOperator":{{ site.baseurl }}/2000/doc-mpi-examples/#distributeidentityoperator
-## "Using DistributionGlobalOperator":{{ site.baseurl }}/2000/doc-mpi-examples/#distributeglobaloperator
+## "Using DistributionIdentityOperator":{{ site.baseurl }}/2000/doc-mpi-examples/#distributionidentityoperator
+## "Using DistributionGlobalOperator":{{ site.baseurl }}/2000/doc-mpi-examples/#distributionglobaloperator
