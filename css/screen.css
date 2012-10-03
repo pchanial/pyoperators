@@ -73,10 +73,6 @@ a:hover {
   color: #666;
 }
 
-img {
-  vertical-align: middle;
-}
-
 em {
   font-style: italic;
 }
@@ -84,6 +80,10 @@ em {
 blockquote {
   padding: 0px 0px 0px 10px;
   font-style: italic;
+}
+
+br {
+  display:none;
 }
 
 hr {
@@ -120,6 +120,7 @@ table {
 
 img {
   display: block;
+  vertical-align: middle;
   width: 440px;
   margin-left: auto;
   margin-right: auto;
@@ -130,7 +131,7 @@ p {
   margin: 0;
 }
 
-pre {
+div.container > pre {
   -moz-border-radius: 5px;
   -moz-box-shadow: 0 -1px 0 #333;
   -webkit-border-radius: 5px;
@@ -273,10 +274,6 @@ div.definition + hr {
 
 div.centered {
   text-align: center;
-}
-
-div.centered > br {
-  display:none;
 }
 
 #footnote {

@@ -28,10 +28,10 @@ h1. {{ page.title }}
 ## "Scipy's solvers":{{ site.baseurl }}/2000/doc-solvers/#scipy_solvers
 # "Iterative algorithms":{{ site.baseurl }}/2000/doc-iterative-algorithms/ TBD
 ## "Recursion order":{{ site.baseurl }}/2000/doc-iterative-algorithms/#recursion_order TBD
+## "Normal and abnormal stop conditions":{{ site.baseurl }}/2000/doc-iterative-algorithms/#stop_conditions TBD
+## "Flowchart":{{ site.baseurl }}/2000/doc-iterative-algorithms/#flowchart
 ## "Buffer handling":{{ site.baseurl }}/2000/doc-iterative-algorithms/#buffer_handling TBD
 ## "Reusing the initial state":{{ site.baseurl }}/2000/doc-iterative-algorithms/#reusing_initial_state TBD
-## "Normal and abnormal stop conditions":{{ site.baseurl }}/2000/doc-iterative-algorithms/#stop_conditions TBD
-## "Control flow":{{ site.baseurl }}/2000/doc-iterative-algorithms/#control_flow TBD
 ## "Interactivity":{{ site.baseurl }}/2000/doc-iterative-algorithms/#interactivity TBD
 ## "Output":{{ site.baseurl }}/2000/doc-iterative-algorithms/#output TBD
 # "Examples":{{ site.baseurl }}/2000/doc-examples/ TBD
