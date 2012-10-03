@@ -34,7 +34,7 @@ The @DistributionIdentityOperator@ is a block column operator whose blocks are t
 Results for 1, 2, 4 and 8 MPI processes are shown in the following figure.
 
 <hr>
-<img src="{{ site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
+<img src="{{site.baseurl}}/documentation/figures/lena_mpi1.png"> </img>
 
 h2. 6.2 <a name="distributionglobaloperator"></a> Using DistributionGlobalOperator
 
