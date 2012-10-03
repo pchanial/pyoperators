@@ -271,6 +271,14 @@ div.definition + hr {
   margin:0;
 }
 
+div.centered {
+  text-align: center;
+}
+
+div.centered > br {
+  display:none;
+}
+
 #footnote {
   font-size: 1em;
   font-weight: bold;
