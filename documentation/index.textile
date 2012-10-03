@@ -24,16 +24,16 @@ h1. {{ page.title }}
 ## "Operator partition":{{ site.baseurl }}/2000/doc-operators/#partition
 ## "List of available operators":{{ site.baseurl }}/2000/doc-operators/#list
 # "Solvers":{{ site.baseurl }}/2000/doc-solvers/
-## "Preconditioned Conjugate Gradient solver":{{ site.baseurl }}/2000/doc-solvers/#pcg_solver
+## "Preconditioned Conjugate Gradient solver":{{ site.baseurl }}/2000/doc-solvers/#pcg_solver TBD
 ## "Scipy's solvers":{{ site.baseurl }}/2000/doc-solvers/#scipy_solvers
-# "Iterative algorithms":{{ site.baseurl }}/2000/doc-iterative-algorithms/
-## "Recursion order":{{ site.baseurl }}/2000/doc-iterative-algorithms/#recursion_order
-## "Buffer handling":{{ site.baseurl }}/2000/doc-iterative-algorithms/#buffer_handling
-## "Reusing the initial state":{{ site.baseurl }}/2000/doc-iterative-algorithms/#reusing_initial_state
-## "Normal and abnormal stop conditions":{{ site.baseurl }}/2000/doc-iterative-algorithms/#stop_conditions
-## "Control flow":{{ site.baseurl }}/2000/doc-iterative-algorithms/#control_flow
-## "Interactivity":{{ site.baseurl }}/2000/doc-iterative-algorithms/#interactivity
-## "Output":{{ site.baseurl }}/2000/doc-iterative-algorithms/#output
+# "Iterative algorithms":{{ site.baseurl }}/2000/doc-iterative-algorithms/ TBD
+## "Recursion order":{{ site.baseurl }}/2000/doc-iterative-algorithms/#recursion_order TBD
+## "Buffer handling":{{ site.baseurl }}/2000/doc-iterative-algorithms/#buffer_handling TBD
+## "Reusing the initial state":{{ site.baseurl }}/2000/doc-iterative-algorithms/#reusing_initial_state TBD
+## "Normal and abnormal stop conditions":{{ site.baseurl }}/2000/doc-iterative-algorithms/#stop_conditions TBD
+## "Control flow":{{ site.baseurl }}/2000/doc-iterative-algorithms/#control_flow TBD
+## "Interactivity":{{ site.baseurl }}/2000/doc-iterative-algorithms/#interactivity TBD
+## "Output":{{ site.baseurl }}/2000/doc-iterative-algorithms/#output TBD
 # "Examples":{{ site.baseurl }}/2000/doc-examples/ TBD
 # "MPI examples":{{ site.baseurl }}/2000/doc-mpi-examples/
 ## "Using DistributeIdentityOperator":{{ site.baseurl }}/2000/doc-mpi-examples/#distributeidentityoperator
