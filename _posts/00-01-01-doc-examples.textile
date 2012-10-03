@@ -6,8 +6,6 @@ category: doc
 
 h2. 5.1 Data fusion
 
-<img src="{{site.baseurl}}/documentation/figures/lena3_orig.png"> </img>
-
 {% highlight python %}
 from __future__ import division
 import numpy as np
@@ -32,5 +30,7 @@ y  = H(x0) + n
 A = H.T * invN * H + 0.0005 * I
 solution = pcg(A, H.T(invN(y)))
 {% endhighlight %}
+
+<img src="{{site.baseurl}}/documentation/figures/lena3_orig.png"> </img>
 
 <img src="{{site.baseurl}}/documentation/figures/lena3_deconvolved.png"> </img>
