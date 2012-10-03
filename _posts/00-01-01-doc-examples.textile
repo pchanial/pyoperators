@@ -12,7 +12,8 @@ h2. 5.1 Data fusion
 from __future__ import division
 import numpy as np
 import scipy
-from pyoperators import BlockColumnOperator, BlockDiagonalOperator, ConvolutionOperator, pcg, I
+from pyoperators import (BlockColumnOperator, BlockDiagonalOperator,
+                         ConvolutionOperator, pcg, I)
 
 x0 = scipy.misc.lena().astype(float)
 kernel_sizes = [3, 15]
