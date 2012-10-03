@@ -131,7 +131,7 @@ p {
   margin: 0;
 }
 
-code {
+div.highlight {
   -moz-border-radius: 5px;
   -moz-box-shadow: 0 -1px 0 #333;
   -webkit-border-radius: 5px;
