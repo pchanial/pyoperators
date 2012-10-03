@@ -38,7 +38,7 @@ Results for 1, 2, 4 and 8 MPI processes are shown in the following figure.
 
 h2. 6.2 <a name="distributeglobaloperator"></a> Using DistributeGlobalOperator
 
-This operator takes a global input and scatter it as local output. Currently only one scattering scheme is implemented: the input is split along its first dimension by equally distributing it by increasing rank.
+This operator takes a global input and scatter it as local outputs. Currently only one scattering scheme is implemented: the input is split along its first dimension by equally distributing it by increasing rank.
 
 <div class="definition">
 Given an input of shape (nglobal, ...) and p MPI processes, the process of rank r will be handed an output of shape (nlocal, ...) with nlocal given by 

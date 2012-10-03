@@ -1,19 +1,7 @@
 ---
 layout: post
-title: 4. Iterative Algorithms
+title: 5. Examples
 category: doc
 ---
 
-h2. 4.1 <a name="recursion_order"></a> Recursion order
-
-h2. 4.2 <a name="buffer_handling"></a> Buffer handling
-
-h2. 4.3 <a name="reusing_initial_state"></a> Reusing the initial state
-
-h2. 4.4 <a name="stop_conditions"></a> Normal and abnormal stop conditions
-
-h2. 4.5 <a name="control_flow"></a> Control flow
-
-h2. 4.6 <a name="interactivity"></a> Interactivity
-
-h2. 4.7 <a name="output"></a> Output
+TBD
