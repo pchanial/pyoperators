@@ -4,23 +4,25 @@ title: 3. Solvers
 category: doc
 ---
 
+A solver is a function that attempts to solve the equation @A x = b@.
+
 h2. 3.1. <a name="pcg_solver"></a> Preconditioned Conjugate Gradient Solver
 
 TBD
 
 h2. 3.2. <a name="scipy_solvers"></a> Scipy's solvers
 
-Operators implement the @scipy.sparse.linalg.LinearOperator@ interface, so the following solvers are useable as-is, as long as the operator has explicit input and output shapes:
+Operators implement the @scipy.sparse.linalg.LinearOperator@ interface, so the following solvers are useable as-is, as long as the operator has explicit input and output shapes.
 
 <div class="definition">
-| @bicg@     | Use BIConjugate Gradient iteration to solve A x = b            |
-| @bicgstab@ | Use BIConjugate Gradient STABilized iteration to solve A x = b |
-| @cg@       | Use Conjugate Gradient iteration to solve A x = b              |
-| @cgs@      | Use Conjugate Gradient Squared iteration to solve A x = b      |
-| @gmres@    | Use Generalized Minimal RESidual iteration to solve A x = b    |
-| @lgmres@   | Solve a matrix equation using the LGMRES algorithm             |
-| @minres@   | Use MINimum RESidual iteration to solve Ax = b                 |
-| @qmr@      | Use Quasi-Minimal Residual iteration to solve A x = b          |
+| @bicg@     | Use BIConjugate Gradient iteration                 |
+| @bicgstab@ | Use BIConjugate Gradient STABilized iteration      |
+| @cg@       | Use Conjugate Gradient iteration                   |
+| @cgs@      | Use Conjugate Gradient Squared iteration           |
+| @gmres@    | Use Generalized Minimal RESidual iteration         |
+| @lgmres@   | Solve a matrix equation using the LGMRES algorithm |
+| @minres@   | Use MINimum RESidual iteration                     |
+| @qmr@      | Use Quasi-Minimal Residual iteration               |
 </div>
 <hr>
 
