@@ -54,10 +54,10 @@ class _FFTWConvolutionOperator(Operator):
         self,
         kernel,
         shapein=None,
-        dtype=None,
         axes=None,
         fftw_flag='FFTW_MEASURE',
         nthreads=None,
+        dtype=None,
         **keywords,
     ):
         """
@@ -67,8 +67,6 @@ class _FFTWConvolutionOperator(Operator):
             The multi-dimensional convolution kernel.
         shapein : tuple
             The shape of the input to be convolved by the kernel.
-        dtype : dtype
-            Operator's dtype.
         axes : tuple
             Axes along which the convolution is performed. Convolution over
             less axes than the operator's input is not yet supported.
@@ -82,6 +80,8 @@ class _FFTWConvolutionOperator(Operator):
         nthreads : int
             Tells how many threads to use when invoking FFTW or MKL. Default is
             the number of cores.
+        dtype : dtype
+            Operator's dtype.
 
         """
         kernel = np.array(kernel, dtype=dtype, copy=False)
@@ -129,9 +129,8 @@ class _FFTWComplexConvolutionOperator(_FFTWConvolutionOperator):
     """
 
     def __init__(self, kernel, shapein, axes, fftw_flag, nthreads, **keywords):
-        dtype = kernel.dtype
         _FFTWConvolutionOperator.__init__(
-            self, kernel, shapein, dtype, axes, fftw_flag, nthreads, **keywords
+            self, kernel, shapein, axes, fftw_flag, nthreads, **keywords
         )
         n = product(shapein)
         fft = _FFTWComplexForwardOperator(
@@ -158,9 +157,8 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
     """
 
     def __init__(self, kernel, shapein, axes, fftw_flag, nthreads, **keywords):
-        dtype = kernel.dtype
         _FFTWConvolutionOperator.__init__(
-            self, kernel, shapein, dtype, axes, fftw_flag, nthreads, **keywords
+            self, kernel, shapein, axes, fftw_flag, nthreads, **keywords
         )
         self.set_rule(
             '.{_FFTWRealConvolutionOperator}',
@@ -181,10 +179,10 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
             globals(),
         )
 
-        dtype_ = np.dtype('complex' + str(int(dtype.name[5:]) * 2))
-        shape_ = self._reshape_to_halfstorage(shapein)
+        dtype_ = np.dtype('complex' + str(int(self.dtype.name[5:]) * 2))
+        shape_ = self._reshape_to_halfstorage(self.shapein)
         _load_wisdom()
-        with _pool.get(shapein, dtype) as in_:
+        with _pool.get(self.shapein, self.dtype) as in_:
             with _pool.get(shape_, dtype_) as out:
                 t0 = time.time()
                 self._fplan = pyfftw.FFTW(
@@ -208,7 +206,7 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
             _save_wisdom()
 
         kernel_fft = _get_kernel_fft(
-            kernel, shapein, dtype, shape_, dtype_, self._fplan
+            kernel, self.shapein, self.dtype, shape_, dtype_, self._fplan
         )
         kernel_fft /= product(shapein)
         self.kernel = kernel_fft
