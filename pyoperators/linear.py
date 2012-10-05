@@ -540,12 +540,11 @@ class SymmetricBandOperator(Operator):
 
     """
     def __init__(self, ab, lower=True, **kwargs):
-        shapein = ab.shape[1]
+        kwargs['shapein'] = ab.shape[1]
         self.ab = ab
         self.lower = lower
         self.kwargs = kwargs
-
-        return Operator.__init__(self, shapein=shapein, **kwargs)
+        return Operator.__init__(self, **kwargs)
 
     def direct(self, x, out):
         out[:] = self.ab[0] * x
@@ -639,12 +638,12 @@ class EigendecompositionOperator(Operator):
         self.W = DiagonalOperator(w)
         self.V = asoperator(v)
         self.M = self.V * self.W * self.V.T
+        kwargs['shapein'] = self.M.shapein
         # store some information
         self.eigenvalues = w
         self.eigenvectors = v
         self.kwargs = kwargs
-        Operator.__init__(self, shapein=self.M.shapein, direct=self.M.direct,
-                          **kwargs)
+        Operator.__init__(self, direct=self.M.direct, **kwargs)
         self.set_rule('.I', lambda s: s ** -1)
 
     def det(self):
