@@ -1,5 +1,6 @@
 from __future__ import division
 import numpy as np
+import time
 
 from ..core import IdentityOperator, asoperator
 from ..memory import empty, zeros
@@ -174,6 +175,7 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         'message' : string indicating cause of failure
 
     """
+    time0 = time.time()
     algo = PCGAlgorithm(A, b, x0=x0, tol=tol, maxiter=maxiter, disp=disp,
                         M=M, callback=callback,
                         reuse_initial_state=reuse_initial_state)
@@ -186,7 +188,8 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         success = False
         message = str(e)
     return {'x':output, 'success':success, 'message':message,
-            'niterations':algo.niterations, 'error':algo.error}
+            'nit':algo.niterations, 'error':algo.error,
+            'time':time.time() - time0}
 
 def _norm2(x, comm):
     x = x.ravel()
