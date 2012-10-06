@@ -42,10 +42,10 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
+    requires=['pyfftw'],
     install_requires=[
         'numpy>=1.6',
         'numexpr>2',
-        'pyfftw',
         'scipy>=0.9',
     ],
     packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],
