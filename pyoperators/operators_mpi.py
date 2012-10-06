@@ -20,17 +20,11 @@ class DistributionGlobalOperator(Operator):
     It is a block column operator, whose blocks are distributed across the MPI
     processes.
 
-                   |I   O|
-    MPI rank 1 --> |  O  |
-                   |O   O|
+    MPI rank 1 --> |I O O|
                    +-----+
-                   |O   O|
-    MPI rank 2 --> |  I  |
-                   |O   O|
+    MPI rank 2 --> |O I O|
                    +-----+
-                   |O   O|
-    MPI rank 3 --> |  O  |
-                   |O   I|
+    MPI rank 3 --> |O O I|
 
     Example
     -------
