@@ -25,6 +25,7 @@ __all__ = ['all_eq',
            'inspect_special_values',
            'interruptible',
            'interruptible_if',
+           'isalias',
            'isclassattr',
            'isscalar',
            'least_greater_multiple',
@@ -400,6 +401,14 @@ def interruptible_if(condition):
     else:
         with interruptible():
             yield
+
+def isalias(array1, array2):
+    """
+    Return True if the two input arrays point to the same memory location.
+
+    """
+    return array1.__array_interface__['data'][0] == \
+           array2.__array_interface__['data'][0]
 
 def isclassattr(cls, a):
     """ Test if an attribute is a class attribute. """

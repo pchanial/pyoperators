@@ -6,6 +6,7 @@ except ImportError:
     from .utils.mpi import MPI
 from .core import Operator
 from .decorators import real, linear, square, inplace
+from .utils import isalias
 from .utils.mpi import as_mpi, distribute_shape, distribute_slice
 
 __all__ = ['DistributionGlobalOperator', 'DistributionIdentityOperator']
@@ -148,11 +149,11 @@ class DistributionIdentityOperator(Operator):
         )
 
     def direct(self, input, output):
-        if self.isalias(input, output):
+        if isalias(input, output):
             return
         output[...] = input
 
     def transpose(self, input, output):
-        if not self.isalias(input, output):
+        if not isalias(input, output):
             output[...] = input
         self.commout.Allreduce(MPI.IN_PLACE, as_mpi(output), op=MPI.SUM)
