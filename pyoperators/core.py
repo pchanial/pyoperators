@@ -17,9 +17,10 @@ import types
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from itertools import izip
 from .memory import empty, iscompatible, MemoryPool, MEMORY_ALIGNMENT
-from .utils import (all_eq, first_is_not, inspect_special_values, isclassattr,
-                    isscalar, merge_none, ndarraywrap, operation_assignment,
-                    product, renumerate, strenum, strshape, tointtuple, ufuncs)
+from .utils import (all_eq, first_is_not, inspect_special_values, isalias,
+                    isclassattr, isscalar, merge_none, ndarraywrap,
+                    operation_assignment, product, renumerate, strenum,
+                    strshape, tointtuple, ufuncs)
 from .utils.mpi import MPI
 from .decorators import (linear, real, idempotent, involutary, square,
                          symmetric, inplace)
@@ -588,10 +589,10 @@ class Operator(object):
         i, i_, o, o_ = self._validate_arguments(x, out)
 
         # perform computation
-        reuse_x = isinstance(x, np.ndarray) and not self.isalias(x, i) and \
+        reuse_x = isinstance(x, np.ndarray) and not isalias(x, i) and \
                   not preserve_input
-        reuse_out = isinstance(out, np.ndarray) and not self.isalias(out, i) \
-                    and not self.isalias(out, o)
+        reuse_out = isinstance(out, np.ndarray) and not isalias(out, i) \
+                    and not isalias(out, o)
 
         with _pool.set_if(reuse_x, x):
             with _pool.set_if(reuse_out, out):
@@ -602,7 +603,7 @@ class Operator(object):
             _pool.add(i_)
         if out is None:
             out = o
-        elif not self.isalias(out, o):
+        elif not isalias(out, o):
             out[...] = o
             _pool.add(o_)
 
@@ -1303,7 +1304,7 @@ class Operator(object):
             # an in-place operation is required, let's use a temporary buffer
             if not iscompatible(output, output.shape, dtype,
                self.flags.alignment_output, self.flags.contiguous_output) or \
-               self.isalias(input, output) and not self.flags.inplace:
+               isalias(input, output) and not self.flags.inplace:
                 output_ = _pool.extract(output.shape, dtype,
                     self.flags.alignment_output, self.flags.contiguous_output)
                 output = _pool.view(output_, output.shape, dtype)
@@ -1919,7 +1920,7 @@ class BlockSliceOperator(CommutativeCompositeOperator):
                       BlockSliceOperator([op.H for op in s.operands], s.slices))
 
     def direct(self, input, output):
-        if not self.isalias(input, output):
+        if not isalias(input, output):
             output[...] = input
         for s, op in zip(self.slices, self.operands):
             i = input[s]
@@ -2051,14 +2052,14 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     def direct(self, input, output, operation=operation_assignment,
                preserve_input=True):
 
-        preserve_input &= not self.isalias(input, output)
+        preserve_input &= not isalias(input, output)
         preserve_output = operation is not operation_assignment
 
         shapeouts, dtypes, ninplaces, bufsizes, alignments, contiguouss  = \
             self._get_info(input, output, preserve_input)
 
         i = i_ = input
-        if self.isalias(input, output):
+        if isalias(input, output):
             o_ = output if output.nbytes > input.nbytes else input
         else:
             o_ = output
@@ -2075,7 +2076,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 # get output for the current outplace operator if possible
                 reuse_output = not preserve_output and (igroup % 2 == 0) and \
                     iscompatible(output, bufsize, np.int8, alignment,
-                    contiguous) and not self.isalias(output, i) or igroup == 0
+                    contiguous) and not isalias(output, i) or igroup == 0
                 if reuse_output:
                     o_ = output
                 else:
@@ -2093,7 +2094,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
                 # set the input buffer back in the pool
                 if (igroup < ngroups - 2 or not preserve_input) and \
-                   not self.isalias(i_, output):
+                   not isalias(i_, output):
                     _pool.add(i_)
                 i = o
                 i_ = o_
@@ -2111,7 +2112,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 _pool.remove(output)
 
         if ngroups >= 2 and not preserve_input and \
-           not self.isalias(input, output):
+           not isalias(input, output):
             _pool.remove(input)
 
     def propagate_attributes(self, cls, attr):
@@ -3286,7 +3287,7 @@ class ReshapeOperator(Operator):
         self.set_rule('.T.', '1', CompositionOperator)
 
     def direct(self, input, output):
-        if self.isalias(input, output):
+        if isalias(input, output):
             pass
         output.ravel()[:] = input.ravel()
 
@@ -3723,7 +3724,7 @@ class IdentityOperator(HomothetyOperator):
         self.set_rule('.{Operator}', lambda s,o: o, MultiplicationOperator)
 
     def direct(self, input, output):
-        if self.isalias(input, output):
+        if isalias(input, output):
             pass
         output[...] = input
 

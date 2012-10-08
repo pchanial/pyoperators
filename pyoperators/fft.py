@@ -10,7 +10,7 @@ from .core import (Operator, CompositionOperator, DiagonalOperator,
 from .decorators import (aligned, contiguous, inplace, linear, real, square,
                          unitary)
 from .memory import empty
-from .utils import openmp_num_threads, product, tointtuple
+from .utils import isalias, openmp_num_threads, product, tointtuple
 from .utils.ufuncs import multiply_conjugate
 
 __all__ = ['ConvolutionOperator', 'FFTOperator']
@@ -232,7 +232,7 @@ class _FFTWComplexOperator(Operator):
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
 
     def direct(self, input, output):
-        if self.isalias(input, output):
+        if isalias(input, output):
             self.iplan.update_arrays(input, output)
             self.iplan.execute()
         else:
