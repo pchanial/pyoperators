@@ -16,7 +16,7 @@ import types
 
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
 from itertools import izip
-from .memory import empty, iscompatible, MemoryPool, MEMORY_ALIGNMENT
+from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
 from .utils import (
     all_eq,
     first_is_not,
@@ -779,16 +779,24 @@ class Operator(object):
         d = np.empty((n, m), self.dtype)
 
         if not inplace or not self.flags.inplace:
-            v = np.zeros(n, self.dtype)
-            for i in xrange(n):
-                v[i] = 1
-                o = d[i, :].reshape(shapeout)
-                self.direct(v.reshape(shapein), o)
-                v[i] = 0
+            v = zeros(n, self.dtype)
+            if self.flags.alignment_output == 1:
+                for i in xrange(n):
+                    v[i] = 1
+                    o = d[i, :].reshape(shapeout)
+                    self.direct(v.reshape(shapein), o)
+                    v[i] = 0
+            else:
+                o = empty(shapeout, self.dtype)
+                for i in xrange(n):
+                    v[i] = 1
+                    self.direct(v.reshape(shapein), o)
+                    d[i, :] = o.ravel()
+                    v[i] = 0
             return d.T
 
         # test in-place mechanism
-        u = np.empty(max(m, n), self.dtype)
+        u = empty(max(m, n), self.dtype)
         v = u[:n]
         w = u[:m]
         for i in xrange(n):
