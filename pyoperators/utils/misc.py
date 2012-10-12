@@ -66,8 +66,8 @@ def all_eq(a, b):
         if type(a) is not type(b):
             return False
         return a == b
-    if isinstance(a, (np.ndarray, np.number)) or \
-       isinstance(b, (np.ndarray, np.number)):
+    if isinstance(a, (float, np.ndarray, np.number)) or \
+       isinstance(b, (float, np.ndarray, np.number)):
         return np.allclose(a, b)
     if isinstance(a, collections.Container):
         if type(a) is not type(b):
