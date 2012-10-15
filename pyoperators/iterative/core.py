@@ -223,7 +223,8 @@ class IterativeAlgorithm(object):
         ones.
 
         """
-        pass
+        raise NotImplementedError("The algorithm does not define an 'iteration'"
+                                  " method.")
 
     def restart(self, n=None):
         """ Restart the algorithm. """
