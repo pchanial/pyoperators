@@ -146,8 +146,15 @@ class IterativeAlgorithm(object):
     @staticmethod
     def callback(self):
         """ Callback function, called after each iteration.. """
-        if self.disp:
-            print('{0:4}: {1}'.format(self.niterations, self.finalize()))
+        if not self.disp:
+            return
+        if self.inplace_recursion:
+            current = self.finalize()
+        elif len(self.variables) == 1:
+            current = getattr(self, self.variables[0] + '_new')
+        else:
+            dict((v, getattr(self, v + '_new')) for v in self.variables)
+        print('{0:4}: {1}'.format(self.niterations, current))
 
     def cont(self):
         """ Continue an interrupted computation. """
