@@ -171,7 +171,7 @@ class MemoryPool(object):
             i = ifind(self._buffers, compatible)
             v = self._buffers.pop(i)
         except ValueError:
-            v = empty(shape, dtype, description, verbose)
+            v = empty(shape, dtype, description=description, verbose=verbose)
         return v
 
     @contextmanager
