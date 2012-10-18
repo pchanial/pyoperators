@@ -15,6 +15,7 @@ __all__ = [
     'BandOperator',
     'DiagonalNumexprOperator',
     'DiagonalNumexprNonSeparableOperator',
+    'DifferenceOperator',
     'EigendecompositionOperator',
     'IntegrationTrapezeWeightOperator',
     'PackOperator',
@@ -595,6 +596,41 @@ class SymmetricBandOperator(Operator):
         else:
             out = UpperTriangularOperator(self.shape, ab_chol, **self.kwargs)
         return out
+
+
+@real
+@linear
+class DifferenceOperator(Operator):
+    """
+    Non-optimised difference operator.
+
+    """
+    def __init__(self, axis=-1, **keywords):
+        self.axis = axis
+        Operator.__init__(self, **keywords)
+
+    def direct(self, input, output):
+        output[...] = np.diff(input, axis=self.axis)
+
+    def transpose(self, input, output):
+        slices = [slice(None)] * input.ndim
+        slices[self.axis] = slice(1, -1)
+        shapetmp = list(input.shape)
+        shapetmp[self.axis] += 2
+        tmp = np.zeros(shapetmp)
+        tmp[slices] = input
+        output[...] = -np.diff(tmp, axis=self.axis)
+
+    def reshapein(self, shapein):
+        shape = list(shapein)
+        shape[self.axis] -= 1
+        return tuple(shape)
+
+    def reshapeout(self, shapeout):
+        shape = list(shapeout)
+        shape[self.axis] += 1
+        return tuple(shape)
+
 
 @symmetric
 class EigendecompositionOperator(Operator):
