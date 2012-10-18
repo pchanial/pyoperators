@@ -7,12 +7,14 @@ from pyoperators import Operator, BlockColumnOperator, DiagonalOperator
 from pyoperators.linear import (
     DiagonalNumexprNonSeparableOperator,
     DiagonalNumexprOperator,
+    DifferenceOperator,
     IntegrationTrapezeWeightOperator,
     PackOperator,
     TridiagonalOperator,
     UnpackOperator,
     SumOperator,
 )
+from pyoperators.utils import product
 from pyoperators.utils.testing import (
     assert_eq,
     assert_is_instance,
@@ -88,6 +90,21 @@ def test_diagonal_numexpr3():
     c = BlockColumnOperator(3 * [IdentityOutplaceOperator()], new_axisout=0)
     v = [1, 2]
     assert_inplace_outplace(d1 * c, v, d1(c(v)))
+
+
+def test_diff_non_optimised():
+    def func(shape, axis):
+        dX = DifferenceOperator(axis=axis, shapein=shape)
+        a = np.arange(product(shape)).reshape(shape)
+        assert_eq(dX(a), np.diff(a, axis=axis))
+        dX_dense = dX.todense()
+
+        dXT_dense = dX.T.todense()
+        assert_eq(dX_dense.T, dXT_dense)
+
+    for shape in ((3,), (3, 4), (3, 4, 5), (3, 4, 5, 6)):
+        for axis in range(len(shape)):
+            yield func, shape, axis
 
 
 def test_integration_trapeze():
