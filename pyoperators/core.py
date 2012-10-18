@@ -4307,7 +4307,10 @@ class MaskOperator(DiagonalOperator):
         BroadcastingOperator.__init__(self, mask, **keywords)
 
     def direct(self, input, output):
-        ufuncs.masking(input, self.data, output)
+        if self.broadcast == 'rightward':
+            ufuncs.masking(input.T, self.data.T, output.T)
+        else:
+            ufuncs.masking(input, self.data, output)
 
     def get_data(self):
         return ~self.data
