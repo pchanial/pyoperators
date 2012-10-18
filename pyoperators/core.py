@@ -63,6 +63,7 @@ __all__ = [
     'asoperator',
     'I',
     'O',
+    'X',
 ]
 
 OPERATOR_ATTRIBUTES = [
@@ -4697,6 +4698,24 @@ class ReductionOperator(Operator):
             )
 
 
+class Variable(IdentityOperator):
+    """
+    Fake operator to represent a variable.
+
+    """
+
+    def __init__(self, name, shape=None):
+        self.name = name
+        IdentityOperator.__init__(self, shapein=shape)
+        self.set_rule('.{Operator}', lambda s, o: o, CompositionOperator)
+        self.del_rule('.{Operator}', MultiplicationOperator)
+
+    def __str__(self):
+        return self.name
+
+    __repr__ = __str__
+
+
 def DirectOperatorFactory(cls, source, *args, **keywords):
     for attr in OPERATOR_ATTRIBUTES:
         if attr in keywords or attr in ['dtype', 'flags']:
@@ -4830,5 +4849,6 @@ def asoperator1d(x):
 
 I = IdentityOperator()
 O = ZeroOperator()
+X = Variable('X')
 
 _pool = MemoryPool()
