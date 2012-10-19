@@ -3549,7 +3549,8 @@ class DiagonalOperator(BroadcastingOperator):
         if nones + nzeros == n and not isinstance(self, (HomothetyOperator,
                                                          MaskOperator)):
             self.__class__ = MaskOperator
-            self.__init__(~data.astype(np.bool8), **keywords)
+            self.__init__(~data.astype(np.bool8), broadcast=broadcast,
+                           **keywords)
             return
         if nmones + nones == n:
             keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
