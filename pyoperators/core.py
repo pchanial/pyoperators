@@ -15,7 +15,7 @@ import scipy.sparse.linalg
 import types
 
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
-from itertools import izip
+from itertools import groupby, izip
 from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
 from .utils import (all_eq, first_is_not, inspect_special_values, isalias,
                     isclassattr, isscalar, merge_none, ndarraywrap,
@@ -2036,6 +2036,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     """
     def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands)
+        operands = self._apply_rule_homothety(operands)
         operands = self._apply_rules(operands)
         if len(operands) == 1:
             self.__class__ = operands[0].__class__
@@ -2154,6 +2155,30 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 self.operands[i] = op
                 commout = op.commin or commout
         return self
+
+    def _apply_rule_homothety(self, operands):
+        """
+        Group scalars from homothety operators and try to inject the result
+        into operators that can absorb scalars.
+
+        """
+        return sum((self._apply_rule_homothety_linear(list(group))
+                    if linear else list(group) for linear, group in
+                    groupby(operands, lambda o: o.flags.linear)), [])
+
+    def _apply_rule_homothety_linear(self, operands):
+        if len(operands) <= 1:
+            return operands
+        scalar = np.array(1, bool)
+        for i, op in enumerate(operands):
+            if isinstance(op, IdentityOperator) or \
+               not isinstance(op, HomothetyOperator):
+                continue
+            scalar = scalar * op.data
+            operands[i] = DirectOperatorFactory(IdentityOperator, op)
+        if scalar != 1:
+            operands.insert(0, HomothetyOperator(scalar))
+        return operands
 
     def _get_info(self, input, output, preserve_input):
         """
@@ -3691,7 +3716,6 @@ class HomothetyOperator(DiagonalOperator):
                       s, 1/s.data if s.data != 0 else np.nan))
         self.set_rule('.IC', lambda s: DirectOperatorFactory(HomothetyOperator,
                       s, np.conjugate(1/s.data) if s.data != 0 else np.nan))
-        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
 
     def __str__(self):
         data = self.data.flat[0]
@@ -3702,11 +3726,6 @@ class HomothetyOperator(DiagonalOperator):
         if data == -1:
             return '-I'
         return str(data) + 'I'
-
-    @staticmethod
-    def _rule_right(operator, self):
-        if operator.flags.linear:
-            return self, operator
 
 
 @real
@@ -3734,6 +3753,7 @@ class IdentityOperator(HomothetyOperator):
     def __init__(self, shapein=None, **keywords):
         HomothetyOperator.__init__(self, 1, shapein=shapein, **keywords)
         self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
+        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
         self.set_rule('.{Operator}', lambda s,o: o, MultiplicationOperator)
 
     def direct(self, input, output):
