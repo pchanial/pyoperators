@@ -3667,18 +3667,24 @@ class MaskOperator(DiagonalOperator):
     We follow the convention of MaskedArray, where True means masked.
 
     """
-    def __init__(self, mask, **keywords):
+    def __init__(self, mask, broadcast=None, **keywords):
         mask = np.array(mask, dtype=np.bool8, copy=False)
         nmones, nzeros, nones, other, same = inspect_special_values(mask)
-        if nzeros == mask.size:
-            self.__class__ = IdentityOperator
-            self.__init__(**keywords)
-            return
-        if nones == mask.size:
-            self.__class__ = ZeroOperator
-            self.__init__(**keywords)
-            return
-        BroadcastingOperator.__init__(self, mask, **keywords)
+        if mask.size in (nzeros, nones):
+            if broadcast is None:
+                broadcast = 'scalar' if mask.ndim == 0 else 'disabled'
+            if broadcast == 'disabled':
+                keywords['shapein'] = mask.shape
+                keywords['shapeout'] = mask.shape
+            if nzeros == mask.size:
+                self.__class__ = IdentityOperator
+                self.__init__(**keywords)
+                return
+            if nones == mask.size:
+                self.__class__ = ZeroOperator
+                self.__init__(**keywords)
+                return
+        BroadcastingOperator.__init__(self, mask, broadcast, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
