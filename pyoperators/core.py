@@ -3318,12 +3318,16 @@ class ReshapeOperator(Operator):
             return
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
         self.set_rule('.T', lambda s: ReverseOperatorFactory(ReshapeOperator,s))
-        self.set_rule('.T.', '1', CompositionOperator)
+        self.set_rule('{self}.', self._rule_reshape, CompositionOperator)
 
     def direct(self, input, output):
         if isalias(input, output):
             pass
         output.ravel()[:] = input.ravel()
+
+    @staticmethod
+    def _rule_reshape(other, self):
+        return ReshapeOperator(self.shapein, other.shapeout)
 
     def __str__(self):
         return strshape(self.shapeout) + '←' + strshape(self.shapein)
