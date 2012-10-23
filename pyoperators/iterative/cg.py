@@ -109,6 +109,9 @@ class PCGAlgorithm(IterativeAlgorithm):
 
         self.r[...] = self.b
         self.r -= self.A(self.x)
+        self.error = np.sqrt(self.norm(self.r) / self.b_norm)
+        if self.error < self.tol:
+            raise StopIteration('Solver reached maximum tolerance.')
         self.M(self.r, self.d)
         self.delta = self.dot(self.r, self.d)
 
@@ -118,7 +121,6 @@ class PCGAlgorithm(IterativeAlgorithm):
         self.x += alpha * self.d
         self.r -= alpha * self.q
         self.error = np.sqrt(self.norm(self.r) / self.b_norm)
-
         if self.error < self.tol:
             raise StopIteration('Solver reached maximum tolerance.')
 

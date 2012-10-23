@@ -2,12 +2,13 @@
 
 """
 Testing of the iterative module
+
 """
 
-from numpy import testing
 import numpy as np
 import pyoperators
-from pyoperators import iterative
+from pyoperators import IdentityOperator, iterative
+from pyoperators.utils.testing import assert_eq, skiptest
 
 # collection of definite positive symmetric linear operators to test
 operator_list = [pyoperators.DiagonalOperator(np.random.rand(16)),
@@ -16,19 +17,21 @@ operator_list = [pyoperators.DiagonalOperator(np.random.rand(16)),
                  ]
 
 # collection of vectors
-vector_list = [np.ones(16), np.arange(1, 17), np.random.rand(16)]
+vector_list = [np.ones(16), np.arange(1, 17)]
 
-# collection of methods
+# collection of old solvers
 methods = [iterative.algorithms.acg]
 
-# collection of classes
+# collection of solvers
 classes = [iterative.cg.PCGAlgorithm]
+solvers = [iterative.cg.pcg]
 
+@skiptest
 def test_methods_inv():
     def func(m, A, x):
         y = A * x
         xe = m(A, y, maxiter=100, tol=1e-6)
-        testing.assert_almost_equal, x, xe
+        assert_eq(x, xe)
     for A in operator_list:
         for x in vector_list:
             for m in methods:
@@ -39,8 +42,17 @@ def test_classes_inv():
         y = A(x)
         algo = c(A, y, maxiter=100, tol=1e-6)
         xe = algo.run()
-        testing.assert_almost_equal, x, xe
+        assert_eq(x, xe)
     for A in operator_list:
         for x in vector_list:
             for c in classes:
                 yield func, c, A, x
+
+def test_solution_as_x0():
+    def func(s, v):
+        solution = s(IdentityOperator(shapein=v.shape), v, x0=v)
+        assert_eq(solution['nit'], 0)
+        assert_eq(solution['x'], v)
+    for s in solvers:
+        for v in vector_list:
+            yield func, s, v
