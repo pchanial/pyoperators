@@ -87,7 +87,7 @@ def test_convolution_complex():
         image[tuple([s//2 for s in image.shape])] = 1.
         yield func, image, kernel
 
-def test_convolution_rules():
+def test_convolution_rules_cmp():
     shape = (5,5)
     kernel1 = np.ones((3,3), complex); kernel1.flat[-1] = 0
     kernel2 = np.ones((3,3), complex); kernel2[0,0] = 0
@@ -114,3 +114,14 @@ def test_convolution_rules():
                                     (kernel2.real, kernel2)):
         for k in ([k1,k2], [k2,k1]):
             yield func, k[0], k[1]
+
+def test_convolution_rules_add():
+    shape = (5,5)
+    kernel1 = np.ones((3,3))
+    kernel2 = np.ones((2,2))
+    c1 = ConvolutionOperator(kernel1, shape)
+    c2 = ConvolutionOperator(kernel2, shape)
+    def func(c1, c2):
+        c = c1 + c2
+        assert_is_instance(c, _FFTWRealConvolutionOperator)
+    yield func, c1, c2
