@@ -6,10 +6,11 @@ import time
 
 from .config import LOCAL_PATH
 from .core import (
-    Operator,
+    AdditionOperator,
     CompositionOperator,
     DiagonalOperator,
     HomothetyOperator,
+    Operator,
     ReverseOperatorFactory,
     _pool,
 )
@@ -162,7 +163,13 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
         )
         self.set_rule(
             '.{_FFTWRealConvolutionOperator}',
-            self._rule_real_convolution,
+            self._rule_add_real,
+            AdditionOperator,
+            globals(),
+        )
+        self.set_rule(
+            '.{_FFTWRealConvolutionOperator}',
+            self._rule_cmp_real,
             CompositionOperator,
             globals(),
         )
@@ -228,7 +235,13 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
             self._bplan.execute()
 
     @staticmethod
-    def _rule_real_convolution(self, other):
+    def _rule_add_real(self, other):
+        result = self.copy()
+        result.kernel = self.kernel + other.kernel
+        return result
+
+    @staticmethod
+    def _rule_cmp_real(self, other):
         result = self.copy()
         result.kernel = self.kernel * other.kernel * product(self.shapein)
         return result
