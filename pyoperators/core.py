@@ -2176,8 +2176,30 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 continue
             scalar = scalar * op.data
             operands[i] = DirectOperatorFactory(IdentityOperator, op)
-        if scalar != 1:
-            operands.insert(0, HomothetyOperator(scalar))
+
+        if scalar == 1:
+            return operands
+
+        h = HomothetyOperator(scalar)
+        try:
+            for iop, op in enumerate(operands):
+                if isinstance(op, IdentityOperator):
+                    continue
+                if CompositionOperator not in op.rules:
+                    continue
+                for rule in op.rules[CompositionOperator]['left']:
+                    new_op = rule(op, h)
+                    if new_op is not None:
+                        raise StopIteration()
+                for rule in op.rules[CompositionOperator]['right']:
+                    new_op = rule(h, op)
+                    if new_op is not None:
+                        raise StopIteration()
+        except StopIteration:
+            self._merge(new_op, h, op)
+            operands[iop] = new_op
+        else:
+            operands.insert(0, h)
         return operands
 
     def _get_info(self, input, output, preserve_input):
