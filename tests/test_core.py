@@ -1950,7 +1950,7 @@ def test_identity():
     o = Op()
     assert type(MultiplicationOperator([o, I])) is Op
 
-def test_denseoperator():
+def test_dense_operator():
 
     def func(m, d, v):
         expected = np.dot(m, v)
@@ -1974,6 +1974,16 @@ def test_denseoperator():
     for v in np.array([1+0j,0, 0]), np.array([0j,1, 0]), np.array([0j,0,1]):
         yield func, m.T, d.T, v
         yield func, m.T.conj(), d.H, v
+
+def test_dense_operator_rule_homothety():
+    m = np.array([[1,2],[3,4],[5,6]])
+    d = HomothetyOperator(2) * DenseOperator(m)
+    assert_is_instance(d, DenseOperator)
+    assert_eq(d.data, m * 2)
+    d = HomothetyOperator(2j) * DenseOperator(m)
+    assert_is_instance(d, DenseOperator)
+    assert_eq(d.data, m * 2j)
+    assert_eq(d.dtype, complex)
 
 
 #========================

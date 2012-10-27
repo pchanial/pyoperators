@@ -3965,6 +3965,9 @@ class DenseOperator(Operator):
             s.data.T))
         self.set_rule('.H', lambda s: ReverseOperatorFactory(type(s), s,
             np.conjugate(s.data.T)))
+        self.set_rule('.{HomothetyOperator}', lambda s, o: DenseOperator(
+            o.data * s.data, shapein=s.shapein, shapeout=s.shapeout,
+            dtype=s._find_common_type([s.dtype, o.dtype])), CompositionOperator)
 
     def direct(self, input, output):
         np.dot(self.data, input.ravel(), output)
