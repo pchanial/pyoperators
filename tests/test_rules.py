@@ -12,6 +12,7 @@ from pyoperators import (
     ZeroOperator,
 )
 from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
+from pyoperators.decorators import linear
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
     assert_eq,
@@ -66,6 +67,15 @@ op1 = Operator1()
 op2 = Operator2()
 op3 = Operator3()
 op4 = Operator4()
+
+
+class NonLinearOperator(Operator):
+    pass
+
+
+@linear
+class LinearOperator(Operator):
+    pass
 
 
 def p1(o1, o2):
@@ -315,3 +325,101 @@ def test_del_rule():
     assert_equal(len(op.rules[CompositionOperator]['right']), 1)
     assert_equal(len(op.rules[AdditionOperator]), 0)
     assert_equal(len(op.rules[MultiplicationOperator]), 0)
+
+
+def test_absorb_scalar():
+    h = HomothetyOperator(2)
+
+    @linear
+    class AbsorbRightOperator(Operator):
+        def __init__(self, value=3.0):
+            self.value = np.array(value)
+            Operator.__init__(self)
+            self.set_rule(
+                '.{HomothetyOperator}',
+                lambda s, o: AbsorbRightOperator(s.value * o.data),
+                CompositionOperator,
+            )
+
+    @linear
+    class AbsorbLeftOperator(Operator):
+        def __init__(self, value=3.0):
+            self.value = np.array(value)
+            Operator.__init__(self)
+            self.set_rule(
+                '{HomothetyOperator}.',
+                lambda o, s: AbsorbLeftOperator(s.value * o.data),
+                CompositionOperator,
+            )
+
+    nl = NonLinearOperator()
+    l = LinearOperator()
+    ar = AbsorbRightOperator()
+    al = AbsorbLeftOperator()
+    ops = [
+        [h, nl, h, ar, nl, h, al, nl, h],
+        [h, nl, ar, h, nl, al, h, nl, h],
+        [h, ar, nl, h, al],
+        [ar, h, nl, al, h],
+        [h, ar, l, h, al],
+        [ar, h, l, al, h],
+        [h, l, ar],
+        [l, ar, h],
+        [h, l, al],
+        [l, al, h],
+    ]
+    expected_types = [
+        [
+            HomothetyOperator,
+            NonLinearOperator,
+            AbsorbRightOperator,
+            NonLinearOperator,
+            AbsorbLeftOperator,
+            NonLinearOperator,
+            HomothetyOperator,
+        ],
+        [
+            HomothetyOperator,
+            NonLinearOperator,
+            AbsorbRightOperator,
+            NonLinearOperator,
+            AbsorbLeftOperator,
+            NonLinearOperator,
+            HomothetyOperator,
+        ],
+        [AbsorbRightOperator, NonLinearOperator, AbsorbLeftOperator],
+        [AbsorbRightOperator, NonLinearOperator, AbsorbLeftOperator],
+        [AbsorbRightOperator, LinearOperator, AbsorbLeftOperator],
+        [AbsorbRightOperator, LinearOperator, AbsorbLeftOperator],
+        [LinearOperator, AbsorbRightOperator],
+        [LinearOperator, AbsorbRightOperator],
+        [LinearOperator, AbsorbLeftOperator],
+        [LinearOperator, AbsorbLeftOperator],
+    ]
+    expected_values = [
+        [2, 0, 6, 0, 6, 0, 2],
+        [2, 0, 6, 0, 6, 0, 2],
+        [6, 0, 6],
+        [6, 0, 6],
+        [12, 0, 3],
+        [12, 0, 3],
+        [0, 6],
+        [0, 6],
+        [0, 6],
+        [0, 6],
+    ]
+
+    def get_val(op):
+        if isinstance(op, (NonLinearOperator, LinearOperator)):
+            return 0
+        if isinstance(op, HomothetyOperator):
+            return op.data
+        return op.value
+
+    def func(ops, expected_types, expected_values):
+        op = CompositionOperator(ops)
+        assert_eq([type(o) for o in op.operands], expected_types)
+        assert_eq([get_val(o) for o in op.operands], expected_values)
+
+    for op, expected_type, expected_value in zip(ops, expected_types, expected_values):
+        yield func, op, expected_type, expected_value
