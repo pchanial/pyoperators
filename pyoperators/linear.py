@@ -111,7 +111,7 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
 
     Notes
     -----
-    - When such instance is added or multiplied to another DiagonalOperator
+    - When such an instance is added or multiplied to another DiagonalOperator
     (or subclass, such as an instance of this class), an algebraic
     simplification takes place, which results in a regular (dense) diagonal
     operator.
