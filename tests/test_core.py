@@ -1396,6 +1396,15 @@ def test_block_slice():
                     assert o.flags.inplace is Op.flags.inplace
                     yield func, o, input, expected
 
+def test_block_slice_rule_homothety():
+    b = BlockSliceOperator(2*[HomothetyOperator(3)],
+                           [slice(0,10), slice(12,14)])
+    hb = HomothetyOperator(2) * b
+    assert_is_instance(hb, BlockSliceOperator)
+    for op in hb.operands:
+        assert_is_instance(op, HomothetyOperator)
+        assert_eq(op.data, 6)
+
 
 #==================
 # Test composition
