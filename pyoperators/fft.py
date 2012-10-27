@@ -162,6 +162,9 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
             self, kernel, shapein, axes, fftw_flag, nthreads, **keywords
         )
         self.set_rule(
+            '.{HomothetyOperator}', self._rule_homothety, CompositionOperator, globals()
+        )
+        self.set_rule(
             '.{_FFTWRealConvolutionOperator}',
             self._rule_add_real,
             AdditionOperator,
@@ -233,6 +236,13 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
             multiply_conjugate(buf, self.kernel, buf)
             self._bplan.update_arrays(buf, output)
             self._bplan.execute()
+
+    @staticmethod
+    def _rule_homothety(self, scalar):
+        result = self.copy()
+        result.kernel = empty(self.kernel.shape, self.kernel.dtype)
+        np.multiply(self.kernel, scalar.data, result.kernel)
+        return result
 
     @staticmethod
     def _rule_add_real(self, other):
