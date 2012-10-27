@@ -2199,6 +2199,13 @@ class BlockSliceOperator(CommutativeCompositeOperator):
         self.set_rule(
             '.H', lambda s: BlockSliceOperator([op.H for op in s.operands], s.slices)
         )
+        self.set_rule(
+            '.{HomothetyOperator}',
+            lambda s, o: BlockSliceOperator(
+                [o.data * op for op in s.operands], s.slices
+            ),
+            CompositionOperator,
+        )
 
     def direct(self, input, output):
         if not isalias(input, output):
