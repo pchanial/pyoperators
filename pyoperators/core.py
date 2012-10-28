@@ -1245,7 +1245,7 @@ class Operator(object):
             else:
                 self.reshapein = Operator.reshapein.__get__(self, type(self))
                 self.validateout = Operator.validateout.__get__(self,type(self))
-                    
+
     def _init_name(self, name):
         """ Set operator's __name__ attribute. """
         if name is None:
