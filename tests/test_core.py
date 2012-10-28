@@ -1944,12 +1944,6 @@ def test_zero8():
     o = Op()
     assert type(o + O) is Op
 
-def test_identity():
-    class Op(Operator):
-        pass
-    o = Op()
-    assert type(MultiplicationOperator([o, I])) is Op
-
 def test_dense_operator():
 
     def func(m, d, v):
