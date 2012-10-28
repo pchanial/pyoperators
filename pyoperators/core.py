@@ -2698,41 +2698,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         return shapes
 
-    # if inplace_composition -> preserve_input = False
-    # if preserve_input and last operand is inplace: make it outplace
-    # find from left-to-right the first operand that can not have
-    # the composition output as its output -> define first temporary
-    # find from right-to-left the first operand that can not have
-    # the composition input as its input.
-
-    # ex : I1 * I2 * O3 * I4 * I5 out-of-place composition, preserve_input:
-    #    B    B    B    C    B    A
-    # the first operand that can not have the composition output B as its output
-    # is I4. B is in the pool for operands > 4
-    # the first operand that can not have the composition input A as its input
-    # is I4.
-
-    # ex : I1 * I2 * O3 * I4 * I5 out-of-place composition, not preserve_input:
-    #    B    B    B    A    A    A
-    # the first operand that can not have the composition output B as its output
-    # is I4. B is in the pool for operands > 4
-    # the first operand that can not have the composition input A as its input
-    # is O3.
-
-    # ex : I1 * I2 * O3 * I4 * I5 in-place composition, preserve_input:
-    #    A    A    A    B    B    A
-    # the first operand that can not have the composition output A as its output
-    # is I4. A is in the pool for operands > 4
-    # the first operand that can not have the composition input A as its input
-    # is I4.
-
-    # ex : I1 * I2 * O3 * I4 * I5 in-place composition, not preserve_input:
-    #    A    A    A    B    A    A
-    # the first operand that can not have the composition output A as its output
-    # is I4. A is in the pool for operands > 4
-    # the first operand that can not have the composition input A as its input
-    # is O3.
-
     @classmethod
     def _get_attributes(cls, operands, **keywords):
         shapes = cls._get_shapes(operands[-1].shapein, operands[0].shapeout, operands)
