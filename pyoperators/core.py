@@ -337,9 +337,6 @@ class OperatorBinaryRule(OperatorRule):
 
         reference, other = (o1, o2) if self.reference == 0 else (o2, o1)
         subother = self._symbol2operator(reference, self.other)
-        predicate = self._symbol2operator(reference, self.predicate)
-        if predicate is None:
-            return None
 
         if isinstance(subother, str):
             if subother == 'self':
@@ -353,6 +350,10 @@ class OperatorBinaryRule(OperatorRule):
             elif subother not in (c.__name__ for c in other.__class__.__mro__):
                 return None
         elif other is not subother:
+            return None
+
+        predicate = self._symbol2operator(reference, self.predicate)
+        if predicate is None:
             return None
 
         if not isinstance(predicate, Operator) and callable(predicate):
