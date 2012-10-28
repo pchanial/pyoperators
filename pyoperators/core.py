@@ -2411,6 +2411,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             return
 
         keywords = cls._get_attributes([op1, op2])
+        keywords['name'] = cls._merge_names([op1, op2])
 
         # The merged operator is not guaranteed to handle inplace reductions
         del keywords['flags']['inplace_reduction']
@@ -2453,7 +2454,15 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'alignment_output':operands[0].flags.alignment_output,
             'contiguous_input':operands[-1].flags.contiguous_input,
             'contiguous_output':operands[0].flags.contiguous_output,
-}
+            }
+
+    @staticmethod
+    def _merge_names(operands):
+        names = [o.__name__ for o in operands]
+        names.sort(key=lambda n: 2 if n == 'IdentityOperator' else
+                                 1 if n == 'HomothetyOperator' else
+                                 0)
+        return names[0]
 
     @staticmethod
     def _merge_reshapein(operands):
