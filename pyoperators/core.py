@@ -1248,8 +1248,8 @@ class Operator(object):
     def _init_name(self, name):
         """ Set operator's __name__ attribute. """
         if name is None:
-            if self.__class__ != 'Operator':
-                name = self.__class__.__name__
+            if type(self) is not Operator:
+                name = type(self).__name__
             elif self.direct is not None and self.direct.__name__ not in \
                  ('<lambda>', 'direct'):
                 name = self.direct.__name__
