@@ -4431,7 +4431,6 @@ class IdentityOperator(HomothetyOperator):
         HomothetyOperator.__init__(self, 1, shapein=shapein, **keywords)
         self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
         self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
-        self.set_rule('.{Operator}', lambda s, o: o, MultiplicationOperator)
 
     def direct(self, input, output):
         if isalias(input, output):
@@ -4749,7 +4748,6 @@ class Variable(IdentityOperator):
         self.name = name
         IdentityOperator.__init__(self, shapein=shape)
         self.set_rule('.{Operator}', lambda s, o: o, CompositionOperator)
-        self.del_rule('.{Operator}', MultiplicationOperator)
 
     def __str__(self):
         return self.name
