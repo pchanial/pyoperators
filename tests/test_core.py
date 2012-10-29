@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 import operator
+import sys
 
 from nose.plugins.skip import SkipTest
 from pyoperators import memory, decorators
@@ -18,6 +19,7 @@ from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
          assert_is_none, assert_not_in, assert_is_instance, assert_raises,skiptest)
 from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
+PYTHON_26 = sys.version_info < (2, 7)
 np.seterr(all='raise')
 
 memory.verbose = True
@@ -749,6 +751,8 @@ def test_comm_composite():
         for comms in itertools.combinations_with_replacement(comms_all, 3):
             for inout in ('in', 'out'):
                 yield func, cls, comms, inout
+if PYTHON_26:
+    test_comm_composite = skiptest(test_comm_composite)
 
 def test_comm_composition():
     comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
