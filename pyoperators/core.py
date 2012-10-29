@@ -424,6 +424,7 @@ class Operator(object):
                          reshapein, reshapeout, shapein, shapeout, toshapein,
                          toshapeout, validatein, validateout)
 
+    __name__ = None
     dtype = None
     flags = OperatorFlags()
     rules = None
@@ -1249,6 +1250,8 @@ class Operator(object):
     def _init_name(self, name):
         """ Set operator's __name__ attribute. """
         if name is None:
+            if self.__name__ is not None:
+                return
             if type(self) is not Operator:
                 name = type(self).__name__
             elif self.direct is not None and self.direct.__name__ not in \
