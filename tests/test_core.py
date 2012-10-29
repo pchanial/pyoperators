@@ -382,6 +382,24 @@ def test_dtype2():
         yield func, di
 
 
+#===================
+# Test operator name
+#===================
+
+def test_name():
+    class sqrt(Operator):
+        pass
+    class MyOp(Operator):
+        __name__ = 'sqrt'
+    ops = [Operator(), Operator(direct=np.sqrt), MyOp(), Operator(name='sqrt'),
+           sqrt()]
+    names = ['Operator'] + 4 * ['sqrt']
+    def func(op, name):
+        assert op.__name__ == name
+    for op, name in zip(ops, names):
+        yield func, op, name
+
+
 #=========================
 # Test operator comparison
 #=========================
