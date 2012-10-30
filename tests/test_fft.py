@@ -4,7 +4,8 @@ import itertools
 import numpy as np
 import scipy.signal
 
-from pyoperators import CompositionOperator, ConvolutionOperator
+from pyoperators import (CompositionOperator, ConvolutionOperator,
+                         HomothetyOperator)
 from pyoperators.fft import _FFTWRealConvolutionOperator
 from pyoperators.utils.testing import assert_eq, assert_is_instance
 
@@ -124,4 +125,21 @@ def test_convolution_rules_add():
     def func(c1, c2):
         c = c1 + c2
         assert_is_instance(c, _FFTWRealConvolutionOperator)
-    yield func, c1, c2
+        assert_eq(c1.todense() + c2.todense(), c.todense())
+    for (a, b) in itertools.product((c1, c1.T), (c2, c2.T)):
+        yield func, a, b
+
+def test_convolution_rules_homothety():
+    h = HomothetyOperator(2)
+    c = ConvolutionOperator(np.ones((3,3)), (5,5))
+    ref = c.todense() * h.data
+
+    lambda_id = lambda x, y: (x, y)
+    lambda_sw = lambda x, y: (y, x)
+    def func(ops, r):
+        op = CompositionOperator(ops)
+        assert_eq(op.todense(), r)
+    for op, r in zip((c, c.T), (ref, ref.T)):
+        for l in (lambda_id, lambda_sw):
+            ops = l(op, h)
+            yield func, ops, r
