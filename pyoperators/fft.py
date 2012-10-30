@@ -54,7 +54,7 @@ class _FFTWConvolutionOperator(Operator):
     def __init__(
         self,
         kernel,
-        shapein=None,
+        shapein,
         axes=None,
         fftw_flag='FFTW_MEASURE',
         nthreads=None,
@@ -91,24 +91,16 @@ class _FFTWConvolutionOperator(Operator):
             kernel = kernel.astype(float)
             dtype = kernel.dtype
 
-        if not isinstance(self, _FFTWRealConvolutionOperator) and dtype.kind == 'f':
-            self.__class__ = _FFTWRealConvolutionOperator
-            self.__init__(kernel, shapein, axes, fftw_flag, nthreads, **keywords)
-            return
-        if not isinstance(self, _FFTWComplexConvolutionOperator) and dtype.kind == 'c':
-            self.__class__ = _FFTWComplexConvolutionOperator
-            self.__init__(kernel, shapein, axes, fftw_flag, nthreads, **keywords)
-            return
-
         if shapein is None:
-            shapein = kernel.shape
-        else:
-            shapein = tointtuple(shapein)
+            raise ValueError('The input shape is not specified.')
+
+        shapein = tointtuple(shapein)
         if len(shapein) != kernel.ndim:
             raise ValueError(
                 "The kernel dimension '{0}' is incompatible with t"
                 "hat of the specified shape '{1}'.".format(kernel.ndim, len(shapein))
             )
+
         # if the kernel is larger than the image, we don't crop it since it
         # might affect normalisation of the kernel
         if any([ks > s for ks, s in zip(kernel.shape, shapein)]):
@@ -116,50 +108,118 @@ class _FFTWConvolutionOperator(Operator):
 
         if axes is None:
             axes = range(len(shapein))
-        self.axes = tointtuple(axes)
-        self.nthreads = nthreads or FFTW_DEFAULT_NUM_THREADS
-        self.fftw_flag = fftw_flag.upper()
+        axes = tointtuple(axes)
+        nthreads = nthreads or FFTW_DEFAULT_NUM_THREADS
+        fftw_flag = fftw_flag.upper()
 
-        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
+        if dtype.kind == 'c':
+            n = product(shapein)
+            fft = _FFTWComplexForwardOperator(
+                shapein, axes, fftw_flag, nthreads, dtype, **keywords
+            )
+            kernel_fft = _get_kernel_fft(
+                kernel, shapein, dtype, shapein, dtype, fft.oplan
+            )
+            kernel_fft /= n
+            self.__class__ = CompositionOperator
+            self.__init__([n, fft.H, DiagonalOperator(kernel_fft), fft])
+            return
 
+        dtype_ = np.dtype('complex' + str(int(dtype.name[5:]) * 2))
+        shape_ = self._reshape_to_halfstorage(shapein, axes)
+        _load_wisdom()
+        alignment = self.flags.alignment_input
+        contiguous = True
+        with _pool.get(shapein, dtype, alignment, contiguous) as in_:
+            with _pool.get(shape_, dtype_, alignment, contiguous) as out:
+                t0 = time.time()
+                fplan = pyfftw.FFTW(
+                    in_,
+                    out,
+                    axes=axes,
+                    flags=[fftw_flag],
+                    direction='FFTW_FORWARD',
+                    threads=nthreads,
+                )
+                bplan = pyfftw.FFTW(
+                    out,
+                    in_,
+                    axes=axes,
+                    flags=[fftw_flag],
+                    direction='FFTW_BACKWARD',
+                    threads=nthreads,
+                )
 
-class _FFTWComplexConvolutionOperator(_FFTWConvolutionOperator):
-    """
-    Convolution by a complex kernel.
+        if time.time() - t0 > FFTW_WISDOM_MIN_DELAY:
+            _save_wisdom()
 
-    """
-
-    def __init__(self, kernel, shapein, axes, fftw_flag, nthreads, **keywords):
-        _FFTWConvolutionOperator.__init__(
-            self, kernel, shapein, axes, fftw_flag, nthreads, **keywords
-        )
-        n = product(shapein)
-        fft = _FFTWComplexForwardOperator(
-            self.shapein,
-            self.axes,
-            self.fftw_flag,
-            self.nthreads,
-            self.dtype,
+        kernel_fft = _get_kernel_fft(kernel, shapein, dtype, shape_, dtype_, fplan)
+        kernel_fft /= product(shapein)
+        self.__class__ = _FFTWRealConvolutionOperator
+        self.__init__(
+            kernel_fft,
+            fplan,
+            bplan,
+            axes,
+            fftw_flag,
+            nthreads,
+            shapein,
+            dtype,
             **keywords,
         )
-        kernel_fft = _get_kernel_fft(
-            kernel, self.shapein, self.dtype, self.shapein, self.dtype, fft.oplan
-        )
-        kernel_fft /= n
-        self.__class__ = CompositionOperator
-        self.__init__([n, fft.H, DiagonalOperator(kernel_fft), fft])
+
+    def _reshape_to_halfstorage(self, shape, axes):
+        shape = list(shape)
+        shape[axes[-1]] = shape[axes[-1]] // 2 + 1
+        return shape
 
 
 @real
-class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
+@linear
+@square
+@inplace
+@aligned
+@contiguous
+class _FFTWRealConvolutionOperator(Operator):
     """
     Convolution by a real kernel.
+    The first argument is the FFT of the real kernel. It is not necessarily
+    aligned.
 
     """
 
-    def __init__(self, kernel, shapein, axes, fftw_flag, nthreads, **keywords):
-        _FFTWConvolutionOperator.__init__(
-            self, kernel, shapein, axes, fftw_flag, nthreads, **keywords
+    def __init__(
+        self,
+        kernel_fft,
+        fplan,
+        bplan,
+        axes,
+        fftw_flag,
+        nthreads,
+        shapein=None,
+        dtype=None,
+        **keywords,
+    ):
+        self.kernel = kernel_fft
+        self._fplan = fplan
+        self._bplan = bplan
+        self.axes = axes
+        self.nthreads = nthreads
+        self.fftw_flag = fftw_flag
+
+        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
+        self.set_rule(
+            '.T',
+            lambda s: ReverseOperatorFactory(
+                _FFTWRealConvolutionTransposeOperator,
+                s,
+                s.kernel,
+                s._fplan,
+                s._bplan,
+                s.axes,
+                s.fftw_flag,
+                s.nthreads,
+            ),
         )
         self.set_rule(
             '.{HomothetyOperator}', self._rule_homothety, CompositionOperator, globals()
@@ -189,71 +249,79 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
             globals(),
         )
 
-        dtype_ = np.dtype('complex' + str(int(self.dtype.name[5:]) * 2))
-        shape_ = self._reshape_to_halfstorage(self.shapein)
-        _load_wisdom()
-        with _pool.get(self.shapein, self.dtype) as in_:
-            with _pool.get(shape_, dtype_) as out:
-                t0 = time.time()
-                self._fplan = pyfftw.FFTW(
-                    in_,
-                    out,
-                    axes=self.axes,
-                    flags=[self.fftw_flag],
-                    direction='FFTW_FORWARD',
-                    threads=self.nthreads,
-                )
-                self._bplan = pyfftw.FFTW(
-                    out,
-                    in_,
-                    axes=self.axes,
-                    flags=[self.fftw_flag],
-                    direction='FFTW_BACKWARD',
-                    threads=self.nthreads,
-                )
-
-        if time.time() - t0 > FFTW_WISDOM_MIN_DELAY:
-            _save_wisdom()
-
-        kernel_fft = _get_kernel_fft(
-            kernel, self.shapein, self.dtype, shape_, dtype_, self._fplan
-        )
-        kernel_fft /= product(shapein)
-        self.kernel = kernel_fft
-
     def direct(self, input, output):
-        with _pool.get(self.kernel.shape, self.kernel.dtype) as buf:
+        shape = self.kernel.shape
+        dtype = self.kernel.dtype
+        alignment = self.flags.alignment_input
+        contiguous = True
+        with _pool.get(shape, dtype, alignment, contiguous) as buf:
             self._fplan.update_arrays(input, buf)
             self._fplan.execute()
             buf *= self.kernel
             self._bplan.update_arrays(buf, output)
             self._bplan.execute()
 
-    def transpose(self, input, output):
-        with _pool.get(self.kernel.shape, self.kernel.dtype) as buf:
-            self._fplan.update_arrays(input, buf)
-            self._fplan.execute()
-            multiply_conjugate(buf, self.kernel, buf)
-            self._bplan.update_arrays(buf, output)
-            self._bplan.execute()
+    def get_kernel(self, out=None):
+        if out is not None:
+            out[...] = self.kernel
+        return self.kernel
 
     @staticmethod
     def _rule_homothety(self, scalar):
-        result = self.copy()
-        result.kernel = empty(self.kernel.shape, self.kernel.dtype)
-        np.multiply(self.kernel, scalar.data, result.kernel)
+        kernel = empty(self.kernel.shape, self.kernel.dtype)
+        self.get_kernel(kernel)
+        kernel *= scalar.data
+        result = _FFTWRealConvolutionOperator(
+            kernel,
+            self._fplan,
+            self._bplan,
+            self.axes,
+            self.fftw_flag,
+            self.nthreads,
+            self.shapein,
+            self.dtype,
+        )
         return result
 
     @staticmethod
     def _rule_add_real(self, other):
-        result = self.copy()
-        result.kernel = self.kernel + other.kernel
+        if isinstance(other, _FFTWRealConvolutionTransposeOperator):
+            # spare allocation in other.get_kernel (if self is not a transpose)
+            self, other = other, self
+        kernel = empty(self.kernel.shape, self.kernel.dtype)
+        self.get_kernel(kernel)
+        np.add(kernel, other.get_kernel(), kernel)
+        result = _FFTWRealConvolutionOperator(
+            kernel,
+            self._fplan,
+            self._bplan,
+            self.axes,
+            self.fftw_flag,
+            self.nthreads,
+            self.shapein,
+            self.dtype,
+        )
         return result
 
     @staticmethod
     def _rule_cmp_real(self, other):
-        result = self.copy()
-        result.kernel = self.kernel * other.kernel * product(self.shapein)
+        if isinstance(other, _FFTWRealConvolutionTransposeOperator):
+            # spare allocation in other.get_kernel (if self is not a transpose)
+            self, other = other, self
+        kernel = empty(self.kernel.shape, self.kernel.dtype)
+        self.get_kernel(kernel)
+        kernel *= other.get_kernel()
+        kernel *= product(self.shapein)
+        result = _FFTWRealConvolutionOperator(
+            kernel,
+            self._fplan,
+            self._bplan,
+            self.axes,
+            self.fftw_flag,
+            self.nthreads,
+            self.shapein,
+            self.dtype,
+        )
         return result
 
     @staticmethod
@@ -270,15 +338,36 @@ class _FFTWRealConvolutionOperator(_FFTWConvolutionOperator):
         return DiagonalOperator(kernel), other
 
     def _restore_kernel(self):
-        y = empty(self.shapein, self.dtype)
-        self._bplan.update_arrays(self.kernel.copy(), y)
+        shape = self.kernel.shape
+        dtype = self.kernel.dtype
+        alignment = self.flags.alignment_input
+        contiguous = True
+        with _pool.get(shape, dtype, alignment, contiguous) as x:
+            self.get_kernel(x)
+            y = empty(self.shapein, self.dtype)
+            self._bplan.update_arrays(x, y)
         self._bplan.execute()
         return y
 
-    def _reshape_to_halfstorage(self, shape):
-        shape = list(shape)
-        shape[self.axes[-1]] = shape[self.axes[-1]] // 2 + 1
-        return shape
+
+class _FFTWRealConvolutionTransposeOperator(_FFTWRealConvolutionOperator):
+    """
+    Transpose of the convolution by a real kernel.
+
+    """
+
+    __name__ = '_FFTW_RealConvolutionOperator.T'
+
+    def get_kernel(self, out=None):
+        return np.conjugate(self.kernel, out)
+
+    def direct(self, input, output):
+        with _pool.get(self.kernel.shape, self.kernel.dtype) as buf:
+            self._fplan.update_arrays(input, buf)
+            self._fplan.execute()
+            multiply_conjugate(buf, self.kernel, buf)
+            self._bplan.update_arrays(buf, output)
+            self._bplan.execute()
 
 
 @linear
