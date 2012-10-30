@@ -1,21 +1,17 @@
 import numpy as np
 
-try:
-    from mpi4py import MPI
-except ImportError:
-    from .utils.mpi import MPI
 from .core import Operator
 from .decorators import (real, linear, square, inplace)
 from .utils import isalias
-from .utils.mpi import as_mpi, distribute_shape, distribute_slice
+from .utils.mpi import MPI, as_mpi, distribute_shape, distribute_slice
 
-__all__ = ['DistributionGlobalOperator',
-           'DistributionIdentityOperator']
+__all__ = ['MPIDistributionGlobalOperator',
+           'MPIDistributionIdentityOperator']
 
 
 @real
 @linear
-class DistributionGlobalOperator(Operator):
+class MPIDistributionGlobalOperator(Operator):
     """
     Distribute sections of a global map to different MPI processes.
 
@@ -89,7 +85,7 @@ class DistributionGlobalOperator(Operator):
 @linear
 @square
 @inplace
-class DistributionIdentityOperator(Operator):
+class MPIDistributionIdentityOperator(Operator):
     """
     Distribute a global map, of which each MPI process has a copy, to the
     MPI processes.
