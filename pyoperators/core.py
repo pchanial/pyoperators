@@ -2462,6 +2462,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     @staticmethod
     def _merge_names(operands):
         names = [o.__name__ for o in operands]
+        if sum(not isinstance(o, HomothetyOperator) for o in operands) > 1:
+            return None
         names.sort(key=lambda n: 2 if n == 'IdentityOperator' else
                                  1 if n == 'HomothetyOperator' else
                                  0)
