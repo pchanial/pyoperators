@@ -58,7 +58,7 @@ class FminWrapper(object):
         if x0 is None:
             self.current_solution = np.zeros(self.shapein)
         else:
-            self.current_solution = copy(x0)
+            self.current_solution = np.array(x0)
 
 
 class FminCOBYLA(FminWrapper):
