@@ -399,6 +399,26 @@ def test_name():
     for op, name in zip(ops, names):
         yield func, op, name
 
+def test_merge_name():
+    @decorators.linear
+    class AbsorbOperator(Operator):
+        def __init__(self, **keywords):
+            Operator.__init__(self, **keywords)
+            self.set_rule('.{HomothetyOperator}', lambda s,o:s.copy(),
+                          CompositionOperator)
+    class sqrt(AbsorbOperator):
+        pass
+    class MyOp(AbsorbOperator):
+        __name__ = 'sqrt'
+    ops = [AbsorbOperator(name='sqrt'), MyOp(), sqrt()]
+    names = 3 * ['sqrt']
+    def func(op, name):
+        assert op.__name__ == name
+    for (op, name), h in itertools.product(zip(ops, names),
+                                           (I, HomothetyOperator(2))):
+        yield func, op * h, name
+        yield func, h * op, name
+
 
 #=========================
 # Test operator comparison
