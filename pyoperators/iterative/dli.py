@@ -322,7 +322,7 @@ class DoubleLoopAlgorithm(Algorithm):
             self.inv_cov = X.T * N * X + B.T * D * B
     def update_inv_cov_approx(self):
         self.lanczos_algorithm = LanczosAlgorithm(self.inv_cov, **self.lanczos)
-        self.inv_cov_approx = self.lanczos_algorithm()
+        self.inv_cov_approx = self.lanczos_algorithm.run()
     def update_z(self):
         # get eigenvalues, eigenvectors
         e = self.inv_cov_approx.eigenvalues
