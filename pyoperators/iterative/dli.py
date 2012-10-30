@@ -217,16 +217,16 @@ class Criterion(object):
         return self.d2pen(u) * p
 
     def __call__(self, u):
-        return self.likelihood(u) + self.penalization(u)
+        return (self.likelihood(u) + self.penalization(u)).view(np.ndarray)
 
     def gradient(self, u):
-        return self.dlike(u) + self.dpen(u)
+        return (self.dlike(u) + self.dpen(u)).view(np.ndarray)
 
     def hessian(self, u):
         return self.d2like(u) + self.d2pen(u)
 
     def hessian_p(self, u, p):
-        return self.hessian(u) * p
+        return (self.hessian(u) * p).view(np.ndarray)
 
 
 class DoubleLoopAlgorithm(Algorithm):
