@@ -4035,18 +4035,41 @@ class ReductionOperator(Operator):
                              'ensions.')
 
 
-class Variable(IdentityOperator):
+class Variable(Operator):
     """
     Fake operator to represent a variable.
 
     """
     def __init__(self, name, shape=None):
         self.name = name
-        IdentityOperator.__init__(self, shapein=shape)
-        self.set_rule('.{Operator}', lambda s, o: o, CompositionOperator)
+        Operator.__init__(self, shapein=shape)
+        self.set_rule('.T', lambda s: VariableTranspose(self.name,
+                                                        self.shapein))
+        self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
+
+    @staticmethod
+    def _rule_left(self, other):
+        raise ValueError('A variable cannot be composed with an right-hand side'
+                         ' operator.')
 
     def __str__(self):
         return self.name
+
+    __repr__ = __str__
+
+
+class VariableTranspose(Operator):
+    """
+    Fake operator to represent a transposed variable.
+
+    """
+    def __init__(self, name, shape=None):
+        self.name = name
+        Operator.__init__(self, shapein=shape)
+        self.set_rule('.T', lambda s: Variable(self.name, self.shapein))
+
+    def __str__(self):
+        return self.name + '.T'
 
     __repr__ = __str__
 
