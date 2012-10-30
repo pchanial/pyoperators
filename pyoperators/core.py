@@ -579,7 +579,7 @@ class Operator(object):
     inverse_transpose = None
     inverse_adjoint = None
 
-    def __call__(self, x, out=None, preserve_input=True, propagate=True):
+    def __call__(self, x, out=None, preserve_input=True):
 
         if isinstance(x, Operator):
             return CompositionOperator([self, x])
@@ -706,7 +706,7 @@ class Operator(object):
         x = self.toshapein(x)
         if out is not None:
             out = self.toshapeout(out)
-        out = self.__call__(x, out=out, propagate=False)
+        out = self.__call__(x, out=out)
 
         return out.ravel()
 
