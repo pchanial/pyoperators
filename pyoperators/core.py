@@ -1418,7 +1418,7 @@ class Operator(object):
 
     def __mul__(self, other):
         if isinstance(other, np.ndarray):
-            return self.matvec(other)
+            return self(other)
         # ensure that A * A is A if A is idempotent
         if self.flags.idempotent and self is other:
             return self
