@@ -1,5 +1,9 @@
 import numpy as np
-from nose.plugins.skip import SkipTest
+from pyoperators import (
+    MPIDistributionGlobalOperator,
+    MPIDistributionIdentityOperator,
+    MPI,
+)
 from pyoperators.utils.mpi import (
     DTYPE_MAP,
     OP_PY_MAP,
@@ -11,17 +15,8 @@ from pyoperators.utils.mpi import (
     distribute_slice,
     filter_comm,
 )
-from pyoperators.operators_mpi import (
-    DistributionGlobalOperator,
-    DistributionIdentityOperator,
-)
 from pyoperators.utils.testing import assert_eq
 from numpy.testing import assert_equal
-
-try:
-    from mpi4py import MPI
-except ImportError:
-    raise SkipTest
 
 comm = MPI.COMM_WORLD
 rank = comm.rank
@@ -31,7 +26,6 @@ dtypes = DTYPE_MAP
 
 def test_allreduce():
     n = 10
-    m = 1000000
 
     def func(x, xs, op):
         op_py = OP_PY_MAP[op]
@@ -111,7 +105,7 @@ def test_distribute():
 
 def test_dgo():
     def func(shape, dtype):
-        d = DistributionGlobalOperator(shape)
+        d = MPIDistributionGlobalOperator(shape)
         x_global = np.ones(shape, dtype)
         s = distribute_slice(shape[0])
         x_local = d(x_global)
@@ -126,7 +120,7 @@ def test_dgo():
 def test_dio():
     def func(shape, dtype):
         x_global = np.ones(shape, dtype)
-        d = DistributionIdentityOperator()
+        d = MPIDistributionIdentityOperator()
         assert_eq(d(x_global), x_global)
         x_local = x_global * (rank + 1)
         assert_eq(d.T(x_local), np.ones(shape) * size * (size + 1) // 2)
@@ -141,7 +135,7 @@ def test_dio_inplace():
         assert_eq(d.todense(shapein=n), d.todense(shapein=n, inplace=True))
         assert_eq(d.T.todense(shapein=n), d.T.todense(shapein=n, inplace=True))
 
-    d = DistributionIdentityOperator()
+    d = MPIDistributionIdentityOperator()
     for n in range(10):
         yield func, n
 
