@@ -12,121 +12,18 @@ http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.165.8284&rep=rep1&type=
 """
 from copy import copy
 import numpy as np
-#import numexpr as ne
 from .algorithms import Algorithm, default_callback, StopCondition
-from .criterions import norm2, Norm2
+from .criterions import Norm2
+from .lanczos import LanczosAlgorithm
 from .optimize import FminNCG
-from ..core import DiagonalOperator, IdentityOperator, asoperator1d
-from ..linear import TridiagonalOperator, EigendecompositionOperator
+from ..core import DiagonalOperator, IdentityOperator, asoperator, asoperator1d
 
 DEFAULT_STOP = StopCondition(maxiter=5)
 
 # reference recommands this initial z value
 Z0 = 0.05
 
-__all__ = ['LanczosAlgorithm', 'DoubleLoopAlgorithm']
-
-# lanczos algorithm
-
-class LanczosAlgorithm(Algorithm):
-    """
-    Tridiagonalization Lanczos step and eigendecomposition at exit.
-
-    http://en.wikipedia.org/wiki/Lanczos_algorithm
-    """
-    def __init__(self, A, **kwargs):
-        """
-        Use Lanczos algorithm to approximate a linear Operator.
-
-        Parameters
-        ----------
-        A: Operator
-            The Operator to be approximated.
-        maxiter: int or None (defaults 300)
-            Number of iteration (equals number of eigenvalues).
-            If set to None, stops at A.shape[0]
-
-        Returns
-        -------
-        A LanczosAlgorithm instance. To get the approximated Operator,
-        calling this instance is required.
-
-        Notes
-        -----
-        Starting point is a normalized random vector so results may
-        differ from one call to another with the same input parameters.
-
-        The Operator approximation is returned as a
-        EigendecompositionOperator which can be easily inverted.
-        """
-        self.A = A
-        self.n = self.A.shape[0]
-        self.kwargs = kwargs
-        # extract appropriate kwargs for stop condition
-        maxiter = kwargs.get("maxiter", 300)
-        self.stop_condition = StopCondition(maxiter=maxiter, tol=None, gtol=None)
-        # maxiter default to matrix size if not given.
-        self.maxiter = getattr(self.stop_condition, "maxiter", self.n)
-        Algorithm.__init__(self)
-
-    def initialize(self):
-        Algorithm.initialize(self)
-        # to store results
-        # tridiagonal matrix coefficients
-        self.alpha = np.zeros(self.maxiter + 1)
-        self.beta = np.zeros(self.maxiter)
-        self.vectors = np.zeros((self.maxiter + 1, self.n))
-        self.w = np.zeros(self.n)
-        # starting point
-        self.vectors[0] = np.random.randn(self.n)
-        self.vectors[0] /= np.sqrt(norm2(self.vectors[0]))
-
-    def iterate(self):
-        self.orthogonalization()
-        self.update_alpha()
-        self.update_w()
-        self.update_beta()
-        self.update_vectors()
-        self.iter_ += 1
-
-    def orthogonalization(self):
-        self.w = self.A * self.vectors[self.iter_]
-        if self.iter_ > 0:
-            self.w -= self.beta[self.iter_ - 1] * self.vectors[self.iter_ - 1]
-
-    def update_alpha(self):
-        self.alpha[self.iter_] = np.dot(self.w, self.vectors[self.iter_])
-
-    def update_w(self):
-        self.w -= self.alpha[self.iter_] * self.vectors[self.iter_]
-
-    def update_beta(self):
-        self.beta[self.iter_] = np.sqrt(norm2(self.w))
-
-    def update_vectors(self):
-        self.vectors[self.iter_ + 1] = self.w / self.beta[self.iter_]
-
-    def at_exit(self):
-        """
-        Convert alpha and beta to a TridiagonalOperator and perform
-        eigendecomposition.
-        """
-        self.T = TridiagonalOperator(self.alpha, self.beta)
-        # use band matrix eigendecomposition as tridiagonal lapack
-        # routine to available
-        self.B = self.T.toband()
-        #select_range = [self.n - 1 - self.maxiter, self.n - 1]
-        #self.E = self.B.eigen(select="i", select_range=select_range)
-        self.E = self.B.eigen()
-        # multiply T eigenvectors with lanczos vectors
-        w = self.E.eigenvalues
-        v = np.zeros((self.n, self.maxiter + 1))
-        for i in xrange(self.E.eigenvectors.shape[1]):
-            v[:, i] = np.dot(self.vectors.T, self.E.eigenvectors[:, i])
-        # remove the last eigenpair with negative eigenvalue XXX
-        w = w[1:]
-        v = v[:, 1:]
-        self.current_solution = EigendecompositionOperator(v=v, w=w)
+__all__ = ['DoubleLoopAlgorithm']
 
 class Criterion(object):
     def __init__(self, algo):
@@ -323,8 +220,8 @@ class DoubleLoopAlgorithm(Algorithm):
         else:
             self.inv_cov = X.T * N * X + B.T * D * B
     def update_inv_cov_approx(self):
-        self.lanczos_algorithm = LanczosAlgorithm(self.inv_cov, **self.lanczos)
-        self.inv_cov_approx = self.lanczos_algorithm.run()
+        lanczos = LanczosAlgorithm(self.inv_cov, **self.lanczos)
+        self.inv_cov_approx = lanczos.run()
     def update_z(self):
         # get eigenvalues, eigenvectors
         e = self.inv_cov_approx.eigenvalues
