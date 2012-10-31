@@ -248,6 +248,8 @@ class DoubleLoopAlgorithm(Algorithm):
                  stop_condition=DEFAULT_STOP,
                  ):
 
+        model = asoperator(model)
+        self.shapein = model.shapein
         self.model = asoperator1d(model)
         self.data_shape = data.shape
         self.data = data.ravel()
@@ -355,5 +357,4 @@ class DoubleLoopAlgorithm(Algorithm):
         self.inv_gamma = self.gamma ** (-1)
     # at exit
     def at_exit(self):
-        self.data.resize(self.data_shape)
-        self.current_solution.resize(self.model.shapein)
+        self.current_solution.resize(self.shapein)
