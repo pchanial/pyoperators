@@ -1,7 +1,7 @@
 import os
 import site
 
-VERSION = '0.7-dev'
+VERSION = '0.7'
 
 LOCAL_PATH = os.getenv('PYOPERATORSPATH')
 if LOCAL_PATH is None:
