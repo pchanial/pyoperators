@@ -7,8 +7,8 @@ from scipy.sparse.linalg import eigsh
 
 from .decorators import inplace, linear, real, square, symmetric
 from .core import (Operator, BlockRowOperator, BroadcastingOperator,
-                   CompositionOperator, DiagonalOperator, ReductionOperator,
-                   DirectOperatorFactory, asoperator)
+                   CompositionOperator, DenseOperator, DiagonalOperator,
+                   ReductionOperator, DirectOperatorFactory)
 from .utils import cast
 
 __all__ = [
@@ -633,7 +633,7 @@ class DifferenceOperator(Operator):
 
 
 @symmetric
-class EigendecompositionOperator(Operator):
+class EigendecompositionOperator(CompositionOperator):
     """
     Define a symmetric Operator from the eigendecomposition of another
     symmetric Operator. This can be used as an approximation for the
@@ -668,18 +668,12 @@ class EigendecompositionOperator(Operator):
     def __init__(self, A=None, v=None, w=None, **kwargs):
         if v is None or w is None:
             w, v = eigsh(A, return_eigenvectors=True, **kwargs)
-            kwargs['dtype'] = A.dtype
-        else:
-            kwargs['dtype'] = v.dtype
-        self.W = DiagonalOperator(w)
-        self.V = asoperator(v)
-        self.M = self.V * self.W * self.V.T
-        kwargs['shapein'] = self.M.shapein
-        # store some information
+        W = DiagonalOperator(w)
+        V = DenseOperator(v)
+        V.set_rule('.T.', '1', CompositionOperator)
         self.eigenvalues = w
         self.eigenvectors = v
-        self.kwargs = kwargs
-        Operator.__init__(self, direct=self.M.direct, **kwargs)
+        CompositionOperator.__init__(self, [V, W, V.T], **kwargs)
         self.set_rule('.I', lambda s: s ** -1)
 
     def det(self):
@@ -702,14 +696,7 @@ class EigendecompositionOperator(Operator):
         only raising the eigenvalues to this power.
         """
         return EigendecompositionOperator(v=self.eigenvectors,
-                                          w=self.eigenvalues ** n,
-                                          **self.kwargs)
-
-    def inv(self):
-        """
-        Returns the pseudo-inverse of the operator.
-        """
-        return self ** -1
+                                          w=self.eigenvalues ** n)
 
     def trace(self):
         return np.sum(self.eigenvalues)
