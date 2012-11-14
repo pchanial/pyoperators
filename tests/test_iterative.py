@@ -31,7 +31,7 @@ solvers = [iterative.cg.pcg]
 def test_methods_inv():
     def func(m, A, x):
         y = A * x
-        xe = m(A, y, maxiter=100, tol=1e-6)
+        xe = m(A, y, maxiter=100, tol=1e-7)
         assert_eq(x, xe)
 
     for A in operator_list:
@@ -43,7 +43,7 @@ def test_methods_inv():
 def test_classes_inv():
     def func(c, A, x):
         y = A(x)
-        algo = c(A, y, maxiter=100, tol=1e-6)
+        algo = c(A, y, maxiter=100, tol=1e-7)
         xe = algo.run()
         assert_eq(x, xe)
 
