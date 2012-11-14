@@ -86,20 +86,14 @@ class LanczosAlgorithm(IterativeAlgorithm):
         eigendecomposition.
 
         """
-        self.T = TridiagonalOperator(self.alpha, self.beta[:-1])
-        # use band matrix eigendecomposition as tridiagonal lapack
-        # routine to available
-        self.B = self.T.toband()
-        #select_range = [self.n - 1 - self.maxiter, self.n - 1]
-        #self.E = self.B.eigen(select="i", select_range=select_range)
-        self.E = self.B.eigen()
-
-        w = self.E.eigenvalues
-        l = self.vectors[:-1,:]
-        evec = self.E.eigenvectors.T
+        T = TridiagonalOperator(self.alpha, self.beta[:-1])
+        # use band matrix eigendecomposition as LAPACK's SEV routines (?STEV*)
+        # for symmetric tridiagonal matrices are not available in scipy 0.10
+        E = T.toband().eigen()
 
         # multiply T eigenvectors with lanczos vectors
-        #XXX this operation should be done inplace
-        v = np.dot(l.T, evec.T)
+        w = E.eigenvalues
+        v = np.dot(self.vectors[:-1,:].T, E.eigenvectors)
+
         return EigendecompositionOperator(v=v, w=w)
 
