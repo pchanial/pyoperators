@@ -2335,23 +2335,35 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         keywords = self._get_attributes(operands, **keywords)
         NonCommutativeCompositeOperator.__init__(self, operands, **keywords)
         self._info = {}
-        self.set_rule('.C', lambda s: type(s)([m.C for m in s.operands]))
-        self.set_rule('.T', lambda s: type(s)([m.T for m in s.operands[::-1]]))
-        self.set_rule('.H', lambda s: type(s)([m.H for m in s.operands[::-1]]))
-        self.set_rule('.I', lambda s: type(s)([m.I for m in s.operands[::-1]]))
-        self.set_rule('.IC', lambda s: type(s)([m.I.C for m in s.operands[::-1]]))
-        self.set_rule('.IT', lambda s: type(s)([m.I.T for m in s.operands]))
-        self.set_rule('.IH', lambda s: type(s)([m.I.H for m in s.operands]))
+        self.set_rule('.C', lambda s: CompositionOperator([m.C for m in s.operands]))
+        self.set_rule(
+            '.T', lambda s: CompositionOperator([m.T for m in s.operands[::-1]])
+        )
+        self.set_rule(
+            '.H', lambda s: CompositionOperator([m.H for m in s.operands[::-1]])
+        )
+        self.set_rule(
+            '.I', lambda s: CompositionOperator([m.I for m in s.operands[::-1]])
+        )
+        self.set_rule(
+            '.IC', lambda s: CompositionOperator([m.I.C for m in s.operands[::-1]])
+        )
+        self.set_rule('.IT', lambda s: CompositionOperator([m.I.T for m in s.operands]))
+        self.set_rule('.IH', lambda s: CompositionOperator([m.I.H for m in s.operands]))
         self.set_rule(
             '.{self}',
-            lambda s, o: type(s)(s.operands + o.operands),
+            lambda s, o: CompositionOperator(s.operands + o.operands),
             CompositionOperator,
         )
         self.set_rule(
-            '.{Operator}', lambda s, o: type(s)(s.operands + [o]), CompositionOperator
+            '.{Operator}',
+            lambda s, o: CompositionOperator(s.operands + [o]),
+            CompositionOperator,
         )
         self.set_rule(
-            '{Operator}.', lambda o, s: type(s)([o] + s.operands), CompositionOperator
+            '{Operator}.',
+            lambda o, s: CompositionOperator([o] + s.operands),
+            CompositionOperator,
         )
 
     def direct(
