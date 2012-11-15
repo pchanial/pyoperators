@@ -1436,6 +1436,22 @@ class Operator(object):
             return self
         return CompositionOperator([self, other])
 
+    def __pow__(self, n):
+        if not self.flags.square:
+            raise ValueError('A non-square operator cannot be raised to an exp'
+                             'onent.')
+        if not np.allclose(n, np.round(n)):
+            raise ValueError("The exponent '{0}' is not an integer.".format(n))
+        if n == -1:
+            return self.I
+        if n == 0:
+            return IdentityOperator(shapein=self.shapein)
+        if n == 1:
+            return self
+        if n > 0:
+            return CompositionOperator(n * [self])
+        return CompositionOperator((-n) * [self.I])
+
     def __add__(self, other):
         return AdditionOperator([self, other])
 
@@ -3620,6 +3636,11 @@ class DiagonalOperator(BroadcastingOperator):
             np.divide(input.T, np.conjugate(self.get_data()).T, output.T)
         else:
             np.divide(input, np.conjugate(self.get_data()), output)
+
+    def __pow__(self, n):
+        if n in (-1, 0, 1):
+            return BroadcastingOperator.__pow__(self, n)
+        return DiagonalOperator(self.get_data()**n, broadcast=self.broadcast)
 
     def validatein(self, shape):
         if self.data.size == 1:
