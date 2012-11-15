@@ -63,6 +63,11 @@ class ndarray4(np.ndarray):
     pass
 
 @decorators.square
+class SquareOp(Operator):
+    def __init__(self, **keywords):
+        Operator.__init__(self, **keywords)
+
+@decorators.square
 class Op2(Operator):
     attrout = {'newattr':True}
     def direct(self, input, output):
@@ -1661,6 +1666,40 @@ def test_composition_get_requirements():
             rn1, ra1, rc1 = c._get_requirements()
             rn2, ra2, rc2 = get_requirements(ops, t, g)
             yield func, t, rn1, rn2, ra1, ra2, rc1, rc2
+
+
+#=============
+# Test powers
+#=============
+
+def test_powers():
+    def func(op, n):
+        p = op ** n
+        if n < -1:
+            assert_is_instance(p, CompositionOperator)
+            for o in p.operands:
+                assert_is(o, op.I)
+        elif n == -1:
+            assert_is(p, op.I)
+        elif n == 0:
+            assert_is_instance(p, IdentityOperator)
+        elif n == 1:
+            assert_is(p, op)
+        else:
+            assert_is_instance(p, CompositionOperator)
+            for o in p.operands:
+                assert_is(o, op)
+    for op in [SquareOp(), SquareOp(shapein=3)]:
+        for n in range(-3,4):
+            yield func, op, n
+
+def test_powers_diagonal():
+    diag = np.array([1., 2, 3])
+    d = DiagonalOperator(diag)
+    def func(n):
+        assert_eq((d**n).todense(), DiagonalOperator(diag**n).todense())
+    for n in (-1.2, -1, -0.5, 0, 0.5, 1, 2.4):
+        yield func, n
 
 
 #=============================
