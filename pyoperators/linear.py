@@ -29,7 +29,7 @@ __all__ = [
 class DiagonalNumexprOperator(DiagonalOperator):
     """
     DiagonalOperator whose diagonal elements are calculated on the fly using
-    the numexpr package and that can be seperated when added or multiplied
+    the numexpr package and that can be separated when added or multiplied
     to a block operator.
 
     Note
@@ -42,8 +42,7 @@ class DiagonalNumexprOperator(DiagonalOperator):
     Example
     -------
     >>> alpha = np.arange(100.)
-    >>> d = SeparableDiagonalNumexprOperator(alpha, '(x/x0)**data',
-                                             {'x':1.2, 'x0':1.})
+    >>> d = DiagonalNumexprOperator(alpha, '(x/x0)**data', {'x':1.2, 'x0':1.})
 
     """
     def __init__(self, data, expr, global_dict=None, var='data', dtype=float,
