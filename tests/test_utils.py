@@ -178,12 +178,12 @@ def test_strenum():
 
 
 def test_strplural():
-    def func(n, prepend, s, expected):
-        assert_eq(strplural('cat', n, prepend=prepend, s=s), expected)
+    def func(n, nonumber, s, expected):
+        assert_eq(strplural(n, 'cat', nonumber=nonumber, s=s), expected)
 
-    for n, prepend, s, expected in zip(
+    for n, nonumber, s, expected in zip(
         4 * (0, 1, 2),
-        3 * (False,) + 3 * (True,) + 3 * (False,) + 3 * (True,),
+        3 * (True,) + 3 * (False,) + 3 * (True,) + 3 * (False,),
         6 * ('',) + 6 * (':',),
         (
             'cat',
@@ -200,7 +200,7 @@ def test_strplural():
             '2 cats:',
         ),
     ):
-        yield func, n, prepend, s, expected
+        yield func, n, nonumber, s, expected
 
 
 def test_strshape():
