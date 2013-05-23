@@ -6,7 +6,7 @@ from pyoperators.utils import (cast, find, first_is_not, inspect_special_values,
                                interruptible, isscalar, least_greater_multiple,
                                product, strenum, strplural, strshape,
                                uninterruptible)
-from pyoperators.utils.testing import assert_eq, assert_is_none, assert_raises
+from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
