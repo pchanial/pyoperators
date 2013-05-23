@@ -16,7 +16,7 @@ from pyoperators.utils import (
     strshape,
     uninterruptible,
 )
-from pyoperators.utils.testing import assert_eq, assert_is_none, assert_raises
+from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [
     np.dtype(t)
