@@ -653,42 +653,44 @@ def strnbytes(nbytes):
     else:
         return str(nbytes / 2**30) + ' GiB'
 
-def strplural(name, n, prepend=True, s=''):
+def strplural(n, name, nonumber=False, s=''):
     """
     Returns the plural or singular of a string
 
     Parameters
     ----------
-    name : string
-        string for which a plural is requested
     n : integer
-        the plural or singular is based on this number
-    prepend : boolean
-        if true, prepend n
+        The plural or singular is based on this number.
+    name : string
+        String for which a plural is requested.
+    nonumber : boolean
+        If true, don't prepend the number.
     s : string
-        string to be appended if n > 0
+        String to be appended if n > 0
 
     Examples
     --------
-    >>> strplural('cat', 0)
+    >>> strplural(0, 'cat')
     'no cat'
-    >>> strplural('cat', 1)
+    >>> strplural(1, 'cat')
     '1 cat'
-    >>> strplural('cat', 2)
+    >>> strplural(2, 'cat')
     '2 cats'
-    >>> strplural('cat', 2, prepend=False)
+    >>> strplural(2, 'cat', prepend=False)
     'cats'
     >>> animals = ['cat', 'dog']
-    >>> strplural('animal', len(animals), s=': ') + ', '.join(animals)
+    >>> strplural(len(animals), 'animal', s=': ') + ', '.join(animals)
     '2 animals: cat, dog'
+    >>> strplural(0, 'animal', s=':')
+    'no animal'
 
     """
     if n == 0:
-        return ('no ' if prepend else '') + name
+        return ('' if nonumber else 'no ') + name
     elif n == 1:
-        return ('1 ' if prepend else '') + name + s
+        return ('' if nonumber else '1 ') + name + s
     else:
-        return (str(n) + ' ' if prepend else '') + name + 's' + s
+        return ('' if nonumber else str(n) + ' ') + name + 's' + s
 
 def strshape(shape):
     """ Helper function to convert shapes or list of shapes into strings. """
