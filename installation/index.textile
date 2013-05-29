@@ -29,13 +29,13 @@ $ sudo apt-get install libfftw3-dev
 $ sudo pip install pyFFTW
 {% endhighlight %}
 
-* on MacOS X, using Mac Port's Python interpreter:
+* on MacOS X, using the MacPorts Python interpreter:
 
 {% highlight bash %}
 $ sudo port install py-pyfftw
 {% endhighlight %}
 
-* on MacOS X, using Enthought's Python interpreter:
+* on MacOS X, using a non-MacPorts Python interpreter (such as Enthought's):
 
 {% highlight bash %}
 $ sudo port install fftw-3 fftw-3-long fftw-3-single
