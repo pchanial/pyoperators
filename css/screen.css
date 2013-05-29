@@ -82,10 +82,6 @@ blockquote {
   font-style: italic;
 }
 
-br {
-  display:none;
-}
-
 hr {
   clear:both;
   visibility: hidden;
