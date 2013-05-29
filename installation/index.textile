@@ -4,29 +4,73 @@ title: Installation
 excerpt: Install pyoperators package
 ---
 
-h1. {{ page.title }}
-
+<br>
 The PyOperators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators. The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
+
+h1. Preparation
+
+h2. The pip utility
+
+The "pip":http://www.pip-installer.org/en/latest/index.html program allows the installation of Python packages from the internet. It is recommended to use it instead of easy_install, which cannot uninstall packages. If @pip@ is not installed, but @easy_install@ is (or @easy_install-2.7@),  the latter can be used to install the former. First, check that @easy_install@ actually runs the Python interpreter you're using, by inspecting its first first line of code. Then, type
+
+{% highlight bash %}
+$ sudo easy_install pip
+{% endhighlight %}
+
+h2. The FFTW package
+
+The FFTW package and its Python wrapper need to be installed first.
+
+
+* on Linux/Ubuntu, this will be something like:
+
+{% highlight bash %}
+$ sudo apt-get install libfftw3-dev
+$ sudo pip install pyFFTW
+{% endhighlight %}
+
+* on MacOS X, using Mac Port's Python interpreter:
+
+{% highlight bash %}
+$ sudo port install py-pyfftw
+{% endhighlight %}
+
+* on MacOS X, using Enthought's Python interpreter:
+
+{% highlight bash %}
+$ sudo port install fftw-3 fftw-3-long fftw-3-single
+$ sudo CPATH=/opt/local/include LIBRARY_PATH=/opt/local/lib pip install pyFFTW
+{% endhighlight %}
+
+
+h1. Installation
 
 h2. The easy way
 
-The easiest way to download and install the PyOperators package is by using the "pip":http://www.pip-installer.org/en/latest/index.html utility. It will fetch the package and its dependencies from the "Python Package Index":http://pypi.python.org/pypi and install them.
+The easiest way to download and install the PyOperators package is by using pip. It will fetch the package and its dependencies from the "Python Package Index":http://pypi.python.org/pypi and install them.
 
-bc. pip install pyoperators --user
+{% highlight bash %}
+$ sudo pip install pyoperators
+{% endhighlight %}
 
 To upgrade an already installed PyOperators package:
 
-bc. pip install --upgrade pyoperators --user
+{% highlight bash %}
+$ sudo pip install --upgrade pyoperators 
+{% endhighlight %}
 
 h2. The Git way
 
 You can also clone the Github repository, using the version control system "Git":http://git-scm.com/:
 
-bc. $ git clone git://github.com/pchanial/pyoperators.git
-$ cd pyoperators.git
-$ sudo python setup.py install
+{% highlight bash %}
+$ git clone git://github.com/pchanial/pyoperators
+$ sudo pip install ./pyoperators
+{% endhighlight %}
 
 This method is convenient to test PyOperators' development branch but package dependencies must be installed beforehand (see the "setup.py":https://github.com/pchanial/pyoperators/blob/v{{site.version_stable}}/setup.py file for the list of requirements). The package can be updated by typing (if you've just cloned the repository, you will obviously not get anything new):
 
-bc. $ git pull
+{% highlight bash %}
+$ git pull
 Already up-to-date.
+{% endhighlight %}
