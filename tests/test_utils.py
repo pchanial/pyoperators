@@ -2,10 +2,10 @@ import itertools
 import numpy as np
 
 from pyoperators import Operator
-from pyoperators.utils import (cast, find, first_is_not, inspect_special_values,
-                               interruptible, isscalar, least_greater_multiple,
-                               product, strenum, strplural, strshape,
-                               uninterruptible)
+from pyoperators.utils import (cast, first, ifirst, first_is_not, ifirst_is_not,
+                               inspect_special_values, interruptible, isscalar,
+                               least_greater_multiple, product, strenum,
+                               strplural, strshape, uninterruptible)
 from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
@@ -39,17 +39,35 @@ def test_cast():
     for d1, d2 in itertools.product(dtypes, repeat=2):
         yield func, d1, d2
 
-def test_find1():
-    assert find([1,2,3], lambda x: x > 1.5) == 2
+def test_first1():
+    assert first([1,2,3], lambda x: x > 1.5) == 2
 
-def test_find2():
-    assert_raises(ValueError, find, [1,2,3], lambda x: x > 3)
+def test_first2():
+    assert_raises(ValueError, first, [1,2,3], lambda x: x > 3)
+
+def test_ifirst1():
+    assert ifirst([1,2,3], lambda x: x > 1.5) == 1
+
+def test_ifirst2():
+    assert_raises(ValueError, ifirst, [1,2,3], lambda x: x > 3)
+
+def test_ifirst3():
+    assert ifirst([1,2,3], 2.) == 1
+
+def test_ifirst4():
+    assert_raises(ValueError, ifirst, [1,2,3], 4)
 
 def test_first_is_not():
     assert first_is_not([1,2], 1) == 2
     assert first_is_not([None, None, {}], None) == {}
     assert first_is_not([], None) is None
     assert first_is_not([None, None], None) is None
+
+def test_ifirst_is_not():
+    assert ifirst_is_not([1,2], 1) == 1
+    assert ifirst_is_not([None, None, {}], None) == 2
+    assert_raises(ValueError, ifirst_is_not, [], None)
+    assert_raises(ValueError, ifirst_is_not, [None, None], None)
 
 def test_inspect_special_values():
     def ref(x):

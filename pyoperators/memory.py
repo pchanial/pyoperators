@@ -14,7 +14,7 @@ import inspect
 import numpy as np
 from contextlib import contextmanager
 from . import utils
-from .utils import ifind, product, strshape, tointtuple
+from .utils import ifirst, product, strshape, tointtuple
 
 __all__ = ['empty', 'ones', 'zeros']
 
@@ -125,7 +125,7 @@ class MemoryPool(object):
             raise ValueError('There already is an entry in the pool pointing to'
                              ' this memory location.')
         try:
-            i = ifind(self._buffers, lambda x: x.nbytes >= v.nbytes)
+            i = ifirst(self._buffers, lambda x: x.nbytes >= v.nbytes)
         except ValueError:
             i = len(self._buffers)
         self._buffers.insert(i, v)
@@ -168,7 +168,7 @@ class MemoryPool(object):
         compatible = lambda x: iscompatible(x, shape, dtype, alignment,
                                             contiguous, MEMORY_TOLERANCE)
         try:
-            i = ifind(self._buffers, compatible)
+            i = ifirst(self._buffers, compatible)
             v = self._buffers.pop(i)
         except ValueError:
             v = empty(shape, dtype, description=description, verbose=verbose)
@@ -209,8 +209,8 @@ class MemoryPool(object):
 
         """
         address = v.__array_interface__['data'][0]
-        i = ifind((_.__array_interface__['data'][0] for _ in self._buffers),
-                  lambda x: x == address)
+        i = ifirst((_.__array_interface__['data'][0] for _ in self._buffers),
+                   lambda x: x == address)
         self._buffers.pop(i)
 
     @contextmanager
@@ -258,8 +258,8 @@ class MemoryPool(object):
             raise TypeError('The input is not an ndarray.')
         address = v.__array_interface__['data'][0]
         try:
-            ifind((_.__array_interface__['data'][0] for _ in self._buffers),
-                  lambda x: x == address)
+            ifirst((_.__array_interface__['data'][0] for _ in self._buffers),
+                   lambda x: x == address)
         except ValueError:
             return False
         return True

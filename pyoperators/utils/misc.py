@@ -19,9 +19,10 @@ from . import cythonutils as cu
 __all__ = ['all_eq',
            'benchmark',
            'cast',
-           'find',
+           'first',
            'first_is_not',
-           'ifind',
+           'ifirst',
+           'ifirst_is_not',
            'inspect_special_values',
            'interruptible',
            'interruptible_if',
@@ -295,7 +296,7 @@ def cast(arrays, dtype=None, order='c'):
               if a is not None else None for a in arrays)
     return tuple(result)
 
-def find(l, f):
+def first(l, f):
     """
     Return first item in list that verifies a certain condition, or raise
     a ValueError exception otherwise.
@@ -309,7 +310,7 @@ def find(l, f):
 
     Example:
     --------
-    >>> find([1.,2.,3.], lambda x: x > 1.5)
+    >>> first([1.,2.,3.], lambda x: x > 1.5)
     2.
 
     """
@@ -322,29 +323,72 @@ def first_is_not(l, v):
     """
     Return first item in list which is not the specified value.
     If all items are the specified value, return it.
+
+    Parameters
+    ----------
+    l : sequence
+        The list of elements to be inspected.
+    v : object
+        The value not to be matched.
+
+    Example:
+    --------
+    >>> first_is_not(['a', 'b', 'c'], 'a')
+    'b'
+
     """
     return next((_ for _ in l if _ is not v), v)
 
-def ifind(l, f):
+def ifirst(l, match):
     """
-    Return the number of the first item in a list that verifies a certain
-    condition or raise a ValueError exception otherwise.
+    Return the index of the first item in a list that verifies a certain
+    condition or is equal to a certain value. Raise a ValueError exception
+    otherwise.
 
     Parameters
     ----------
     l : list
         List of elements to be searched for.
-    f : function
-        Function that evaluates to True to match an element.
+    match : callable or object
+        Function that evaluates to True to match an element or the element
+        to be matched.
 
     Example:
     --------
-    >>> ifind([1.,2.,3.], lambda x: x > 1.5)
+    >>> ifirst([1.,2.,3.], lambda x: x > 1.5)
+    1
+    >>> ifirst([1., 2., 3.], 2)
     1
 
     """
     try:
-        return next((i for i, _ in enumerate(l) if f(_)))
+        if not callable(match):
+            return next((i for i, _ in enumerate(l) if _ == match))
+        return next((i for i, _ in enumerate(l) if match(_)))
+    except StopIteration:
+        raise ValueError('There is no matching item in the list.')
+
+def ifirst_is_not(l, v):
+    """
+    Return index of first item in list which is not the specified value.
+    If the list is empty or if all items are the specified value, raise
+    a ValueError exception.
+
+    Parameters
+    ----------
+    l : sequence
+        The list of elements to be inspected.
+    v : object
+        The value not to be matched.
+
+    Example:
+    --------
+    >>> ifirst_is_not(['a', 'b', 'c'], 'a')
+    1
+
+    """
+    try:
+        return next((i for i,_ in enumerate(l) if _ is not v))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
