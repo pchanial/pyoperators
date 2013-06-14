@@ -1,4 +1,7 @@
+import functools
 import numpy as np
+from nose.plugins.skip import SkipTest
+
 from .misc import all_eq
 
 __all__ = ['assert_eq',
@@ -11,7 +14,9 @@ __all__ = ['assert_eq',
            'assert_is_none',
            'assert_is_not_none',
            'assert_raises',
-           'skiptest']
+           'skiptest',
+           'skiptest_if',
+           'skiptest_unless_module']
 
 def assert_eq(a, b, msg=None):
     """ Assert that the two arguments are (almost) equal. """
@@ -72,11 +77,32 @@ def assert_raises(*args, **kwargs):
 assert_raises.__doc__ = np.testing.assert_raises.__doc__
 
 def skiptest(func):
-    from nose.plugins.skip import SkipTest
+    @functools.wraps(func)
     def _():
         raise SkipTest()
-    _.__name__ = func.__name__
     return _
+
+def skiptest_if(condition):
+    def decorator(func):
+        @functools.wraps(func)
+        def _():
+            if condition:
+                raise SkipTest()
+            func()
+        return _
+    return decorator
+
+def skiptest_unless_module(module):
+    def decorator(func):
+        @functools.wraps(func)
+        def _():
+            try:
+                __import__(module)
+            except ImportError:
+                raise SkipTest()
+            func()
+        return _
+    return decorator
 
 def _get_msg(msg):
     if not msg:
