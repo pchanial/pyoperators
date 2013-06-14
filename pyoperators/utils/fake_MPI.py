@@ -123,6 +123,9 @@ class Comm(object):
     def allreduce(self, sendobj=None, recvobj=None, op=SUM):
         return sendobj
 
+    def bcast(self, obj=None, root=0):
+        return obj
+
     def gather(self, sendobj=None, recvobj=None, root=0):
         return [sendobj]
 
@@ -147,6 +150,12 @@ class Comm(object):
         return Comm(self.rank, self.size)
 
     Clone = Dup
+
+    def Free(self):
+        return
+
+    def Split(self, color=0, key=0):
+        return Comm(self.rank, self.size)
 
     @classmethod
     def Create_keyval(cls, copy_fn=None, delete_fn=None):

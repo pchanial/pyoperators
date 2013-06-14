@@ -5,7 +5,7 @@ import operator
 try:
     from mpi4py import MPI
 except ImportError:
-    import fake_MPI as MPI
+    from . import fake_MPI as MPI
 from .misc import isscalar, tointtuple
 
 __all__ = [
