@@ -90,37 +90,35 @@ def all_eq(a, b):
     return a == b
 
 def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
-              filename=None):
+              verbose=True):
     """
     Automate the creation of benchmark tables for functions.
 
     This tool benchmarks a function given a sequence of different arguments,
     keywords or identifiers. Note that a little overhead is incurred.
-    It returns a tuple containing 1) an ordered dict, whose keys are formed
-    from the arguments and keywords if the identifiers are not provided and
-    whose values are the timings in seconds and 2) the memory usage difference
-    before and after each timing.
+    It returns a dictionary containing the elapsed time and memory usage
+    for each benchmark.
 
     Parameters
     ----------
     stmt : callable or string
-        The function or snippet to be timed. In case of a string, arguments and
-        keywords are matched by the substrings '*args' and '*keywords'.
+        The function or snippet to be timed. In case of a string, the arguments
+        are matched by the substrings '*args'.
         Caveat: these must be interpreted correctly through their repr.
         Otherwise, they should be passed as a string (then both stmt and setup
         should be a string). See example below.
-    args : sequence or iterator of sequences of arguments, optional
+    args : sequence of sequences of arguments, optional
         The different arguments that will be passed to the function.
-    keywords : sequence or iterator of dictionaries of keywords, optional
+    keywords : sequence of dictionaries of keywords, optional
         The different keywords that will be passed to the function.
-    ids : sequence or iterator of string, optional
+    ids : sequence of string, optional
         The identifier for each timing. If not provided, it is inferred
         from the arguments and the keywords.
     setup : callable or string, optional
         Initialisation before timing. In case of a string, arguments and
         keywords are passed with the same mechanism as the stmt argument.
-    filename : string, optional
-        Name of the file to save the result as a pickle file.
+    verbose : boolean
+        If true, benchmark results are printed while they are executed.
 
     Example
     -------
@@ -169,12 +167,10 @@ def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
         while True:
             yield {}
     def default_ids():
+        i = 0
         while True:
-            id_ = '' if len(w.args) == 0 else 'args:' + str(w.args)
-            if len(w.keywords) > 0:
-                id_ += ', ' + ', '.join([k + '=' + str(v)
-                                         for k, v in w.keywords.items()])
-            yield id_
+            yield i
+            i += 1
 
     # ensure args, keywords and ids are iterators
     if args is None:
@@ -190,8 +186,10 @@ def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
     elif isinstance(ids, (list, tuple)):
         ids = iter(ids)
 
-    timings = collections.OrderedDict()
-    memorys = collections.OrderedDict()
+    result = {'time': [],
+              'VmData': [],
+              'VmRSS': [],
+              'VmSize': []}
 
     while True:
 
@@ -203,27 +201,25 @@ def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
             break
 
         if not isinstance(arg, (list, tuple, str)):
-            raise TypeError('The function arguments must be supplied as a seque'
-                            'nce.')
+            raise TypeError('The function arguments must be supplied as a sequ'
+                            'ence.')
         if not isinstance(keyword, dict):
-            raise TypeError('The function keywords must be supplied as a dict.')
+            raise TypeError('The function keywords must be supplied as a '
+                            'dict.')
 
-            
-        stmt_ = stmt
         if isinstance(stmt, str) and isinstance(arg, str):
-            while '*args' in stmt_:
-                stmt_ = stmt_.replace('*args', arg)
-        setup_ = setup
+            while '*args' in stmt:
+                stmt = stmt.replace('*args', arg)
         if isinstance(setup, str) and isinstance(arg, str):
-            while '*args' in setup_:
-                setup_ = setup_.replace('*args', arg)
+            while '*args' in setup:
+                setup = setup.replace('*args', arg)
 
         if callable(stmt):
             w.args = arg
             w.keywords = keyword
-            t = timeit.Timer(w, setup=setup_)
+            t = timeit.Timer(w, setup=setup)
         else:
-            t = timeit.Timer(stmt_, setup=setup_)
+            t = timeit.Timer(stmt, setup=setup)
 
         # determine number so that 0.2 <= total time < 2.0
         for i in range(10):
@@ -240,35 +236,39 @@ def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
         else:
             r = t.repeat(repeat-1, number)
             r = [x] + r
-        memory = memory_usage(since=memory)
-        memorys[id_] = memory
         best = min(r)
-        timings[id_] = best / number
+        memory = memory_usage(since=memory)
 
-        if id_ != '':
-            id_ += ': '
-        print id_ + "%d loops," % number,
-        usec = best * 1e6 / number
-        if usec < 1000:
-            print "best of %d: %.*g us per loop. " % (repeat,precision,usec),
-        else:
-            msec = usec / 1000
-            if msec < 1000:
-                print "best of %d: %.*g ms per loop. " %(repeat,precision,msec),
+        result['time'].append(best / number)
+        result['VmData'].append(memory['VmData'])
+        result['VmRSS'].append(memory['VmRSS'])
+        result['VmSize'].append(memory['VmSize'])
+
+        if verbose:
+            if id_ != '':
+                id_ += ': '
+            print id_ + "%d loops," % number,
+            usec = best * 1e6 / number
+            if usec < 1000:
+                print "best of %d: %.*g us per loop. " % (
+                    repeat, precision, usec),
             else:
-                sec = msec / 1000
-                print "best of %d: %.*g s per loop. " % (repeat,precision,sec),
+                msec = usec / 1000
+                if msec < 1000:
+                    print "best of %d: %.*g ms per loop. " % (
+                        repeat, precision, msec),
+                else:
+                    sec = msec / 1000
+                    print "best of %d: %.*g s per loop. " % (
+                        repeat, precision, sec),
 
-        print ', '.join([k + ':' + str(v) + 'MiB' for k,v in memory.items()])
+            print ', '.join([k + ':' + str(v) + 'MiB'
+                             for k, v in memory.items()])
         if single_test:
             break
 
-    results = timings, memorys
-    if filename is not None:
-        with open(filename, 'w') as f:
-            pickle.dump(results, f)
+    return result
 
-    return results
 
 def cast(arrays, dtype=None, order='c'):
     """
