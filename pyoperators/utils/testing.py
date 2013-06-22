@@ -1,6 +1,7 @@
 import functools
 import numpy as np
 from nose.plugins.skip import SkipTest
+from numpy.testing import assert_equal
 
 from .misc import all_eq
 
@@ -19,6 +20,46 @@ __all__ = [
     'skiptest_if',
     'skiptest_unless_module',
 ]
+
+
+def assert_same(actual, desired, rtol=2, broadcasting=False):
+    """
+    Compare arrays of floats. The relative error depends on the data type.
+
+    Parameters
+    ----------
+    rtol : float
+        Relative tolerance to account for numerical error propagation.
+    broadcasting : bool, optional
+        If true, allow broadcasting betwee, actual and desired array.
+
+    """
+    actual = np.asarray(actual)
+    desired = np.asarray(desired)
+    if not broadcasting and actual.shape != desired.shape:
+        raise AssertionError(
+            "The actual array shape '{0}' is different from the one that is de"
+            "sired '{1}'.".format(actual.shape, desired.shape)
+        )
+    dtype = sorted(arg.dtype for arg in [actual, desired])[0]
+    if dtype.kind in ('b', 'i'):
+        assert_equal(actual, desired)
+        return
+    eps = np.finfo(dtype).eps * rtol
+    same = abs(actual - desired) <= eps * np.maximum(abs(actual), abs(desired))
+    if not np.all(same):
+
+        def trepr(x):
+            r = repr(x).split('\n')
+            if len(r) > 3:
+                r = [r[0], r[1], r[2] + ' ...']
+            return '\n'.join(r)
+
+        raise AssertionError(
+            "Arrays are not equal.\n\n(mismatch {0:.1%})\n x: {1}\n y: {2}".format(
+                1 - np.mean(same), trepr(actual), trepr(desired)
+            )
+        )
 
 
 def assert_eq(a, b, msg=None):
