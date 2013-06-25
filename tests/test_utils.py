@@ -3,10 +3,11 @@ import numpy as np
 
 from numpy.testing import assert_equal
 from pyoperators import Operator
-from pyoperators.utils import (cast, first, ifirst, first_is_not, ifirst_is_not,
-                               inspect_special_values, interruptible, isscalar,
-                               izip_broadcast, least_greater_multiple, product,
-                               strenum, strplural, strshape, uninterruptible)
+from pyoperators.utils import (
+    cast, complex_dtype_for, first, ifirst, first_is_not, ifirst_is_not,
+    inspect_special_values, interruptible, isscalar, izip_broadcast,
+    least_greater_multiple, product, strenum, strplural, strshape,
+    uninterruptible)
 from pyoperators.utils.testing import assert_eq, assert_raises
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
@@ -39,6 +40,18 @@ def test_cast():
         assert_dtype(a2_, expected)
     for d1, d2 in itertools.product(dtypes, repeat=2):
         yield func, d1, d2
+
+def test_complex_dtype():
+    dtypes = (bool, int, np.float16, np.float32, np.float64, np.float128)
+    expecteds = (None, None, None, np.complex64, np.complex128, np.complex256)
+    def func(dtype, expected):
+        if expected is None:
+            assert_raises(TypeError, complex_dtype_for, dtype)
+        else:
+            actual = complex_dtype_for(dtype)
+            assert_eq(actual, expected)
+    for dtype, expected in zip(dtypes, expecteds):
+        yield func, dtype, expected
 
 def test_first1():
     assert first([1,2,3], lambda x: x > 1.5) == 2
