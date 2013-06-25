@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 
+from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
     cast,
@@ -11,6 +12,7 @@ from pyoperators.utils import (
     inspect_special_values,
     interruptible,
     isscalar,
+    izip_broadcast,
     least_greater_multiple,
     product,
     strenum,
@@ -178,6 +180,60 @@ def test_is_scalar():
 def test_is_not_scalar():
     for o in ([], (), np.ones(1), np.ones(2)):
         yield assert_is_not_scalar, o
+
+
+def test_izip_broadcast1():
+    def g():
+        i = 0
+        while True:
+            yield i
+            i += 1
+
+    a = [1]
+    b = (np.sin,)
+    c = np.arange(3).reshape((1, 3))
+    d = ('x', 'y', [])
+    e = ['a', 'b', 'c']
+    f = np.arange(6).reshape((3, 2))
+
+    aa = []
+    bb = []
+    cc = []
+    dd = []
+    ee = []
+    ff = []
+    gg = []
+    for a_, b_, c_, d_, e_, f_, g_ in izip_broadcast(a, b, c, d, e, f, g()):
+        aa.append(a_)
+        bb.append(b_)
+        cc.append(c_)
+        dd.append(d_)
+        ee.append(e_)
+        ff.append(f_)
+        gg.append(g_)
+    assert_eq(aa, 3 * a)
+    assert_eq(bb, list(3 * b))
+    assert_eq(cc, [[0, 1, 2], [0, 1, 2], [0, 1, 2]])
+    assert_eq(dd, list(_ for _ in d))
+    assert_eq(ee, list(_ for _ in e))
+    assert_eq(ff, list(_ for _ in f))
+    assert_eq(gg, [0, 1, 2])
+
+
+def test_izip_broadcast2():
+    a = [1]
+    b = (np.sin,)
+    c = np.arange(3).reshape((1, 3))
+    aa = []
+    bb = []
+    cc = []
+    for a_, b_, c_ in izip_broadcast(a, b, c):
+        aa.append(a_)
+        bb.append(b_)
+        cc.append(c_)
+    assert_eq(aa, a)
+    assert_eq(tuple(bb), b)
+    assert_eq(cc, c)
 
 
 def test_least_greater_multiple():
