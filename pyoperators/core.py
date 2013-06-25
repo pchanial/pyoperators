@@ -102,8 +102,8 @@ class OperatorFlags(
             'separable',  # o*[B1...Bn] = [o*B1...o*Bn]
             'inplace',
             'inplace_reduction',
-            'alignment_input',  # op. requires aligned input
-            'alignment_output',  # op. requires aligned output
+            'aligned_input',  # op. requires aligned input
+            'aligned_output',  # op. requires aligned output
             'contiguous_input',  # op. requires contig input
             'contiguous_output',  # op. requires contig output
             'shape_input',
@@ -114,7 +114,7 @@ class OperatorFlags(
     """Informative flags about the operator."""
 
     def __new__(cls):
-        t = 12 * (False,) + (1, 1, False, False, '', '')
+        t = 16 * (False,) + ('', '')
         return super(OperatorFlags, cls).__new__(cls, *t)
 
     def __str__(self):
@@ -783,7 +783,7 @@ class Operator(object):
 
         if not inplace or not self.flags.inplace:
             v = zeros(n, self.dtype)
-            if self.flags.alignment_output == 1:
+            if not self.flags.aligned_output:
                 for i in xrange(n):
                     v[i] = 1
                     o = d[i, :].reshape(shapeout)
@@ -1264,12 +1264,12 @@ class Operator(object):
                     )
 
         if self.flags.inplace:
-            alignment = max(self.flags.alignment_input, self.flags.alignment_output)
+            aligned = max(self.flags.aligned_input, self.flags.aligned_output)
             contiguous = max(self.flags.contiguous_input, self.flags.contiguous_output)
             self._set_flags(
                 {
-                    'alignment_input': alignment,
-                    'alignment_output': alignment,
+                    'aligned_input': aligned,
+                    'aligned_output': aligned,
                     'contiguous_input': contiguous,
                     'contiguous_output': contiguous,
                 }
@@ -1482,7 +1482,7 @@ class Operator(object):
             input,
             input.shape,
             dtype,
-            self.flags.alignment_input,
+            self.flags.aligned_input,
             self.flags.contiguous_input,
         ):
             if (
@@ -1492,7 +1492,7 @@ class Operator(object):
                     output,
                     input.shape,
                     dtype,
-                    self.flags.alignment_input,
+                    self.flags.aligned_input,
                     self.flags.contiguous_input,
                 )
             ):
@@ -1501,7 +1501,7 @@ class Operator(object):
                 input_ = _pool.extract(
                     input.shape,
                     dtype,
-                    self.flags.alignment_input,
+                    self.flags.aligned_input,
                     self.flags.contiguous_input,
                 )
                 buf = input_
@@ -1526,7 +1526,7 @@ class Operator(object):
                     output,
                     output.shape,
                     dtype,
-                    self.flags.alignment_output,
+                    self.flags.aligned_output,
                     self.flags.contiguous_output,
                 )
                 or isalias(input, output)
@@ -1535,7 +1535,7 @@ class Operator(object):
                 output_ = _pool.extract(
                     output.shape,
                     dtype,
-                    self.flags.alignment_output,
+                    self.flags.aligned_output,
                     self.flags.contiguous_output,
                 )
                 output = _pool.view(output_, output.shape, dtype)
@@ -2051,8 +2051,8 @@ class CommutativeCompositeOperator(CompositeOperator):
     def _merge_flags(operands):
         return {
             'real': all(o.flags.real for o in operands),
-            'alignment_input': max(o.flags.alignment_input for o in operands),
-            'alignment_output': max(o.flags.alignment_output for o in operands),
+            'aligned_input': max(o.flags.aligned_input for o in operands),
+            'aligned_output': max(o.flags.aligned_output for o in operands),
             'contiguous_input': any(o.flags.contiguous_input for o in operands),
             'contiguous_output': any(o.flags.contiguous_output for o in operands),
         }
@@ -2235,10 +2235,10 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             i = input[s]
             o = output[s]
             with _pool.copy_if(
-                i, op.flags.alignment_input, op.flags.contiguous_input
+                i, op.flags.aligned_input, op.flags.contiguous_input
             ) as i:
                 with _pool.copy_if(
-                    o, op.flags.alignment_output, op.flags.contiguous_output
+                    o, op.flags.aligned_output, op.flags.contiguous_output
                 ) as o:
                     op.direct(i, o)
 
@@ -2390,14 +2390,9 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         preserve_input &= not isalias(input, output)
         preserve_output = operation is not operation_assignment
 
-        (
-            shapeouts,
-            dtypes,
-            ninplaces,
-            bufsizes,
-            alignments,
-            contiguouss,
-        ) = self._get_info(input, output, preserve_input)
+        shapeouts, dtypes, ninplaces, bufsizes, aligneds, contiguouss = self._get_info(
+            input, output, preserve_input
+        )
 
         i = i_ = input
         if isalias(input, output):
@@ -2409,8 +2404,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         reuse_output = True
 
         # outer loop over groups of operators
-        for igroup, (ninplace, bufsize, alignment, contiguous) in renumerate(
-            zip(ninplaces, bufsizes, alignments, contiguouss)
+        for igroup, (ninplace, bufsize, aligned, contiguous) in renumerate(
+            zip(ninplaces, bufsizes, aligneds, contiguouss)
         ):
 
             if igroup != ngroups - 1:
@@ -2419,14 +2414,14 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 reuse_output = (
                     not preserve_output
                     and (igroup % 2 == 0)
-                    and iscompatible(output, bufsize, np.int8, alignment, contiguous)
+                    and iscompatible(output, bufsize, np.int8, aligned, contiguous)
                     and not isalias(output, i)
                     or igroup == 0
                 )
                 if reuse_output:
                     o_ = output
                 else:
-                    o_ = _pool.extract(bufsize, np.int8, alignment, contiguous)
+                    o_ = _pool.extract(bufsize, np.int8, aligned, contiguous)
                     _pool.add(output)
                 o = _pool.view(o_, shapeouts[iop], dtypes[iop])
                 op = self.operands[iop]
@@ -2603,40 +2598,40 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         dtypes = self._get_dtypes(input.dtype)
         sizes = [product(s) * d.itemsize for s, d in izip(shapes, dtypes)]
 
-        ninplaces, alignments, contiguouss = self._get_requirements()
+        ninplaces, aligneds, contiguouss = self._get_requirements()
 
         # make last operand out-of-place
         if (
             preserve_input
             and self.operands[-1].flags.inplace
             or not alignedin
-            and alignments[-1] > 1
+            and aligneds[-1]
             or not contiguousin
             and contiguouss[-1]
         ):
             assert ninplaces[-1] > 0
             ninplaces[-1] -= 1
             ninplaces += [0]
-            alignments += [MEMORY_ALIGNMENT if alignedin else 1]
+            aligneds += [alignedin]
             contiguouss += [contiguousin]
 
         # make first operand out-of-place
         if (
             sizes[0] < max([s for s in sizes[: ninplaces[0] + 1]])
             or not alignedout
-            and alignments[0] > 1
+            and aligneds[0]
             or not contiguousout
             and contiguouss[0]
         ):
             assert ninplaces[0] > 0
             ninplaces[0] -= 1
             ninplaces.insert(0, 0)
-            alignments.insert(0, MEMORY_ALIGNMENT if alignedout else 1)
+            aligneds.insert(0, alignedout)
             contiguouss.insert(0, contiguousout)
 
         bufsizes = self._get_bufsizes(sizes, ninplaces)
 
-        v = shapes, dtypes, ninplaces, bufsizes, alignments, contiguouss
+        v = shapes, dtypes, ninplaces, bufsizes, aligneds, contiguouss
         self._info[id_] = v
 
         return v
@@ -2658,11 +2653,11 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return dtypes
 
     def _get_requirements(self):
-        alignments = []
+        aligneds = []
         contiguouss = []
         ninplaces = []
         ninplace = 0
-        alignment = 1
+        aligned = False
         contiguity = False
         iop = len(self.operands) - 1
 
@@ -2674,27 +2669,27 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 op = self.operands[iop]
                 iop -= 1
                 if not op.flags.inplace:
-                    alignment = max(alignment, op.flags.alignment_input)
+                    aligned = max(aligned, op.flags.aligned_input)
                     contiguity = max(contiguity, op.flags.contiguous_input)
                     break
                 ninplace += 1
-                alignment = max(alignment, op.flags.alignment_input)
+                aligned = max(aligned, op.flags.aligned_input)
                 contiguity = max(contiguity, op.flags.contiguous_input)
 
             ninplaces.insert(0, ninplace)
-            alignments.insert(0, alignment)
+            aligneds.insert(0, aligned)
             contiguouss.insert(0, contiguity)
 
             ninplace = 0
-            alignment = op.flags.alignment_output
+            aligned = op.flags.aligned_output
             contiguity = op.flags.contiguous_output
 
         if not op.flags.inplace:
             ninplaces.insert(0, ninplace)
-            alignments.insert(0, alignment)
+            aligneds.insert(0, aligned)
             contiguouss.insert(0, contiguity)
 
-        return ninplaces, alignments, contiguouss
+        return ninplaces, aligneds, contiguouss
 
     @staticmethod
     def _get_shapes(shapein, shapeout, operands):
@@ -2810,8 +2805,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'square': all(op.flags.square for op in operands),
             'separable': all(op.flags.separable for op in operands),
             'inplace_reduction': operands[0].flags.inplace_reduction,
-            'alignment_input': operands[-1].flags.alignment_input,
-            'alignment_output': operands[0].flags.alignment_output,
+            'aligned_input': operands[-1].flags.aligned_input,
+            'aligned_output': operands[0].flags.aligned_output,
             'contiguous_input': operands[-1].flags.contiguous_input,
             'contiguous_output': operands[0].flags.contiguous_output,
         }
@@ -3749,10 +3744,10 @@ class BlockDiagonalOperator(BlockOperator):
             i = input[sin]
             o = output[sout]
             with _pool.copy_if(
-                i, op.flags.alignment_input, op.flags.contiguous_input
+                i, op.flags.aligned_input, op.flags.contiguous_input
             ) as i:
                 with _pool.copy_if(
-                    o, op.flags.alignment_output, op.flags.contiguous_output
+                    o, op.flags.aligned_output, op.flags.contiguous_output
                 ) as o:
                     op.direct(i, o)
 
@@ -3834,7 +3829,7 @@ class BlockColumnOperator(BlockOperator):
         for op, sout in zip(self.operands, self.get_slicesout(partitionout)):
             o = output[sout]
             with _pool.copy_if(
-                o, op.flags.alignment_output, op.flags.contiguous_output
+                o, op.flags.aligned_output, op.flags.contiguous_output
             ) as o:
                 op.direct(input, o)
 
@@ -3920,7 +3915,7 @@ class BlockRowOperator(BlockOperator):
         sins = tuple(self.get_slicesin(partitionin))
         i = input[sins[0]]
         op = self.operands[0]
-        with _pool.copy_if(i, op.flags.alignment_input, op.flags.contiguous_input) as i:
+        with _pool.copy_if(i, op.flags.aligned_input, op.flags.contiguous_input) as i:
             op.direct(i, output)
 
         with _pool.get_if(
@@ -3930,7 +3925,7 @@ class BlockRowOperator(BlockOperator):
             for op, sin in zip(self.operands, sins)[1:]:
                 i = input[sin]
                 with _pool.copy_if(
-                    i, op.flags.alignment_input, op.flags.contiguous_input
+                    i, op.flags.aligned_input, op.flags.contiguous_input
                 ) as i:
                     if op.flags.inplace_reduction:
                         op.direct(i, output, operation=self.operation)
@@ -4842,8 +4837,8 @@ def DirectOperatorFactory(cls, source, *args, **keywords):
     keywords['flags']['real'] = source.flags.real
     keywords['flags']['square'] = source.flags.square
     keywords['flags']['inplace'] = source.flags.inplace
-    keywords['flags']['alignment_input'] = source.flags.alignment_input
-    keywords['flags']['alignment_output'] = source.flags.alignment_output
+    keywords['flags']['aligned_input'] = source.flags.aligned_input
+    keywords['flags']['aligned_output'] = source.flags.aligned_output
     keywords['flags']['contiguous_input'] = source.flags.contiguous_input
     keywords['flags']['contiguous_output'] = source.flags.contiguous_output
     return cls(*args, **keywords)
@@ -4873,8 +4868,8 @@ def ReverseOperatorFactory(cls, source, *args, **keywords):
     keywords['flags']['real'] = source.flags.real
     keywords['flags']['square'] = source.flags.square
     keywords['flags']['inplace'] = source.flags.inplace
-    keywords['flags']['alignment_input'] = source.flags.alignment_output
-    keywords['flags']['alignment_output'] = source.flags.alignment_input
+    keywords['flags']['aligned_input'] = source.flags.aligned_output
+    keywords['flags']['aligned_output'] = source.flags.aligned_input
     keywords['flags']['contiguous_input'] = source.flags.contiguous_output
     keywords['flags']['contiguous_output'] = source.flags.contiguous_input
     return cls(*args, **keywords)

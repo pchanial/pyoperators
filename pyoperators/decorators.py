@@ -129,9 +129,7 @@ def aligned(cls):
     aligned in memory. It sets the alignment_input and alignment_output
     attributes to True.
     """
-    return flags(
-        cls, {'alignment_input': MEMORY_ALIGNMENT, 'alignment_output': MEMORY_ALIGNMENT}
-    )
+    return flags(cls, 'aligned_input,aligned_output')
 
 
 def aligned_input(cls):
@@ -139,7 +137,7 @@ def aligned_input(cls):
     Decorator to ensure that operator's input is aligned in memory.
     It sets the alignment_input attribute to True.
     """
-    return flags(cls, {'alignment_input': MEMORY_ALIGNMENT})
+    return flags(cls, 'aligned_input')
 
 
 def aligned_output(cls):
@@ -147,7 +145,7 @@ def aligned_output(cls):
     Decorator to ensure that operator's output is aligned in memory.
     It sets the alignment_output attribute to True.
     """
-    return flags(cls, {'alignment_output': MEMORY_ALIGNMENT})
+    return flags(cls, 'aligned_output')
 
 
 def contiguous(cls):
