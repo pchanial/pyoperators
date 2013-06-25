@@ -3,8 +3,14 @@ from __future__ import division
 import numexpr
 import numpy as np
 
+try:
+    import pyfftw
+except:
+    pass
+from itertools import izip
 from scipy.sparse.linalg import eigsh
 
+from . import memory
 from .decorators import inplace, linear, real, square, symmetric
 from .core import (
     Operator,
@@ -18,8 +24,10 @@ from .core import (
     ReverseOperatorFactory,
     Variable,
     X,
+    _pool,
 )
-from .utils import cast, ifirst, tointtuple
+from .memory import empty
+from .utils import cast, complex_dtype_for, ifirst, izip_broadcast, tointtuple
 
 __all__ = [
     'BandOperator',
@@ -31,6 +39,7 @@ __all__ = [
     'PackOperator',
     'SumOperator',
     'SymmetricBandOperator',
+    'SymmetricBandToeplitzOperator',
     'TridiagonalOperator',
     'UnpackOperator',
 ]
@@ -798,6 +807,104 @@ class SymmetricBandOperator(Operator):
         else:
             out = UpperTriangularOperator(self.shape, ab_chol, **self.kwargs)
         return out
+
+
+@real
+@linear
+@symmetric
+@inplace
+class SymmetricBandToeplitzOperator(Operator):
+    """
+    The SymmetricBandToeplitz operator for symmetric band Toeplitz matrices.
+
+    The vector product is implemented using the FFTW library, so it scales
+    as O(nlogn) operations.
+
+    Example
+    -------
+    >>> N = SymmetricBandToeplitzOperator(5, [3, 2, 1, 1])
+    >>> print N.todense().astype(int)
+    [[3 2 1 1 0]
+     [2 3 2 1 1]
+     [1 2 3 2 1]
+     [1 1 2 3 2]
+     [0 1 1 2 3]]
+
+    """
+
+    def __init__(self, shapein, firstrow, dtype=None, **keywords):
+        shapein = tointtuple(shapein)
+        if dtype is None:
+            dtype = float
+        firstrow = np.asarray(firstrow, dtype)
+        if firstrow.shape[-1] == 1:
+            self.__class__ = DiagonalOperator
+            self.__init__(
+                firstrow[..., 0], broadcast='rightward', shapein=shapein, **keywords
+            )
+            return
+        nsamples = shapein[-1]
+        bandwidth = 2 * firstrow.shape[-1] - 1
+        ncorr = firstrow.shape[-1] - 1
+        fftsize = 2
+        while fftsize < nsamples + ncorr:
+            fftsize *= 2
+        with _pool.get(fftsize, dtype, aligned=True, contiguous=True) as rbuffer:
+            with _pool.get(
+                fftsize // 2 + 1,
+                complex_dtype_for(dtype),
+                aligned=True,
+                contiguous=True,
+            ) as cbuffer:
+                fplan = pyfftw.FFTW(rbuffer, cbuffer)
+                bplan = pyfftw.FFTW(cbuffer, rbuffer, direction='FFTW_BACKWARD')
+                kernel = self._get_kernel(
+                    firstrow, fplan, rbuffer, cbuffer, ncorr, fftsize, dtype
+                )
+        Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
+        self.nsamples = nsamples
+        self.fftsize = fftsize
+        self.bandwidth = bandwidth
+        self.ncorr = ncorr
+        self.fplan = fplan
+        self.bplan = bplan
+        self.kernel = kernel
+
+    def direct(self, x, out):
+        with _pool.get(
+            self.fftsize, self.dtype, aligned=True, contiguous=True
+        ) as rbuffer:
+            with _pool.get(
+                self.fftsize // 2 + 1,
+                complex_dtype_for(self.dtype),
+                aligned=True,
+                contiguous=True,
+            ) as cbuffer:
+                lpad = (self.bandwidth - 1) // 2
+                x = x.reshape((-1, self.nsamples))
+                out = out.reshape((-1, self.nsamples))
+                self.fplan.update_arrays(rbuffer, cbuffer)
+                self.bplan.update_arrays(cbuffer, rbuffer)
+
+                for x_, out_, kernel in izip_broadcast(x, out, self.kernel):
+                    rbuffer[:lpad] = 0
+                    rbuffer[lpad : lpad + self.nsamples] = x_
+                    rbuffer[lpad + self.nsamples :] = 0
+                    self.fplan.execute()
+                    cbuffer *= kernel
+                    self.bplan.execute()
+                    out_[...] = rbuffer[lpad : lpad + self.nsamples]
+
+    def _get_kernel(self, firstrow, fplan, rbuffer, cbuffer, ncorr, fftsize, dtype):
+        firstrow = firstrow.reshape((-1, ncorr + 1))
+        kernel = empty((firstrow.shape[0], fftsize // 2 + 1), dtype)
+        for f, k in izip(firstrow, kernel):
+            rbuffer[: ncorr + 1] = f
+            rbuffer[ncorr + 1 : -ncorr] = 0
+            rbuffer[-ncorr:] = f[:0:-1]
+            fplan.execute()
+            k[...] = cbuffer.real / fftsize
+        return kernel
 
 
 @real
