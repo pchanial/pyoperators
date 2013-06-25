@@ -3,12 +3,14 @@ from __future__ import division
 import numpy as np
 import pyoperators
 
-from pyoperators import Operator, BlockColumnOperator, DiagonalOperator
+from pyoperators import (Operator, BlockColumnOperator, BlockDiagonalOperator,
+                         DenseOperator, DiagonalOperator)
 from pyoperators.linear import (DiagonalNumexprNonSeparableOperator,
                                 DiagonalNumexprOperator, DifferenceOperator,
                                 IntegrationTrapezeWeightOperator,
                                 PackOperator, TridiagonalOperator,
-                                UnpackOperator, SumOperator)
+                                SymmetricBandToeplitzOperator, UnpackOperator,
+                                SumOperator)
 from pyoperators.utils import product
 from pyoperators.utils.testing import (assert_eq, assert_is_instance,
                                        assert_is_none, assert_raises)
@@ -126,6 +128,33 @@ def test_sum_operator():
             d = op.todense(shapein=s)
             t = op.T.todense(shapeout=s)
             assert_eq(d, t.T)
+
+def test_symmetric_band_toeplitz_operator():
+    def totoeplitz(n, firstrow):
+        if isinstance(n, tuple):
+            n_ = n[-1]
+            return BlockDiagonalOperator(
+                [totoeplitz(n_, f_) for f_ in firstrow], new_axisin=0)
+        ncorr = len(firstrow) - 1
+        dense = np.zeros((n, n))
+        for i in xrange(n):
+            for j in xrange(n):
+                if abs(i-j) <= ncorr:
+                    dense[i, j] = firstrow[abs(i-j)]
+        return DenseOperator(dense)
+
+    def func(n, firstrow):
+        s = SymmetricBandToeplitzOperator(n, firstrow)
+        if firstrow == [1] or firstrow == [[2], [1]]:
+            assert_is_instance(s, DiagonalOperator)
+        assert_eq(s.todense(), totoeplitz(n, firstrow).todense())
+
+    for n in [2, 3, 4, 5]:
+        for firstrow in ([1], [2, 1]):
+            yield func, n, firstrow
+    for n in ((2, _) for _ in [2, 3, 4, 5]):
+        for firstrow in ([[2], [1]], [[2, 1], [3, 2]]):
+            yield func, n, firstrow
 
 def test_tridiagonal_operator():
     values = (
