@@ -2,6 +2,7 @@ from __future__ import division
 
 import collections
 import gc
+import itertools
 import multiprocessing
 import numpy as np
 import operator
@@ -29,6 +30,7 @@ __all__ = ['all_eq',
            'isalias',
            'isclassattr',
            'isscalar',
+           'izip_broadcast',
            'least_greater_multiple',
            'memory_usage',
            'merge_none',
@@ -470,6 +472,20 @@ def isscalar(data):
     if isinstance(data, (collections.Container, scipy.sparse.base.spmatrix)):
         return False
     return True
+
+def izip_broadcast(*args):
+    """
+    Like izip, except that arguments which are containers of length 1 are
+    repeated.
+
+    """
+    def wrap(a):
+        if hasattr(a, '__len__') and len(a) == 1:
+            return itertools.repeat(a[0])
+        return a
+    if any(not hasattr(a, '__len__') or len(a) != 1 for a in args):
+        args = [wrap(arg) for arg in args]
+    return izip(*args)
 
 def least_greater_multiple(a, l, out=None):
     """
