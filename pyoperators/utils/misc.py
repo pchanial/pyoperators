@@ -20,6 +20,7 @@ from . import cythonutils as cu
 __all__ = ['all_eq',
            'benchmark',
            'cast',
+           'complex_dtype_for',
            'first',
            'first_is_not',
            'ifirst',
@@ -297,6 +298,26 @@ def cast(arrays, dtype=None, order='c'):
     result = (np.array(a, dtype=dtype, order=order, copy=False)
               if a is not None else None for a in arrays)
     return tuple(result)
+
+def complex_dtype_for(dtype):
+    """
+    Return the complex dtype associated to a float dtype.
+
+    Parameter
+    ---------
+    dtype : dtype
+        The float dtype.
+
+    Example
+    -------
+    >>> complex_dtype_for(np.float32)
+    dtype('complex64')
+
+    """
+    dtype = np.dtype(dtype)
+    if dtype.kind != 'f':
+        raise TypeError('The input dtype is not a float.')
+    return np.dtype('complex{}'.format(2 * int(dtype.name[5:])))
 
 def first(l, f):
     """

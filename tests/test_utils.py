@@ -5,6 +5,7 @@ from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
     cast,
+    complex_dtype_for,
     first,
     ifirst,
     first_is_not,
@@ -74,6 +75,21 @@ def test_cast():
 
     for d1, d2 in itertools.product(dtypes, repeat=2):
         yield func, d1, d2
+
+
+def test_complex_dtype():
+    dtypes = (bool, int, np.float16, np.float32, np.float64, np.float128)
+    expecteds = (None, None, None, np.complex64, np.complex128, np.complex256)
+
+    def func(dtype, expected):
+        if expected is None:
+            assert_raises(TypeError, complex_dtype_for, dtype)
+        else:
+            actual = complex_dtype_for(dtype)
+            assert_eq(actual, expected)
+
+    for dtype, expected in zip(dtypes, expecteds):
+        yield func, dtype, expected
 
 
 def test_first1():
