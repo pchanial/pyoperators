@@ -88,7 +88,7 @@ def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
     a[...] = 0
     return a
 
-def iscompatible(array, shape, dtype, alignment=1, contiguous=False,
+def iscompatible(array, shape, dtype, aligned=False, contiguous=False,
                  tolerance=np.inf):
     """
     Return True if a buffer with specified requirements can be extracted
@@ -97,7 +97,7 @@ def iscompatible(array, shape, dtype, alignment=1, contiguous=False,
     """
     shape = tointtuple(shape)
     dtype = np.dtype(dtype)
-    if array.__array_interface__['data'][0] % alignment != 0:
+    if aligned and array.__array_interface__['data'][0]%MEMORY_ALIGNMENT != 0:
         return False
     if not array.flags.contiguous:
         if contiguous:
@@ -139,14 +139,17 @@ class MemoryPool(object):
         gc.collect()
 
     @contextmanager
-    def copy_if(self, v, alignment=1, contiguous=False):
+    def copy_if(self, v, aligned=False, contiguous=False):
         """
         Return a context manager which may copy the input array into
         a buffer from the pool to ensure alignment and contiguity requirements.
 
         """
+        if not isinstance(aligned, bool):
+            stop
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')
+        alignment = MEMORY_ALIGNMENT if aligned else 1
         if v.__array_interface__['data'][0] % alignment != 0 or \
            contiguous and not v.flags.contiguous:
             with self.get(v.shape, v.dtype) as buf:
@@ -156,16 +159,18 @@ class MemoryPool(object):
         else:
             yield v
 
-    def extract(self, shape, dtype, alignment=1, contiguous=False,
+    def extract(self, shape, dtype, aligned=False, contiguous=False,
                 description=None, verbose=None):
         """
         Extract a buffer from the pool given the following requirements:
         shape, dtype, alignment, contiguity.
 
         """
+        if not isinstance(aligned, bool):
+            stop
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)
-        compatible = lambda x: iscompatible(x, shape, dtype, alignment,
+        compatible = lambda x: iscompatible(x, shape, dtype, aligned,
                                             contiguous, MEMORY_TOLERANCE)
         try:
             i = ifirst(self._buffers, compatible)
@@ -175,14 +180,16 @@ class MemoryPool(object):
         return v
 
     @contextmanager
-    def get(self, shape, dtype, alignment=1, contiguous=False, description=None,
-            verbose=None):
+    def get(self, shape, dtype, aligned=False, contiguous=False,
+            description=None, verbose=None):
         """
         Return a context manager which retrieves a buffer from the pool
         on enter, and set it back in the pool on exit.
 
         """
-        v_ = self.extract(shape, dtype, alignment, contiguous, description,
+        if not isinstance(aligned, bool):
+            stop
+        v_ = self.extract(shape, dtype, aligned, contiguous, description,
                           verbose)
         v = self.view(v_, shape, dtype)
 

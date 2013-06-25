@@ -18,7 +18,6 @@ __all__ = ['ConvolutionOperator', 'FFTOperator']
 
 try:
     import pyfftw
-    FFTW_ALIGNMENT = 16
     FFTW_DEFAULT_NUM_THREADS = openmp_num_threads()
     FFTW_WISDOM_FILES = tuple(os.path.join(LOCAL_PATH, 'fftw{0}.wisdom'.format(
                               t)) for t in ['', 'f', 'l'])
@@ -108,10 +107,10 @@ class _FFTWConvolutionOperator(Operator):
         dtype_ = complex_dtype_for(dtype)
         shape_ = self._reshape_to_halfstorage(shapein, axes)
         _load_wisdom()
-        alignment = self.flags.alignment_input
+        aligned = self.flags.aligned_input
         contiguous = True
-        with _pool.get(shapein, dtype, alignment, contiguous) as in_:
-            with _pool.get(shape_, dtype_, alignment, contiguous) as out:
+        with _pool.get(shapein, dtype, aligned, contiguous) as in_:
+            with _pool.get(shape_, dtype_, aligned, contiguous) as out:
                 t0 = time.time()
                 fplan = pyfftw.FFTW(in_, out, axes=axes,
                                     flags=[fftw_flag],
@@ -178,9 +177,9 @@ class _FFTWRealConvolutionOperator(Operator):
     def direct(self, input, output):
         shape = self.kernel.shape
         dtype = self.kernel.dtype
-        alignment = self.flags.alignment_input
+        aligned = self.flags.aligned_input
         contiguous = True
-        with _pool.get(shape, dtype, alignment, contiguous) as buf:
+        with _pool.get(shape, dtype, aligned, contiguous) as buf:
             self._fplan.update_arrays(input, buf)
             self._fplan.execute()
             buf *= self.kernel
@@ -245,9 +244,9 @@ class _FFTWRealConvolutionOperator(Operator):
     def _restore_kernel(self):
         shape = self.kernel.shape
         dtype = self.kernel.dtype
-        alignment = self.flags.alignment_input
+        aligned = self.flags.aligned_input
         contiguous = True
-        with _pool.get(shape, dtype, alignment, contiguous) as x:
+        with _pool.get(shape, dtype, aligned, contiguous) as x:
             self.get_kernel(x)
             y = empty(self.shapein, self.dtype)
             self._bplan.update_arrays(x, y)

@@ -1641,10 +1641,10 @@ def test_composition_get_requirements():
         for i in range(len(rn)-1):
             rn[i] -= 1
 
-        ra = [max(ops[i].flags.alignment_output for i in g[0])] + \
-             [max([ops[_[0]-1].flags.alignment_input] +
-                  [ops[i].flags.alignment_output for i in _])for _ in g[1:-1]]+\
-             ([max(ops[i].flags.alignment_input for i in  range(t.rfind('O'),
+        ra = [max(ops[i].flags.aligned_output for i in g[0])] + \
+             [max([ops[_[0]-1].flags.aligned_input] +
+                  [ops[i].flags.aligned_output for i in _])for _ in g[1:-1]]+\
+             ([max(ops[i].flags.aligned_input for i in  range(t.rfind('O'),
               len(ops)))] if len(g) > 1 else [])
         
         rc = [max(ops[i].flags.contiguous_output for i in g[0])] + \

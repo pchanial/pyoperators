@@ -7,14 +7,14 @@ from pyoperators.utils import tointtuple
 
 buffers = [empty(10), empty((5,2)), empty(20)[::2], empty(11)[1:],
            empty(21)[1:].reshape((10,2))[::2,:]]
-alignment = 3 * [MEMORY_ALIGNMENT] + [1, 1]
+aligned = 3 * [True] + [False, False]
 contiguous = [_.flags.contiguous for _ in buffers]
 
 def assert_contiguous(x):
     assert x.flags.contiguous
 
-def assert_aligned(x, alignment=MEMORY_ALIGNMENT):
-    assert address(x) % alignment == 0
+def assert_aligned(x):
+    assert address(x) % MEMORY_ALIGNMENT == 0
 
 def address(l):
     if isinstance(l, np.ndarray):
@@ -55,17 +55,18 @@ def test_get():
     pool.add(pc)
     def func(v, b, bs, ba, bc, s, a, c):
         assert v.shape == s
-        assert_aligned(v, a)
+        if a:
+            assert_aligned(v)
         if c:
             assert_contiguous(v)
         if a > ba or c and not bc or not bc and s != bs:
             assert address(pool._buffers) == address([pa, b])
         else:
             assert address(pool._buffers) == address([pa, pc])
-    for b, ba, bc in zip(buffers, alignment, contiguous):
+    for b, ba, bc in zip(buffers, aligned, contiguous):
         with pool.set(b):
             for (s, a, c) in itertools.product([(10,), (5,2), (2,5)],
-                                               [1,MEMORY_ALIGNMENT],
+                                               [False,True],
                                                [False,True]):
                 with pool.get(s, float, a, c) as v:
                     yield func, v, b, b.shape, ba, bc, s, a, c
