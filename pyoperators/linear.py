@@ -1,5 +1,6 @@
 from __future__ import division
 
+import multiprocessing
 import numexpr
 import numpy as np
 
@@ -10,7 +11,6 @@ except:
 from itertools import izip
 from scipy.sparse.linalg import eigsh
 
-from . import memory
 from .decorators import inplace, linear, real, square, symmetric
 from .core import (
     Operator,
@@ -832,10 +832,20 @@ class SymmetricBandToeplitzOperator(Operator):
 
     """
 
-    def __init__(self, shapein, firstrow, dtype=None, **keywords):
+    def __init__(
+        self,
+        shapein,
+        firstrow,
+        dtype=None,
+        fftw_flag='FFTW_MEASURE',
+        nthreads=None,
+        **keywords,
+    ):
         shapein = tointtuple(shapein)
         if dtype is None:
             dtype = float
+        if nthreads is None:
+            nthreads = multiprocessing.cpu_count()
         firstrow = np.asarray(firstrow, dtype)
         if firstrow.shape[-1] == 1:
             self.__class__ = DiagonalOperator
@@ -856,8 +866,16 @@ class SymmetricBandToeplitzOperator(Operator):
                 aligned=True,
                 contiguous=True,
             ) as cbuffer:
-                fplan = pyfftw.FFTW(rbuffer, cbuffer)
-                bplan = pyfftw.FFTW(cbuffer, rbuffer, direction='FFTW_BACKWARD')
+                fplan = pyfftw.FFTW(
+                    rbuffer, cbuffer, fftw_flags=[fftw_flag], threads=nthreads
+                )
+                bplan = pyfftw.FFTW(
+                    cbuffer,
+                    rbuffer,
+                    direction='FFTW_BACKWARD',
+                    fftw_flags=[fftw_flag],
+                    threads=nthreads,
+                )
                 kernel = self._get_kernel(
                     firstrow, fplan, rbuffer, cbuffer, ncorr, fftsize, dtype
                 )
@@ -869,6 +887,8 @@ class SymmetricBandToeplitzOperator(Operator):
         self.fplan = fplan
         self.bplan = bplan
         self.kernel = kernel
+        self.fftw_flag = fftw_flag
+        self.nthreads = nthreads
 
     def direct(self, x, out):
         with _pool.get(
