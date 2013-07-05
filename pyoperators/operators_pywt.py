@@ -6,9 +6,9 @@ For now only 1D and 2D wavelets are available.
 import numpy as np
 import pywt
 from .decorators import linear, real
-from .core import Operator
+from .core import Operator, CompositionOperator
 
-__all__ = ['WaveletOperator', 'Wavelet2Operator']
+__all__ = ['WaveletOperator', 'Wavelet2dOperator']
 
 # dict of corresponding wavelets
 rwavelist = {}
@@ -24,7 +24,7 @@ for l in pywt.wavelist():
 @linear
 @real
 class WaveletOperator(Operator):
-    def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
+    def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **keywords):
         """
         1D wavelet decomposition and reconstruction. Wavelet coefficients
         are stored in a vector (ndarray with ndim=1).
@@ -45,10 +45,13 @@ class WaveletOperator(Operator):
 
         Notes
         -----
-        Wrapping around PyWavelet
+        Wrapping around PyWavelets
+
         """
+        if not isinstance(wavelet, pywt.Wavelet):
+            wavelet = pywt.Wavelet(wavelet)
         self.wavelet = wavelet
-        self.rwavelet = rwavelist[self.wavelet]
+        self.rwavelet = rwavelist[wavelet.name]
         self.mode = mode
         self.level = level
         # needed to get sizes of all coefficients
@@ -57,32 +60,23 @@ class WaveletOperator(Operator):
         self.sizes = [bi.size for bi in b]
         self.cumsizes = np.zeros(len(self.sizes) + 1)
         np.cumsum(self.sizes, out=self.cumsizes[1:])
-        del a, b
         shapeout = sum(self.sizes)
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
+        if self.wavelet.orthogonal:
+            self.set_rule('.T.', '1', CompositionOperator)
 
-        def direct(x, out):
-            coeffs = pywt.wavedec(x, self.wavelet, mode=self.mode, level=self.level)
-            out[:] = self.coeffs2vect(coeffs)
+    def direct(self, x, out):
+        coeffs = pywt.wavedec(x, self.wavelet, mode=self.mode, level=self.level)
+        out[:] = self._coeffs2vect(coeffs)
 
-        def transpose(x, out):
-            coeffs = self.vect2coeffs(x)
-            out[:] = pywt.waverec(coeffs, self.rwavelet, mode=self.mode)[
-                : self.shapein[0]
-            ]
+    def transpose(self, x, out):
+        coeffs = self._vect2coeffs(x)
+        out[:] = pywt.waverec(coeffs, self.rwavelet, mode=self.mode)[: self.shapein[0]]
 
-        Operator.__init__(
-            self,
-            direct=direct,
-            transpose=transpose,
-            shapein=shapein,
-            shapeout=shapeout,
-            **kwargs,
-        )
-
-    def coeffs2vect(self, coeffs):
+    def _coeffs2vect(self, coeffs):
         return np.concatenate(coeffs)
 
-    def vect2coeffs(self, vect):
+    def _vect2coeffs(self, vect):
         return [
             vect[self.cumsizes[i] : self.cumsizes[i + 1]]
             for i in xrange(len(self.sizes))
@@ -91,15 +85,15 @@ class WaveletOperator(Operator):
 
 @linear
 @real
-class Wavelet2Operator(Operator):
-    def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **kwargs):
+class Wavelet2dOperator(Operator):
+    def __init__(self, wavelet, mode='zpd', level=None, shapein=None, **keywords):
         """
         2D wavelet decomposition and reconstruction. Wavelet coefficients
         are stored in a vector (ndarray with ndim=1).
 
         Exemple
         -------
-        >>> W = Wavelet2("haar", level=1, shapein=(2, 2))
+        >>> W = Wavelet2dOperator("haar", level=1, shapein=(2, 2))
         >>> W.todense()
 
         array([[ 0.5,  0.5,  0.5,  0.5],
@@ -116,9 +110,12 @@ class Wavelet2Operator(Operator):
         Notes
         -----
         Wrapping around PyWavelet
+
         """
+        if not isinstance(wavelet, pywt.Wavelet):
+            wavelet = pywt.Wavelet(wavelet)
         self.wavelet = wavelet
-        self.rwavelet = rwavelist[self.wavelet]
+        self.rwavelet = rwavelist[wavelet.name]
         self.mode = mode
         self.level = level
         # compute shapes and sizes
@@ -126,56 +123,42 @@ class Wavelet2Operator(Operator):
         coeffs = pywt.wavedec2(a, wavelet, mode=mode, level=level)
         approx = coeffs[0]
         details = coeffs[1:]
-        self.shapes = [
-            approx.shape,
-        ]
+        self.shapes = [approx.shape]
         self.shapes += [d[i].shape for d in details for i in xrange(3)]
         self.sizes = [np.prod(s) for s in self.shapes]
         self.cumsizes = np.zeros(len(self.sizes) + 1)
         np.cumsum(self.sizes, out=self.cumsizes[1:])
-        del approx, details
         shapeout = sum(self.sizes)
 
-        def direct(x, out):
-            coeffs = pywt.wavedec2(x, self.wavelet, mode=self.mode, level=self.level)
-            out[:] = self.coeffs2vect(coeffs)
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
+        if self.wavelet.orthogonal:
+            self.set_rule('.T.', '1', CompositionOperator)
 
-        def transpose(x, out):
-            coeffs = self.vect2coeffs(x)
-            out[:] = pywt.waverec2(coeffs, self.rwavelet, mode=self.mode)[
-                : shapein[0], : shapein[1]
-            ]
+    def direct(self, x, out):
+        coeffs = pywt.wavedec2(x, self.wavelet, mode=self.mode, level=self.level)
+        out[:] = self._coeffs2vect(coeffs)
 
-        Operator.__init__(
-            self,
-            direct=direct,
-            transpose=transpose,
-            shapein=shapein,
-            shapeout=shapeout,
-            **kwargs,
-        )
+    def transpose(self, x, out):
+        coeffs = self._vect2coeffs(x)
+        rec = pywt.waverec2(coeffs, self.rwavelet, mode=self.mode)
+        out[:] = rec[: self.shapein[0], : self.shapein[1]]
 
-    def coeffs2vect(self, coeffs):
+    def _coeffs2vect(self, coeffs):
         # distinguish between approximation and details
         approx = coeffs[0]
         details = coeffs[1:]
         # transform 2d arrays into vectors
-        vect_coeffs = [
-            approx.ravel(),
-        ]
+        vect_coeffs = [approx.ravel()]
         vect_coeffs += [d[i].ravel() for d in details for i in xrange(3)]
         # put everything into a single coefficient
         return np.concatenate(vect_coeffs)
 
-    def vect2coeffs(self, vect):
-        approx = [
-            vect[: self.sizes[0]].reshape(self.shapes[0]),
-        ]
+    def _vect2coeffs(self, vect):
+        cs = self.cumsizes
+        approx = [vect[: self.sizes[0]].reshape(self.shapes[0])]
         details = [
             [
-                vect[self.cumsizes[i + j] : self.cumsizes[i + j + 1]].reshape(
-                    self.shapes[i + j]
-                )
+                vect[cs[i + j] : cs[i + j + 1]].reshape(self.shapes[i + j])
                 for j in xrange(3)
             ]
             for i in xrange(1, len(self.sizes), 3)
