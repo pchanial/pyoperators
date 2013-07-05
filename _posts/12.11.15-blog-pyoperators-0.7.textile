@@ -1,0 +1,22 @@
+---
+layout: post
+title: PyOperators 0.7
+excerpt: Release of PyOperators 0.7
+category: blog
+---
+
+What's new ?
+* Implement raising an operator to an integer exponent.
+* New operator DifferenceOperator.
+* Expose pcg function, instead of PCGAlgorithm
+* Add Variable class and X instance.
+* In a composition, HomothetyOperator has a distinct and more efficient handling. It can now be absorb by the operands.
+* Add new composition rules for ReshapeOperator, real ConvolutionOperator, BlockSliceOperator, DenseOperator
+* Implement a new class for the transpose of the real-kernel convolution (subclassing the real-kernel convolution), so that composition and addition rules can be applied to both the convolution and its transpose.
+
+Under the hood:
+* Fix todense for operators requiring aligned arrays.
+* Use site.USER_BASE instead of ~/.local to store FFTW wisdom and make environment variable PYOPERATORSPATH override it.
+* New lanczos implementation.
+* Make EigendecompositionOperator subclass CompositionOperator
+* API change: DistributionGlobalOperator->MPIDistributionGlobalOperator
