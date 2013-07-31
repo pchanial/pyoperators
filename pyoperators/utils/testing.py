@@ -39,8 +39,8 @@ def assert_same(actual, desired, rtol=2, broadcasting=False):
     desired = np.asarray(desired)
     if not broadcasting and actual.shape != desired.shape:
         raise AssertionError(
-            "The actual array shape '{0}' is different from the one that is de"
-            "sired '{1}'.".format(actual.shape, desired.shape)
+            "The actual array shape '{0}' is different from the desired one '{"
+            "1}'.".format(actual.shape, desired.shape)
         )
     dtype = sorted(arg.dtype for arg in [actual, desired])[0]
     if dtype.kind in ('b', 'i'):
