@@ -3,7 +3,7 @@ import numpy as np
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
 
-from .misc import all_eq
+from .misc import all_eq, strenum
 
 __all__ = ['assert_eq',
            'assert_in',
@@ -14,6 +14,7 @@ __all__ = ['assert_eq',
            'assert_is_not_instance',
            'assert_is_none',
            'assert_is_not_none',
+           'assert_is_type',
            'assert_raises',
            'skiptest',
            'skiptest_if',
@@ -106,6 +107,18 @@ def assert_is_not_none(a, msg=None):
     if a is not None:
         return
     assert False, str(a) + ' is None' + _get_msg(msg)
+
+def assert_is_type(a, cls, msg=None):
+    """ Assert argument is of a specified type. """
+    if type(cls) is type:
+        cls = (cls,)
+    else:
+        cls = tuple(cls)
+    if any(type(a) is t for t in cls):
+        return
+    raise AssertionError(
+        "{0} is of type '{1}' instead of {2}{3}".format(
+        a, type(a).__name__, strenum(c.__name__ for c in cls), _get_msg(msg)))
 
 def assert_raises(*args, **kwargs):
     np.testing.assert_raises(*args, **kwargs)
