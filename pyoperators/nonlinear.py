@@ -5,8 +5,8 @@ if numexpr.__version__ < 2.0:
 import numpy as np
 from .decorators import real, square, idempotent, inplace, separable
 from .core import (Operator, BlockColumnOperator, CompositionOperator,
-                   IdentityOperator, ReductionOperator)
-from .utils import operation_assignment, operation_symbol, strenum
+                   IdentityOperator, ReductionOperator, ReverseOperatorFactory)
+from .utils import operation_assignment, operation_symbol, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 
 __all__ = ['ClipOperator',
@@ -19,6 +19,8 @@ __all__ = ['ClipOperator',
            'NumexprOperator',
            'ProductOperator',
            'RoundOperator',
+           'To1dOperator',
+           'ToNdOperator',
            'SoftThresholdingOperator']
 
 @square
@@ -420,3 +422,123 @@ class SoftThresholdingOperator(Operator):
 
     def direct(self, input, output):
         soft_thresholding(input, self.a, output)
+
+
+@real
+@separable
+class _1dNdOperator(Operator):
+    """ Base class for 1d-Nd coordinate mappings. """
+    def __init__(self, shape_, order='C', **keywords):
+        shape_ = tointtuple(shape_)
+        ndim = len(shape_)
+        if ndim == 1:
+            raise NotImplementedError('ndim == 1 is not implemented.')
+        if order.upper() not in ('C', 'F'):
+            raise ValueError("Invalid order '{0}'. Expected order is 'C' or 'F"
+                             "'".format(order))
+        order = order.upper()
+
+        Operator.__init__(self, **keywords)
+        self.shape_ = shape_
+        self.order = order
+        self.ndim = ndim
+        if order == 'C':
+            self.coefs = np.cumproduct((1,) + shape_[:0:-1])[::-1]
+        elif order == 'F':
+            self.coefs = np.cumproduct((1,) + shape_[:-1])
+
+    def _reshape_to1d(self, shape):
+        return shape[:-1]
+
+    def _reshape_tond(self, shape):
+        return shape + (self.ndim,)
+
+    def _validate_to1d(self, shape):
+        if shape[-1] != self.ndim:
+            raise ValueError("Invalid shape '{0}'. The expected last dimension"
+                             " is '{1}'.".format(shape, self.ndim))
+
+
+class To1dOperator(_1dNdOperator):
+    """
+    Convert an N-dimensional indexing to a 1-dimensional indexing.
+
+    C order:
+    -------------------------      -------------
+    | (0,0) | (0,1) | (0,2) |      | 0 | 1 | 2 |
+    -------------------------  =>  -------------
+    | (1,0) | (1,1) | (1,2) |      | 3 | 4 | 5 |
+    -------------------------      -------------
+
+    Fortan order:
+    -------------------------      -------------
+    | (0,0) | (0,1) | (0,2) |      | 0 | 2 | 4 |
+    -------------------------  =>  -------------
+    | (1,0) | (1,1) | (1,2) |      | 1 | 3 | 5 |
+    -------------------------      -------------
+
+    Parameters
+    ----------
+    shape : tuple of int
+        The shape of the array whose element' multi-dimensional coordinates
+        will be converted into 1-d coordinates.
+    order : str
+        'C' for row-major and 'F' for column-major 1-d indexing.
+
+    """
+    def __init__(self, shape_, order='C', **keywords):
+        if 'reshapein' not in keywords:
+            keywords['reshapein'] = self._reshape_to1d
+        if 'reshapeout' not in keywords:
+            keywords['reshapeout'] = self._reshape_tond
+        if 'validatein' not in keywords:
+            keywords['validatein'] = self._validate_to1d
+        _1dNdOperator.__init__(self, shape_, order=order, **keywords)
+        self.set_rule('.I', lambda s: ReverseOperatorFactory(
+            ToNdOperator, s, s.shape_, order=s.order, **keywords))
+
+    def direct(self, input, output):
+        np.dot(input, self.coefs, out=output)
+
+
+class ToNdOperator(_1dNdOperator):
+    """
+    Convert a 1-dimensional indexing to an N-dimensional indexing.
+
+    C order:
+    -------------      -------------------------
+    | 0 | 1 | 2 |      | (0,0) | (0,1) | (0,2) |
+    -------------  =>  -------------------------
+    | 3 | 4 | 5 |      | (1,0) | (1,1) | (1,2) |
+    -------------      -------------------------
+
+    Fortan order
+    -------------      -------------------------
+    | 0 | 2 | 4 |      | (0,0) | (0,1) | (0,2) |
+    -------------  =>  -------------------------
+    | 1 | 3 | 5 |      | (1,0) | (1,1) | (1,2) |
+    -------------      -------------------------
+
+    Parameters
+    ----------
+    shape : tuple of int
+        The shape of the array whose element' multi-dimensional coordinates
+        will be converted into 1-d coordinates.
+    order : str
+        'C' for row-major and 'F' for column-major 1-d indexing.
+
+    """
+    def __init__(self, shape_, order='C', **keywords):
+        if 'reshapein' not in keywords:
+            keywords['reshapein'] = self._reshape_tond
+        if 'reshapeout' not in keywords:
+            keywords['reshapeout'] = self._reshape_to1d
+        if 'validateout' not in keywords:
+            keywords['validateout'] = self._validate_to1d
+        _1dNdOperator.__init__(self, shape_, order=order, **keywords)
+        self.set_rule('.I', lambda s: ReverseOperatorFactory(
+            To1dOperator, s, s.shape_, order=s.order, **keywords))
+
+    def direct(self, input, output):
+        np.floor_divide(input[..., None], self.coefs, out=output)
+        np.mod(output, self.shape_, out=output)
