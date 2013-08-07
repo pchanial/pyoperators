@@ -4829,50 +4829,51 @@ class VariableTranspose(Operator):
 
 def DirectOperatorFactory(cls, source, *args, **keywords):
     for attr in OPERATOR_ATTRIBUTES:
-        if attr in keywords or attr in ['dtype', 'flags']:
-            continue
-        keywords[attr] = getattr(source, attr)
-    keywords['dtype'] = source.dtype
-    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
-    keywords['flags']['real'] = source.flags.real
-    keywords['flags']['square'] = source.flags.square
-    keywords['flags']['inplace'] = source.flags.inplace
-    keywords['flags']['aligned_input'] = source.flags.aligned_input
-    keywords['flags']['aligned_output'] = source.flags.aligned_output
-    keywords['flags']['contiguous_input'] = source.flags.contiguous_input
-    keywords['flags']['contiguous_output'] = source.flags.contiguous_output
+        if attr == 'flags':
+            keywords['flags'] = Operator.validate_flags(
+                keywords.get('flags', {}),
+                real=source.flags.real,
+                square=source.flags.square,
+                inplace=source.flags.inplace,
+                aligned_input=source.flags.aligned_input,
+                aligned_output=source.flags.aligned_output,
+                contiguous_input=source.flags.contiguous_input,
+                contiguous_output=source.flags.contiguous_output,
+            )
+        elif attr not in keywords:
+            keywords[attr] = getattr(source, attr)
     return cls(*args, **keywords)
 
 
 def ReverseOperatorFactory(cls, source, *args, **keywords):
+    keywords = _swap_dict_inout(keywords)
     for attr in OPERATOR_ATTRIBUTES:
-        if attr in keywords or attr in ['dtype', 'flags']:
-            continue
-        if attr == 'reshapein' and source.reshapeout == Operator.reshapeout.__get__(
-            source, type(source)
-        ):
-            continue
-        if attr == 'reshapeout' and source.reshapein == Operator.reshapein.__get__(
-            source, type(source)
-        ):
-            continue
-        if attr.endswith('in'):
-            attr_source = attr[:-2] + 'out'
-        elif attr.endswith('out'):
-            attr_source = attr[:-3] + 'in'
-        else:
-            attr_source = attr
-        keywords[attr] = getattr(source, attr_source)
-    keywords['dtype'] = source.dtype
-    keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}))
-    keywords['flags']['real'] = source.flags.real
-    keywords['flags']['square'] = source.flags.square
-    keywords['flags']['inplace'] = source.flags.inplace
-    keywords['flags']['aligned_input'] = source.flags.aligned_output
-    keywords['flags']['aligned_output'] = source.flags.aligned_input
-    keywords['flags']['contiguous_input'] = source.flags.contiguous_output
-    keywords['flags']['contiguous_output'] = source.flags.contiguous_input
+        if attr == 'flags':
+            keywords['flags'] = Operator.validate_flags(
+                keywords.get('flags', {}),
+                real=source.flags.real,
+                square=source.flags.square,
+                inplace=source.flags.inplace,
+                aligned_input=source.flags.aligned_output,
+                aligned_output=source.flags.aligned_input,
+                contiguous_input=source.flags.contiguous_output,
+                contiguous_output=source.flags.contiguous_input,
+            )
+        elif attr not in keywords:
+            keywords[attr] = getattr(source, _swap_inout(attr))
     return cls(*args, **keywords)
+
+
+def _swap_inout(s):
+    if s.endswith('in'):
+        return s[:-2] + 'out'
+    elif s.endswith('out'):
+        return s[:-3] + 'in'
+    return s
+
+
+def _swap_dict_inout(d):
+    return dict((_swap_inout(k), v) for (k, v) in d.items())
 
 
 def asoperator(x, constant=False, **keywords):
