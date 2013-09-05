@@ -136,7 +136,6 @@ def test_integration_trapeze():
 
 
 def test_packing():
-
     p = PackOperator([False, True, True, False, True])
     assert p.T.__class__ == UnpackOperator
     assert np.allclose(p([1, 2, 3, 4, 5]), [1, 4])
