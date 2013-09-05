@@ -1,17 +1,45 @@
 #!/usr/bin/env python
 import numpy as np
+import re
+import sys
 from distutils.extension import Extension
 from numpy.distutils.core import setup
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import get_info
+from subprocess import Popen, PIPE
 
-def version():
-    import os, re
-    f = open(os.path.join('pyoperators', 'config.py')).read()
-    m = re.search(r"VERSION = '(.*)'", f)
-    return m.groups()[0]
+VERSION = '0.8'
 
-version = version()
+
+def version_sdist():
+    p = Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=PIPE,
+              stderr=PIPE)
+    stdout, stderr = p.communicate()
+    if stderr:
+        return VERSION
+    branch = stdout[:-1]
+    if re.search('^v[0-9]', branch) is not None:
+        branch = branch[1:]
+    if branch != 'master':
+        return VERSION
+    p = Popen(['git', 'rev-parse', '--verify', '--short', 'HEAD'], stdout=PIPE,
+              stderr=PIPE)
+    stdout, stderr = p.communicate()
+    version = VERSION
+    if not stderr:
+        version += '-' + stdout[:-1]
+    return version
+
+version = version_sdist()
+if 'install' in sys.argv[1:]:
+    if '-' in version:
+        version = VERSION + '-dev'
+
+if (c in sys.argv[1:] for c in ('install', 'sdist')):
+    init = open('pyoperators/__init__.py.in').readlines()
+    init += ['\n', '__version__ = ' + repr(version) + '\n']
+    open('pyoperators/__init__.py', 'w').writelines(init)
+
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'

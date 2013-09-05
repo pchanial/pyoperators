@@ -1,8 +1,6 @@
 import os
 import site
 
-VERSION = '0.8-dev'
-
 LOCAL_PATH = os.getenv('PYOPERATORSPATH')
 if LOCAL_PATH is None:
     LOCAL_PATH = os.path.join(site.USER_BASE, 'share', 'pyoperators')
