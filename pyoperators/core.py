@@ -2227,7 +2227,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                     if new_op is not None:
                         raise StopIteration()
         except StopIteration:
-            self._merge(new_op, h, op)
             operands[iop] = new_op
         else:
             operands.insert(0, h)
