@@ -35,7 +35,7 @@ if 'install' in sys.argv[1:]:
     if '-' in version:
         version = VERSION + '-dev'
 
-if (c in sys.argv[1:] for c in ('install', 'sdist')):
+if any(c in sys.argv[1:] for c in ('install', 'sdist')):
     init = open('pyoperators/__init__.py.in').readlines()
     init += ['\n', '__version__ = ' + repr(version) + '\n']
     open('pyoperators/__init__.py', 'w').writelines(init)
