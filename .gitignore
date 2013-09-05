@@ -2,3 +2,4 @@
 build
 dist
 _site
+pyoperators/__init__.py
