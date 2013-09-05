@@ -5,24 +5,26 @@ import sys
 
 from nose.plugins.skip import SkipTest
 from pyoperators import memory, decorators
-from pyoperators.core import (Operator, AdditionOperator, BroadcastingOperator,
-         BlockColumnOperator, BlockDiagonalOperator,
-         BlockRowOperator, BlockSliceOperator, CompositionOperator,
-         GroupOperator, ConstantOperator, DenseOperator, DiagonalOperator,
-         IdentityOperator, MaskOperator, MultiplicationOperator,
-         HomothetyOperator, ReductionOperator, ZeroOperator, asoperator,
-         _pool as pool, I, O)
+from pyoperators.core import (
+    Operator, AdditionOperator, BroadcastingOperator, BlockColumnOperator,
+    BlockDiagonalOperator, BlockRowOperator, BlockSliceOperator,
+    CompositionOperator, GroupOperator, ConstantOperator, DenseOperator,
+    DiagonalOperator, IdentityOperator, MaskOperator, MultiplicationOperator,
+    HomothetyOperator, ReductionOperator, ZeroOperator, asoperator,
+    _pool as pool, I, O)
 from pyoperators.memory import zeros
 from pyoperators.utils import ndarraywrap, first_is_not, product
 from pyoperators.utils.mpi import MPI, distribute_slice
-from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_not,
-         assert_is_none, assert_not_in, assert_is_instance, assert_raises,skiptest)
+from pyoperators.utils.testing import (
+    assert_eq, assert_is, assert_is_not, assert_is_none, assert_not_in,
+    assert_is_instance, assert_raises, skiptest)
 from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
 PYTHON_26 = sys.version_info < (2, 7)
 np.seterr(all='raise')
 
 memory.verbose = True
+
 
 def assert_flags(operator, flags, msg=''):
     if isinstance(flags, str):
@@ -31,17 +33,20 @@ def assert_flags(operator, flags, msg=''):
         assert getattr(operator.flags, f), 'Operator {0} is not {1}.'.format(
             operator, f) + (' ' + msg if msg else '')
 
+
 def assert_flags_false(operator, flags, msg=''):
     if isinstance(flags, str):
         flags = [f.replace(' ', '') for f in flags.split(',')]
     for f in flags:
-        assert not getattr(operator.flags, f),'Operator {0} is {1}.'.format(
+        assert not getattr(operator.flags, f), 'Operator {0} is {1}.'.format(
             operator, f) + (' ' + msg if msg else '')
+
 
 def assert_is_inttuple(shape, msg=''):
     msg = '{0} is not an int tuple.'.format(shape) + (' ' + msg if msg else '')
     assert type(shape) is tuple, msg
     assert all([isinstance(s, int) for s in shape]), msg
+
 
 def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
@@ -51,36 +56,47 @@ def assert_square(op, msg=''):
     if op.shapein is None:
         assert_eq(op.toshapein, op.toshapeout)
 
-SHAPES = (None, (), (1,), (3,), (2,3))
+SHAPES = (None, (), (1,), (3,), (2, 3))
+
 
 class ndarray2(np.ndarray):
     pass
 
+
 class ndarray3(np.ndarray):
     pass
+
 
 class ndarray4(np.ndarray):
     pass
 
+
 @decorators.square
 class SquareOp(Operator):
+
     def __init__(self, **keywords):
         Operator.__init__(self, **keywords)
 
+
 @decorators.square
 class Op2(Operator):
-    attrout = {'newattr':True}
+    attrout = {'newattr': True}
+
     def direct(self, input, output):
         pass
+
     def transpose(self, input, output):
-        pass            
+        pass
+
 
 @decorators.square
 class Op3(Operator):
     classout = ndarray3
     classin = ndarray4
+
     def direct(self, input, output):
         pass
+
     def transpose(self, input, output):
         pass
 
@@ -120,27 +136,33 @@ def test_flags():
     for op in ALL_OPS:
         yield func, op
 
-def test_symmetric():    
-    mat = np.matrix([[2,1],[1,2]])
+
+def test_symmetric():
+    mat = np.matrix([[2, 1], [1, 2]])
+
     @decorators.symmetric
     class Op(Operator):
+
         def __init__(self):
             Operator.__init__(self, shapein=2, dtype=mat.dtype)
+
         def direct(self, input, output):
             output[...] = np.dot(mat, input)
 
     op = Op()
     assert_flags(op, 'linear,square,real,symmetric')
-    assert_eq(op.shape, (2,2))
+    assert_eq(op.shape, (2, 2))
     assert_eq(op.shapeout, (2,))
     assert op is op.C
     assert op is op.T
     assert op is op.H
-    assert_eq(op([1,1]), np.array(mat * [[1],[1]]).ravel())
+    assert_eq(op([1, 1]), np.array(mat * [[1], [1]]).ravel())
+
 
 def test_shape_input_and_output():
     ops = tuple(cls() for cls in OPS)
-    kind = {'Expl':'explicit', 'Impl': 'implicit', 'Unco':'unconstrained'}
+    kind = {'Expl': 'explicit', 'Impl': 'implicit', 'Unco': 'unconstrained'}
+
     def func(flags, name):
         assert_eq(flags.shape_output, kind[name[:4]])
         assert_eq(flags.shape_input, kind[name[4:]])
@@ -154,27 +176,30 @@ def test_shape_input_and_output():
 #========================
 
 def test_shape_is_inttuple():
+
     def func(o):
         assert_is_inttuple(o.shapein)
         assert_is_inttuple(o.shapeout)
     for shapein in (3, [3], np.array(3), np.array([3]), (3,),
                     3., [3.], np.array(3.), np.array([3.]), (3.,),
-                    [3,2], np.array([3,2]), (3,2),
-                    [3.,2], np.array([3.,2]), (3.,2)):
+                    [3, 2], np.array([3, 2]), (3, 2),
+                    [3., 2], np.array([3., 2]), (3., 2)):
         o = Operator(shapein=shapein, shapeout=shapein)
         yield func, o
 
+
 def test_shape_explicit():
     o1, o2, o3 = (
-        Operator(shapeout=(13,2), shapein=(2,2)),
-        Operator(shapeout=(2,2), shapein=(1,3)),
-        Operator(shapeout=(1,3), shapein=4))
+        Operator(shapeout=(13, 2), shapein=(2, 2)),
+        Operator(shapeout=(2, 2), shapein=(1, 3)),
+        Operator(shapeout=(1, 3), shapein=4))
+
     def func(o, eout, ein):
         assert_eq(o.shapeout, eout)
         assert_eq(o.shapein, ein)
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
-                            ((13,2),(2,2),(13,2)),
-                            ((1,3),(4,),(4,))):
+                            ((13, 2), (2, 2), (13, 2)),
+                            ((1, 3), (4,), (4,))):
         yield func, o, eout, ein
     assert_raises(ValueError, CompositionOperator, [o2, o1])
     assert_raises(ValueError, CompositionOperator, [o3, o2])
@@ -183,7 +208,7 @@ def test_shape_explicit():
     o4 = Operator(shapeout=o1.shapeout)
     o5 = Operator(flags='square')
 
-    o1 = Operator(shapein=(13,2), flags='square')
+    o1 = Operator(shapein=(13, 2), flags='square')
     for o in [o1+I, I+o1, o1+o4, o1+I+o5+o4, I+o5+o1]:
         yield func, o, o1.shapeout, o1.shapein
     assert_raises(ValueError, AdditionOperator, [o2, o1])
@@ -191,38 +216,48 @@ def test_shape_explicit():
     assert_raises(ValueError, AdditionOperator, [I, o3, o1])
     assert_raises(ValueError, AdditionOperator, [o3, I, o1])
 
+
 def test_shape_implicit():
     class Op(Operator):
+
         def __init__(self, factor):
             self.factor = factor
             Operator.__init__(self)
+
         def reshapein(self, shape):
             return shape[0]*self.factor
+
         def reshapeout(self, shape):
             return shape[0]/self.factor
+
         def __str__(self):
             return super(Op, self).__str__() + 'x{0}'.format(self.factor)
     o1, o2, o3 = Op(2), Op(3), Op(4)
     assert o1.shapein is o2.shapein is o3.shapein is None
     shapein = (1,)
     shapeout = (24,)
+
     def func(o, eout, ein):
         assert_eq(o.reshapein(shapein), eout)
         assert_eq(o.reshapeout(shapeout), ein)
     for o, eout, ein in zip([o1*o2, o2*o3, o1*o2*o3],
-                            ((6,),(12,),(24,)),
-                            ((4,),(2,),(1,))):
+                            ((6,), (12,), (24,)),
+                            ((4,), (2,), (1,))):
         yield func, o, eout, ein
+
 
 def test_shapeout_unconstrained1():
     for shape in SHAPES:
         op = Operator(shapein=shape)
         assert_is_none(op.shapeout)
 
+
 def test_shapeout_unconstrained2():
     class Op(Operator):
+
         def direct(self, input, output):
             output[...] = 4
+
     def func(s1, s2):
         op = IdentityOperator(shapein=s1) * Op(shapein=s2)
         if s1 is not None:
@@ -233,10 +268,13 @@ def test_shapeout_unconstrained2():
         for s2 in SHAPES:
             yield func, s1, s2
 
+
 def test_shapeout_implicit():
     class Op(Operator):
+
         def reshapein(self, shape):
             return shape + (2,)
+
     def func(op, shapein):
         assert_flags_false(op, 'square')
         assert op.shapein == shapein
@@ -249,17 +287,22 @@ def test_shapeout_implicit():
         yield func, op, shapein
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
 
+
 def test_shapein_unconstrained1():
+
     def func(shape):
         op = Operator(shapeout=shape)
         assert_is_none(op.shapein)
     for shape in SHAPES[1:]:
         yield func, shape
 
+
 def test_shapein_unconstrained2():
     class Op(Operator):
+
         def reshapeout(self, shape):
             return shape + (2,)
+
     def func(op, shapeout):
         assert_flags_false(op, 'square')
         assert op.shapeout == shapeout
@@ -269,30 +312,39 @@ def test_shapein_unconstrained2():
         yield func, op, shape
     assert_raises(ValueError, Op, shapein=3, shapeout=11)
 
+
 def test_shapein_unconstrained3():
     @decorators.square
     class Op1(Operator):
         pass
+
     @decorators.square
     class Op2(Operator):
         def reshapein(self, shape):
             return shape
+
         def toshapein(self, v):
             return v
+
     @decorators.square
     class Op3(Operator):
         def reshapeout(self, shape):
             return shape
+
         def toshapeout(self, v):
             return v
+
     @decorators.square
     class Op4(Operator):
         def reshapein(self, shape):
             return shape
+
         def reshapeout(self, shape):
             return shape
+
         def toshapein(self, v):
             return v
+
         def toshapeout(self, v):
             return v
 
@@ -312,9 +364,11 @@ def test_shapein_unconstrained3():
 def test_validation():
     class ValidationError(ValueError):
         pass
+
     def vin(shape):
         if shape[0] % 2 == 0:
             raise ValidationError()
+
     def vout(shape):
         if shape[0] % 2 == 1:
             raise ValidationError()
@@ -322,14 +376,15 @@ def test_validation():
     y_ok = np.empty(4)
     x_err = np.empty(6)
     y_err = np.empty(7)
+
     def func(cls):
         op = cls(validatein=vin, validateout=vout)
         op(x_ok, y_ok)
         cls_error = ValueError if op.flags.shape_input == 'explicit' else \
-                    ValidationError
+            ValidationError
         assert_raises(cls_error, op, x_err, y_ok)
         cls_error = ValueError if op.flags.shape_output == 'explicit' else \
-                    ValidationError
+            ValidationError
         assert_raises(cls_error, op, x_ok, y_err)
 
         if op.flags.shape_output == 'implicit':
@@ -348,21 +403,25 @@ def test_validation():
 
 def test_dtype1():
     value = 2.5
+
     @decorators.square
     class Op(Operator):
+
         def __init__(self, dtype):
             Operator.__init__(self, dtype=dtype)
+
         def direct(self, input, output):
             np.multiply(input, np.array(value, self.dtype), output)
-    input = complex(1,1)
+    input = complex(1, 1)
+
     def func(dop, di):
         try:
             i = np.array(input, di)
         except TypeError:
             i = np.array(input.real, di)
         o = Op(dop)(i)
-        assert_eq(o.dtype, (i*np.array(value,dop)).dtype, str((dop,di)))
-        assert_eq(o, i*np.array(value,dop), str((dop,di)))
+        assert_eq(o.dtype, (i*np.array(value, dop)).dtype, str((dop, di)))
+        assert_eq(o, i*np.array(value, dop), str((dop, di)))
 
     for dop in DTYPES:
         for di in DTYPES:
@@ -371,10 +430,12 @@ def test_dtype1():
 def test_dtype2():
     @decorators.square
     class Op(Operator):
+
         def direct(self, input, output):
             np.multiply(input, input, output)
     op = Op()
-    input = complex(1,1)
+    input = complex(1, 1)
+
     def func(di):
         try:
             i = np.array(input, di)
@@ -394,29 +455,36 @@ def test_dtype2():
 def test_name():
     class sqrt(Operator):
         pass
+
     class MyOp(Operator):
         __name__ = 'sqrt'
     ops = [Operator(), Operator(direct=np.sqrt), MyOp(), Operator(name='sqrt'),
            sqrt()]
     names = ['Operator'] + 4 * ['sqrt']
+
     def func(op, name):
         assert op.__name__ == name
     for op, name in zip(ops, names):
         yield func, op, name
 
+
 def test_merge_name():
     @decorators.linear
     class AbsorbOperator(Operator):
+
         def __init__(self, **keywords):
             Operator.__init__(self, **keywords)
-            self.set_rule('.{HomothetyOperator}', lambda s,o:s.copy(),
+            self.set_rule('.{HomothetyOperator}', lambda s, o: s.copy(),
                           CompositionOperator)
+
     class sqrt(AbsorbOperator):
         pass
+
     class MyOp(AbsorbOperator):
         __name__ = 'sqrt'
     ops = [AbsorbOperator(name='sqrt'), MyOp(), sqrt()]
     names = 3 * ['sqrt']
+
     def func(op, name):
         assert op.__name__ == name
     for (op, name), h in itertools.product(zip(ops, names),
@@ -441,6 +509,7 @@ def test_eq():
 #================
 
 def test_iadd_imul():
+
     def func(op1, op2, operation):
         if operation is operator.iadd:
             op = op1 + op2
@@ -462,32 +531,39 @@ def test_iadd_imul():
 def test_propagation_attribute1():
     @decorators.square
     class AddAttribute(Operator):
-        attrout = {'newattr_direct':True}
-        attrin = {'newattr_transpose':True}
+        attrout = {'newattr_direct': True}
+        attrin = {'newattr_transpose': True}
+
         def direct(self, input, output):
             pass
+
         def transpose(self, input, output):
             pass
 
     @decorators.square
     class AddAttribute2(Operator):
-        attrout = {'newattr_direct':False}
-        attrin = {'newattr_transpose':False}
+        attrout = {'newattr_direct': False}
+        attrin = {'newattr_transpose': False}
+
         def direct(self, input, output):
             pass
+
         def transpose(self, input, output):
             pass
 
     @decorators.square
     class AddAttribute3(Operator):
-        attrout = {'newattr3_direct':True}
-        attrin = {'newattr3_transpose':True}
+        attrout = {'newattr3_direct': True}
+        attrin = {'newattr3_transpose': True}
+
         def direct(self, input, output):
             pass
+
         def transpose(self, input, output):
             pass
 
     inputs = [np.ones(5), np.ones(5).view(ndarray2)]
+
     def func1(i):
         op = AddAttribute()
         assert op(i).newattr_direct
@@ -495,16 +571,17 @@ def test_propagation_attribute1():
 
         op = AddAttribute2() * AddAttribute()
         assert not op(i).newattr_direct
-        assert_eq(op.attrout, {'newattr_direct':False})
-        assert_eq(op.attrin, {'newattr_transpose':True})
+        assert_eq(op.attrout, {'newattr_direct': False})
+        assert_eq(op.attrin, {'newattr_transpose': True})
         assert op.T(i).newattr_transpose
 
         op = AddAttribute3() * AddAttribute()
         assert op(i).newattr_direct
         assert op(i).newattr3_direct
-        assert_eq(op.attrout, {'newattr_direct':True, 'newattr3_direct':True})
-        assert_eq(op.attrin, {'newattr_transpose':True,
-                              'newattr3_transpose':True})
+        assert_eq(op.attrout, {'newattr_direct': True,
+                               'newattr3_direct': True})
+        assert_eq(op.attrin, {'newattr_transpose': True,
+                              'newattr3_transpose': True})
         assert op.T(i).newattr_transpose
         assert op.T(i).newattr3_transpose
     for i in inputs:
@@ -516,9 +593,9 @@ def test_propagation_attribute1():
         print '=='
         op = AddAttribute()
         i = i_.copy()
-        assert op(i,i).newattr_direct
+        assert op(i, i).newattr_direct
         i = i_.copy()
-        assert op.T(i,i).newattr_transpose
+        assert op.T(i, i).newattr_transpose
 
         pool.clear()
         print
@@ -526,9 +603,9 @@ def test_propagation_attribute1():
         print '======='
         op = AddAttribute2() * AddAttribute()
         i = i_.copy()
-        assert not op(i,i).newattr_direct
+        assert not op(i, i).newattr_direct
         i = i_.copy()
-        assert op.T(i,i).newattr_transpose
+        assert op.T(i, i).newattr_transpose
 
         pool.clear()
         print
@@ -536,11 +613,11 @@ def test_propagation_attribute1():
         print '======='
         op = AddAttribute3() * AddAttribute()
         i = i_.copy()
-        o = op(i,i)
+        o = op(i, i)
         assert o.newattr_direct
         assert o.newattr3_direct
         i = i_.copy()
-        o = op.T(i,i)
+        o = op.T(i, i)
         assert o.newattr_transpose
         assert o.newattr3_transpose
     for i_ in inputs:
@@ -550,14 +627,18 @@ def test_propagation_attribute1():
 def test_propagation_attribute2():
     @decorators.square
     class Op(Operator):
-        attrin = {'attr_class':1, 'attr_instance':2, 'attr_other':3}
-        attrout = {'attr_class':4, 'attr_instance':5, 'attr_other':6}
+        attrin = {'attr_class': 1, 'attr_instance': 2, 'attr_other': 3}
+        attrout = {'attr_class': 4, 'attr_instance': 5, 'attr_other': 6}
+
         def direct(self, input, output):
             pass
+
         def transpose(self, input, output):
             pass
+
     class ndarray2(np.ndarray):
         attr_class = 10
+
         def __new__(cls, data):
             result = np.ndarray(data).view(cls)
             result.attr_instance = 11
@@ -573,36 +654,47 @@ def test_propagation_attribute2():
 def test_propagation_attribute3():
     class ndarraybase(np.ndarray):
         attr_class = None
+
         def __new__(cls, data):
             result = np.array(data).view(cls)
             return result
+
         def __array_finalize__(self, array):
             self.attr_class = 0
             self.attr_instance = 10
+
     class ndarray1(ndarraybase):
         attr_class1 = None
+
         def __new__(cls, data):
             result = ndarraybase(data).view(cls)
             return result
+
         def __array_finalize__(self, array):
             ndarraybase.__array_finalize__(self, array)
             self.attr_class1 = 1
             self.attr_instance1 = 11
+
     class ndarray2(ndarraybase):
         attr_class2 = None
+
         def __new__(cls, data):
             result = ndarraybase(data).view(cls)
             return result
+
         def __array_finalize__(self, array):
             ndarraybase.__array_finalize__(self, array)
             self.attr_class2 = 2
             self.attr_instance2 = 12
+
     @decorators.square
     class Op(Operator):
         classin = ndarray1
         classout = ndarray2
+
         def direct(self, input, output):
             pass
+
         def transpose(self, input, output):
             pass
 
@@ -610,16 +702,16 @@ def test_propagation_attribute3():
     input = ndarray1(1)
     input.attr_class = 30
     output = op(input)
-    assert output.__dict__ == {'attr_instance':10, 'attr_instance1':11,
-        'attr_instance2':12, 'attr_class':30, 'attr_class2':2}
+    assert output.__dict__ == {'attr_instance': 10, 'attr_instance1': 11,
+        'attr_instance2': 12, 'attr_class': 30, 'attr_class2': 2}
     input = ndarray2(1)
     input.attr_class = 30
     input.attr_class2 = 32
     input.attr_instance = 40
     input.attr_instance2 = 42
     output = op(input)
-    assert output.__dict__ == {'attr_instance':40, 'attr_instance2':42,
-                               'attr_class':30, 'attr_class2':32}
+    assert output.__dict__ == {'attr_instance': 40, 'attr_instance2': 42,
+                               'attr_class': 30, 'attr_class2': 32}
 
     op = Op().T
     input = ndarray1(1)
@@ -628,51 +720,54 @@ def test_propagation_attribute3():
     input.attr_instance = 40
     input.attr_instance1 = 41
     output = op(input)
-    assert output.__dict__ == {'attr_instance':40, 'attr_instance1':41,
-                               'attr_class':30, 'attr_class1':31}
+    assert output.__dict__ == {'attr_instance': 40, 'attr_instance1': 41,
+                               'attr_class': 30, 'attr_class1': 31}
     input = ndarray2(1)
     input.attr_class = 30
     output = op(input)
-    assert output.__dict__ == {'attr_instance':10, 'attr_instance2':12,
-        'attr_instance1':11, 'attr_class':30, 'attr_class1':1}
+    assert output.__dict__ == {'attr_instance': 10, 'attr_instance2': 12,
+                               'attr_instance1': 11, 'attr_class': 30,
+                               'attr_class1': 1}
 
-    op = Op().T * Op() # -> ndarray2 -> ndarray1
+    op = Op().T * Op()  # -> ndarray2 -> ndarray1
     input = ndarray1(1)
     input.attr_class = 30
     input.attr_class1 = 31
     input.attr_instance = 40
     input.attr_instance1 = 41
     output = op(input)
-    assert output.__dict__ == {'attr_instance':40, 'attr_instance1':41,
-                               'attr_class':30, 'attr_class1':1}
+    assert output.__dict__ == {'attr_instance': 40, 'attr_instance1': 41,
+                               'attr_class': 30, 'attr_class1': 1}
     input = ndarray2(1)
     input.attr_class = 30
     input.attr_class2 = 32
     input.attr_instance = 40
     input.attr_instance2 = 42
     output = op(input)
-    assert output.__dict__ == {'attr_instance':40, 'attr_instance1':11,
-        'attr_instance2':42, 'attr_class':30, 'attr_class1':1}
+    assert output.__dict__ == {'attr_instance': 40, 'attr_instance1': 11,
+                               'attr_instance2': 42, 'attr_class': 30,
+                               'attr_class1': 1}
 
-    op = Op() * Op().T # -> ndarray1 -> ndarray2
+    op = Op() * Op().T  # -> ndarray1 -> ndarray2
     input = ndarray1(1)
     input.attr_class = 30
     input.attr_class1 = 31
     input.attr_instance = 40
     input.attr_instance1 = 41
     output = op(input)
-    assert output.__dict__ == {'attr_instance':40, 'attr_instance2':12,
-        'attr_instance1':41, 'attr_class':30, 'attr_class2':2}
+    assert output.__dict__ == {'attr_instance': 40, 'attr_instance2': 12,
+                               'attr_instance1': 41, 'attr_class': 30,
+                               'attr_class2': 2}
     input = ndarray2(1)
     input.attr_class = 30
     input.attr_class2 = 32
     input.attr_instance = 40
     input.attr_instance2 = 42
     output = op(input)
-    assert output.__dict__ == {'attr_instance':40, 'attr_instance2':42,
-                               'attr_class':30, 'attr_class2':2}    
+    assert output.__dict__ == {'attr_instance': 40, 'attr_instance2': 42,
+                               'attr_class': 30, 'attr_class2': 2}
 
-    
+
 #=======================
 # Test class propagation
 #=======================
@@ -681,10 +776,12 @@ def check_propagation_class(op, i, c):
     o = op(i)
     assert_is(type(o), c)
 
+
 def check_propagation_class_inplace(op, i, c):
     i = i.copy()
     op(i,i)
     assert_is(type(i), c)
+
 
 def test_propagation_class():
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
@@ -698,6 +795,7 @@ def test_propagation_class():
         for i, c in zip(inputs, results_):
             yield check_propagation_class, op, i, c
 
+
 def test_propagation_class_inplace():
     inputs = [np.ones(2), np.ones(2).view(ndarray2), np.ones(2).view(ndarray3)]
     ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
@@ -709,6 +807,7 @@ def test_propagation_class_inplace():
     for op, results_ in zip(ops, results):
         for i, c in zip(inputs, results_):
             yield check_propagation_class_inplace, op, i, c
+
 
 def test_propagation_classT():
     inputs = [np.ones(2), np.ones(2).view(ndarray2)]
@@ -722,6 +821,7 @@ def test_propagation_classT():
         for i, c in zip(inputs, results_):
             yield check_propagation_class, op.T, i, c
 
+
 def test_propagation_classT_inplace():
     inputs = [np.ones(2), np.ones(2).view(ndarray2), np.ones(2).view(ndarray4)]
     ops = [I, Op2(), Op2()*Op3(), Op3()*Op2()]
@@ -734,14 +834,18 @@ def test_propagation_classT_inplace():
         for i, c in zip(inputs, results_):
             yield check_propagation_class_inplace, op.T, i, c
 
+
 def test_propagation_class_nested():
     @decorators.square
     class O1(Operator):
         classout = ndarray2
+
         def direct(self, input, output):
             output[...] = input
+
     @decorators.square
     class O2(Operator):
+
         def direct(self, input, output):
             output[...] = input
 
@@ -774,14 +878,15 @@ def test_propagation_class_nested():
 
 def test_comm_composite():
     comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
+
     def func(cls, comms, inout):
-        ops = [Operator(**{'comm'+inout:c}) for c in comms]
+        ops = [Operator(**{'comm'+inout: c}) for c in comms]
         keywords = {}
         args = ()
         if cls in (BlockDiagonalOperator, BlockRowOperator):
-            keywords = {'axisin':0}
+            keywords = {'axisin': 0}
         elif cls is BlockColumnOperator:
-            keywords = {'axisout':0}
+            keywords = {'axisout': 0}
         else:
             keywords = {}
         if MPI.COMM_SELF in comms and MPI.COMM_WORLD in comms:
@@ -797,8 +902,10 @@ def test_comm_composite():
 if PYTHON_26:
     test_comm_composite = skiptest(test_comm_composite)
 
+
 def test_comm_composition():
     comms_all = (None, MPI.COMM_SELF, MPI.COMM_WORLD)
+
     def func(commin, commout):
         ops = [Operator(commin=commin), Operator(commout=commout)]
         if None not in (commin, commout) and commin is not commout:
@@ -810,25 +917,32 @@ def test_comm_composition():
     for commin, commout in itertools.product(comms_all, repeat=2):
         yield func, commin, commout
 
+
 def test_comm_propagation():
-    composite = (AdditionOperator, MultiplicationOperator, BlockRowOperator, BlockDiagonalOperator, BlockColumnOperator)
+    composite = (AdditionOperator, MultiplicationOperator, BlockRowOperator,
+                 BlockDiagonalOperator, BlockColumnOperator)
     commin = commin_ = MPI.COMM_WORLD.Dup()
     commout = commout_ = MPI.COMM_WORLD.Dup()
+
     class OpGetComm(Operator):
         def propagate_commin(self, comm):
             return OpNewComm(commin=comm, commout=comm)
+
     class OpNewComm(Operator):
         pass
+
     class OpSetComm1(Operator):
         commin = commin_
         commout = commout_
+
     class OpSetComm2(Operator):
         commin = commin_
         commout = commin_
+
     opgetcomm = OpGetComm()
     opsetcomm1 = OpSetComm1()
     opsetcomm2 = OpSetComm2()
-    
+
     # get+set in composition
     def func1(i, op):
         assert_is(op.commin, commin)
@@ -841,7 +955,9 @@ def test_comm_propagation():
         else:
             assert_is(opget.commin, commin)
             assert_is(opget.commout, commin)
-    for i, ops in enumerate([(opgetcomm,opsetcomm1), (opsetcomm1,opgetcomm)]):
+
+    for i, ops in enumerate([(opgetcomm, opsetcomm1),
+                             (opsetcomm1, opgetcomm)]):
         op = CompositionOperator(ops)
         yield func1, i, op
 
@@ -853,14 +969,15 @@ def test_comm_propagation():
         assert_is_instance(opget, OpNewComm)
         assert_is(opget.commin, commin)
         assert_is(opget.commout, commin)
+
     for cls in composite:
-        for i, ops in enumerate([(opgetcomm,opsetcomm2),
-                                 (opsetcomm2,opgetcomm)]):
+        for i, ops in enumerate([(opgetcomm, opsetcomm2),
+                                 (opsetcomm2, opgetcomm)]):
             keywords = {}
             if cls in (BlockDiagonalOperator, BlockRowOperator):
-                keywords = {'axisin':0}
+                keywords = {'axisin': 0}
             elif cls is BlockColumnOperator:
-                keywords = {'axisout':0}
+                keywords = {'axisout': 0}
             op = cls(ops, **keywords)
             yield func2, i, op
 
@@ -876,17 +993,18 @@ def test_comm_propagation():
         assert_is(opget.commin, commin)
         assert_is(opget.commout, commin)
     for cls in composite:
-        for i, ops in enumerate([(opgetcomm*Operator(),opsetcomm2),
-                                 (opsetcomm2,Operator()*opgetcomm)]):
+        for i, ops in enumerate([(opgetcomm*Operator(), opsetcomm2),
+                                 (opsetcomm2, Operator()*opgetcomm)]):
             keywords = {}
             if cls in (BlockDiagonalOperator, BlockRowOperator):
-                keywords = {'axisin':0}
+                keywords = {'axisin': 0}
             elif cls is BlockColumnOperator:
-                keywords = {'axisout':0}
+                keywords = {'axisout': 0}
             op = cls(ops, **keywords)
             yield func3, i, op
 
     # composite(set) + get in composition
+
     def func4(i, op):
         assert_is(op.commin, commin)
         assert_is(op.commout, commin)
@@ -897,9 +1015,9 @@ def test_comm_propagation():
     for cls in composite:
         keywords = {}
         if cls in (BlockDiagonalOperator, BlockRowOperator):
-            keywords = {'axisin':0}
+            keywords = {'axisin': 0}
         elif cls is BlockColumnOperator:
-            keywords = {'axisout':0}
+            keywords = {'axisout': 0}
         for ops_in in [(opsetcomm2, Operator()), (Operator(), opsetcomm2)]:
             op_in = cls(ops_in, **keywords)
             for i, op in enumerate([opgetcomm*op_in, op_in*opgetcomm]):
@@ -919,9 +1037,9 @@ def test_comm_propagation():
     for cls in composite:
         keywords = {}
         if cls in (BlockDiagonalOperator, BlockRowOperator):
-            keywords = {'axisin':0}
+            keywords = {'axisin': 0}
         elif cls is BlockColumnOperator:
-            keywords = {'axisout':0}
+            keywords = {'axisout': 0}
         for i, ops_in in enumerate([(opgetcomm, Operator()),
                                     (Operator(), opgetcomm)]):
             op_in = cls(ops_in, **keywords)
@@ -936,35 +1054,35 @@ def test_comm_propagation():
 def test_inplace1():
     @decorators.square
     class NotInplace(Operator):
+
         def direct(self, input, output):
             output[...] = 0
             output[0] = input[0]
     pool.clear()
     op = NotInplace()
     v = np.array([2., 0., 1.])
-    op(v,v)
-    assert_eq(v,[2,0,0])
+    op(v, v)
+    assert_eq(v, [2, 0, 0])
     assert_eq(len(pool), 1)
 
 
 @skiptest
 def test_inplace_can_use_output():
-
     A = zeros(10*8, dtype=np.int8).view(ndarraywrap)
     B = zeros(10*8, dtype=np.int8).view(ndarraywrap)
     C = zeros(10*8, dtype=np.int8).view(ndarraywrap)
     D = zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    ids = {A.__array_interface__['data'][0] : 'A',
-           B.__array_interface__['data'][0] : 'B',
-           C.__array_interface__['data'][0] : 'C',
-           D.__array_interface__['data'][0] : 'D',
-           }
+    ids = {A.__array_interface__['data'][0]: 'A',
+           B.__array_interface__['data'][0]: 'B',
+           C.__array_interface__['data'][0]: 'C',
+           D.__array_interface__['data'][0]: 'D'}
 
     class Op(Operator):
         def __init__(self, inplace, log):
-            Operator.__init__(self, flags={'inplace':inplace})
+            Operator.__init__(self, flags={'inplace': inplace})
             self.inplace = inplace
             self.log = log
+
         def direct(self, input, output):
             if self.flags.inplace:
                 tmp = input[0]
@@ -978,8 +1096,10 @@ def test_inplace_can_use_output():
                 self.log.insert(0, ids[output.__array_interface__['data'][0]])
             except KeyError:
                 self.log.insert(0, 'unknown')
+
         def reshapein(self, shape):
             return (shape[0]+1,)
+
     def show_pool():
         result = ''
         for s in pool:
@@ -990,72 +1110,73 @@ def test_inplace_can_use_output():
         return result
 
     expecteds_outplace = {
-        2 : ['BBA',   #II
-             'BBA',   #IO
-             'BCA',   #OI
-             'BCA'],  #OO
-        3 : ['BBBA',  #III
-             'BBBA',  #IIO
-             'BBCA',  #IOI
-             'BBCA',  #IOO
-             'BCCA',  #OII
-             'BCCA',  #OIO
-             'BCBA',  #OOI
-             'BCBA'], #OOO
-        4 : ['BBBBA', #IIII
-             'BBBBA', #IIIO
-             'BBBCA', #IIOI
-             'BBBCA', #IIOO
-             'BBCCA', #IOII
-             'BBCCA', #IOIO
-             'BBCBA', #IOOI
-             'BBCBA', #IOOO
-             'BCCCA', #OIII
-             'BCCCA', #OIIO
-             'BCCBA', #OIOI
-             'BCCBA', #OIOO
-             'BCBBA', #OOII
-             'BCBBA', #OOIO
-             'BCBCA', #OOOI
-             'BCBCA']}#OOOO
+        2: ['BBA',     # II
+            'BBA',     # IO
+            'BCA',     # OI
+            'BCA'],    # OO
+        3: ['BBBA',    # III
+            'BBBA',    # IIO
+            'BBCA',    # IOI
+            'BBCA',    # IOO
+            'BCCA',    # OII
+            'BCCA',    # OIO
+            'BCBA',    # OOI
+            'BCBA'],   # OOO
+        4: ['BBBBA',   # IIII
+            'BBBBA',   # IIIO
+            'BBBCA',   # IIOI
+            'BBBCA',   # IIOO
+            'BBCCA',   # IOII
+            'BBCCA',   # IOIO
+            'BBCBA',   # IOOI
+            'BBCBA',   # IOOO
+            'BCCCA',   # OIII
+            'BCCCA',   # OIIO
+            'BCCBA',   # OIOI
+            'BCCBA',   # OIOO
+            'BCBBA',   # OOII
+            'BCBBA',   # OOIO
+            'BCBCA',   # OOOI
+            'BCBCA']}  # OOOO
 
     expecteds_inplace = {
-        2 : ['AAA',   #II
-             'ABA',   #IO
-             'ABA',   #OI
-             'ABA'],  #OO
-        3 : ['AAAA',  #III
-             'ABBA',  #IIO
-             'ABAA',  #IOI
-             'AABA',  #IOO
-             'ABAA',  #OII
-             'ABBA',  #OIO
-             'ABAA',  #OOI
-             'ACBA'], #OOO
-        4 : ['AAAAA', #IIII
-             'ABBBA', #IIIO
-             'ABBAA', #IIOI
-             'AAABA', #IIOO
-             'ABAAA', #IOII
-             'AABBA', #IOIO
-             'AABAA', #IOOI
-             'ABABA', #IOOO
-             'ABAAA', #OIII
-             'ABBBA', #OIIO
-             'ABBAA', #OIOI
-             'ABABA', #OIOO
-             'ABAAA', #OOII
-             'ABABA', #OOIO
-             'ABABA', #OOOI
-             'ABABA']}#OOOO
+        2: ['AAA',     # II
+            'ABA',     # IO
+            'ABA',     # OI
+            'ABA'],    # OO
+        3: ['AAAA',    # III
+            'ABBA',    # IIO
+            'ABAA',    # IOI
+            'AABA',    # IOO
+            'ABAA',    # OII
+            'ABBA',    # OIO
+            'ABAA',    # OOI
+            'ACBA'],   # OOO
+        4: ['AAAAA',   # IIII
+            'ABBBA',   # IIIO
+            'ABBAA',   # IIOI
+            'AAABA',   # IIOO
+            'ABAAA',   # IOII
+            'AABBA',   # IOIO
+            'AABAA',   # IOOI
+            'ABABA',   # IOOO
+            'ABAAA',   # OIII
+            'ABBBA',   # OIIO
+            'ABBAA',   # OIOI
+            'ABABA',   # OIOO
+            'ABAAA',   # OOII
+            'ABABA',   # OOIO
+            'ABABA',   # OOOI
+            'ABABA']}  # OOOO
 
     def func_outplace(n, i, expected, strops):
         pool._buffers = [C, D]
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
-        op.show_pool = show_pool # debug
-        v = A[:8].view(float); v[0] = 1
+        op.show_pool = show_pool  # debug
+        v = A[:8].view(float)
+        v[0] = 1
         w = B[:(n+1)*8].view(float)
         op(v, w)
         log = ''.join(log) + 'A'
@@ -1071,7 +1192,8 @@ def test_inplace_can_use_output():
         log = []
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
-        v = A[:8].view(float); v[0] = 1
+        v = A[:8].view(float)
+        v[0] = 1
         w = A[:(n+1)*8].view(float)
         op(v, w)
         log = ''.join(log) + 'A'
@@ -1101,20 +1223,20 @@ def test_inplace_can_use_output():
 
 @skiptest
 def test_inplace_cannot_use_output():
-
     A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
     B = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
     C = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
     D = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    ids = {A.__array_interface__['data'][0] : 'A',
-           B.__array_interface__['data'][0] : 'B',
-           C.__array_interface__['data'][0] : 'C',
-           D.__array_interface__['data'][0] : 'D',
-           }
+    ids = {A.__array_interface__['data'][0]: 'A',
+           B.__array_interface__['data'][0]: 'B',
+           C.__array_interface__['data'][0]: 'C',
+           D.__array_interface__['data'][0]: 'D'}
+
     class Op(Operator):
         def __init__(self, inplace, log):
-            Operator.__init__(self, flags={'inplace':inplace})
+            Operator.__init__(self, flags={'inplace': inplace})
             self.log = log
+
         def direct(self, input, output):
             if not self.flags.inplace:
                 output[...] = 0
@@ -1123,72 +1245,72 @@ def test_inplace_cannot_use_output():
                 self.log.insert(0, ids[output.__array_interface__['data'][0]])
             except KeyError:
                 self.log.insert(0, 'unknown')
+
         def reshapein(self, shape):
             return (shape[0]-1,)
 
     def show_stack():
-        return ''.join([ids[s.__array_interface__['data'][0]] \
-                            for s in pool])
+        return ''.join([ids[s.__array_interface__['data'][0]] for s in pool])
 
     expecteds_outplace = {
-        2 : ['BCA',   #II
-             'BCA',   #IO
-             'BCA',   #OI
-             'BCA'],  #OO
-        3 : ['BCCA',  #III
-             'BCCA',  #IIO
-             'BDCA',  #IOI
-             'BDCA',  #IOO
-             'BCCA',  #OII
-             'BCCA',  #OIO
-             'BDCA',  #OOI
-             'BDCA'], #OOO
-        4 : ['BCCCA', #IIII
-             'BCCCA', #IIIO
-             'BDDCA', #IIOI
-             'BDDCA', #IIOO
-             'BDCCA', #IOII
-             'BDCCA', #IOIO
-             'BCDCA', #IOOI
-             'BCDCA', #IOOO
-             'BCCCA', #OIII
-             'BCCCA', #OIIO
-             'BDDCA', #OIOI
-             'BDDCA', #OIOO
-             'BDCCA', #OOII
-             'BDCCA', #OOIO
-             'BCDCA', #OOOI
-             'BCDCA']}#OOOO
+        2: ['BCA',     # II
+            'BCA',     # IO
+            'BCA',     # OI
+            'BCA'],    # OO
+        3: ['BCCA',    # III
+            'BCCA',    # IIO
+            'BDCA',    # IOI
+            'BDCA',    # IOO
+            'BCCA',    # OII
+            'BCCA',    # OIO
+            'BDCA',    # OOI
+            'BDCA'],   # OOO
+        4: ['BCCCA',   # IIII
+            'BCCCA',   # IIIO
+            'BDDCA',   # IIOI
+            'BDDCA',   # IIOO
+            'BDCCA',   # IOII
+            'BDCCA',   # IOIO
+            'BCDCA',   # IOOI
+            'BCDCA',   # IOOO
+            'BCCCA',   # OIII
+            'BCCCA',   # OIIO
+            'BDDCA',   # OIOI
+            'BDDCA',   # OIOO
+            'BDCCA',   # OOII
+            'BDCCA',   # OOIO
+            'BCDCA',   # OOOI
+            'BCDCA']}  # OOOO
 
     expecteds_inplace = {
-        2 : ['ABA',   #II
-             'ABA',   #IO
-             'ABA',   #OI
-             'ABA'],  #OO
-        3 : ['ABBA',  #III
-             'ABBA',  #IIO
-             'ACBA',  #IOI
-             'ACBA',  #IOO
-             'ABBA',  #OII
-             'ABBA',  #OIO
-             'ACBA',  #OOI
-             'ACBA'], #OOO
-        4 : ['ABBBA', #IIII
-             'ABBBA', #IIIO
-             'ACCBA', #IIOI
-             'ACCBA', #IIOO
-             'ACBBA', #IOII
-             'ACBBA', #IOIO
-             'ABCBA', #IOOI
-             'ABCBA', #IOOO
-             'ABBBA', #OIII
-             'ABBBA', #OIIO
-             'ACCBA', #OIOI
-             'ACCBA', #OIOO
-             'ACBBA', #OOII
-             'ACBBA', #OOIO
-             'ABCBA', #OOOI
-             'ABCBA']}#OOOO
+        2: ['ABA',     # II
+            'ABA',     # IO
+            'ABA',     # OI
+            'ABA'],    # OO
+        3: ['ABBA',    # III
+            'ABBA',    # IIO
+            'ACBA',    # IOI
+            'ACBA',    # IOO
+            'ABBA',    # OII
+            'ABBA',    # OIO
+            'ACBA',    # OOI
+            'ACBA'],   # OOO
+        4: ['ABBBA',   # IIII
+            'ABBBA',   # IIIO
+            'ACCBA',   # IIOI
+            'ACCBA',   # IIOO
+            'ACBBA',   # IOII
+            'ACBBA',   # IOIO
+            'ABCBA',   # IOOI
+            'ABCBA',   # IOOO
+            'ABBBA',   # OIII
+            'ABBBA',   # OIIO
+            'ACCBA',   # OIOI
+            'ACCBA',   # OIOO
+            'ACBBA',   # OOII
+            'ACBBA',   # OOIO
+            'ABCBA',   # OOOI
+            'ABCBA']}  # OOOO
 
     def func_outplace(n, i, expected, strops):
         pool._buffers = [C, D]
@@ -1196,7 +1318,8 @@ def test_inplace_cannot_use_output():
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
         op.show_stack = show_stack
-        v = A[:(n+1)*8].view(float); v[:] = range(n+1)
+        v = A[:(n+1)*8].view(float)
+        v[:] = range(n+1)
         w = B[:8].view(float)
         op(v, w)
         delattr(op, 'show_stack')
@@ -1214,7 +1337,8 @@ def test_inplace_cannot_use_output():
         ops = [Op(s == '1', log) for s in strops]
         op = CompositionOperator(ops)
         op.show_stack = show_stack
-        v = A[:(n+1)*8].view(float); v[:] = range(n+1)
+        v = A[:(n+1)*8].view(float)
+        v[:] = range(n+1)
         w = A[:8].view(float)
         op(v, w)
         delattr(op, 'show_stack')
@@ -1240,18 +1364,22 @@ def test_inplace_cannot_use_output():
                 strops = '0' + strops
             yield func_inplace, n, i, expected, strops
 
-    
+
 #====================
 # Test associativity
 #====================
 
 def test_associativity():
+
     class Op1(Operator):
         pass
+
     class Op2(Operator):
         pass
+
     class Op3(Operator):
         pass
+
     class Op4(Operator):
         pass
 
@@ -1259,8 +1387,8 @@ def test_associativity():
     def func1(cls, op):
         assert_is_instance(op, cls)
         assert_eq(len(op.operands), 3)
-        if all(isinstance(o, c) for o,c in zip(op.operands, [Op2, Op3, Op1])):
-            raise SkipTest() # commutative rules do not preserve order...
+        if all(isinstance(o, c) for o, c in zip(op.operands, [Op2, Op3, Op1])):
+            raise SkipTest()  # commutative rules do not preserve order...
         for o, c in zip(op.operands, [Op1, Op2, Op3]):
             assert_is_instance(o, c)
     for operation in (AdditionOperator, MultiplicationOperator,
@@ -1281,6 +1409,7 @@ def test_associativity():
 
     a = GroupOperator([Op1(), Op2()])
     b = GroupOperator([Op3(), Op4()])
+
     def func3(o1, o2):
         op = o1 * o2
         assert_is_instance(op, CompositionOperator)
@@ -1298,23 +1427,25 @@ def test_associativity():
 def test_addition():
     @decorators.square
     class Op(Operator):
+
         def __init__(self, v, **keywords):
             self.v = v
             Operator.__init__(self, **keywords)
+
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
     op = np.sum([Op(v) for v in [1]])
     assert_is(op.__class__, Op)
 
-    op = np.sum([Op(v) for v in [1,2]])
+    op = np.sum([Op(v) for v in [1, 2]])
     assert_eq(op.__class__, AdditionOperator)
 
     pool.clear()
     assert_eq(op(1), 3)
     assert_eq(len(pool), 1)
 
-    op = np.sum([Op(v) for v in [1,2,4]])
+    op = np.sum([Op(v) for v in [1, 2, 4]])
     assert_is(op.__class__, AdditionOperator)
 
     pool.clear()
@@ -1332,6 +1463,7 @@ def test_addition():
     assert_eq(output, 7)
     assert_eq(len(pool), 2)
 
+
 def test_addition_flags():
     def func(f):
         o = AdditionOperator([Operator(flags=f), Operator(flags=f)])
@@ -1339,12 +1471,15 @@ def test_addition_flags():
     for f in 'linear,real,square,symmetric,hermitian,separable'.split(','):
         yield func, f
 
+
 def test_multiplication():
     @decorators.square
     class Op(Operator):
+
         def __init__(self, v, **keywords):
             self.v = v
             Operator.__init__(self, **keywords)
+
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
@@ -1373,14 +1508,18 @@ def test_multiplication():
     assert_eq(output, 8)
     assert_eq(len(pool), 2)
 
+
 def test_multiplication_flags():
+
     def func(f):
         o = MultiplicationOperator([Operator(flags=f), Operator(flags=f)])
         assert getattr(o.flags, f)
     for f in 'real,square,separable'.split(','):
         yield func, f
 
+
 def test_commutative_shapes():
+
     def func(cls, OP1, OP2):
         n1 = OP1.__name__
         n2 = OP2.__name__
@@ -1419,19 +1558,19 @@ def test_commutative_shapes():
 
 def test_block_slice():
     size = 4
+
     def func(o, input, expected):
         actual = o(input)
         assert_eq(actual, expected)
         o(input, input)
         assert_eq(input, expected)
-    for ndim in range(1,5):
-        for nops in range(1,5):
+    for ndim in range(1, 5):
+        for nops in range(1, 5):
             for Op in [HomothetyOperator, HomothetyOutplaceOperator]:
                 slices_ = [
                     [distribute_slice(size, i, nops) for i in range(nops)],
                     [distribute_slice(size, i, size) for i in range(nops)],
-                    [ndim * [slice(i, None, nops)] for i in range(nops)],
-                ]
+                    [ndim * [slice(i, None, nops)] for i in range(nops)]]
                 for slices in slices_:
                     input = np.zeros(ndim*(size,))
                     expected = np.zeros_like(input)
@@ -1443,9 +1582,10 @@ def test_block_slice():
                     assert o.flags.inplace is Op.flags.inplace
                     yield func, o, input, expected
 
+
 def test_block_slice_rule_homothety():
     b = BlockSliceOperator(2*[HomothetyOperator(3)],
-                           [slice(0,10), slice(12,14)])
+                           [slice(0, 10), slice(12, 14)])
     hb = HomothetyOperator(2) * b
     assert_is_instance(hb, BlockSliceOperator)
     for op in hb.operands:
@@ -1458,6 +1598,7 @@ def test_block_slice_rule_homothety():
 #==================
 
 def test_composition1():
+
     def func(op, shapein, shapeout):
         assert_eq(op.shapein, shapein)
         assert_eq(op.shapeout, shapeout)
@@ -1474,6 +1615,7 @@ def test_composition1():
                 op2 = Operator(shapein=shapemid, shapeout=shapeout)
                 op = op2 * op1
                 yield func, op, shapein, shapeout
+
 
 def test_composition2():
     class Op(Operator):
@@ -1493,13 +1635,16 @@ def test_composition2():
     assert op.shapeout is None
     assert_flags_false(op, 'square')
 
+
 def test_composition3():
     @decorators.square
     @decorators.inplace
     class Op(Operator):
+
         def __init__(self, v, **keywords):
             self.v = v
             Operator.__init__(self, **keywords)
+
         def direct(self, input, output):
             np.multiply(input, self.v, output)
 
@@ -1510,16 +1655,16 @@ def test_composition3():
     assert_eq(len(pool), 0)
 
     pool.clear()
-    op = np.product([Op(v) for v in [1,2]])
+    op = np.product([Op(v) for v in [1, 2]])
     assert_is(op.__class__, CompositionOperator)
     assert_eq(op(1), 2)
     assert_eq(len(pool), 0)
- 
+
     pool.clear()
     assert_eq(op([1]), 2)
     assert_eq(len(pool), 0)
 
-    op = np.product([Op(v) for v in [1,2,4]])
+    op = np.product([Op(v) for v in [1, 2, 4]])
     assert_is(op.__class__, CompositionOperator)
 
     pool.clear()
@@ -1551,12 +1696,15 @@ def test_composition3():
     assert_eq(output, 8)
     assert_eq(len(pool), 0)
 
+
 def test_composition_flags():
+
     def func(f):
         o = CompositionOperator([Operator(flags=f), Operator(flags=f)])
         assert getattr(o.flags, f)
     for f in 'linear,real,square,separable,inplace_reduction'.split(','):
         yield func, f
+
 
 def test_composition_shapes():
     def func(OP1, OP2):
@@ -1594,25 +1742,30 @@ def test_composition_shapes():
     for OP1, OP2 in itertools.product(OPS, repeat=2):
         yield func, OP1, OP2
 
-def test_composition_get_requirements():
 
+def test_composition_get_requirements():
     @decorators.inplace
     class I__(Operator):
         pass
+
     @decorators.aligned
     @decorators.contiguous
     class IAC(I__):
         pass
+
     class O____(Operator):
         pass
+
     @decorators.aligned_input
     @decorators.contiguous_input
     class O__AC(O____):
         pass
+
     @decorators.aligned_output
     @decorators.contiguous_output
     class OAC__(O____):
         pass
+
     @decorators.aligned
     @decorators.contiguous
     class OACAC(O____):
@@ -1621,20 +1774,20 @@ def test_composition_get_requirements():
     Is = [I__(), IAC()]
     Os = [O____(), O__AC(), OAC__(), OACAC()]
 
-    tests ={ 'I'  : [[0]],
-             'O'  : [[0],[]],
-             'II' : [[0,1]],
-             'IO' : [[0,1],[]],
-             'OI' : [[0],[1]],
-             'OO' : [[0],[1],[]],
-             'III': [[0,1,2]],
-             'IIO': [[0,1,2],[]],
-             'IOI': [[0,1],[2]],
-             'IOO': [[0,1],[2],[]],
-             'OII': [[0],[1,2]],
-             'OIO': [[0],[1,2],[]],
-             'OOI': [[0],[1],[2]],
-             'OOO': [[0],[1],[2],[]]}
+    tests ={'I'  : [[0]],
+            'O'  : [[0], []],
+            'II' : [[0, 1]],
+            'IO' : [[0, 1], []],
+            'OI' : [[0], [1]],
+            'OO' : [[0], [1], []],
+            'III': [[0, 1, 2]],
+            'IIO': [[0, 1, 2], []],
+            'IOI': [[0, 1], [2]],
+            'IOO': [[0, 1], [2], []],
+            'OII': [[0], [1, 2]],
+            'OIO': [[0], [1, 2], []],
+            'OOI': [[0], [1], [2]],
+            'OOO': [[0], [1], [2], []]}
 
     def get_requirements(ops, t, g):
         rn = [len(_) for _ in g]
@@ -1643,19 +1796,18 @@ def test_composition_get_requirements():
 
         ra = [max(ops[i].flags.aligned_output for i in g[0])] + \
              [max([ops[_[0]-1].flags.aligned_input] +
-                  [ops[i].flags.aligned_output for i in _])for _ in g[1:-1]]+\
-             ([max(ops[i].flags.aligned_input for i in  range(t.rfind('O'),
+                  [ops[i].flags.aligned_output for i in _]) for _ in g[1:-1]]+\
+             ([max(ops[i].flags.aligned_input for i in range(t.rfind('O'),
               len(ops)))] if len(g) > 1 else [])
-        
         rc = [max(ops[i].flags.contiguous_output for i in g[0])] + \
              [max([ops[_[0]-1].flags.contiguous_input] +
                  [ops[i].flags.contiguous_output for i in _])for _ in g[1:-1]]+\
              ([max(ops[i].flags.contiguous_input for i in  range(t.rfind('O'),
               len(ops)))] if len(g) > 1 else [])
-        
         return rn, ra, rc
 
     c = CompositionOperator(Is)
+
     def func(t, rn1, rn2, ra1, ra2, rc1, rc2):
         assert rn1 == rn2
         assert ra1 == ra2
@@ -1673,6 +1825,7 @@ def test_composition_get_requirements():
 #=============
 
 def test_powers():
+
     def func(op, n):
         p = op ** n
         if n < -1:
@@ -1690,12 +1843,14 @@ def test_powers():
             for o in p.operands:
                 assert_is(o, op)
     for op in [SquareOp(), SquareOp(shapein=3)]:
-        for n in range(-3,4):
+        for n in range(-3, 4):
             yield func, op, n
+
 
 def test_powers_diagonal():
     diag = np.array([1., 2, 3])
     d = DiagonalOperator(diag)
+
     def func(n):
         assert_eq((d**n).todense(), DiagonalOperator(diag**n).todense())
     for n in (-1.2, -1, -0.5, 0, 0.5, 1, 2.4):
@@ -1707,9 +1862,12 @@ def test_powers_diagonal():
 #=============================
 
 def test_broadcasting_as_strided():
-    shapes = {'leftward':(2,4,3,4,2,2), 'rightward':(3,2,2,3,1,2)}
+    shapes = {'leftward': (2, 4, 3, 4, 2, 2),
+              'rightward': (3, 2, 2, 3, 1, 2)}
+
     def func(b):
-        o = BroadcastingOperator(np.arange(6).reshape((3,1,2,1)), broadcast=b)
+        o = BroadcastingOperator(np.arange(6).reshape((3, 1, 2, 1)),
+                                 broadcast=b)
         s = shapes[b]
         if b == 'leftward':
             v = o.data*np.ones(s)
@@ -1719,29 +1877,32 @@ def test_broadcasting_as_strided():
     for b in ('rightward', 'leftward'):
         yield func, b
 
+
 def test_diagonal1():
-    data = (0., 1., [0,0], [1,1], 2, [2,2], [0,1], [-1,-1], [-1,1], [2,1])
+    data = (0., 1., [0, 0], [1, 1], 2, [2, 2], [0, 1], [-1, -1], [-1, 1],
+            [2, 1])
     expected = (ZeroOperator, IdentityOperator, ZeroOperator, IdentityOperator,
                 HomothetyOperator, HomothetyOperator, MaskOperator,
                 HomothetyOperator, DiagonalOperator, DiagonalOperator)
+
     def func(d, e):
         op = DiagonalOperator(d)
-        if all(_ in (-1,1) for _ in op.data.flat):
+        if all(_ in (-1, 1) for _ in op.data.flat):
             assert op.flags.involutary
         assert_is(op.__class__, e)
     for d, e in zip(data, expected):
         yield func, d, e
 
+
 def test_diagonal2():
-    ops = (
-           DiagonalOperator([1.,2], broadcast='rightward'),
-           DiagonalOperator([[2.,3,4],[5,6,7]], broadcast='rightward'),
-           DiagonalOperator([1.,2,3,4,5], broadcast='leftward'),
-           DiagonalOperator(np.arange(20.).reshape(4,5), broadcast='leftward'),
-           DiagonalOperator(np.arange(120.).reshape(2,3,4,5)),
+    ops = (DiagonalOperator([1., 2], broadcast='rightward'),
+           DiagonalOperator([[2., 3, 4], [5, 6, 7]], broadcast='rightward'),
+           DiagonalOperator([1., 2, 3, 4, 5], broadcast='leftward'),
+           DiagonalOperator(np.arange(20).reshape(4, 5), broadcast='leftward'),
+           DiagonalOperator(np.arange(120.).reshape(2, 3, 4, 5)),
            HomothetyOperator(7.),
-           IdentityOperator(),
-          )
+           IdentityOperator())
+
     def func(op, d1, d2):
         d = op(d1, d2)
         if type(d1) is DiagonalOperator:
@@ -1759,26 +1920,27 @@ def test_diagonal2():
     for op in (np.add, np.multiply):
         for i in range(7):
             d1 = ops[i]
-            for j in range(i,7):
+            for j in range(i, 7):
                 d2 = ops[j]
-                if set((d1.broadcast, d2.broadcast)) == set(('leftward', 'rightward')):
+                if set((d1.broadcast, d2.broadcast)) == \
+                   set(('leftward', 'rightward')):
                     continue
                 yield func, op, d1, d2
-    
-def test_masking():
 
+
+def test_masking():
     mask = MaskOperator(0)
     assert isinstance(mask, IdentityOperator)
-    mask = MaskOperator(0, shapein=(32,32), dtype=np.float32)
+    mask = MaskOperator(0, shapein=(32, 32), dtype=np.float32)
     assert isinstance(mask, IdentityOperator)
-    assert mask.shapein == (32,32)
+    assert mask.shapein == (32, 32)
     assert mask.dtype == np.float32
 
     mask = MaskOperator(1)
     assert isinstance(mask, ZeroOperator)
-    mask = MaskOperator(1, shapein=(32,32), dtype=np.float32)
+    mask = MaskOperator(1, shapein=(32, 32), dtype=np.float32)
     assert isinstance(mask, ZeroOperator)
-    assert mask.shapein == (32,32)
+    assert mask.shapein == (32, 32)
     assert mask.dtype == np.float32
 
     b = np.array([3., 4., 1., 0., 3., 2.])
@@ -1796,12 +1958,15 @@ def test_masking():
     assert np.all(mask(b) == c)
     mask = DiagonalOperator(np.array([[1, 1.], [0., 0.], [1., 0.]]))
     assert np.all(mask(b) == c)
-    mask = MaskOperator(np.array([[False, False], [True, True], [False, True]]))
+    mask = MaskOperator(np.array([[False, False],
+                                  [True, True],
+                                  [False, True]]))
     assert np.all(mask(b) == c)
 
     b = np.array([[[3, 4.], [1., 0.]], [[3., 2], [-1, 9]]])
     c = np.array([[[3, 4.], [0., 0.]], [[3., 0], [0, 0]]])
-    mask = MaskOperator(np.array([[[0, 0.], [1., 1.]], [[0., 1], [1, 1]]], int))
+    mask = MaskOperator(np.array([[[0, 0.], [1., 1.]],
+                                  [[0., 1], [1, 1]]], int))
     assert np.all(mask(b) == c)
 
     mask = DiagonalOperator(np.array([[[1, 1], [0., 0]], [[1, 0], [0, 0]]]))
@@ -1813,9 +1978,11 @@ def test_masking():
     c = mask(b, b)
     assert id(b) == id(c)
 
+
 def test_masking2():
     m = MaskOperator([True, False, True])
     assert_eq(m * m,  m)
+
 
 def test_homothety_operator():
     s = HomothetyOperator(1)
@@ -1827,12 +1994,13 @@ def test_homothety_operator():
     s = HomothetyOperator(2.)
     assert s.C is s.T is s.H is s
     assert_is_not(s.I, s)
+
     def func(o):
         assert_is_instance(o, HomothetyOperator)
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
         yield func, o
 
-    s = HomothetyOperator(complex(1,1))
+    s = HomothetyOperator(complex(1, 1))
     assert_is(s.T, s)
     assert_is(s.H, s.C)
     assert_not_in(s.I, (s, s.C))
@@ -1841,16 +2009,19 @@ def test_homothety_operator():
     for o in (s.I, s.I.C, s.I.T, s.I.H, s.I.I):
         yield func, o
 
+
 def test_homothety_reduction1():
     models = 1.*I+I, -I, (-2) * I, -(2*I), 1.*I-I, 1.*I-2*I
     results = [6, -3, -6, -6, 0, -3]
+
     def func(model, result, i):
         o = model(i)
-        assert_eq(o, result, str((model,i)))
-        assert_eq(o.dtype, int, str((model,i)))
+        assert_eq(o, result, str((model, i)))
+        assert_eq(o.dtype, int, str((model, i)))
     for model, result in zip(models, results):
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             yield func, model, result, i
+
 
 def test_homothety_reduction2():
     model = -I
@@ -1858,6 +2029,7 @@ def test_homothety_reduction2():
             operator.imul)
     imodels = 2*I, 2*I, 2*I, O, O
     results = [3, -3, -6, -6, 0]
+
     def func(imodel, result, i):
         assert_eq(model(i), result)
     for iop, imodel, result in zip(iops, imodels, results):
@@ -1865,10 +2037,12 @@ def test_homothety_reduction2():
         for i in (np.array(3), [3], (3,), np.int(3), 3):
             yield func, imodel, result, i
 
+
 def test_homothety_reduction3():
     @decorators.linear
     class Op(Operator):
         pass
+
     def func(opout, opin, idin):
         if opin is not None and idin is not None and opin != idin:
             return
@@ -1884,18 +2058,20 @@ def test_homothety_reduction3():
             for idin in (None, (100,)):
                 yield func, opout, opin, idin
 
+
 def test_constant_reduction1():
-    c = 1, np.array([1,2]), np.array([2,3,4])
+    c = 1, np.array([1, 2]), np.array([2, 3, 4])
     t = 'scalar', 'rightward', 'leftward'
 
     def func(c1, t1, c2, t2):
         op2 = ConstantOperator(c2, broadcast=t2)
         op = op1 + op2
-        if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
+        if set((op1.broadcast, op2.broadcast)) != \
+           set(('rightward', 'leftward')):
             assert_is_instance(op, ConstantOperator)
-        v = np.zeros((2,3))
+        v = np.zeros((2, 3))
         op(np.nan, v)
-        z = np.zeros((2,3))
+        z = np.zeros((2, 3))
         if t1 == 'rightward':
             z.T[...] += c1.T
         else:
@@ -1910,20 +2086,21 @@ def test_constant_reduction1():
         for c2, t2 in zip(c, t):
             yield func, c1, t1, c2, t2
 
+
 def test_constant_reduction2():
     H = HomothetyOperator
     C = CompositionOperator
     D = DiagonalOperator
-    cs = (ConstantOperator(3), ConstantOperator([1,2,3], broadcast='leftward'),
-          ConstantOperator(np.ones((2,3))))
-    os = (I, H(2, shapein=(2,3)) * Operator(direct=np.square, shapein=(2,3), 
-          flags='square'), H(5))
+    cs = (ConstantOperator(3),
+          ConstantOperator([1, 2, 3], broadcast='leftward'),
+          ConstantOperator(np.ones((2, 3))))
+    os = (I, H(2, shapein=(2, 3)) * Operator(direct=np.square, shapein=(2, 3),
+                                             flags='square'), H(5))
     results = (((H, 3), (C, (H, 6)), (H, 15)),
-               ((D, [1,2,3]), (C, (D, [2,4,6])), (D, [5,10,15])),
-               ((IdentityOperator, 1), (C, (H,2)), (H, 5))
-               )
-    
-    v = np.arange(6).reshape((2,3))
+               ((D, [1, 2, 3]), (C, (D, [2, 4, 6])), (D, [5, 10, 15])),
+               ((IdentityOperator, 1), (C, (H, 2)), (H, 5)))
+    v = np.arange(6).reshape((2, 3))
+
     def func(c, o, r):
         op = MultiplicationOperator([c, o])
         assert_eq(op(v), c.data*o(v))
@@ -1933,19 +2110,23 @@ def test_constant_reduction2():
             r = r[1]
             assert_is(type(op), r[0])
         assert_eq, op.data, r[1]
-    for c,rs in zip(cs, results):
+    for c, rs in zip(cs, results):
         for o, r in zip(os, rs):
             yield func, c, o, r
+
 
 def _test_constant_reduction3():
     @decorators.square
     class Op(Operator):
+
         def direct(self, input, output):
             output[...] = input + np.arange(input.size).reshape(input.shape)
-    os = (Op(shapein=()), Op(shapein=(4)), Op(shapein=(2,3,4)))
+    os = (Op(shapein=()), Op(shapein=4), Op(shapein=(2, 3, 4)))
     cs = (ConstantOperator(2), ConstantOperator([2], broadcast='leftward'),
-          ConstantOperator(2*np.arange(8).reshape((2,1,4)), broadcast='leftward'))
+          ConstantOperator(2*np.arange(8).reshape((2, 1, 4)),
+                           broadcast='leftward'))
     v = 10000000
+
     def func(o, c):
         op = o * c
         y_tmp = np.empty(o.shapein, int)
@@ -1953,6 +2134,7 @@ def _test_constant_reduction3():
         assert_eq(op(v), o(y_tmp))
     for o, c in zip(os, cs):
         yield func, o, c
+
 
 def test_zero1():
     z = ZeroOperator()
@@ -1962,6 +2144,7 @@ def test_zero1():
     assert_eq(zo.shapein, o.shapein)
     assert_is_none(zo.shapeout)
 
+
 def test_zero2():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator()
@@ -1969,6 +2152,7 @@ def test_zero2():
     assert_is_instance(zo, ZeroOperator)
     assert_is_none(zo.shapein, 'in')
     assert_eq(zo.shapeout, z.shapeout, 'out')
+
 
 def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
@@ -1978,11 +2162,13 @@ def test_zero3():
     assert_eq(zo.shapein, z.shapein, 'in')
     assert_eq(zo.shapeout, z.shapeout, 'out')
 
+
 def test_zero4():
     z = ZeroOperator()
     o = Operator(flags='linear')
     assert_is_instance(z*o, ZeroOperator)
     assert_is_instance(o*z, ZeroOperator)
+
 
 def test_zero5():
     z = ZeroOperator()
@@ -1996,16 +2182,21 @@ def test_zero5():
     assert_is_none(oz.shapein, 'oz, in')
     assert_eq(oz.shapeout, o.shapeout, 'oz, out')
 
+
 def test_zero6():
     z = ZeroOperator(flags='square')
+
     @decorators.linear
     class Op(Operator):
         def direct(self, input, output):
             output[:] = np.concatenate([input, 2*input])
+
         def transpose(self, input, output):
             output[:] = input[0:output.size]
+
         def reshapein(self, shapein):
             return (2 * shapein[0],)
+
         def reshapeout(self, shapeout):
             return (shapeout[0] // 2,)
     o = Op()
@@ -2014,10 +2205,12 @@ def test_zero6():
     v = np.ones(4)
     assert_eq(zo.T(v), o.T(z.T(v)))
     assert_eq(oz.T(v), z.T(o.T(v)))
-    
+
+
 def test_zero7():
     z = ZeroOperator()
     assert_eq(z*z, z)
+
 
 def test_zero8():
     class Op(Operator):
@@ -2025,8 +2218,8 @@ def test_zero8():
     o = Op()
     assert type(o + O) is Op
 
-def test_dense_operator():
 
+def test_dense_operator():
     def func(m, d, v):
         expected = np.dot(m, v)
         assert_eq(d(v), expected)
@@ -2035,23 +2228,25 @@ def test_dense_operator():
             d(w, w)
             assert_eq(w, expected)
 
-    m = np.array([[1,1j],[2,2]])
+    m = np.array([[1, 1j], [2, 2]])
     d = DenseOperator(m)
-    for v in np.array([1+0j,0]), np.array([0+0j,1]):
+    for v in np.array([1+0j, 0]), np.array([0+0j, 1]):
         yield func, m, d, v
         yield func, m.T, d.T, v
         yield func, m.T.conj(), d.H, v
 
-    m = np.array([[1,2],[3,4j],[5,6]])
+    m = np.array([[1, 2], [3, 4j], [5, 6]])
     d = DenseOperator(m)
-    for v in np.array([1+0j,0]), np.array([0+0j,1]):
+    for v in np.array([1+0j, 0]), np.array([0+0j, 1]):
         yield func, m, d, v
-    for v in np.array([1+0j,0, 0]), np.array([0j,1, 0]), np.array([0j,0,1]):
+    for v in (np.array([1+0j, 0, 0]), np.array([0j, 1, 0]),
+              np.array([0j, 0, 1])):
         yield func, m.T, d.T, v
         yield func, m.T.conj(), d.H, v
+
 
 def test_dense_operator_rule_homothety():
-    m = np.array([[1,2],[3,4],[5,6]])
+    m = np.array([[1, 2], [3, 4], [5, 6]])
     d = HomothetyOperator(2) * DenseOperator(m)
     assert_is_instance(d, DenseOperator)
     assert_eq(d.data, m * 2)
@@ -2085,14 +2280,16 @@ def test_reduction_operator1():
             for a in [None] + list(range(len(s))):
                 yield func, f, s, a
 
+
 def test_reduction_operator2():
     for f in (np.cos, np.modf):
         assert_raises(TypeError, ReductionOperator, f)
     f = np.add
+
     def func(n, op):
         v = np.empty(n * [2])
         assert_raises(TypeError if n == 0 else ValueError, op, v)
-    for a in (1,2,3):
+    for a in (1, 2, 3):
         op = ReductionOperator(f, axis=a)
         for n in range(0, a+1):
             yield func, n, op
@@ -2104,9 +2301,11 @@ def test_reduction_operator2():
 
 def test_asoperator_scalar():
     scalars = [np.array(1, d) for d in DTYPES]
+
     def func1(s):
         o = asoperator(s)
         assert_is_instance(o, HomothetyOperator)
+
     def func2(s):
         o = asoperator(s, constant=True)
         assert_is_instance(o, ConstantOperator)
@@ -2114,12 +2313,15 @@ def test_asoperator_scalar():
         yield func1, s
         yield func2, s
 
+
 def test_asoperator_ndarray():
-    values = ([[1]], [[1,2],[2,3]], np.matrix([[3,2.],[0,1]]))
+    values = ([[1]], [[1, 2], [2, 3]], np.matrix([[3, 2.], [0, 1]]))
+
     def func1(v):
         o = asoperator(v)
         assert_is_instance(o, DenseOperator)
         assert_eq(np.array(v).shape, o.shape)
+
     def func2(v):
         o = asoperator(v, constant=True)
         if isinstance(v, np.matrix):
@@ -2132,15 +2334,18 @@ def test_asoperator_ndarray():
         yield func1, v
         yield func2, v
 
+
 def test_asoperator_func():
     f = lambda x: x**2
     o = asoperator(f)
     assert_is_instance(o, Operator)
     assert_flags(o, 'inplace')
+
     def func(v):
         assert_eq(o(v), f(np.array(v)))
-    for v in (2, [2], [2,3]):
+    for v in (2, [2], [2, 3]):
         yield func, v
+
 
 def test_asoperator_ufunc():
     assert_raises(TypeError, asoperator, np.maximum)

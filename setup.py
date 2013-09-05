@@ -12,9 +12,8 @@ VERSION = '0.9'
 
 
 def version_sdist():
-    p = Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], stdout=PIPE,
-              stderr=PIPE)
-    stdout, stderr = p.communicate()
+    stdout, stderr = Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                           stdout=PIPE, stderr=PIPE).communicate()
     if stderr:
         return VERSION
     branch = stdout[:-1]
@@ -22,13 +21,11 @@ def version_sdist():
         branch = branch[1:]
     if branch != 'master':
         return VERSION
-    p = Popen(['git', 'rev-parse', '--verify', '--short', 'HEAD'], stdout=PIPE,
-              stderr=PIPE)
-    stdout, stderr = p.communicate()
-    version = VERSION
-    if not stderr:
-        version += '-' + stdout[:-1]
-    return version
+    stdout, stderr = Popen(['git', 'rev-parse', '--verify', '--short', 'HEAD'],
+                           stdout=PIPE, stderr=PIPE).communicate()
+    if stderr:
+        return VERSION
+    return VERSION + '-' + stdout[:-1]
 
 version = version_sdist()
 if 'install' in sys.argv[1:]:
