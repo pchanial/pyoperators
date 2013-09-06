@@ -906,6 +906,10 @@ class Operator(object):
             T = self
         elif '.T' in rules:
             T = rules['.T'](self)
+        elif flags.real and '.H' in rules:
+            T = rules['.H'](self)
+        elif flags.orthogonal and '.I' in rules:
+            T = rules['.I'](self)
         else:
             T = ReverseOperatorFactory(Operator, self, direct=self.transpose,
                                        name=self.__name__ + '.T',
@@ -917,12 +921,14 @@ class Operator(object):
 
         if flags.hermitian:
             H = self
-        elif '.H' in rules:
-            H = rules['.H'](self)
-        elif flags.real:
-            H = T
         elif flags.symmetric:
             H = C
+        elif flags.real:
+            H = T
+        elif '.H' in rules:
+            H = rules['.H'](self)
+        elif flags.unitary and '.I' in rules:
+            H = rules['.I'](self)
         else:
             H = ReverseOperatorFactory(Operator, self, direct=self.adjoint,
                                        name=self.__name__ + '.H',
@@ -934,12 +940,12 @@ class Operator(object):
 
         if flags.involutary:
             I = self
-        elif '.I' in rules:
-            I = rules['.I'](self)
         elif flags.orthogonal:
             I = T
         elif flags.unitary:
             I = H
+        elif '.I' in rules:
+            I = rules['.I'](self)
         else:
             I = ReverseOperatorFactory(Operator, self, direct=self.inverse,
                                        name=self.__name__ + '.I',
@@ -950,14 +956,14 @@ class Operator(object):
 
         if flags.real:
             IC = I
-        elif '.IC' in rules:
-            IC = rules['.IC'](self)
         elif flags.orthogonal:
             IC = H
         elif flags.unitary:
             IC = T
         elif flags.involutary:
             IC = C
+        elif '.IC' in rules:
+            IC = rules['.IC'](self)
         else:
             IC = ReverseOperatorFactory(Operator, self,
                                         direct=self.inverse_conjugate,
