@@ -311,7 +311,7 @@ class OperatorBinaryRule(OperatorRule):
                     return None
             elif subother not in (c.__name__ for c in other.__class__.__mro__):
                 return None
-        elif other is not subother:
+        elif other != subother:
             return None
 
         predicate = self._symbol2operator(reference, self.predicate)
