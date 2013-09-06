@@ -1492,6 +1492,9 @@ class Operator(object):
             if k in d2: del d2[k]
         return all_eq(d1, d2)
 
+    def __ne__(self, other):
+        return not self == other
+
     def __str__(self):
         if self.shapein is not None or self.shapeout is not None:
             shapein = '?' if self.shapein is None else strshape(self.shapein)
