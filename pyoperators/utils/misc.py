@@ -20,9 +20,10 @@ from . import cythonutils as cu
 __all__ = ['all_eq',
            'benchmark',
            'cast',
-           'complex_dtype_for',
+           'complex_dtype',
            'first',
            'first_is_not',
+           'float_dtype',
            'ifirst',
            'ifirst_is_not',
            'inspect_special_values',
@@ -299,25 +300,60 @@ def cast(arrays, dtype=None, order='c'):
               if a is not None else None for a in arrays)
     return tuple(result)
 
-def complex_dtype_for(dtype):
+def complex_dtype(dtype):
     """
-    Return the complex dtype associated to a float dtype.
+    Return the complex dtype associated to a numeric dtype.
 
     Parameter
     ---------
     dtype : dtype
-        The float dtype.
+        The input dtype.
 
     Example
     -------
-    >>> complex_dtype_for(np.float32)
+    >>> complex_dtype(int)
+    dtype('complex128')
+    >>> complex_dtype(np.float32)
     dtype('complex64')
+    >>> complex_dtype(np.float64)
+    dtype('complex128')
+
+    """
+    dtype = float_dtype(dtype)
+    if dtype.kind == 'c':
+        return dtype
+    if dtype == np.float16:
+        if not hasattr(np, 'complex32'):
+            return np.dtype(complex)
+    return np.dtype('complex{}'.format(2 * int(dtype.name[5:])))
+
+def float_dtype(dtype):
+    """
+    Return the floating dtype associated to a numeric dtype.
+    Unless the input dtype kind is float or complex, the default float dtype
+    is returned.
+
+    Parameter
+    ---------
+    dtype : dtype
+        The input dtype.
+
+    Example
+    -------
+    >>> float_dtype(int)
+    dtype('float64')
+    >>> float_dtype(np.float32)
+    dtype('float32')
+    >>> float_dtype(np.complex256)
+    dtype('complex256')
 
     """
     dtype = np.dtype(dtype)
-    if dtype.kind != 'f':
-        raise TypeError('The input dtype is not a float.')
-    return np.dtype('complex{}'.format(2 * int(dtype.name[5:])))
+    if dtype.kind not in 'biufc':
+        raise TypeError('Non numerical data type.')
+    if dtype.kind in 'iub':
+        return np.dtype(float)
+    return dtype
 
 def first(l, f):
     """
