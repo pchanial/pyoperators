@@ -16,7 +16,7 @@ from .core import (Operator, BlockRowOperator, BroadcastingOperator,
                    ReductionOperator, DirectOperatorFactory,
                    ReverseOperatorFactory, Variable, X, _pool)
 from .memory import empty
-from .utils import cast, complex_dtype_for, ifirst, izip_broadcast, tointtuple
+from .utils import cast, complex_dtype, ifirst, izip_broadcast, tointtuple
 
 __all__ = [
     'BandOperator',
@@ -766,7 +766,7 @@ class SymmetricBandToeplitzOperator(Operator):
             fftsize *= 2
         with _pool.get(fftsize, dtype, aligned=True,
                        contiguous=True) as rbuffer:
-            with _pool.get(fftsize // 2 + 1, complex_dtype_for(dtype),
+            with _pool.get(fftsize // 2 + 1, complex_dtype(dtype),
                            aligned=True, contiguous=True) as cbuffer:
                 fplan = pyfftw.FFTW(
                     rbuffer, cbuffer, fftw_flags=[fftw_flag], threads=nthreads)
@@ -790,7 +790,7 @@ class SymmetricBandToeplitzOperator(Operator):
         with _pool.get(self.fftsize, self.dtype, aligned=True,
                        contiguous=True) as rbuffer:
             with _pool.get(
-                self.fftsize // 2 + 1, complex_dtype_for(self.dtype),
+                self.fftsize // 2 + 1, complex_dtype(self.dtype),
                 aligned=True, contiguous=True) as cbuffer:
                 lpad = (self.bandwidth - 1) // 2
                 x = x.reshape((-1, self.nsamples))

@@ -10,7 +10,7 @@ from .core import (AdditionOperator, CompositionOperator, DiagonalOperator,
 from .decorators import (aligned, contiguous, inplace, linear, real, square,
                          unitary)
 from .memory import empty
-from .utils import (complex_dtype_for, isalias, openmp_num_threads, product,
+from .utils import (complex_dtype, isalias, openmp_num_threads, product,
                     tointtuple)
 from .utils.ufuncs import multiply_conjugate
 
@@ -104,7 +104,7 @@ class _FFTWConvolutionOperator(Operator):
             self.__init__([n, fft.H, DiagonalOperator(kernel_fft), fft])
             return
 
-        dtype_ = complex_dtype_for(dtype)
+        dtype_ = complex_dtype(dtype)
         shape_ = self._reshape_to_halfstorage(shapein, axes)
         _load_wisdom()
         aligned = self.flags.aligned_input
