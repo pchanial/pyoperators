@@ -40,7 +40,10 @@ def assert_same(actual, desired, rtol=2, broadcasting=False):
             "1}'.".format(actual.shape, desired.shape))
     dtype = sorted(arg.dtype for arg in [actual, desired])[0]
     if dtype.kind in ('b', 'i'):
-        assert_equal(actual, desired)
+        if not broadcasting:
+            assert_equal(actual, desired)
+        else:
+            assert np.all(actual == desired)
         return
     eps = np.finfo(dtype).eps * rtol
     same = abs(actual - desired) <= eps * np.maximum(abs(actual), abs(desired))
