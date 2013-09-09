@@ -7,19 +7,23 @@ try:
     import pyfftw
 except:
     pass
+import string
 from itertools import izip
 from scipy.sparse.linalg import eigsh
 
-from .decorators import inplace, linear, real, square, symmetric
+from .decorators import contiguous, inplace, linear, real, square, symmetric
 from .core import (Operator, BlockRowOperator, BroadcastingOperator,
                    CompositionOperator, DenseOperator, DiagonalOperator,
-                   ReductionOperator, DirectOperatorFactory,
+                   HomothetyOperator, ReductionOperator, DirectOperatorFactory,
                    ReverseOperatorFactory, Variable, X, _pool)
 from .memory import empty
-from .utils import cast, complex_dtype, ifirst, izip_broadcast, tointtuple
+from .utils import (
+    cast, complex_dtype, float_dtype, ifirst, izip_broadcast, product,
+    tointtuple)
 
 __all__ = [
     'BandOperator',
+    'DenseBroadcastingOperator',
     'DiagonalNumexprOperator',
     'DiagonalNumexprNonSeparableOperator',
     'DifferenceOperator',
@@ -32,6 +36,80 @@ __all__ = [
     'TridiagonalOperator',
     'UnpackOperator',
 ]
+
+
+@linear
+@contiguous
+class DenseBroadcastingOperator(Operator):
+    """
+    Dense operator whose multiplication can be broadcast over inputs of larger
+    dimensions.
+
+    Given a tensor data of shape (L, M, N) and an input of shape (P, Q, N),
+    the output of this operator will have a shape (P, Q, L, M) and for
+    each p, q:
+        output[p, q, :, :] = np.dot(data, input[p, q, :])
+
+    Example
+    -------
+    >>> theta = np.pi / 4
+    >>> m = [[np.cos(theta), -np.sin(theta)],
+    ...      [np.sin(theta),  np.cos(theta)]]
+    >>> input = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+    >>> op = DenseBroadcastingOperator(m)
+    >>> print op(input)
+    [[ 0.70710678  0.70710678]
+     [-0.70710678  0.70710678]
+     [-0.70710678 -0.70710678]
+     [ 0.70710678 -0.70710678]]
+    >>> print op.T(op(input))
+    [[ 1.  0.]
+     [ 0.  1.]
+     [-1.  0.]
+     [ 0. -1.]]
+
+   """
+    def __init__(self, data, dtype=None, _naxes=1, **keywords):
+        data = np.atleast_2d(data)
+        if _naxes == 0 or _naxes >= data.ndim:
+            raise ValueError('Invalid _naxes keyword.')
+        if data.ndim == 0:
+            self.__class__ = HomothetyOperator
+            self.__init__(data, dtype=dtype, **keywords)
+            return
+        if dtype is None:
+            dtype = float_dtype(data.dtype)
+        self._naxes = _naxes
+        self.data = data
+        self._data = data.reshape((product(data.shape[:-_naxes]),
+                                   product(data.shape[-_naxes:])))
+        Operator.__init__(self, dtype=dtype, **keywords)
+        self.set_rule('.T', self._rule_transpose)
+
+    def direct(self, input, output):
+        input = np.atleast_1d(input)
+        ninput = product(input.shape[:-self._naxes])
+        input_ = input.reshape((ninput, self._data.shape[1]))
+        output_ = output.reshape((ninput, self._data.shape[0]))
+        np.einsum('ai,bi->ba', self._data, input_, out=output_)
+
+    def reshapein(self, shape):
+        return shape[:-self._naxes] + self.data.shape[:-self._naxes]
+
+    def reshapeout(self, shape):
+        n = self.data.ndim - self._naxes
+        return shape[:-n] + self.data.shape[-self._naxes:]
+
+    def validatein(self, shape):
+        if shape[-self._naxes:] != self.data.shape[-self._naxes:]:
+            return ValueError('The input has an invalid last dimension.')
+
+    @staticmethod
+    def _rule_transpose(self):
+        data = self.data
+        for i in range(self._naxes):
+            data = np.rollaxis(data, -1)
+        return DenseBroadcastingOperator(data, _naxes=data.ndim - self._naxes)
 
 
 class DiagonalNumexprOperator(DiagonalOperator):
