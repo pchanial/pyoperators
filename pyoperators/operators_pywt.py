@@ -21,8 +21,8 @@ for l in pywt.wavelist():
         rwavelist[l] = l
 
 
-@linear
 @real
+@linear
 class WaveletOperator(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None,
                  **keywords):
@@ -84,8 +84,8 @@ class WaveletOperator(Operator):
                 for i in xrange(len(self.sizes))]
 
 
-@linear
 @real
+@linear
 class Wavelet2dOperator(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None,
                  **keywords):
