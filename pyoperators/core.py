@@ -742,13 +742,6 @@ class Operator(object):
     def shape(self):
         return (product(self.shapeout), product(self.shapein))
 
-    @staticmethod
-    def isalias(array1, array2):
-        return (
-            array1.__array_interface__['data'][0]
-            == array2.__array_interface__['data'][0]
-        )
-
     def todense(self, shapein=None, shapeout=None, inplace=False):
         """
         Output the dense representation of the Operator as a ndarray.
