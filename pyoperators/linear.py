@@ -396,6 +396,7 @@ class EinsteinSumOperator(Operator):
         return [l if l != '.' else Ellipsis for l in s]
 
 
+@real
 class IntegrationTrapezeWeightOperator(BlockRowOperator):
     """
     Return weights as a block row operator to perform trapeze integration.
@@ -446,8 +447,8 @@ class IntegrationTrapezeWeightOperator(BlockRowOperator):
         BlockRowOperator.__init__(self, list(w), new_axisin=new_axisin, **keywords)
 
 
-@linear
 @real
+@linear
 @inplace
 class PackOperator(Operator):
     """
@@ -467,8 +468,8 @@ class PackOperator(Operator):
         output[...] = input[self.mask]
 
 
-@linear
 @real
+@linear
 class UnpackOperator(Operator):
     """
     Convert a vector into an ndarray, under the control of a mask.
@@ -487,6 +488,7 @@ class UnpackOperator(Operator):
         output[self.mask] = input
 
 
+@real
 @linear
 class SumOperator(ReductionOperator):
     """

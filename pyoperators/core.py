@@ -3924,8 +3924,8 @@ class BlockRowOperator(BlockOperator):
         return '[[ ' + ' '.join(operands) + ' ]]'
 
 
-@linear
 @real
+@linear
 @inplace
 class ReshapeOperator(Operator):
     """
@@ -4581,8 +4581,8 @@ class ConstantOperator(BroadcastingOperator):
         )
 
 
-@linear
 @real
+@linear
 class ZeroOperator(ConstantOperator):
     """
     A subclass of ConstantOperator with data = 0.
@@ -4669,7 +4669,6 @@ class DenseOperator(Operator):
         return self.data
 
 
-@real
 class ReductionOperator(Operator):
     """
     Reduction-along-axis operator.

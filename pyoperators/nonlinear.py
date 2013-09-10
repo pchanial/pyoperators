@@ -4,7 +4,7 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import real, square, idempotent, inplace, separable
+from .decorators import square, idempotent, inplace, separable
 from .core import (
     Operator,
     BlockColumnOperator,
@@ -375,7 +375,6 @@ class RoundOperator(Operator):
         np.add(output, 1, output)
 
 
-@real
 @square
 @idempotent
 @inplace
@@ -418,7 +417,6 @@ class HardThresholdingOperator(Operator):
         hard_thresholding(input, self.a, output)
 
 
-@real
 @square
 @inplace
 @separable
@@ -454,7 +452,6 @@ class SoftThresholdingOperator(Operator):
         soft_thresholding(input, self.a, output)
 
 
-@real
 @separable
 class _1dNdOperator(Operator):
     """Base class for 1d-Nd coordinate mappings."""
