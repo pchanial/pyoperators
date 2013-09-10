@@ -30,6 +30,7 @@ from .utils import (
     product,
     renumerate,
     strenum,
+    strplural,
     strshape,
     tointtuple,
     ufuncs,
@@ -521,6 +522,7 @@ class Operator(object):
     flags = OperatorFlags()
     rules = None
 
+    _disable_inplace_reduction = False
     _C = None
     _T = None
     _H = None
@@ -1221,6 +1223,17 @@ class Operator(object):
             if any([self.flags.orthogonal, self.flags.unitary, self.flags.involutary]):
                 self._set_flags('orthogonal, unitary, involutary')
 
+        if isinstance(flags, (dict, str)):
+            auto_flags = ('inplace_reduction', 'shape_input', 'shape_output')
+            mask = [f in flags for f in auto_flags]
+            if any(mask):
+                raise ValueError(
+                    'The {0} {1} cannot be set.'.format(
+                        strplural(np.sum(mask), 'flag', nonumber=True),
+                        strenum([a for a, m in zip(auto_flags, mask) if m]),
+                    )
+                )
+
         if isinstance(self.direct, np.ufunc):
             if self.direct.nin != 1 or self.direct.nout != 1:
                 raise TypeError(
@@ -1240,26 +1253,15 @@ class Operator(object):
             self._set_flags('inplace')
             self._set_flags('square')
             self._set_flags('separable')
-            if self.flags.inplace_reduction:
-                raise ValueError('Ufuncs do not handle inplace reductions.')
         else:
+            # Set inplace_reduction flag to true if the direct method handles
+            # the operation keyword, unless _disable_inplace_reduction is true
             if isinstance(self.direct, types.MethodType):
                 d = self.direct.im_func
             else:
                 d = self.direct
-            if (
-                isinstance(flags, (dict, str))
-                and 'inplace_reduction' not in flags
-                or isinstance(flags, OperatorFlags)
-            ):
-                if d and 'operation' in d.func_code.co_varnames:
-                    self._set_flags('inplace_reduction')
-            if self.flags.inplace_reduction:
-                if d and 'operation' not in d.func_code.co_varnames:
-                    raise TypeError(
-                        "The direct method of an inplace-reduction operator mu"
-                        "st have an 'operation' keyword."
-                    )
+            if d and 'operation' in d.func_code.co_varnames:
+                self._set_flags(inplace_reduction=not self._disable_inplace_reduction)
 
         if self.flags.inplace:
             aligned = max(self.flags.aligned_input, self.flags.aligned_output)
@@ -2349,6 +2351,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             self.__dict__ = operands[0].__dict__.copy()
             return
         keywords = self._get_attributes(operands, **keywords)
+        self._disable_inplace_reduction = not operands[0].flags.inplace_reduction
+
         NonCommutativeCompositeOperator.__init__(self, operands, **keywords)
         self._info = {}
         self.set_rule('.C', lambda s: CompositionOperator([m.C for m in s.operands]))
@@ -2763,9 +2767,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         keywords = cls._get_attributes([op1, op2])
         keywords['name'] = cls._merge_names([op1, op2])
 
-        # The merged operator is not guaranteed to handle inplace reductions
-        del keywords['flags']['inplace_reduction']
-
         # reset attributes
         for attr in OPERATOR_ATTRIBUTES + ['_C', '_T', '_H', '_I']:
             if attr in op.__dict__ and attr != 'flags':
@@ -2801,7 +2802,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'real': all(op.flags.real for op in operands),
             'square': all(op.flags.square for op in operands),
             'separable': all(op.flags.separable for op in operands),
-            'inplace_reduction': operands[0].flags.inplace_reduction,
             'aligned_input': operands[-1].flags.aligned_input,
             'aligned_output': operands[0].flags.aligned_output,
             'contiguous_input': operands[-1].flags.contiguous_input,
@@ -3405,7 +3405,6 @@ class BlockOperator(NonCommutativeCompositeOperator):
         return {
             'linear': all(op.flags.linear for op in operands),
             'real': all(op.flags.real for op in operands),
-            'inplace_reduction': False,
         }
 
     def reshapein(self, shapein):

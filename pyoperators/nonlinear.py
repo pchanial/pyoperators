@@ -302,10 +302,8 @@ class NumexprOperator(Operator):
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
         self.expr = expr
         self.global_dict = global_dict
-        if numexpr.__version__ < '2.0.2':
-            keywords['flags'] = self.validate_flags(
-                keywords.get('flags', {}), inplace_reduction=False
-            )
+        if numexpr.__version__ < '2.1':
+            self._disable_inplace_reduction = True
         Operator.__init__(self, dtype=dtype, **keywords)
 
     def direct(self, input, output, operation=operation_assignment):
