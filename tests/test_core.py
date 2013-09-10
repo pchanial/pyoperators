@@ -13,7 +13,8 @@ from pyoperators.core import (
     HomothetyOperator, ReductionOperator, ZeroOperator, asoperator,
     _pool as pool, I, O)
 from pyoperators.memory import zeros
-from pyoperators.utils import ndarraywrap, first_is_not, product
+from pyoperators.utils import (
+    ndarraywrap, first_is_not, operation_assignment, product)
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (
     assert_eq, assert_is, assert_is_not, assert_is_none, assert_not_in,
@@ -101,6 +102,11 @@ class Op3(Operator):
         pass
 
 
+class OperatorIR(Operator):
+    def direct(self, input, output, operation=operation_assignment):
+        pass
+
+
 #===========
 # Test flags
 #===========
@@ -169,6 +175,18 @@ def test_shape_input_and_output():
 
     for op in ops:
         yield func, op.flags, type(op).__name__
+
+
+def test_inplace_reduction():
+    assert not Operator().flags.inplace_reduction
+    assert OperatorIR().flags.inplace_reduction
+
+
+def test_autoflags():
+    def func(f):
+        assert_raises(ValueError, Operator, flags=f)
+    for f in ['shape_input', 'shape_output', 'inplace_reduction']:
+        yield func, f
 
 
 #========================
@@ -1698,12 +1716,30 @@ def test_composition3():
 
 
 def test_composition_flags():
-
-    def func(f):
+    def func1(f):
         o = CompositionOperator([Operator(flags=f), Operator(flags=f)])
         assert getattr(o.flags, f)
-    for f in 'linear,real,square,separable,inplace_reduction'.split(','):
-        yield func, f
+    for f in 'linear,real,square,separable'.split(','):
+        yield func1, f
+
+    def func2(f):
+        o = CompositionOperator([Operator(), Operator(flags=f)])
+        assert getattr(o.flags, f)
+    for f in 'aligned_input,contiguous_input'.split(','):
+        yield func2, f
+
+    def func3(f):
+        o = CompositionOperator([Operator(flags=f), Operator()])
+        assert getattr(o.flags, f)
+    for f in 'aligned_output,contiguous_output'.split(','):
+        yield func3, f
+
+    def func4(f):
+        o = CompositionOperator([Operator(), Operator()])
+        assert not getattr(o.flags, f)
+        o = CompositionOperator([OperatorIR(), Operator()])
+        assert getattr(o.flags, f)
+    yield func4, 'inplace_reduction'
 
 
 def test_composition_shapes():
