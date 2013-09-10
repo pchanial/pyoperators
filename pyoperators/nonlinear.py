@@ -5,7 +5,7 @@ if numexpr.__version__ < 2.0:
 import numpy as np
 from .decorators import real, square, idempotent, inplace, separable
 from .core import (Operator, BlockColumnOperator, CompositionOperator,
-                   IdentityOperator, ReductionOperator, ReverseOperatorFactory)
+                   IdentityOperator, ReductionOperator)
 from .utils import operation_assignment, operation_symbol, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 
@@ -498,8 +498,7 @@ class To1dOperator(_1dNdOperator):
         if 'validatein' not in keywords:
             keywords['validatein'] = self._validate_to1d
         _1dNdOperator.__init__(self, shape_, order=order, **keywords)
-        self.set_rule('.I', lambda s: ReverseOperatorFactory(
-            ToNdOperator, s, s.shape_, order=s.order, **keywords))
+        self.set_rule('.I', lambda s: ToNdOperator(s.shape_, order=s.order))
 
     def direct(self, input, output):
         np.dot(input, self.coefs, out=output)
@@ -540,8 +539,8 @@ class ToNdOperator(_1dNdOperator):
         if 'validateout' not in keywords:
             keywords['validateout'] = self._validate_to1d
         _1dNdOperator.__init__(self, shape_, order=order, **keywords)
-        self.set_rule('.I', lambda s: ReverseOperatorFactory(
-            To1dOperator, s, s.shape_, order=s.order, **keywords))
+        self.set_rule('.I', lambda s: To1dOperator(
+            s.shape_, order=s.order))
 
     def direct(self, input, output):
         np.floor_divide(input[..., None], self.coefs, out=output)
