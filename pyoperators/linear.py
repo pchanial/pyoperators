@@ -22,8 +22,6 @@ from .core import (
     DiagonalOperator,
     HomothetyOperator,
     ReductionOperator,
-    DirectOperatorFactory,
-    ReverseOperatorFactory,
     Variable,
     X,
     _pool,
@@ -612,28 +610,18 @@ class TridiagonalOperator(Operator):
         Operator.__init__(self, dtype=dtype, **keywords)
         self.set_rule(
             '.T',
-            lambda s: DirectOperatorFactory(
-                TridiagonalOperator, s, s.diagonal, s.superdiagonal, s.subdiagonal
-            ),
+            lambda s: TridiagonalOperator(s.diagonal, s.superdiagonal, s.subdiagonal),
         )
         self.set_rule(
             '.C',
-            lambda s: DirectOperatorFactory(
-                TridiagonalOperator,
-                s,
-                s.diagonal.conj(),
-                s.subdiagonal.conj(),
-                s.superdiagonal.conj(),
+            lambda s: TridiagonalOperator(
+                s.diagonal.conj(), s.subdiagonal.conj(), s.superdiagonal.conj()
             ),
         )
         self.set_rule(
             '.H',
-            lambda s: DirectOperatorFactory(
-                TridiagonalOperator,
-                s,
-                s.diagonal.conj(),
-                s.superdiagonal.conj(),
-                s.subdiagonal.conj(),
+            lambda s: TridiagonalOperator(
+                s.diagonal.conj(), s.superdiagonal.conj(), s.subdiagonal.conj()
             ),
         )
 
@@ -666,7 +654,7 @@ class TridiagonalOperator(Operator):
             diags = (self.subdiagonal, self.diagonal, self.superdiagonal)
             for i, d in zip((-1, 0, 1), diags):
                 ab[_band_diag(ku, i)] = d
-            return DirectOperatorFactory(BandOperator, self, ab, kl, ku)
+            return BandOperator(ab, kl, ku)
         else:
             u = 2  # tridiagonal
             n = self.shape[0]
@@ -674,7 +662,7 @@ class TridiagonalOperator(Operator):
             ab = np.zeros((u, n), self.dtype)
             ab[0] = self.diagonal
             ab[1, :-1] = self.subdiagonal
-            return DirectOperatorFactory(SymmetricBandOperator, self, ab, lower=True)
+            return SymmetricBandOperator(ab, lower=True)
 
 
 @linear

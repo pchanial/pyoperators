@@ -59,8 +59,6 @@ __all__ = [
     'ReshapeOperator',
     'ReductionOperator',
     'ZeroOperator',
-    'DirectOperatorFactory',
-    'ReverseOperatorFactory',
     'asoperator',
     'I',
     'O',
@@ -997,45 +995,47 @@ class Operator(object):
         if flags.real:
             C = self
         elif '.C' in rules:
-            C = rules['.C'](self)
+            C = _copy_direct(self, rules['.C'](self))
         else:
-            C = DirectOperatorFactory(
-                Operator,
+            C = _copy_direct(
                 self,
-                direct=self.conjugate_,
-                name=self.__name__ + '.C',
-                flags={
-                    'linear': flags.linear,
-                    'symmetric': flags.symmetric,
-                    'hermitian': flags.hermitian,
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.conjugate_,
+                    name=self.__name__ + '.C',
+                    flags={
+                        'linear': flags.linear,
+                        'symmetric': flags.symmetric,
+                        'hermitian': flags.hermitian,
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         if flags.symmetric:
             T = self
         elif '.T' in rules:
-            T = rules['.T'](self)
+            T = _copy_reverse(self, rules['.T'](self))
         elif flags.real and '.H' in rules:
-            T = rules['.H'](self)
+            T = _copy_reverse(self, rules['.H'](self))
         elif flags.orthogonal and '.I' in rules:
-            T = rules['.I'](self)
+            T = _copy_reverse(self, rules['.I'](self))
         else:
-            T = ReverseOperatorFactory(
-                Operator,
+            T = _copy_reverse(
                 self,
-                direct=self.transpose,
-                name=self.__name__ + '.T',
-                flags={
-                    'linear': flags.linear,
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.transpose,
+                    name=self.__name__ + '.T',
+                    flags={
+                        'linear': flags.linear,
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         if flags.hermitian:
@@ -1045,22 +1045,23 @@ class Operator(object):
         elif flags.real:
             H = T
         elif '.H' in rules:
-            H = rules['.H'](self)
+            H = _copy_reverse(self, rules['.H'](self))
         elif flags.unitary and '.I' in rules:
-            H = rules['.I'](self)
+            H = _copy_reverse(self, rules['.I'](self))
         else:
-            H = ReverseOperatorFactory(
-                Operator,
+            H = _copy_reverse(
                 self,
-                direct=self.adjoint,
-                name=self.__name__ + '.H',
-                flags={
-                    'linear': flags.linear,
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.adjoint,
+                    name=self.__name__ + '.H',
+                    flags={
+                        'linear': flags.linear,
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         if flags.involutary:
@@ -1070,19 +1071,21 @@ class Operator(object):
         elif flags.unitary:
             I = H
         elif '.I' in rules:
-            I = rules['.I'](self)
+            I = _copy_reverse(self, rules['.I'](self))
         else:
-            I = ReverseOperatorFactory(
-                Operator,
+            I = _copy_reverse(
                 self,
-                direct=self.inverse,
-                name=self.__name__ + '.I',
-                flags={
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.inverse,
+                    name=self.__name__ + '.I',
+                    flags={
+                        'linear': flags.linear,
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         if flags.real:
@@ -1094,19 +1097,20 @@ class Operator(object):
         elif flags.involutary:
             IC = C
         elif '.IC' in rules:
-            IC = rules['.IC'](self)
+            IC = _copy_reverse(self, rules['.IC'](self))
         else:
-            IC = ReverseOperatorFactory(
-                Operator,
+            IC = _copy_reverse(
                 self,
-                direct=self.inverse_conjugate,
-                name=self.__name__ + '.I.C',
-                flags={
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.inverse_conjugate,
+                    name=self.__name__ + '.I.C',
+                    flags={
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         if flags.orthogonal:
@@ -1118,19 +1122,20 @@ class Operator(object):
         elif flags.involutary:
             IT = T
         elif '.IT' in rules:
-            IT = rules['.IT'](self)
+            IT = _copy_direct(self, rules['.IT'](self))
         else:
-            IT = DirectOperatorFactory(
-                Operator,
+            IT = _copy_direct(
                 self,
-                direct=self.inverse_transpose,
-                name=self.__name__ + '.I.T',
-                flags={
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.inverse_transpose,
+                    name=self.__name__ + '.I.T',
+                    flags={
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         if flags.unitary:
@@ -1146,19 +1151,20 @@ class Operator(object):
         elif flags.real:
             IH = IT
         elif '.IH' in rules:
-            IH = rules['.IH'](self)
+            IH = _copy_direct(self, rules['.IH'](self))
         else:
-            IH = DirectOperatorFactory(
-                Operator,
+            IH = _copy_direct(
                 self,
-                direct=self.inverse_adjoint,
-                name=self.__name__ + '.I.H',
-                flags={
-                    'idempotent': flags.idempotent,
-                    'involutary': flags.involutary,
-                    'orthogonal': flags.orthogonal,
-                    'unitary': flags.unitary,
-                },
+                Operator(
+                    direct=self.inverse_adjoint,
+                    name=self.__name__ + '.I.H',
+                    flags={
+                        'idempotent': flags.idempotent,
+                        'involutary': flags.involutary,
+                        'orthogonal': flags.orthogonal,
+                        'unitary': flags.unitary,
+                    },
+                ),
             )
 
         # once all the associated operators are instanciated, we set all their
@@ -2516,7 +2522,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             ):
                 continue
             scalar = scalar * op.data
-            operands[i] = DirectOperatorFactory(IdentityOperator, op)
+            operands[i] = _copy_direct(op, IdentityOperator())
 
         if scalar == 1:
             return operands
@@ -2882,62 +2888,44 @@ class GroupOperator(CompositionOperator):
 
         self.set_rule(
             '.C',
-            lambda s: DirectOperatorFactory(
-                GroupOperator, s, [m.C for m in s.operands], name=self.__name__ + '.C'
+            lambda s: GroupOperator(
+                [m.C for m in s.operands], name=self.__name__ + '.C'
             ),
         )
         self.set_rule(
             T,
-            lambda s: ReverseOperatorFactory(
-                GroupOperator,
-                s,
-                [m.T for m in s.operands[::-1]],
-                name=self.__name__ + '.T',
+            lambda s: GroupOperator(
+                [m.T for m in s.operands[::-1]], name=self.__name__ + '.T'
             ),
         )
         self.set_rule(
             H,
-            lambda s: ReverseOperatorFactory(
-                GroupOperator,
-                s,
-                [m.H for m in s.operands[::-1]],
-                name=self.__name__ + '.H',
+            lambda s: GroupOperator(
+                [m.H for m in s.operands[::-1]], name=self.__name__ + '.H'
             ),
         )
         self.set_rule(
             '.I',
-            lambda s: ReverseOperatorFactory(
-                GroupOperator,
-                s,
-                [m.I for m in s.operands[::-1]],
-                name=self.__name__ + '.I',
+            lambda s: GroupOperator(
+                [m.I for m in s.operands[::-1]], name=self.__name__ + '.I'
             ),
         )
         self.set_rule(
             '.IC',
-            lambda s: ReverseOperatorFactory(
-                GroupOperator,
-                s,
-                [m.I.C for m in s.operands[::-1]],
-                name=self.__name__ + '.I.C',
+            lambda s: GroupOperator(
+                [m.I.C for m in s.operands[::-1]], name=self.__name__ + '.I.C'
             ),
         )
         self.set_rule(
             IT,
-            lambda s: DirectOperatorFactory(
-                GroupOperator,
-                s,
-                [m.I.T for m in s.operands],
-                name=self.__name__ + '.I.T',
+            lambda s: GroupOperator(
+                [m.I.T for m in s.operands], name=self.__name__ + '.I.T'
             ),
         )
         self.set_rule(
             IH,
-            lambda s: DirectOperatorFactory(
-                GroupOperator,
-                s,
-                [m.I.H for m in s.operands],
-                name=self.__name__ + '.I.H',
+            lambda s: GroupOperator(
+                [m.I.H for m in s.operands], name=self.__name__ + '.I.H'
             ),
         )
         self.del_rule('.{self}', CompositionOperator)
@@ -3964,7 +3952,7 @@ class ReshapeOperator(Operator):
             self.__init__(shapein, **keywords)
             return
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
-        self.set_rule('.T', lambda s: ReverseOperatorFactory(ReshapeOperator, s))
+        self.set_rule('.T', lambda s: ReshapeOperator())
         self.set_rule('{self}.', self._rule_reshape, CompositionOperator)
 
     def direct(self, input, output):
@@ -4419,22 +4407,14 @@ class HomothetyOperator(DiagonalOperator):
             data = np.asarray(data.flat[0])
 
         DiagonalOperator.__init__(self, data, 'scalar', **keywords)
+        self.set_rule('.C', lambda s: HomothetyOperator(np.conjugate(s.data)))
         self.set_rule(
-            '.C',
-            lambda s: DirectOperatorFactory(HomothetyOperator, s, np.conjugate(s.data)),
-        )
-        self.set_rule(
-            '.I',
-            lambda s: DirectOperatorFactory(
-                HomothetyOperator, s, 1 / s.data if s.data != 0 else np.nan
-            ),
+            '.I', lambda s: HomothetyOperator(1 / s.data if s.data != 0 else np.nan)
         )
         self.set_rule(
             '.IC',
-            lambda s: DirectOperatorFactory(
-                HomothetyOperator,
-                s,
-                np.conjugate(1 / s.data) if s.data != 0 else np.nan,
+            lambda s: HomothetyOperator(
+                np.conjugate(1 / s.data) if s.data != 0 else np.nan
             ),
         )
 
@@ -4514,10 +4494,7 @@ class ConstantOperator(BroadcastingOperator):
             return
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
         self.set_rule(
-            '.C',
-            lambda s: DirectOperatorFactory(
-                ConstantOperator, s, s.data.conjugate(), broadcast=s.broadcast
-            ),
+            '.C', lambda s: ConstantOperator(s.data.conjugate(), broadcast=s.broadcast)
         )
         #        if self.flags.shape_input == 'unconstrained' and \
         #           self.flags.shape_output != 'implicit':
@@ -4613,7 +4590,7 @@ class ZeroOperator(ConstantOperator):
 
     def __init__(self, *args, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
-        self.set_rule('.T', lambda s: ReverseOperatorFactory(ZeroOperator, s))
+        self.set_rule('.T', lambda s: ZeroOperator())
         self.set_rule('.{Operator}', lambda s, o: o, AdditionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
@@ -4671,13 +4648,9 @@ class DenseOperator(Operator):
             self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
         )
         self.data = data
-        self.set_rule(
-            '.C', lambda s: DirectOperatorFactory(type(s), s, np.conjugate(s.data))
-        )
-        self.set_rule('.T', lambda s: ReverseOperatorFactory(type(s), s, s.data.T))
-        self.set_rule(
-            '.H', lambda s: ReverseOperatorFactory(type(s), s, np.conjugate(s.data.T))
-        )
+        self.set_rule('.C', lambda s: type(s)(np.conjugate(s.data)))
+        self.set_rule('.T', lambda s: type(s)(s.data.T))
+        self.set_rule('.H', lambda s: type(s)(np.conjugate(s.data).T))
         self.set_rule(
             '.{HomothetyOperator}',
             lambda s, o: DenseOperator(
@@ -4825,41 +4798,22 @@ class VariableTranspose(Operator):
     __repr__ = __str__
 
 
-def DirectOperatorFactory(cls, source, *args, **keywords):
+def _copy_direct(source, target):
+    keywords = {}
     for attr in OPERATOR_ATTRIBUTES:
-        if attr == 'flags':
-            keywords['flags'] = Operator.validate_flags(
-                keywords.get('flags', {}),
-                real=source.flags.real,
-                square=source.flags.square,
-                inplace=source.flags.inplace,
-                aligned_input=source.flags.aligned_input,
-                aligned_output=source.flags.aligned_output,
-                contiguous_input=source.flags.contiguous_input,
-                contiguous_output=source.flags.contiguous_output,
-            )
-        elif attr not in keywords:
+        if attr != 'flags':
             keywords[attr] = getattr(source, attr)
-    return cls(*args, **keywords)
+    Operator.__init__(target, **keywords)
+    return target
 
 
-def ReverseOperatorFactory(cls, source, *args, **keywords):
-    keywords = _swap_dict_inout(keywords)
+def _copy_reverse(source, target):
+    keywords = {}
     for attr in OPERATOR_ATTRIBUTES:
-        if attr == 'flags':
-            keywords['flags'] = Operator.validate_flags(
-                keywords.get('flags', {}),
-                real=source.flags.real,
-                square=source.flags.square,
-                inplace=source.flags.inplace,
-                aligned_input=source.flags.aligned_output,
-                aligned_output=source.flags.aligned_input,
-                contiguous_input=source.flags.contiguous_output,
-                contiguous_output=source.flags.contiguous_input,
-            )
-        elif attr not in keywords:
+        if attr != 'flags':
             keywords[attr] = getattr(source, _swap_inout(attr))
-    return cls(*args, **keywords)
+    Operator.__init__(target, **keywords)
+    return target
 
 
 def _swap_inout(s):
@@ -4868,10 +4822,6 @@ def _swap_inout(s):
     elif s.endswith('out'):
         return s[:-3] + 'in'
     return s
-
-
-def _swap_dict_inout(d):
-    return dict((_swap_inout(k), v) for (k, v) in d.items())
 
 
 def asoperator(x, constant=False, **keywords):

@@ -11,7 +11,6 @@ from .core import (
     DiagonalOperator,
     HomothetyOperator,
     Operator,
-    ReverseOperatorFactory,
     _pool,
 )
 from .decorators import aligned, contiguous, inplace, linear, real, square, unitary
@@ -36,6 +35,25 @@ except:
 # FFTW out-of-place transforms:
 # PRESERVE_INPUT: default except c2r and hc2r
 # DESTROY_INPUT: default for c2r and hc2r, only possibility for multi c2r
+
+OPERATOR_ATTRIBUTES = [
+    'attrin',
+    'attrout',
+    'classin',
+    'classout',
+    'commin',
+    'commout',
+    'reshapein',
+    'reshapeout',
+    'shapein',
+    'shapeout',
+    'toshapein',
+    'toshapeout',
+    'validatein',
+    'validateout',
+    'dtype',
+    'flags',
+]
 
 
 @linear
@@ -209,15 +227,8 @@ class _FFTWRealConvolutionOperator(Operator):
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
         self.set_rule(
             '.T',
-            lambda s: ReverseOperatorFactory(
-                _FFTWRealConvolutionTransposeOperator,
-                s,
-                s.kernel,
-                s._fplan,
-                s._bplan,
-                s.axes,
-                s.fftw_flag,
-                s.nthreads,
+            lambda s: _FFTWRealConvolutionTransposeOperator(
+                s.kernel, s._fplan, s._bplan, s.axes, s.fftw_flag, s.nthreads
             ),
         )
         self.set_rule(
@@ -442,10 +453,11 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
         _FFTWComplexOperator.__init__(
             self, shapein, axes, fftw_flag, nthreads, dtype, **keywords
         )
+
         self.set_rule(
             '.H',
             lambda s: HomothetyOperator(1 / product(s.shapein))
-            * ReverseOperatorFactory(_FFTWComplexBackwardOperator, s, forward=s),
+            * _FFTWComplexBackwardOperator(s.shapein, forward=s),
         )
         self.set_rule(
             '{_FFTWComplexBackwardOperator}.',
