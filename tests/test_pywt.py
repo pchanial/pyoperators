@@ -14,9 +14,7 @@ from pyoperators.operators_pywt import WaveletOperator, Wavelet2dOperator
 sizes = ((32,),)
 shapes = ((4, 4),)
 wavelist = pywt.wavelist()
-levels = [
-    2,
-]
+levels = [2]
 
 
 def check_wavelet_transpose(w, l, s):

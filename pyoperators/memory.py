@@ -142,8 +142,8 @@ class MemoryPool(object):
         a = v.__array_interface__['data'][0]
         if any(_.__array_interface__['data'][0] == a for _ in self._buffers):
             raise ValueError(
-                'There already is an entry in the pool pointing to'
-                ' this memory location.'
+                'There already is an entry in the pool pointing t'
+                'o this memory location.'
             )
         try:
             i = ifirst(self._buffers, lambda x: x.nbytes >= v.nbytes)
@@ -166,8 +166,6 @@ class MemoryPool(object):
         a buffer from the pool to ensure alignment and contiguity requirements.
 
         """
-        if not isinstance(aligned, bool):
-            stop
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')
         alignment = MEMORY_ALIGNMENT if aligned else 1
@@ -197,8 +195,6 @@ class MemoryPool(object):
         shape, dtype, alignment, contiguity.
 
         """
-        if not isinstance(aligned, bool):
-            stop
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)
         compatible = lambda x: iscompatible(
@@ -226,8 +222,6 @@ class MemoryPool(object):
         on enter, and set it back in the pool on exit.
 
         """
-        if not isinstance(aligned, bool):
-            stop
         v_ = self.extract(shape, dtype, aligned, contiguous, description, verbose)
         v = self.view(v_, shape, dtype)
 

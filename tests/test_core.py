@@ -176,7 +176,6 @@ def test_shape_input_and_output():
 #========================
 
 def test_shape_is_inttuple():
-
     def func(o):
         assert_is_inttuple(o.shapein)
         assert_is_inttuple(o.shapeout)
@@ -703,7 +702,8 @@ def test_propagation_attribute3():
     input.attr_class = 30
     output = op(input)
     assert output.__dict__ == {'attr_instance': 10, 'attr_instance1': 11,
-        'attr_instance2': 12, 'attr_class': 30, 'attr_class2': 2}
+                               'attr_instance2': 12, 'attr_class': 30,
+                               'attr_class2': 2}
     input = ndarray2(1)
     input.attr_class = 30
     input.attr_class2 = 32
@@ -779,7 +779,7 @@ def check_propagation_class(op, i, c):
 
 def check_propagation_class_inplace(op, i, c):
     i = i.copy()
-    op(i,i)
+    op(i, i)
     assert_is(type(i), c)
 
 

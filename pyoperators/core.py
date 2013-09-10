@@ -126,7 +126,7 @@ class OperatorFlags(
         n = max(len(f) for f in self._fields)
         fields = [f.ljust(n) + '= ' for f in self._fields]
         return (
-            self.__class__.__name__
+            type(self).__name__
             + '(\n  '
             + ',\n  '.join(f + repr(v) for f, v in zip(fields, self))
             + ')'
@@ -380,14 +380,14 @@ class Operator(object):
     ----------
     attrin/attrout : dict or function
         If attrout is a dict, its items are added to the output. If it is
-        a function, it takes the input attributes and returns the output
-        attributes. The attrin attribute is only used in the reversed direction.
+        a function, it takes the input attributes and returns the output attri-
+        butes. The attrin attribute is only used in the reversed direction.
     classin/classout : ndarray subclass
         The classout attribute sets the output class. The classin attribute is
         only used in the reversed direction.
     commin/commout : mpi4py.Comm
-        The commin and commout attributes store the MPI communicator for the in-
-        put and output.
+        The commin and commout attributes store the MPI communicator for the
+        input and output.
     reshapein/reshapeout : function
         The reshapein function takes the input shape and returns the output
         shape. The method is used for implicit output shape operators.
@@ -450,7 +450,6 @@ class Operator(object):
         flags={},
         name=None,
     ):
-
         for method, name_ in zip(
             (
                 direct,
@@ -580,8 +579,8 @@ class Operator(object):
         """
         if self.shapein is None:
             raise ValueError(
-                "The operator '" + self.__name__ + "' does not hav"
-                "e an explicit shape."
+                "The operator '" + self.__name__ + "' does not ha"
+                "ve an explicit shape."
             )
         return v.reshape(self.shapein)
 
@@ -593,8 +592,8 @@ class Operator(object):
         """
         if self.shapeout is None:
             raise ValueError(
-                "The operator '" + self.__name__ + "' does not hav"
-                "e an explicit shape."
+                "The operator '" + self.__name__ + "' does not ha"
+                "ve an explicit shape."
             )
         return v.reshape(self.shapeout)
 
@@ -646,8 +645,8 @@ class Operator(object):
         """
         if self.shapein is not None and self.shapein != shapein:
             raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f {1}: '{2}'.".format(shapein, self.__name__, self.shapein)
+                "The input shape '{0}' is incompatible with that of {1}: '{2}'"
+                ".".format(shapein, self.__name__, self.shapein)
             )
 
     def validateout(self, shapeout):
@@ -658,8 +657,8 @@ class Operator(object):
         """
         if self.shapeout is not None and self.shapeout != shapeout:
             raise ValueError(
-                "The output shape '{0}' is incompatible with that "
-                "of {1}: '{2}'.".format(shapeout, self.__name__, self.shapeout)
+                "The output shape '{0}' is incompatible with that of {1}: '{2"
+                "}'.".format(shapeout, self.__name__, self.shapeout)
             )
 
     # for the next methods, the following always stand:
@@ -690,7 +689,7 @@ class Operator(object):
 
         if self.direct is None:
             raise NotImplementedError(
-                'Call to ' + self.__name__ + ' is not imp' 'lemented.'
+                'Call to ' + self.__name__ + ' is not im' 'plemented.'
             )
 
         # get valid input and output
@@ -770,13 +769,13 @@ class Operator(object):
         shapein, shapeout = self._validate_shapes(shapein, shapeout)
         if shapein is None:
             raise ValueError(
-                "The operator's input shape is not explicit. Speci"
-                "fy it with the 'shapein' keyword."
+                "The operator's input shape is not explicit. Spec"
+                "ify it with the 'shapein' keyword."
             )
         if shapeout is None:
             raise ValueError(
-                "The operator's output shape is not explicit. Spec"
-                "ify it with the 'shapeout' keyword."
+                "The operator's output shape is not explicit. Spe"
+                "cify it with the 'shapeout' keyword."
             )
         m, n = product(shapeout), product(shapein)
         d = np.empty((n, m), self.dtype)
@@ -810,14 +809,12 @@ class Operator(object):
         return d.T
 
     def matvec(self, x, out=None):
-
         assert not isinstance(x, np.ndarray) or x.flags.contiguous
         assert out is None or isinstance(out, np.ndarray) and out.flags.contiguous
         x = self.toshapein(x)
         if out is not None:
             out = self.toshapeout(out)
         out = self.__call__(x, out=out)
-
         return out.ravel()
 
     def rmatvec(self, x, out=None):
@@ -835,9 +832,11 @@ class Operator(object):
         predicate : str
             See OperatorUnaryRule and OperatorBinaryRule documentation.
         operation : CompositeOperator sub class
-            Operation to which applies the rule. It can be: CompositionOperator,
-            AdditionOperator and MultiplicationOperator. For unary rules,
-            the value must be None.
+            Operation to which applies the rule. It can be:
+                - None, for unary rules
+                - CompositionOperator
+                - AdditionOperator
+                - MultiplicationOperator.
         globals : dict, optional
             Dictionary containing the operator classes used in class-matching
             rules. It is required for classes not from pyoperators.core and for
@@ -1232,7 +1231,7 @@ class Operator(object):
         if isinstance(self.direct, np.ufunc):
             if self.direct.nin != 1 or self.direct.nout != 1:
                 raise TypeError(
-                    'An ufunc with several inputs or outputs cannot'
+                    'A ufunc with several inputs or outputs cannot'
                     ' be converted to an Operator.'
                 )
             real = True
@@ -1260,13 +1259,13 @@ class Operator(object):
                 and 'inplace_reduction' not in flags
                 or isinstance(flags, OperatorFlags)
             ):
-                if d is not None and 'operation' in d.func_code.co_varnames:
+                if d and 'operation' in d.func_code.co_varnames:
                     self._set_flags('inplace_reduction')
             if self.flags.inplace_reduction:
-                if d is not None and 'operation' not in d.func_code.co_varnames:
+                if d and 'operation' not in d.func_code.co_varnames:
                     raise TypeError(
-                        "The direct method of an inplace-reduction "
-                        "operator must have an 'operation' keyword."
+                        "The direct method of an inplace-reduction operator mu"
+                        "st have an 'operation' keyword."
                     )
 
         if self.flags.inplace:
@@ -1329,14 +1328,14 @@ class Operator(object):
                 self.attrin = attrin
         else:
             raise TypeError(
-                "The 'attrin' keyword should be a dictionary or a f" "unction."
+                "The 'attrin' keyword should be a dictionary or a function."
             )
         if isinstance(attrout, (dict, types.FunctionType, types.MethodType)):
             if not isinstance(attrout, dict) or len(attrout) > 0:
                 self.attrout = attrout
         else:
             raise TypeError(
-                "The 'attrout' keyword should be a dictionary or a " "function."
+                "The 'attrout' keyword should be a dictionary or a function."
             )
         if type(classin) is type and issubclass(classin, np.ndarray):
             self.classin = classin
@@ -1520,8 +1519,8 @@ class Operator(object):
             output = output.view(np.ndarray)
             if output.dtype != dtype:
                 raise ValueError(
-                    "The output has an invalid dtype '{0}'. Expect"
-                    "ed dtype is '{1}'.".format(output.dtype, dtype)
+                    "The output has an invalid dtype '{0}'. Expected dtype is "
+                    "'{1}'.".format(output.dtype, dtype)
                 )
 
             # if the output does not fulfill the operator's alignment &
@@ -1558,8 +1557,8 @@ class Operator(object):
                 and self.flags.shape_output == 'unconstrained'
             ):
                 raise ValueError(
-                    'The output shape of an implicit input shape a'
-                    'nd unconstrained output shape operator cannot be inferred.'
+                    'The output shape of an implicit input shape and unconstra'
+                    'ined output shape operator cannot be inferred.'
                 )
             if shapeout is None:
                 shapeout = input.shape
@@ -1590,8 +1589,8 @@ class Operator(object):
             raise TypeError("Invalid type for the operator flags: {0}.".format(flags))
         if any(f not in OperatorFlags._fields for f in flags):
             raise ValueError(
-                "Invalid operator flags '{0}'. The properties "
-                "must be one of the following: ".format(flags.keys())
+                "Invalid operator flags '{0}'. The properties must be one of t"
+                "he following: ".format(flags.keys())
                 + strenum(OperatorFlags._fields)
                 + '.'
             )
@@ -1631,13 +1630,13 @@ class Operator(object):
 
         if None not in (shapein, shapein_) and shapein != shapein_:
             raise ValueError(
-                "The specified input shape '{0}' is incompatible w"
-                "ith the expected one '{1}'.".format(shapein, shapein_)
+                "The specified input shape '{0}' is incompatible with the expe"
+                "cted one '{1}'.".format(shapein, shapein_)
             )
         if None not in (shapeout, shapeout_) and shapeout != shapeout_:
             raise ValueError(
-                "The specified output shape '{0}' is incompatible "
-                "with the expected one '{1}'.".format(shapeout, shapeout_)
+                "The specified output shape '{0}' is incompatible with the exp"
+                "ected one '{1}'.".format(shapeout, shapeout_)
             )
 
         return (
@@ -1666,9 +1665,8 @@ class Operator(object):
     def __rmul__(self, other):
         if not isscalar(other):
             raise NotImplementedError(
-                "It is not possible to multiply '"
-                + str(type(other))
-                + "' with an Operator."
+                "It is not possible to multiply '" + str(type(other)) + "' wit"
+                "h an Operator."
             )
         return CompositionOperator([other, self])
 
@@ -2174,10 +2172,10 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     """
     Class for multiple disjoint slices.
 
-    The elements of the input not included in the slices are copied over
-    to the output. This is due to fact that is not easy to derive the complement
-    of a set of slices. To set those values to zeros, you might use MaskOperator
-    or write a custom operator.
+    The elements of the input not included in the slices are copied over to
+    the output. This is due to fact that it is not easy to derive
+    the complement of a set of slices. To set those values to zeros, you might
+    use MaskOperator or write a custom operator.
     Currently, there is no check to verify that the slices are disjoint.
     Non-disjoint slices can lead to unexpected results.
 
@@ -2188,8 +2186,8 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     array([ 3.,  1.,  3.,  1.,  3.,  1.])
 
     >>> op = BlockSliceOperator([ConstantOperator(1), ConstantOperator(2)],
-                                ([slice(0,2), slice(0,2)],
-                                 [slice(2,4), slice(2,4)]))
+    ...                         ([slice(0, 2), slice(0, 2)],
+    ...                          [slice(2, 4), slice(2, 4)]))
     >>> op(np.zeros((4,4)))
     array([[ 1.,  1.,  0.,  0.],
            [ 1.,  1.,  0.,  0.],
@@ -2213,8 +2211,8 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             slices = (slices,)
         if len(operands) != len(slices):
             raise ValueError(
-                "The number of slices '{0}' is not equal to the nu"
-                "mber of operands '{1}'.".format(len(slices), len(operands))
+                "The number of slices '{0}' is not equal to the number of oper"
+                "ands '{1}'.".format(len(slices), len(operands))
             )
 
         keywords = self._get_attributes(operands, **keywords)
@@ -2292,13 +2290,12 @@ class NonCommutativeCompositeOperator(CompositeOperator):
 
         # loop over the len(ops)-1 pairs of operands
         while i >= 0:
-
             o1 = ops[i]
             o2 = ops[i + 1]
             rules1 = o1.rules[cls]['left'] if cls in o1.rules else []
             rules2 = o2.rules[cls]['right'] if cls in o2.rules else []
 
-            # subclasses rules have a higher priority than those of superclasses
+            # subclasses rules priority is higher than those of superclasses
             if cls._ge_operator(o1, o2):
                 rules = rules1 + rules2
             else:
@@ -2555,8 +2552,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             2) in-place or out-of-place composition
             3) whether the input should be preserved,
 
-        the routine returns the requirements for the intermediate buffers of the
-        composition and the information to perform the composition:
+        the routine returns the requirements for the intermediate buffers of
+        the composition and the information to perform the composition:
             1) output shape and dtype of each operator
             2) groups of operators that will operate on the same output buffer
         Except for the innermost group, which only contains in-place operators
@@ -2599,9 +2596,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         shapes = self._get_shapes(shapein, shapeout, self.operands)[:-1]
         if None in shapes:
             raise ValueError(
-                "The composition of an unconstrained input shape o"
-                "perator by an unconstrained output shape operator"
-                " is ambiguous."
+                "The composition of an unconstrained input shape operator by a"
+                "n unconstrained output shape operator is ambiguous."
             )
         dtypes = self._get_dtypes(input.dtype)
         sizes = [product(s) * d.itemsize for s, d in izip(shapes, dtypes)]
@@ -3010,25 +3006,25 @@ class BlockOperator(NonCommutativeCompositeOperator):
                 partitionin = len(operands) * (1,)
             elif any(p not in (None, 1) for p in partitionin):
                 raise ValueError(
-                    'If the block operator input shape has one mor'
-                    'e dimension than its blocks, the input partit'
-                    'ion must be a tuple of ones.'
+                    'If the block operator input shape has one more dimension '
+                    'than its blocks, the input partition must be a tuple of o'
+                    'nes.'
                 )
         if new_axisout is not None:
             if partitionout is None:
                 partitionout = len(operands) * (1,)
             elif any(p not in (None, 1) for p in partitionout):
                 raise ValueError(
-                    'If the block operator output shape has one mo'
-                    're dimension than its blocks, the output part'
-                    'ition must be a tuple of ones.'
+                    'If the block operator output shape has one more dimension'
+                    ' than its blocks, the output partition must be a tuple of'
+                    ' ones.'
                 )
 
         if axisin is not None and new_axisin is not None:
-            raise ValueError("The keywords 'axisin' and 'new_axisin' are exclus" "ive.")
+            raise ValueError("The keywords 'axisin' and 'new_axisin' are exclu" "sive.")
         if axisout is not None and new_axisout is not None:
             raise ValueError(
-                "The keywords 'axisout' and 'new_axisout' are excl" "usive."
+                "The keywords 'axisout' and 'new_axisout' are exc" "lusive."
             )
 
         if partitionin is partitionout is None:
@@ -3036,8 +3032,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitionin is not None:
             if len(partitionin) != len(operands):
                 raise ValueError(
-                    'The number of operators must be the same as t'
-                    'he length of the input partition.'
+                    'The number of operators must be the same as '
+                    'the length of the input partition.'
                 )
             partitionin = merge_none(
                 partitionin,
@@ -3048,8 +3044,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitionout is not None:
             if len(partitionout) != len(operands):
                 raise ValueError(
-                    'The number of operators must be the same as t'
-                    'he length of the output partition.'
+                    'The number of operators must be the same as '
+                    'the length of the output partition.'
                 )
             partitionout = merge_none(
                 partitionout,
@@ -3330,8 +3326,9 @@ class BlockOperator(NonCommutativeCompositeOperator):
         rank = len(shape)
         if any(len(s) != rank for s in explicit):
             raise ValueError(
-                "The blocks do not have the same number of dimensi"
-                "ons: '{0}'.".format(shapes)
+                "The blocks do not have the same number of dimensions: '{0}'.".format(
+                    shapes
+                )
             )
         if any(
             shapes[i] is not None and shapes[i][axis] != p[i]
@@ -3339,8 +3336,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             if p[i] is not None
         ):
             raise ValueError(
-                "The blocks have shapes '{0}' incompatible with th"
-                "e partition {1}.".format(shapes, p)
+                "The blocks have shapes '{0}' incompatible with the partition "
+                "{1}.".format(shapes, p)
             )
         if len(explicit) != 1:
             ok = [
@@ -3349,9 +3346,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             ok[axis] = True
             if not all(ok):
                 raise ValueError(
-                    "The dimensions of the blocks '{0}' are not th"
-                    "e same along axes other than that of the part"
-                    "ition '{1}'.".format(shapes, p)
+                    "The dimensions of the blocks '{0}' are not the same along"
+                    " axes other than that of the partition '{1}'.".format(shapes, p)
                 )
 
         p = merge_none(p, [s[axis] if s is not None else None for s in shapes])
@@ -3737,8 +3733,8 @@ class BlockDiagonalOperator(BlockOperator):
                     continue
                 if self.partitionin[i] is None:
                     raise ValueError(
-                        'The shape of an operator with implicit pa'
-                        'rtition cannot be inferred.'
+                        'The shape of an operator with implicit p'
+                        'artition cannot be inferred.'
                     )
                 shapein = list(input.shape)
                 shapein[self.axisin] = self.partitionin[i]
@@ -4019,13 +4015,13 @@ class BroadcastingOperator(Operator):
         values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError(
-                "Invalid value '{0}' for the broadcast keyword. Ex"
-                "pected values are {1}.".format(broadcast, strenum(values))
+                "Invalid value '{0}' for the broadcast keyword. Expected value"
+                "s are {1}.".format(broadcast, strenum(values))
             )
         if broadcast == 'disabled':
             if shapeout not in (None, data.shape):
                 raise ValueError(
-                    "The input shapein is incompatible with the da" "ta shape."
+                    "The input shapein is incompatible with the data shape."
                 )
             shapeout = data.shape
         self.broadcast = broadcast
@@ -4164,8 +4160,8 @@ class BroadcastingOperator(Operator):
             argspec = inspect.getargspec(type(self).__init__)
             nargs = (
                 len(argspec.args)
-                - (len(argspec.defaults) if argspec.defaults is not None else 0)
                 - 1
+                - (len(argspec.defaults) if argspec.defaults is not None else 0)
             )
             slices = op._get_slices(partition, axis, new_axis)
             ops = []
@@ -4236,14 +4232,15 @@ class DiagonalOperator(BroadcastingOperator):
 
     Exemple
     -------
-    >>> A = DiagonalOperator(arange(1, 6, 2))
+    >>> A = DiagonalOperator(np.arange(1, 6, 2))
     >>> A.todense()
 
     array([[1, 0, 0],
            [0, 3, 0],
            [0, 0, 5]])
 
-    >>> A = DiagonalOperator(arange(1, 3), broadcast='rightward', shapein=(2, 2))
+    >>> A = DiagonalOperator(arange(1, 3), broadcast='rightward',
+    ...                      shapein=(2, 2))
     >>> A.todense()
 
     array([[1, 0, 0, 0],
@@ -4331,7 +4328,7 @@ class DiagonalOperator(BroadcastingOperator):
         for si, sd in it:
             if sd != 1 and sd != si:
                 raise ValueError(
-                    "The data array cannot be broadcast across the" " input."
+                    "The data array cannot be broadcast across th" "e input."
                 )
 
     def toshapein(self, v):
@@ -4478,7 +4475,7 @@ class IdentityOperator(HomothetyOperator):
            [ 0.,  0.,  1.]])
 
     >>> I = IdentityOperator(shapein=2)
-    >>> I * arange(2)
+    >>> I * np.arange(2)
     ndarraywrap([ 0.,  1.])
 
     """
@@ -4649,8 +4646,9 @@ class DenseOperator(Operator):
 
     Example
     -------
-    >>> m = array([[1.,2.,3.],[2.,3.,4.]])
-    >>> d([1,0,0])
+    >>> m = np.array([[1., 2., 3.], [2., 3., 4.]])
+    >>> d = DenseOperator(m)
+    >>> d([1, 0, 0])
     array([ 1.,  2.])
     """
 
@@ -4667,15 +4665,15 @@ class DenseOperator(Operator):
             shapein = data.shape[1]
         elif np.product(shapein) != data.shape[1]:
             raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f the input matrix '{1}'.".format(strshape(shapein), data.shape[1])
+                "The input shape '{0}' is incompatible with that of the input "
+                "matrix '{1}'.".format(strshape(shapein), data.shape[1])
             )
         if shapeout is None:
             shapeout = data.shape[0]
         elif np.product(shapeout) != data.shape[0]:
             raise ValueError(
-                "The input shape '{0}' is incompatible with that o"
-                "f the input matrix '{1}'.".format(strshape(shapeout), data.shape[0])
+                "The input shape '{0}' is incompatible with that of the input "
+                "matrix '{1}'.".format(strshape(shapeout), data.shape[0])
             )
         Operator.__init__(
             self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
@@ -4741,13 +4739,13 @@ class ReductionOperator(Operator):
         if isinstance(func, np.ufunc):
             if func.nin != 2:
                 raise TypeError(
-                    "The input ufunc '{0}' has {1} input argument. "
-                    "Expected number is 2.".format(func.__name__, func.nin)
+                    "The input ufunc '{0}' has {1} input argument. Expected nu"
+                    "mber is 2.".format(func.__name__, func.nin)
                 )
             if func.nout != 1:
                 raise TypeError(
-                    "The input ufunc '{0}' has {1} output arguments"
-                    ". Expected number is 1.".format(func.__name__, func.nout)
+                    "The input ufunc '{0}' has {1} output arguments. Expected "
+                    "number is 1.".format(func.__name__, func.nout)
                 )
             if np.__version__ < '1.8':
                 if axis is None:
@@ -4760,8 +4758,8 @@ class ReductionOperator(Operator):
             vars, junk, junk, junk = inspect.getargspec(func)
             if 'axis' not in vars:
                 raise TypeError(
-                    "The input function '{0}' does not have an 'axi"
-                    "s' argument.".format(func.__name__)
+                    "The input function '{0}' does not have an 'ax"
+                    "is' argument.".format(func.__name__)
                 )
             kw = {}
             if 'dtype' in vars:
@@ -4790,7 +4788,7 @@ class ReductionOperator(Operator):
             return
         if len(shape) < (self.axis + 1 if self.axis >= 0 else abs(self.axis)):
             raise ValueError(
-                'The input shape has an insufficient number of dim' 'ensions.'
+                'The input shape has an insufficient number of di' 'mensions.'
             )
 
 
@@ -4809,7 +4807,7 @@ class Variable(Operator):
     @staticmethod
     def _rule_left(self, other):
         raise ValueError(
-            'A variable cannot be composed with an right-hand side' ' operator.'
+            'A variable cannot be composed with an right-hand sid' 'e operator.'
         )
 
     def __str__(self):

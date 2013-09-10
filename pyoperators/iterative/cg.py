@@ -9,6 +9,7 @@ from .stopconditions import MaxIterationStopCondition
 
 __all__ = ['pcg']
 
+
 class PCGAlgorithm(IterativeAlgorithm):
     """
     OpenMP/MPI Preconditioned conjugate gradient iteration to solve A x = b.
@@ -67,27 +68,27 @@ class PCGAlgorithm(IterativeAlgorithm):
         if x0 is None:
             x0 = zeros(b.shape, dtype)
 
-        abnormal_stop_condition = MaxIterationStopCondition(maxiter, 'Solver re'
-            'ached maximum number of iterations without reaching specified tole'
-            'rance.')
+        abnormal_stop_condition = MaxIterationStopCondition(
+            maxiter, 'Solver reached maximum number of iterations without reac'
+            'hing specified tolerance.')
 
-        IterativeAlgorithm.__init__(self, x=x0, abnormal_stop_condition=
-            abnormal_stop_condition, disp=disp, dtype=dtype,
-            reuse_initial_state=reuse_initial_state, inplace_recursion=True,
-            callback=callback)
+        IterativeAlgorithm.__init__(
+            self, x=x0, abnormal_stop_condition=abnormal_stop_condition,
+            disp=disp, dtype=dtype, reuse_initial_state=reuse_initial_state,
+            inplace_recursion=True, callback=callback)
 
         A = asoperator(A)
         if A.shapein is None:
             raise ValueError('The operator input shape is not explicit.')
         if A.shapein != b.shape:
-            raise ValueError("The operator input shape '{0}' is incompatible wi"
-                             "th that of the RHS '{1}'.".format(A.shapein,
-                                                                b.shape))
+            raise ValueError(
+                "The operator input shape '{0}' is incompatible with that of t"
+                "he RHS '{1}'.".format(A.shapein, b.shape))
         self.A = A
         self.b = b
         self.comm = A.commin
         self.norm = lambda x: _norm2(x, self.comm)
-        self.dot = lambda x,y: _dot(x, y, self.comm)
+        self.dot = lambda x, y: _dot(x, y, self.comm)
 
         if M is None:
             M = IdentityOperator()
@@ -189,9 +190,13 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         output = algo.finalize()
         success = False
         message = str(e)
-    return {'x':output, 'success':success, 'message':message,
-            'nit':algo.niterations, 'error':algo.error,
-            'time':time.time() - time0}
+    return {'x': output,
+            'success': success,
+            'message': message,
+            'nit': algo.niterations,
+            'error': algo.error,
+            'time': time.time() - time0}
+
 
 def _norm2(x, comm):
     x = x.ravel()
@@ -199,6 +204,7 @@ def _norm2(x, comm):
     if comm is not None:
         comm.Allreduce(n, n)
     return n
+
 
 def _dot(x, y, comm):
     d = np.array(np.dot(x.ravel(), y.ravel()))

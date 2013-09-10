@@ -11,9 +11,8 @@ values = (-10, -1, 0, 2)
 alist = (-2.0, -1, 0, 1.0, 2.0)
 shapeins = ((1,), (2,), (2, 3))
 
+
 # norms
-
-
 def check_norm2(size, value):
     N = criterions.Norm2()
     assert N(value * np.ones(size)) == size * value**2
@@ -63,8 +62,6 @@ def test_dnorm2_mul():
 
 
 # criterion elements
-
-
 def check_elements(shapein):
     N = criterions.Norm2()
     I = pyoperators.IdentityOperator(shapein=shapein)
@@ -75,10 +72,3 @@ def check_elements(shapein):
 def test_elements():
     for shapein in shapeins:
         yield check_elements, shapein
-
-
-# criterion
-
-
-if __name__ == "__main__":
-    nose.run(defaultTest=__file__)

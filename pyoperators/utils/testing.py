@@ -108,7 +108,10 @@ def assert_is_instance(a, cls, msg=None):
 
 
 def assert_is_not_instance(a, cls, msg=None):
-    """Assert that the first argument is not an instance of the second one."""
+    """
+    Assert that the first argument is not an instance of the second one.
+
+    """
     if not isinstance(a, cls):
         return
     assert False, str(a) + " is a '" + cls.__name__ + "' instance" + _get_msg(msg)

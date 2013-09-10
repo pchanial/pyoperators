@@ -3,8 +3,6 @@ Define decorators for Operator subclasses. These decorators update
 their 'flags' attribute to specify properties such as linear, square etc.
 """
 
-from .memory import MEMORY_ALIGNMENT
-
 
 def flags(cls, *arg, **keywords):
     """

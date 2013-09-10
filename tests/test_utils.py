@@ -1,7 +1,6 @@
 import itertools
 import numpy as np
 
-from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
     cast,

@@ -76,7 +76,6 @@ def test_convolution_complex():
         convol = ConvolutionOperator(kernel, image.shape)
         con = convol(image)
         assert np.allclose(ref, con, atol=1.0e-15)
-
         assert np.allclose(
             convol.todense().T.conjugate(), convol.H.todense(), atol=1.0e-15
         )
@@ -95,7 +94,6 @@ def test_convolution_rules_cmp():
     kernel1.flat[-1] = 0
     kernel2 = np.ones((3, 3), complex)
     kernel2[0, 0] = 0
-
     image = np.zeros(shape, complex)
     image[2, 2] = 1
     ref = scipy.signal.fftconvolve(
@@ -140,7 +138,6 @@ def test_convolution_rules_homothety():
     h = HomothetyOperator(2)
     c = ConvolutionOperator(np.ones((3, 3)), (5, 5))
     ref = c.todense() * h.data
-
     lambda_id = lambda x, y: (x, y)
     lambda_sw = lambda x, y: (y, x)
 

@@ -96,8 +96,8 @@ class _FFTWConvolutionOperator(Operator):
         shapein = tointtuple(shapein)
         if len(shapein) != kernel.ndim:
             raise ValueError(
-                "The kernel dimension '{0}' is incompatible with t"
-                "hat of the specified shape '{1}'.".format(kernel.ndim, len(shapein))
+                "The kernel dimension '{0}' is incompatible with that of the s"
+                "pecified shape '{1}'.".format(kernel.ndim, len(shapein))
             )
 
         # if the kernel is larger than the image, we don't crop it since it
@@ -560,7 +560,6 @@ def _save_wisdom():
     """Save wisdom as 3 files."""
     wisdom = pyfftw.export_wisdom()
     for filename, w in zip(FFTW_WISDOM_FILES, wisdom):
-        print
         try:
             os.remove(filename)
         except OSError:

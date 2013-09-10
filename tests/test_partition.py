@@ -27,7 +27,6 @@ def test_partition1():
     o1 = HomothetyOperator(1, shapein=1)
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=3)
-
     r = DiagonalOperator([1, 2, 2, 3, 3, 3]).todense()
 
     def func(ops, p):
@@ -83,7 +82,6 @@ def test_partition4():
 
     op = Op()
     p = BlockDiagonalOperator([o1, o2, o3], axisin=0)
-
     r = (op + p + op) * p
     assert isinstance(r, BlockDiagonalOperator)
 
@@ -133,7 +131,6 @@ def test_block4():
 
     op = Op()
     p = BlockDiagonalOperator([o1, o2, o3], new_axisin=0)
-
     r = (op + p + op) * p
     assert isinstance(r, BlockDiagonalOperator)
 

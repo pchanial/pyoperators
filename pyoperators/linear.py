@@ -222,8 +222,8 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
     Example
     -------
     >>> alpha = np.arange(100.)
-    >>> d = DiagonalNumexprNonSeparableOperator('(x/x0)**alpha',
-                                                {'alpha':alpha, 'x':1.2,'x0':1})
+    >>> d = DiagonalNumexprNonSeparableOperator(
+    ...     '(x/x0)**alpha', {'alpha': alpha, 'x': 1.2,'x0': 1})
 
     """
 
@@ -232,9 +232,9 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
             raise TypeError('The first argument is not a string expression.')
         if 'broadcast' in keywords and keywords['broadcast'] == 'rightward':
             raise ValueError(
-                'The class DiagonalNumexprNonSeparableOperator doe'
-                's not handle rightward broadcasting. Use the clas'
-                's DiagonalNumexprOperator for this purpose.'
+                'The class DiagonalNumexprNonSeparableOperator does not handle'
+                ' rightward broadcasting. Use the class DiagonalNumexprOperato'
+                'r for this purpose.'
             )
         if 'broadcast' not in keywords or keywords['broadcast'] != 'leftward':
             keywords['broadcast'] = 'disabled'
@@ -286,7 +286,7 @@ class EinsteinSumOperator(Operator):
         subscripts = subscripts.replace(' ', '')
         if '->' not in subscripts:
             raise NotImplementedError(
-                'Unlike einsum, the output subscript cann' 'ot yet be specified.'
+                'Unlike einsum, the output subscript cannot yet be specified.'
             )
         in_, out = subscripts.split('->')
         ins = in_.split(',')
@@ -294,8 +294,8 @@ class EinsteinSumOperator(Operator):
             operands = operands + (X,)
         if len(ins) != len(operands):
             raise ValueError(
-                "The number of input operands '{0}' does not match"
-                " that from the subscripts '{1}'.".format(len(operands), len(ins))
+                "The number of input operands '{0}' does not match that from t"
+                "he subscripts '{1}'.".format(len(operands), len(ins))
             )
         self.iX = ifirst(operands, lambda x: x is X)
         self.operands = operands
@@ -342,7 +342,7 @@ class EinsteinSumOperator(Operator):
 
         Example
         -------
-        >>> list(loop_ellipsis(['a','b',Ellipsis,'c']))
+        >>> list(enumerate_ellipsis(['a', 'b', Ellipsis, 'c']))
         [0, 1, slice(2, -1, None), -1]
 
         """
@@ -385,9 +385,8 @@ class EinsteinSumOperator(Operator):
                             raise StopIteration()
                 if i == -1:
                     raise ValueError(
-                        "Einstein sum subscripts include an output"
-                        " subscript '{0}' which never appeared in "
-                        "an input.".format(subscript)
+                        "Einstein sum subscripts include an output subscript '"
+                        "{0}' which never appeared in an input.".format(subscript)
                     )
                 return None
             except StopIteration:
@@ -420,15 +419,17 @@ class IntegrationTrapezeWeightOperator(BlockRowOperator):
 
     Example
     -------
+    >>> from pyoperators import BlockColumnOperator
     >>> f = np.power
     >>> x = [0.5,1,2,4]
-    >>> F = BlockColumnOperator([Operator(lambda i,o,v=v:f(v,i,o),
-    ...                         flags='square') for v in x], new_axisout=0)
+    >>> F = BlockColumnOperator(
+    ...         [Operator(lambda i, o, v=v: f(v, i, o), flags='square')
+    ...          for v in x], new_axisout=0)
     >>> W = IntegrationTrapezeWeightOperator(x)
     >>> int_f = W * F
     >>> int_f([0,1,2])
     array([  3.5   ,   7.875 ,  22.8125])
-    >>> [ trapz(f(x,a), x) for a in [0,1,2] ]
+    >>> [np.trapz(f(x, a), x) for a in [0, 1, 2]]
     [3.5, 7.875, 22.8125]
 
     """
@@ -583,13 +584,13 @@ class TridiagonalOperator(Operator):
         shapein = diagonal.size
         if subdiagonal.size not in (1, shapein - 1):
             raise ValueError(
-                'The sub diagonal should be the length of the diag'
-                'onal minus one or a scalar.'
+                'The sub diagonal should be the length of the diagonal minus o'
+                'ne or a scalar.'
             )
         if superdiagonal is not None and superdiagonal.size not in (1, shapein - 1):
             raise ValueError(
-                'The super diagonal should be the length of the di'
-                'agonal minus one or a scalar.'
+                'The super diagonal should be the length of the d'
+                'iagonal minus one or a scalar.'
             )
 
         if superdiagonal is None:
@@ -683,7 +684,7 @@ class BandOperator(Operator):
     Store a band matrix in ab format as defined in LAPACK
     documentation.
 
-    TODO: direct and transpose methods should call BLAS2 gbmv (not yet in scipy)
+    TODO:direct and transpose methods should call BLAS2 gbmv (not yet in scipy)
     =====
 
     a[i, j] is stored in ab[ku + 1 + i - j, j]

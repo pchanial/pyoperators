@@ -73,7 +73,7 @@ class MaxIterationStopCondition(StopCondition):
     """
 
     def __init__(
-        self, maxiteration, message='The maximum number of iterations ' 'is reached.'
+        self, maxiteration, message='The maximum number of iterations' ' is reached.'
     ):
         self.maxiteration = maxiteration
         StopCondition.__init__(self, lambda s: s.niterations == maxiteration, message)

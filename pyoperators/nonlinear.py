@@ -54,8 +54,8 @@ class ClipOperator(Operator):
 
     Exemples
     --------
-    >>>  C = ClipOperator(0, 1)
-    >>> x = linspace(-2, 2, 5)
+    >>> C = ClipOperator(0, 1)
+    >>> x = np.linspace(-2, 2, 5)
     >>> x
     array([-2., -1.,  0.,  1.,  2.])
     >>> C(x)
@@ -228,7 +228,7 @@ class MaximumOperator(Operator):
     Exemple
     -------
     >>> M = MaximumOperator(1)
-    >>> x =  linspace(-2, 2, 5)
+    >>> x = np.linspace(-2, 2, 5)
     >>> x
     array([-2., -1.,  0.,  1.,  2.])
     >>> M(x)
@@ -259,7 +259,7 @@ class MinimumOperator(Operator):
     Exemple
     -------
     >>> M = MinimumOperator(1)
-    >>> x =  linspace(-2, 2, 5)
+    >>> x = np.linspace(-2, 2, 5)
     >>> x
     array([-2., -1.,  0.,  1.,  2.])
     >>> M(x)
@@ -287,8 +287,8 @@ class NumexprOperator(Operator):
         The numexp expression to be evaluated. It must contain the 'input'
         variable name.
     global_dict : dict
-        A dictionary of global variables that are passed to numexpr's 'evaluate'
-        method.
+        A dictionary of global variables that are passed to numexpr's
+        'evaluate' method.
 
     Example
     -------
@@ -322,7 +322,8 @@ class NumexprOperator(Operator):
 @inplace
 @separable
 class RoundOperator(Operator):
-    """Rounding operator.
+    """
+    Rounding operator.
 
     The rounding method may be one of the following:
         - rtz : round towards zero (truncation)
