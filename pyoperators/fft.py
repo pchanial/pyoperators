@@ -484,6 +484,7 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
 
     def __init__(self, shapein, dtype=None, forward=None, **keywords):
 
+        dtype = dtype or forward.dtype
         _FFTWComplexOperator.__init__(
             self,
             shapein,
