@@ -23,6 +23,7 @@ __all__ = ['ClipOperator',
            'ToNdOperator',
            'SoftThresholdingOperator']
 
+
 @square
 @inplace
 @separable
@@ -44,8 +45,8 @@ class ClipOperator(Operator):
 
     Exemples
     --------
-    >>>  C = ClipOperator(0, 1)
-    >>> x = linspace(-2, 2, 5)
+    >>> C = ClipOperator(0, 1)
+    >>> x = np.linspace(-2, 2, 5)
     >>> x
     array([-2., -1.,  0.,  1.,  2.])
     >>> C(x)
@@ -57,7 +58,7 @@ class ClipOperator(Operator):
 
     """
     def __init__(self, vmin, vmax, **keywords):
-        Operator.__init__(self, lambda i,o: np.clip(i, vmin, vmax, out=o),
+        Operator.__init__(self, lambda i, o: np.clip(i, vmin, vmax, out=o),
                           **keywords)
 
 
@@ -209,7 +210,7 @@ class MaximumOperator(Operator):
     Exemple
     -------
     >>> M = MaximumOperator(1)
-    >>> x =  linspace(-2, 2, 5)
+    >>> x = np.linspace(-2, 2, 5)
     >>> x
     array([-2., -1.,  0.,  1.,  2.])
     >>> M(x)
@@ -221,10 +222,11 @@ class MaximumOperator(Operator):
 
     """
     def __init__(self, value, **keywords):
-        Operator.__init__(self, lambda i,o: np.maximum(i, value, o), **keywords)
+        Operator.__init__(self, lambda i, o: np.maximum(i, value, o),
+                          **keywords)
 
 
-@square 
+@square
 @inplace
 @separable
 class MinimumOperator(Operator):
@@ -239,7 +241,7 @@ class MinimumOperator(Operator):
     Exemple
     -------
     >>> M = MinimumOperator(1)
-    >>> x =  linspace(-2, 2, 5)
+    >>> x = np.linspace(-2, 2, 5)
     >>> x
     array([-2., -1.,  0.,  1.,  2.])
     >>> M(x)
@@ -251,7 +253,8 @@ class MinimumOperator(Operator):
 
     """
     def __init__(self, value, **keywords):
-        Operator.__init__(self, lambda i,o: np.minimum(i, value, o), **keywords)
+        Operator.__init__(self, lambda i, o: np.minimum(i, value, o),
+                          **keywords)
 
 
 @square
@@ -259,15 +262,15 @@ class MinimumOperator(Operator):
 class NumexprOperator(Operator):
     """
     Return an operator evaluating an expression using numexpr.
-    
+
     Parameters
     ----------
     expr : string
         The numexp expression to be evaluated. It must contain the 'input'
         variable name.
     global_dict : dict
-        A dictionary of global variables that are passed to numexpr's 'evaluate'
-        method.
+        A dictionary of global variables that are passed to numexpr's
+        'evaluate' method.
 
     Example
     -------
@@ -299,8 +302,9 @@ class NumexprOperator(Operator):
 @inplace
 @separable
 class RoundOperator(Operator):
-    """Rounding operator.
-    
+    """
+    Rounding operator.
+
     The rounding method may be one of the following:
         - rtz : round towards zero (truncation)
         - rti : round towards infinity (Not implemented)
@@ -310,27 +314,28 @@ class RoundOperator(Operator):
         - rhti : round half towards infinity (Fortran's nint)
         - rhtmi : round half towards minus infinity
         - rhtpi : round half towards positive infinity
-        - rhte : round half to even (numpy's round), 
+        - rhte : round half to even (numpy's round),
         - rhto : round half to odd
         - rhs : round half stochastically (Not implemented)
 
     """
     def __init__(self, method='rhte', **keywords):
         method = method.lower()
-        table = {'rtz'   : np.trunc,
+        table = {'rtz': np.trunc,
                  #'rti'
-                 'rtmi'  : np.floor,
-                 'rtpi'  : np.ceil,
+                 'rtmi': np.floor,
+                 'rtpi': np.ceil,
                  #'rhtz'
                  #'rhti'
-                 'rhtmi' : self._direct_rhtmi,
-                 'rhtpi' : self._direct_rhtpi,
-                 'rhte'  : lambda i,o: np.round(i,0,o),
+                 'rhtmi': self._direct_rhtmi,
+                 'rhtpi': self._direct_rhtpi,
+                 'rhte': lambda i, o: np.round(i, 0, o),
                  #'rhs'
                  }
         if method not in table:
-            raise ValueError('Invalid rounding method. Expected values are {0}.'
-                             .format(strenum(table.keys())))
+            raise ValueError(
+                'Invalid rounding method. Expected values are {0}.'.format(
+                strenum(table.keys())))
         Operator.__init__(self, table[method], **keywords)
         self.method = method
 

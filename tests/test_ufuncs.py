@@ -4,6 +4,7 @@ from pyoperators.utils.testing import assert_eq
 from pyoperators.utils.ufuncs import masking, multiply_conjugate
 from .common import DTYPES, COMPLEX_DTYPES
 
+
 def test_masking():
     def func(a, mask):
         actual = masking(a, mask)
@@ -17,6 +18,7 @@ def test_masking():
         mask = np.array([True, False, False, True], dtype=bool)
         yield func, a, mask
 
+
 def test_multiply_conjugate():
     def func(x1, x2, cdtype):
         result = multiply_conjugate(x1, x2)
@@ -26,7 +28,7 @@ def test_multiply_conjugate():
         multiply_conjugate(x1, x2, result)
         assert_eq(result, expected)
     for dtype, cdtype in itertools.product(DTYPES, COMPLEX_DTYPES):
-        x1 = np.array([1+1j,1+1j,3+1j])
+        x1 = np.array([1+1j, 1+1j, 3+1j])
         if dtype.kind == 'c':
             x1 = x1.astype(dtype)
         else:

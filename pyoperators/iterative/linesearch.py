@@ -22,10 +22,11 @@ __all__ = ['optimal_step',
            'Backtracking',
            'default_backtracking']
 
+
 def optimal_step(algo):
     """
     Finds quadratic optimal step of a criterion.
-    
+
     Arguments
     ----------
 
@@ -52,10 +53,12 @@ def optimal_step(algo):
     a /= np.sum([N(O * d) for N, O in zip(norms, ops)])
     return a
 
+
 class Backtracking(object):
     def __init__(self, maxiter=10, tau=.5):
         self.maxiter = maxiter
         self.tau = tau
+
     def __call__(self, algo):
         x = algo.current_solution
         d = algo.current_descent
@@ -94,6 +97,7 @@ if 'linesearch' in locals():
             self.old_fval = None
             self.old_old_fval = None
             self.step = None
+
         def get_values(self, algo):
             self.f = algo.criterion
             self.fprime = algo.gradient
@@ -102,13 +106,15 @@ if 'linesearch' in locals():
             self.gfk = algo.current_gradient
             self.old_fval = algo.current_criterion
             self.old_old_fval = algo.last_criterion
+
         def _line_search(s):
             line_search = linesearch.line_search
             out = line_search(s.f, s.fprime, s.xk, s.pk, gfk=s.gfk,
-                                    old_fval=s.old_fval,
-                                    old_old_fval=s.old_old_fval,
-                                    args=s.args, **s.kwargs)
+                              old_fval=s.old_fval,
+                              old_old_fval=s.old_old_fval,
+                              args=s.args, **s.kwargs)
             s.step = out[0]
+
         def __call__(self, algo):
             # get values
             self.get_values(algo)
@@ -118,6 +124,7 @@ if 'linesearch' in locals():
             if self.step is None:
                 self.step = optimal_step(algo)
             return self.step
+
 
     class LineSearchArmijo(LineSearch):
         """
@@ -129,6 +136,7 @@ if 'linesearch' in locals():
                          **s.kwargs)
             s.step = out[0]
 
+
     class LineSearchWolfe1(LineSearch):
         """
         Wraps scipy.optimize.linesearch.line_search_wolfe1
@@ -138,6 +146,7 @@ if 'linesearch' in locals():
             out = wolfe1(s.f, s.fprime, s.xk, s.pk, s.gfk, s.old_fval,
                          s.old_old_fval, args=s.args, **s.kwargs)
             s.step = out[0]
+
 
     class LineSearchWolfe2(LineSearch):
         """

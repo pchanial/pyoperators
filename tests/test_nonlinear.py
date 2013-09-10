@@ -6,10 +6,11 @@ from pyoperators import (HardThresholdingOperator, IdentityOperator,
                          SoftThresholdingOperator)
 from pyoperators.utils.testing import assert_is_instance
 
+
 def test_rounding():
-    a=np.array([-3.5,-3,-2.6,-2.5,-2.4,0,0.2,0.5,0.9,1,1.5])
+    a = np.array([-3.5, -3, -2.6, -2.5, -2.4, 0, 0.2, 0.5, 0.9, 1, 1.5])
     r = RoundOperator('rtz')
-    yield assert_equal, r(a), [-3,-3, -2, -2, -2, 0, 0, 0, 0, 1, 1]
+    yield assert_equal, r(a), [-3, -3, -2, -2, -2, 0, 0, 0, 0, 1, 1]
     #r = RoundOperator('rti')
     #yield assert_equal, r(a), [-4, -3, -3, -3, -3, 0, 1, 1, 1, 2]
     r = RoundOperator('rtmi')
@@ -38,18 +39,20 @@ def test_rounding():
 
 def test_numexpr1():
     d = 7.
-    op = NumexprOperator('2.*exp(input)+d', {'d':d})
+    op = NumexprOperator('2.*exp(input)+d', {'d': d})
     assert op(3.) == 2*np.exp(3.)+d
+
 
 def test_numexpr2():
     op = NumexprOperator('3*input') + NumexprOperator('2*input')
     assert_equal(op(np.arange(10)), 5*np.arange(10))
 
+
 def test_hard_thresholding():
     x = [-1., -0.2, -0.1, 0, 0.2, 0.1, 2, 3]
     lbda = 0.2
     H = HardThresholdingOperator(lbda)
-    expected = [-1, 0, 0, 0, 0, 0, 2,3]
+    expected = [-1, 0, 0, 0, 0, 0, 2, 3]
     assert_equal(H(x), expected)
     x = np.array(x)
     H(x, x)
@@ -67,7 +70,7 @@ def test_hard_thresholding():
     assert_equal(K.a, np.maximum(lbda, lbda2))
     assert_equal(K.shapein, shape)
 
-    H = HardThresholdingOperator([0,0])
+    H = HardThresholdingOperator([0, 0])
     assert_is_instance(H, IdentityOperator)
     assert_equal(H.shapein, (2,))
 
@@ -76,8 +79,8 @@ def test_hard_thresholding():
     assert H.flags.square
     assert_equal(H.flags.shape_input, 'implicit')
     assert_equal(H.flags.shape_output, 'implicit')
-    
-    
+
+
 def test_soft_thresholding():
     x = [-1., -0.2, -0.1, 0, 0.1, 0.2, 2, 3]
     lbda = np.array(0.2)
@@ -92,7 +95,7 @@ def test_soft_thresholding():
     T = SoftThresholdingOperator(lbda2)
     assert_equal(T.shapein, shape)
 
-    S = SoftThresholdingOperator([0,0])
+    S = SoftThresholdingOperator([0, 0])
     assert_is_instance(S, IdentityOperator)
     assert_equal(S.shapein, (2,))
 

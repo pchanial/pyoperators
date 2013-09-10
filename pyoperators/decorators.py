@@ -3,7 +3,6 @@ Define decorators for Operator subclasses. These decorators update
 their 'flags' attribute to specify properties such as linear, square etc.
 """
 
-from .memory import MEMORY_ALIGNMENT
 
 def flags(cls, *arg, **keywords):
     """
@@ -13,12 +12,14 @@ def flags(cls, *arg, **keywords):
     base.__dict__['_set_flags'](cls, *arg, **keywords)
     return cls
 
+
 def linear(cls):
     """
     Decorator for linear operators.
     It sets the 'linear' flags.
     """
     return flags(cls, 'linear')
+
 
 def square(cls):
     """
@@ -28,6 +29,7 @@ def square(cls):
     """
     return flags(cls, 'square')
 
+
 def real(cls):
     """
     Decorator for real operators, i.e. operators that are equal to
@@ -35,6 +37,7 @@ def real(cls):
     It sets the 'real' flags.
     """
     return flags(cls, 'real')
+
 
 def symmetric(cls):
     """
@@ -44,6 +47,7 @@ def symmetric(cls):
     """
     return flags(cls, 'symmetric')
 
+
 def hermitian(cls):
     """
     Decorator for hermitian operators, i.e. operators that are equal to their
@@ -51,6 +55,7 @@ def hermitian(cls):
     It sets the 'linear', 'square' and 'hermitian' flags.
     """
     return flags(cls, 'hermitian')
+
 
 def idempotent(cls):
     """
@@ -60,6 +65,7 @@ def idempotent(cls):
     """
     return flags(cls, 'idempotent')
 
+
 def involutary(cls):
     """
     Decorator for involutary operators, i.e. operators whose composition
@@ -67,6 +73,7 @@ def involutary(cls):
     It sets the 'square' and 'involutary' flags.
     """
     return flags(cls, 'involutary')
+
 
 def orthogonal(cls):
     """
@@ -76,6 +83,7 @@ def orthogonal(cls):
     """
     return flags(cls, 'orthogonal')
 
+
 def unitary(cls):
     """
     Decorator for orthogonal operators, i.e. operators whose composition
@@ -84,11 +92,13 @@ def unitary(cls):
     """
     return flags(cls, 'unitary')
 
+
 def universal(cls):
     """
     Obsolete decorator, use 'separable' instead.
     """
     return flags(cls, 'separable')
+
 
 def separable(cls):
     """
@@ -100,6 +110,7 @@ def separable(cls):
     """
     return flags(cls, 'separable')
 
+
 def inplace(cls):
     """
     Decorator for inplace operators, i.e operators that can handle input and
@@ -109,6 +120,7 @@ def inplace(cls):
     """
     return flags(cls, 'inplace')
 
+
 def aligned(cls):
     """
     Decorator to ensure that both input and output of the operator are
@@ -117,6 +129,7 @@ def aligned(cls):
     """
     return flags(cls, 'aligned_input,aligned_output')
 
+
 def aligned_input(cls):
     """
     Decorator to ensure that operator's input is aligned in memory.
@@ -124,12 +137,14 @@ def aligned_input(cls):
     """
     return flags(cls, 'aligned_input')
 
+
 def aligned_output(cls):
     """
     Decorator to ensure that operator's output is aligned in memory.
     It sets the alignment_output attribute to True.
     """
     return flags(cls, 'aligned_output')
+
 
 def contiguous(cls):
     """
@@ -139,12 +154,14 @@ def contiguous(cls):
     """
     return flags(cls, 'contiguous_input,contiguous_output')
 
+
 def contiguous_input(cls):
     """
     Decorator to ensure that operator's input is C-contiguous in memory.
     It sets the contiguous_input attribute to True.
     """
     return flags(cls, 'contiguous_input')
+
 
 def contiguous_output(cls):
     """

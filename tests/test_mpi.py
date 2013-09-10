@@ -1,9 +1,9 @@
 import numpy as np
 from pyoperators import (MPIDistributionGlobalOperator,
                          MPIDistributionIdentityOperator, MPI)
-from pyoperators.utils.mpi import (DTYPE_MAP, OP_PY_MAP, OP_MPI_MAP, as_mpi,
-         combine_shape, distribute_shape, distribute_shapes, distribute_slice,
-         filter_comm)
+from pyoperators.utils.mpi import (
+    DTYPE_MAP, OP_PY_MAP, OP_MPI_MAP, as_mpi, combine_shape, distribute_shape,
+    distribute_shapes, distribute_slice, filter_comm)
 from pyoperators.utils.testing import assert_eq
 from numpy.testing import assert_equal
 
@@ -12,8 +12,10 @@ rank = comm.rank
 size = comm.size
 dtypes = DTYPE_MAP
 
+
 def test_allreduce():
     n = 10
+
     def func(x, xs, op):
         op_py = OP_PY_MAP[op]
         op_mpi = OP_MPI_MAP[op]
@@ -38,6 +40,7 @@ def test_allreduce():
                 continue
             yield func, x, xs, op
 
+
 def test_collect():
     def func(comm, s1, s2):
         shape_global = (s1,) + s2
@@ -46,8 +49,9 @@ def test_collect():
         assert shape_global == shape_global2
     for comm in (MPI.COMM_SELF, MPI.COMM_WORLD):
         for s1 in range(size*2+1):
-            for s2 in ((), (2,), (2,3)):
+            for s2 in ((), (2,), (2, 3)):
                 yield func, comm, s1, s2
+
 
 def test_distribute():
     class MyComm(object):
@@ -56,22 +60,23 @@ def test_distribute():
             self.size = size
     if size > 1:
         return
+
     def func(a, r, shape, shapes):
         assert_equal(a[r], shape[0])
         assert_equal(shapes[r], shape)
 
     for n in range(10):
-        for sz in range(1,7):
+        for sz in range(1, 7):
             work = np.zeros(n, int)
             for i in range(n):
                 work[i] = i % sz
             a = np.zeros(sz, int)
             for r in range(sz):
-                a[r] = sum(work==r)
+                a[r] = sum(work == r)
             stop = tuple(np.cumsum(a))
             start = (0,) + stop[:-1]
             comm = MyComm(0, sz)
-            for s in [(), (1,), (3,4)]:
+            for s in [(), (1,), (3, 4)]:
                 shapes = distribute_shapes((n,) + s, comm=comm)
                 for r in range(sz):
                     shape = distribute_shape((n,) + s, rank=r, size=sz)
@@ -81,7 +86,6 @@ def test_distribute():
                     sl = slice(start[r], stop[r])
                     yield assert_eq, sl, distribute_slice(n, rank=r, size=sz)
 
-    
 
 def test_dgo():
     def func(shape, dtype):
@@ -91,9 +95,10 @@ def test_dgo():
         x_local = d(x_global)
         assert_eq(x_local, x_global[s])
         assert_eq(d.T(x_local), x_global)
-    for shape in (2,), (2,3):
+    for shape in (2,), (2, 3):
         for dtype in dtypes:
             yield func, shape, dtype
+
 
 def test_dio():
     def func(shape, dtype):
@@ -102,9 +107,10 @@ def test_dio():
         assert_eq(d(x_global), x_global)
         x_local = x_global * (rank + 1)
         assert_eq(d.T(x_local), np.ones(shape) * size * (size + 1) // 2)
-    for shape in (2,), (2,3):
+    for shape in (2,), (2, 3):
         for dtype in dtypes:
             yield func, shape, dtype
+
 
 def test_dio_inplace():
     def func(n):
@@ -114,8 +120,10 @@ def test_dio_inplace():
     for n in range(10):
         yield func, n
 
+
 def test_filter_comm():
     comm = MPI.COMM_WORLD
+
     def func(nglobal):
         d = np.array(comm.rank)
         with filter_comm(comm.rank < nglobal, comm) as newcomm:

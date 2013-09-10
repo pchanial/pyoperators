@@ -43,7 +43,7 @@ class MPIDistributionGlobalOperator(Operator):
     0 : [1] True
     1 : [2] True
     2 : [3] True
-    
+
     """
 
     def __init__(self, shapein, commout=None, **keywords):
@@ -76,9 +76,10 @@ class MPIDistributionGlobalOperator(Operator):
         if input.itemsize != output.itemsize:
             input = input.astype(output.dtype)
         nbytes = output.itemsize
-        self.commout.Allgatherv(input.view(np.byte), [output.view(np.byte),
-            ([c * nbytes for c in self.counts], [o * nbytes for o in \
-            self.offsets])])
+        self.commout.Allgatherv(
+            input.view(np.byte), [output.view(np.byte),
+                                  ([c * nbytes for c in self.counts],
+                                   [o * nbytes for o in self.offsets])])
 
 
 @real
@@ -127,7 +128,7 @@ class MPIDistributionIdentityOperator(Operator):
     0 : True [6 6 6]
     1 : True [6 6 6]
     2 : True [6 6 6]
-    
+
     """
 
     def __init__(self, commout=None, **keywords):

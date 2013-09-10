@@ -16,8 +16,10 @@ __all__ = ['AbnormalStopIteration', 'IterativeAlgorithm']
 
 NO_STOP_CONDITION = NoStopCondition()
 
+
 class AbnormalStopIteration(Exception):
     pass
+
 
 class IterativeAlgorithm(object):
     """
@@ -57,8 +59,8 @@ class IterativeAlgorithm(object):
     Attributes
     ----------
     info : dict
-        This dictionary contains the recursion names of the recursion variables,
-        their dtype and their shape.
+        This dictionary contains the recursion names of the recursion
+        variables, their dtype and their shape.
     niterations : int
         Number of completed iterations. During the first pass, its value is
         equal to the recursion order minus one when the stop conditions are
@@ -112,11 +114,11 @@ class IterativeAlgorithm(object):
             precision. It does not alter the data kind: complex variables stay
             complex.
         inplace_recursion : boolean, optional
-            In some algorithm, it is not necessary to keep a copy of two states.
-            It is then advisable to do the update in-place. For a given variable
-            'x', if the value of this argument is False, the variables 'x_new'
-            and 'x' will be available. If the value is True, only 'x' will be
-            and the argument allocate_new_state has no effect.
+            In some algorithm, it is not necessary to keep a copy of two
+            states. It is then advisable to do the update in-place. For a given
+            variable 'x', if the value of this argument is False, the variables
+            'x_new' and 'x' will be available. If the value is True, only 'x'
+            will be and the argument allocate_new_state has no effect.
         normal_stop_condition : StopCondition, optional
             The normal stop condition that will termintate the iteration.
         abnormal_stop_condition : StopCondition, optional
@@ -137,7 +139,8 @@ class IterativeAlgorithm(object):
         self._set_variables(keywords)
         self._set_initial_state(keywords, dtype)
         self._set_callback(callback)
-        self._set_stop_conditions(normal_stop_condition,abnormal_stop_condition)
+        self._set_stop_conditions(normal_stop_condition,
+                                  abnormal_stop_condition)
         self.niterations = self.order - 1
 
     def __iter__(self):
@@ -159,8 +162,8 @@ class IterativeAlgorithm(object):
     def cont(self):
         """ Continue an interrupted computation. """
         if self.niterations == 0:
-            raise RuntimeError("The iterative algorithm is not already started."
-                               " Use the 'run' method.")
+            raise RuntimeError("The iterative algorithm is not yet started. Us"
+                               "e the 'run' method.")
         try:
             return self.next(np.iinfo(int).max)
         except StopIteration:
@@ -186,10 +189,10 @@ class IterativeAlgorithm(object):
 
         """
         if self.niterations > self.order - 1 and self.reuse_initial_state:
-            raise RuntimeError('It is not possible to restart an algorithm for '
-                               'which the initial state has not been saved. Ins'
-                               'tantiate the algorithme with the keyword reuse_'
-                               'initial_state set to False.')
+            raise RuntimeError(
+                'It is not possible to restart an algorithm for which the init'
+                'ial state has not been saved. Instantiate the algorithme with'
+                ' the keyword reuse_initial_state set to False.')
         self.niterations = self.order - 1
         self.success = True
         skip_new = not self.inplace_recursion
@@ -199,7 +202,8 @@ class IterativeAlgorithm(object):
         copy = (self.inplace_recursion or self.allocate_new_state) and \
                not self.reuse_initial_state
         for var, info in self.info.items():
-            for n, b in zip(info['names'][skip_new:], self._initial_state[var]):
+            for n, b in zip(info['names'][skip_new:],
+                            self._initial_state[var]):
                 #XXX FIXME: b should be aligned...
                 b = np.array(b, info['dtype'], order='c', copy=copy)
                 setattr(self, n, b)
@@ -230,8 +234,8 @@ class IterativeAlgorithm(object):
         ones.
 
         """
-        raise NotImplementedError("The algorithm does not define an 'iteration'"
-                                  " method.")
+        raise NotImplementedError("The algorithm does not define an 'iteration"
+                                  "' method.")
 
     def restart(self, n=None):
         """ Restart the algorithm. """
@@ -241,8 +245,8 @@ class IterativeAlgorithm(object):
     def run(self, n=None):
         """ Run the algorithm. """
         if self.niterations > self.order - 1:
-            raise RuntimeError("The iterative algorithm is already started. Use"
-                               " the methods 'restart' or 'cont' instead.")
+            raise RuntimeError("The iterative algorithm is already started. Us"
+                               "e the methods 'restart' or 'cont' instead.")
         n = n or np.iinfo(int).max
         try:
             return self.next(n)
@@ -312,8 +316,8 @@ class IterativeAlgorithm(object):
         self.callback = callback
 
     def _set_initial_state(self, keywords, default_dtype):
-        # _initial_state contains references to the input initial state: no copy
-        # nor casting is done.
+        # _initial_state contains references to the input initial state:
+        # no copy nor casting is done.
         self.info = {}
         self._initial_state = {}
         self._buffers = {} if self.allocate_new_state else None
@@ -340,8 +344,8 @@ class IterativeAlgorithm(object):
 
             shape = shapes[0]
             if any(s != shape for s in shapes[1:]):
-                raise ValueError("The shapes of the initial values of '{0}' are"
-                                 " incompatible: {1}.".format(var, shapes))
+                raise ValueError("The shapes of the initial values of '{0}' ar"
+                                 "e incompatible: {1}.".format(var, shapes))
 
             self.info[var] = {'names': names,
                               'shape': shape,
@@ -362,11 +366,11 @@ class IterativeAlgorithm(object):
             d = collections.defaultdict(list)
             for n, a in zip(names, addresses):
                 d[a].append(n)
-            duplicates = [v for k,v in d.items() if len(v) > 1 and k != 0]
+            duplicates = [v for k, v in d.items() if len(v) > 1 and k != 0]
             if len(duplicates) > 0:
-                raise ValueError('Some initial values refer to the same buffer:'
-                                 ' {0}.'.format(strenum(['='.join(d) for d in
-                                 duplicates], 'and')))
+                raise ValueError(
+                    'Some initial values refer to the same buffer: {0}.'.
+                    format(strenum(('='.join(d) for d in duplicates), 'and')))
 
     def _set_order(self, keywords):
         """ Set the order of the recursion. """
@@ -394,8 +398,8 @@ class IterativeAlgorithm(object):
         for var in variables:
             for s in suffix:
                 if s != '_new' and var + s not in keywords:
-                    raise ValueError("The initial value '{0}' is not specified.".
-                                     format(var + s))
+                    raise ValueError("The initial value '{0}' is not specified"
+                                     ".".format(var + s))
         self.variables = variables
 
     def _update_variables(self):
@@ -408,5 +412,3 @@ class IterativeAlgorithm(object):
             setattr(self, names[0], buffers[-1])
             for n, b in zip(names[1:], buffers[:-1]):
                 setattr(self, n, b)
-
-

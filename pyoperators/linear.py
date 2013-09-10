@@ -144,7 +144,7 @@ class DiagonalNumexprOperator(DiagonalOperator):
         self.global_dict = global_dict
         self._global_dict = {} if global_dict is None else global_dict.copy()
         self._global_dict[var] = self.data.T if self.broadcast == \
-                                     'rightward' else self.data
+            'rightward' else self.data
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -154,17 +154,18 @@ class DiagonalNumexprOperator(DiagonalOperator):
                          global_dict=self._global_dict, out=output)
 
     def get_data(self):
-        local_dict = {self.var:self.data}
+        local_dict = {self.var: self.data}
         return numexpr.evaluate(self.expr, local_dict=local_dict,
                                 global_dict=self.global_dict)
 
     @staticmethod
-    def _rule_block(self, op, shape, partition, axis, new_axis, func_operation):
+    def _rule_block(self, op, shape, partition, axis, new_axis,
+                    func_operation):
         if type(self) is not DiagonalNumexprOperator:
             return None
-        return DiagonalOperator._rule_block(self, op, shape, partition, axis,
-                   new_axis, func_operation, self.expr, global_dict=
-                   self.global_dict, var=self.var)
+        return DiagonalOperator._rule_block(
+            self, op, shape, partition, axis, new_axis, func_operation,
+            self.expr, global_dict=self.global_dict, var=self.var)
 
 
 class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
@@ -187,17 +188,18 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
     Example
     -------
     >>> alpha = np.arange(100.)
-    >>> d = DiagonalNumexprNonSeparableOperator('(x/x0)**alpha',
-                                                {'alpha':alpha, 'x':1.2,'x0':1})
+    >>> d = DiagonalNumexprNonSeparableOperator(
+    ...     '(x/x0)**alpha', {'alpha': alpha, 'x': 1.2,'x0': 1})
 
     """
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
         if not isinstance(expr, str):
             raise TypeError('The first argument is not a string expression.')
         if 'broadcast' in keywords and keywords['broadcast'] == 'rightward':
-            raise ValueError('The class DiagonalNumexprNonSeparableOperator doe'
-                             's not handle rightward broadcasting. Use the clas'
-                             's DiagonalNumexprOperator for this purpose.')
+            raise ValueError(
+                'The class DiagonalNumexprNonSeparableOperator does not handle'
+                ' rightward broadcasting. Use the class DiagonalNumexprOperato'
+                'r for this purpose.')
         if 'broadcast' not in keywords or keywords['broadcast'] != 'leftward':
             keywords['broadcast'] = 'disabled'
         self.expr = expr
@@ -241,16 +243,16 @@ class EinsteinSumOperator(Operator):
     def __init__(self, subscripts, *operands, **keywords):
         subscripts = subscripts.replace(' ', '')
         if '->' not in subscripts:
-            raise NotImplementedError('Unlike einsum, the output subscript cann'
-                                      'ot yet be specified.')
+            raise NotImplementedError(
+                'Unlike einsum, the output subscript cannot yet be specified.')
         in_, out = subscripts.split('->')
         ins = in_.split(',')
         if len(operands) == len(ins) - 1 and X not in operands:
             operands = operands + (X,)
         if len(ins) != len(operands):
-            raise ValueError("The number of input operands '{0}' does not match"
-                             " that from the subscripts '{1}'.".format(len(
-                             operands), len(ins)))
+            raise ValueError(
+                "The number of input operands '{0}' does not match that from t"
+                "he subscripts '{1}'.".format(len(operands), len(ins)))
         self.iX = ifirst(operands, lambda x: x is X)
         self.operands = operands
         self.subscripts = subscripts
@@ -291,7 +293,7 @@ class EinsteinSumOperator(Operator):
 
         Example
         -------
-        >>> list(loop_ellipsis(['a','b',Ellipsis,'c']))
+        >>> list(enumerate_ellipsis(['a', 'b', Ellipsis, 'c']))
         [0, 1, slice(2, -1, None), -1]
 
         """
@@ -324,31 +326,32 @@ class EinsteinSumOperator(Operator):
                     if iother == i or shapes[iother] is None:
                         continue
                     for iaxis_other, subscript_other in \
-                        self._enumerate_ellipsis(subscripts_other):
+                            self._enumerate_ellipsis(subscripts_other):
                         #print 'iaxis_other, subscript_other:', iaxis_other, subscript_other
                         if subscript == subscript_other:
                             new_dims = tointtuple(shapes[iother][iaxis_other])
                             shape.extend(new_dims)
                             raise StopIteration()
                 if i == -1:
-                    raise ValueError("Einstein sum subscripts include an output"
-                                     " subscript '{0}' which never appeared in "
-                                     "an input.".format(subscript))
+                    raise ValueError(
+                        "Einstein sum subscripts include an output subscript '"
+                        "{0}' which never appeared in an input.".format(
+                        subscript))
                 return None
             except StopIteration:
                 pass
         return tuple(shape)
-        
+
     def _get_subscript_as_list(self, s):
         s = s.replace('...', '.')
         return [l if l != '.' else Ellipsis for l in s]
-        
+
 
 class IntegrationTrapezeWeightOperator(BlockRowOperator):
     """
     Return weights as a block row operator to perform trapeze integration.
 
-    This operator can be used to integrate over X the bivariate function 
+    This operator can be used to integrate over X the bivariate function
         f = f(X,Y).
     Let's assume f is sampled at n abscissa x_n non necessarily equally spaced
         f_i(Y) = f(x_i, Y).
@@ -365,15 +368,17 @@ class IntegrationTrapezeWeightOperator(BlockRowOperator):
 
     Example
     -------
+    >>> from pyoperators import BlockColumnOperator
     >>> f = np.power
     >>> x = [0.5,1,2,4]
-    >>> F = BlockColumnOperator([Operator(lambda i,o,v=v:f(v,i,o),
-    ...                         flags='square') for v in x], new_axisout=0)
+    >>> F = BlockColumnOperator(
+    ...         [Operator(lambda i, o, v=v: f(v, i, o), flags='square')
+    ...          for v in x], new_axisout=0)
     >>> W = IntegrationTrapezeWeightOperator(x)
     >>> int_f = W * F
     >>> int_f([0,1,2])
     array([  3.5   ,   7.875 ,  22.8125])
-    >>> [ trapz(f(x,a), x) for a in [0,1,2] ]
+    >>> [np.trapz(f(x, a), x) for a in [0, 1, 2]]
     [3.5, 7.875, 22.8125]
 
     """
@@ -521,12 +526,13 @@ class TridiagonalOperator(Operator):
 
         shapein = diagonal.size
         if subdiagonal.size not in (1, shapein - 1):
-            raise ValueError('The sub diagonal should be the length of the diag'
-                             'onal minus one or a scalar.')
+            raise ValueError(
+                'The sub diagonal should be the length of the diagonal minus o'
+                'ne or a scalar.')
         if superdiagonal is not None and \
            superdiagonal.size not in (1, shapein - 1):
-            raise ValueError('The super diagonal should be the length of the di'
-                             'agonal minus one or a scalar.')
+            raise ValueError('The super diagonal should be the length of the d'
+                             'iagonal minus one or a scalar.')
 
         if superdiagonal is None:
             superdiagonal = subdiagonal.conj()
@@ -536,21 +542,24 @@ class TridiagonalOperator(Operator):
         self.superdiagonal = superdiagonal
 
         flags = {'real': dtype.kind != 'c',
-                 'symmetric':np.allclose(self.subdiagonal, self.superdiagonal),
-                 'hermitian':np.allclose(self.diagonal.imag, 0) and np.allclose(
-                             self.subdiagonal, self.superdiagonal.conj())}
+                 'symmetric': np.allclose(self.subdiagonal,
+                                          self.superdiagonal),
+                 'hermitian': np.allclose(self.diagonal.imag, 0) and
+                              np.allclose(self.subdiagonal,
+                                          self.superdiagonal.conj())}
         keywords['flags'] = flags
         keywords['shapein'] = shapein
 
         Operator.__init__(self, dtype=dtype, **keywords)
-        self.set_rule('.T', lambda s: DirectOperatorFactory(TridiagonalOperator,
-                      s, s.diagonal, s.superdiagonal, s.subdiagonal))
-        self.set_rule('.C', lambda s: DirectOperatorFactory(TridiagonalOperator,
-                      s, s.diagonal.conj(), s.subdiagonal.conj(),
-                      s.superdiagonal.conj()))
-        self.set_rule('.H', lambda s: DirectOperatorFactory(TridiagonalOperator,
-                      s, s.diagonal.conj(), s.superdiagonal.conj(),
-                      s.subdiagonal.conj()))
+        self.set_rule('.T', lambda s: DirectOperatorFactory(
+                      TridiagonalOperator, s, s.diagonal, s.superdiagonal,
+                      s.subdiagonal))
+        self.set_rule('.C', lambda s: DirectOperatorFactory(
+                      TridiagonalOperator, s, s.diagonal.conj(),
+                      s.subdiagonal.conj(), s.superdiagonal.conj()))
+        self.set_rule('.H', lambda s: DirectOperatorFactory(
+                      TridiagonalOperator, s, s.diagonal.conj(),
+                      s.superdiagonal.conj(), s.subdiagonal.conj()))
 
     def direct(self, input, output):
         output[:] = self.diagonal * input
@@ -583,7 +592,7 @@ class TridiagonalOperator(Operator):
                 ab[_band_diag(ku, i)] = d
             return DirectOperatorFactory(BandOperator, self, ab, kl, ku)
         else:
-            u = 2 # tridiagonal
+            u = 2  # tridiagonal
             n = self.shape[0]
             # convert to ab format (lower)
             ab = np.zeros((u, n), self.dtype)
@@ -600,7 +609,7 @@ class BandOperator(Operator):
     Store a band matrix in ab format as defined in LAPACK
     documentation.
 
-    TODO: direct and transpose methods should call BLAS2 gbmv (not yet in scipy)
+    TODO:direct and transpose methods should call BLAS2 gbmv (not yet in scipy)
     =====
 
     a[i, j] is stored in ab[ku + 1 + i - j, j]
@@ -697,6 +706,7 @@ class BandOperator(Operator):
             rab[_band_diag(rku, -i)] = self.diag(i)
         return rab
 
+
 def _band_diag(ku, i=0):
     """
     Return a slice to get the i-th line of a band operator
@@ -791,9 +801,8 @@ class SymmetricBandOperator(Operator):
         """
         from scipy.linalg import cholesky_banded
 
-        ab_chol = cholesky_banded(self.ab,
-                               overwrite_ab=overwrite_ab,
-                               lower=self.lower)
+        ab_chol = cholesky_banded(self.ab, overwrite_ab=overwrite_ab,
+                                  lower=self.lower)
         if self.lower:
             out = LowerTriangularOperator(self.shape, ab_chol, **self.kwargs)
         else:
@@ -868,8 +877,8 @@ class SymmetricBandToeplitzOperator(Operator):
         with _pool.get(self.fftsize, self.dtype, aligned=True,
                        contiguous=True) as rbuffer:
             with _pool.get(
-                self.fftsize // 2 + 1, complex_dtype(self.dtype),
-                aligned=True, contiguous=True) as cbuffer:
+                    self.fftsize // 2 + 1, complex_dtype(self.dtype),
+                    aligned=True, contiguous=True) as cbuffer:
                 lpad = (self.bandwidth - 1) // 2
                 x = x.reshape((-1, self.nsamples))
                 out = out.reshape((-1, self.nsamples))

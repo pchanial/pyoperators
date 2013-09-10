@@ -25,6 +25,7 @@ Z0 = 0.05
 
 __all__ = ['DoubleLoopAlgorithm']
 
+
 class Criterion(object):
     def __init__(self, algo):
         self.algo = algo
@@ -35,31 +36,37 @@ class Criterion(object):
         self.last_u = None
         self.Xu = None
         self.Bu = None
+
     def islast(self, u):
         return np.all(u == self.last_u)
+
     def load_last(self):
         return self.Xu, self.Bu
+
     def get_projections(self, u):
         if self.islast(u):
             return self.load_last()
         else:
             self.last_u = copy(u)
-            X = self.algo.model 
+            X = self.algo.model
             B = self.algo.prior
             self.Xu = X * u
             self.Bu = B * u
             return self.Xu, self.Bu
+
     def likelihood(self, u):
         sigma = self.algo.sigma
         y = self.algo.data
         Xu, Bu = self.get_projections(u)
         return sigma ** (-2) * self.norm(Xu - y)
+
     def dlike(self, u):
         sigma = self.algo.sigma
         X = self.algo.model
         y = self.algo.data
         Xu, Bu = self.get_projections(u)
         return sigma ** (-2) * X.T * self.norm.diff(Xu - y)
+
     def d2like(self, u):
         sigma = self.algo.sigma
         X = self.algo.model
@@ -67,8 +74,10 @@ class Criterion(object):
         if N is None:
             N = IdentityOperator()
         return sigma ** (-2) * X.T * N * X
+
     def d2lik_p(self, u, p):
         return self.d2like(u) * p
+
     def penalization(self, u):
         sigma = self.algo.sigma
         t = self.algo.tau
@@ -77,6 +86,7 @@ class Criterion(object):
         e = t * np.sqrt(z + (np.abs(Bu) / sigma) ** 2)
         #e = ne.evaluate("2 * t * sqrt(z + (abs(Bu) / sigma) ** 2)")
         return e.sum()
+
     def dpen(self, u):
         sigma = self.algo.sigma
         B = self.algo.prior
@@ -86,6 +96,7 @@ class Criterion(object):
         e = 2 * (t * Bu) / np.sqrt(z + (Bu / sigma) ** 2)
         #e = ne.evaluate("2 * (t * Bu) / sqrt(z + (Bu / sigma) ** 2)")
         return (B.T * e) / (sigma ** 2)
+
     def d2pen(self, u):
         sigma = self.algo.sigma
         B = self.algo.prior
@@ -95,16 +106,22 @@ class Criterion(object):
         rho = (t * z) / ((z + (Bu / sigma) ** 2) ** (1.5) * sigma ** 2)
         #rho = ne.evaluate("(t * z) / ((z + (Bu / sigma) ** 2) ** (1.5) * sigma ** 2)")
         return B.T * DiagonalOperator(rho) * B
+
     def d2pen_p(self, u, p):
         return self.d2pen(u) * p
+
     def __call__(self, u):
         return (self.likelihood(u) + self.penalization(u)).view(np.ndarray)
+
     def gradient(self, u):
         return (self.dlike(u) + self.dpen(u)).view(np.ndarray)
+
     def hessian(self, u):
         return self.d2like(u) + self.d2pen(u)
+
     def hessian_p(self, u, p):
         return (self.hessian(u) * p).view(np.ndarray)
+
 
 class DoubleLoopAlgorithm(Algorithm):
     """
@@ -140,10 +157,9 @@ class DoubleLoopAlgorithm(Algorithm):
     """
     def __init__(self, model, data, prior, noise_covariance=None,
                  tau=None, sigma=1., optimizer=FminNCG,
-                 lanczos={"maxiter":300}, fmin_args={},
+                 lanczos={"maxiter": 300}, fmin_args={},
                  callback=default_callback,
-                 stop_condition=DEFAULT_STOP,
-                 ):
+                 stop_condition=DEFAULT_STOP):
 
         model = asoperator(model)
         self.shapein = model.shapein
@@ -183,6 +199,7 @@ class DoubleLoopAlgorithm(Algorithm):
         self.inv_cov = None
         self.inv_cov_approx = None
         self.criterion = None
+
     def initialize(self):
         """
         Set parameters to initial values.
@@ -193,6 +210,7 @@ class DoubleLoopAlgorithm(Algorithm):
         self.iter_ = 0
         self.gamma = np.ones(self.prior.shape[0])
         self.update_inv_gamma()
+
     def iterate(self):
         print("Iteration %i / %i" %
               (self.iter_ + 1, self.stop_condition.maxiter))
@@ -201,6 +219,7 @@ class DoubleLoopAlgorithm(Algorithm):
         print("Inner loop")
         self.inner()
         return Algorithm.iterate(self)
+
     # outer loop
     def outer(self):
         """
@@ -210,6 +229,7 @@ class DoubleLoopAlgorithm(Algorithm):
         self.update_inv_cov_approx()
         self.update_z()
         self.update_g_star()
+
     def update_inv_cov(self):
         D = DiagonalOperator(self.gamma ** (-1), dtype=self.prior.dtype)
         X = self.model
@@ -219,18 +239,22 @@ class DoubleLoopAlgorithm(Algorithm):
             self.inv_cov = X.T * X + B.T * D * B
         else:
             self.inv_cov = X.T * N * X + B.T * D * B
+
     def update_inv_cov_approx(self):
         lanczos = LanczosAlgorithm(self.inv_cov, **self.lanczos)
         self.inv_cov_approx = lanczos.run()
+
     def update_z(self):
         # get eigenvalues, eigenvectors
         e = self.inv_cov_approx.eigenvalues
         v = self.inv_cov_approx.eigenvectors
         B = self.prior
         self.z = sum([ei * (B * vi) ** 2 for ei, vi in zip(e, v.T)])
+
     def update_g_star(self):
         self.g_star = np.dot(self.z.T, self.inv_gamma)
         self.g_star -= self.inv_cov_approx.logdet()
+
     # inner loop
     def inner(self):
         """
@@ -239,6 +263,7 @@ class DoubleLoopAlgorithm(Algorithm):
         self.update_current_solution()
         self.update_gamma()
         self.update_inv_gamma()
+
     def update_current_solution(self):
         self.inner_criterion = Criterion(self)
         self.last_solution = copy(self.current_solution)
@@ -246,12 +271,15 @@ class DoubleLoopAlgorithm(Algorithm):
                                          self.last_solution,
                                          **self.fmin_args)
         self.current_solution = self.inner_algo()
+
     def update_gamma(self):
         s = np.abs(self.prior * self.current_solution)
         sn2 = (s / self.sigma) ** 2
         self.gamma = np.sqrt(self.z + sn2) / self.tau
+
     def update_inv_gamma(self):
         self.inv_gamma = self.gamma ** (-1)
+
     # at exit
     def at_exit(self):
         self.current_solution.resize(self.shapein)

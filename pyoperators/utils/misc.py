@@ -7,7 +7,6 @@ import multiprocessing
 import numpy as np
 import operator
 import os
-import cPickle as pickle
 import scipy.sparse
 import signal
 import timeit
@@ -52,6 +51,7 @@ __all__ = ['all_eq',
            'uninterruptible',
            'uninterruptible_if']
 
+
 def all_eq(a, b):
     """
     Return True if a and b are equal by recursively comparing them.
@@ -92,6 +92,7 @@ def all_eq(a, b):
             return False
         return a.func_code is b.func_code
     return a == b
+
 
 def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
               verbose=True):
@@ -167,9 +168,11 @@ def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
     def default_args():
         while True:
             yield ()
+
     def default_keywords():
         while True:
             yield {}
+
     def default_ids():
         i = 0
         while True:
@@ -288,7 +291,7 @@ def cast(arrays, dtype=None, order='c'):
 
     Example
     -------
-    >>> cast([[1.,2.], None, array(2j)])
+    >>> cast([[1., 2.], None, np.array(2j)])
     (array([ 1.+0.j,  2.+0.j]), None, array(2j))
 
     """
@@ -299,6 +302,7 @@ def cast(arrays, dtype=None, order='c'):
     result = (np.array(a, dtype=dtype, order=order, copy=False)
               if a is not None else None for a in arrays)
     return tuple(result)
+
 
 def complex_dtype(dtype):
     """
@@ -326,6 +330,7 @@ def complex_dtype(dtype):
         if not hasattr(np, 'complex32'):
             return np.dtype(complex)
     return np.dtype('complex{}'.format(2 * int(dtype.name[5:])))
+
 
 def float_dtype(dtype):
     """
@@ -355,6 +360,7 @@ def float_dtype(dtype):
         return np.dtype(float)
     return dtype
 
+
 def first(l, f):
     """
     Return first item in list that verifies a certain condition, or raise
@@ -378,6 +384,7 @@ def first(l, f):
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
+
 def first_is_not(l, v):
     """
     Return first item in list which is not the specified value.
@@ -397,6 +404,7 @@ def first_is_not(l, v):
 
     """
     return next((_ for _ in l if _ is not v), v)
+
 
 def ifirst(l, match):
     """
@@ -427,6 +435,7 @@ def ifirst(l, match):
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
+
 def ifirst_is_not(l, v):
     """
     Return index of first item in list which is not the specified value.
@@ -447,9 +456,10 @@ def ifirst_is_not(l, v):
 
     """
     try:
-        return next((i for i,_ in enumerate(l) if _ is not v))
+        return next((i for i, _ in enumerate(l) if _ is not v))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
+
 
 def inspect_special_values(x):
     """
@@ -488,6 +498,7 @@ def inspect_special_values(x):
         return cu.inspect_special_values_complex128(x.astype(np.complex128))
     return 0, 0, 0, True, False
 
+
 @contextmanager
 def interruptible():
     """ Make a block of code interruptible with CTRL-C. """
@@ -495,6 +506,7 @@ def interruptible():
     signal.signal(signal.SIGINT, signal.default_int_handler)
     yield
     signal.signal(signal.SIGINT, signal_old)
+
 
 @contextmanager
 def interruptible_if(condition):
@@ -505,6 +517,7 @@ def interruptible_if(condition):
         with interruptible():
             yield
 
+
 def isalias(array1, array2):
     """
     Return True if the two input arrays point to the same memory location.
@@ -513,12 +526,14 @@ def isalias(array1, array2):
     return array1.__array_interface__['data'][0] == \
            array2.__array_interface__['data'][0]
 
+
 def isclassattr(cls, a):
     """ Test if an attribute is a class attribute. """
     for c in cls.__mro__:
         if a in c.__dict__:
             return True
     return False
+
 
 def isscalar(data):
     """Hack around np.isscalar oddity"""
@@ -529,6 +544,7 @@ def isscalar(data):
     if isinstance(data, (collections.Container, scipy.sparse.base.spmatrix)):
         return False
     return True
+
 
 def izip_broadcast(*args):
     """
@@ -544,6 +560,7 @@ def izip_broadcast(*args):
         args = [wrap(arg) for arg in args]
     return izip(*args)
 
+
 def least_greater_multiple(a, l, out=None):
     """
     Return the least multiple of values in a list greater than a given number.
@@ -557,8 +574,8 @@ def least_greater_multiple(a, l, out=None):
     if any(v <= 0 for v in l):
         raise ValueError('The list of multiple is not positive;')
     it = np.nditer([a, out],
-                   op_flags = [['readonly'],
-                               ['writeonly', 'allocate', 'no_broadcast']])
+                   op_flags=[['readonly'],
+                             ['writeonly', 'allocate', 'no_broadcast']])
     max_power = [int(np.ceil(np.log(np.max(a))/np.log(v))) for v in l]
     slices = [slice(0, m+1) for m in max_power]
     powers = np.ogrid[slices]
@@ -567,14 +584,15 @@ def least_greater_multiple(a, l, out=None):
         values = values * v**p
     for v, o in it:
         if np.__version__ >= '1.8':
-            o[...] = np.amin(values, where=values>=v)
+            o[...] = np.amin(values, where=values >= v)
         else:
-            values_ = np.ma.MaskedArray(values, mask=values<v, copy=False)
+            values_ = np.ma.MaskedArray(values, mask=values < v, copy=False)
             o[...] = np.min(values_)
     out = it.operands[1]
     if out.ndim == 0:
         return out.flat[0]
     return out
+
 
 def memory_usage(keys=('VmRSS', 'VmData', 'VmSize'), since=None):
     """
@@ -588,11 +606,11 @@ def memory_usage(keys=('VmRSS', 'VmData', 'VmSize'), since=None):
     since : dict
         Dictionary as returned by a previous call to memory_usage function and
         used to compute the difference of memory usage since then.
-        
+
     """
     proc_status = '/proc/%d/status' % os.getpid()
-    scale = {'kB': 1024, 'mB': 1024*1024,
-             'KB': 1024, 'MB': 1024*1024}
+    scale = {'kB': 1024, 'mB': 1024 * 1024,
+             'KB': 1024, 'MB': 1024 * 1024}
 
     # get pseudo file  /proc/<pid>/status
     with open(proc_status) as f:
@@ -618,6 +636,7 @@ def memory_usage(keys=('VmRSS', 'VmData', 'VmSize'), since=None):
 
     return result
 
+
 def merge_none(a, b):
     """
     Compare two sequences elementwise and merge them discarding None entries.
@@ -639,24 +658,28 @@ def merge_none(a, b):
         return None
     if len(a) != len(b):
         raise ValueError('The input sequences do not have the same length.')
-    if any(p != q for p,q in izip(a,b) if None not in (p,q)):
+    if any(p != q for p, q in izip(a, b) if None not in (p, q)):
         raise ValueError('The input sequences have incompatible values.')
-    return tuple(p if p is not None else q for p,q in izip(a,b))
-    
+    return tuple(p if p is not None else q for p, q in izip(a, b))
+
+
 class ndarraywrap(np.ndarray):
     pass
+
 
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
     if n is not None:
         return int(n)
     return multiprocessing.cpu_count()
-    
+
+
 def operation_assignment(a, b):
     """
     operation_assignment(a, b) -- Same as a[...] = b.
     """
     a[...] = b
+
 
 operation_symbol = {
     operator.iadd: '+',
@@ -664,6 +687,7 @@ operation_symbol = {
     operator.imul: '*',
     operator.idiv: '/',
 }
+
 
 def product(a):
     """ Return the product of a arbitrary input, including generators. """
@@ -677,9 +701,11 @@ def product(a):
     a = np.asarray(a)
     return np.product(a, dtype=a.dtype)
 
+
 def renumerate(l):
     """ Reversed enumerate. """
     return izip(xrange(len(l)-1, -1, -1), reversed(l))
+
 
 def strelapsed(t0, msg='Elapsed time'):
     """
@@ -699,10 +725,11 @@ def strelapsed(t0, msg='Elapsed time'):
     >>> pass
     >>> print(strelapsed(t0, 'Did nothing in'))
     Info computernode: Did nothing in... 0.00s
- 
+
     """
     import time
     return strinfo(msg + '... {0:.2f}s'.format(time.time()-t0))[:-1]
+
 
 def strenum(choices, last='or'):
     """
@@ -721,12 +748,13 @@ def strenum(choices, last='or'):
     "'blue', 'red' or 'yellow'"
 
     """
-    choices = [ "'{0}'".format(choice) for choice in choices ]
+    choices = ["'{0}'".format(choice) for choice in choices]
     if len(choices) == 0:
         raise ValueError('There is no valid choice.')
     if len(choices) == 1:
         return choices[0]
     return ', '.join(choices[0:-1]) + ' ' + last + ' ' + choices[-1]
+
 
 def strinfo(msg):
     """
@@ -739,11 +767,12 @@ def strinfo(msg):
     Example
     -------
     >>> print(strinfo('My information message'))
-    Info computernode: My information message. 
+    Info computernode: My information message.
 
     """
     import platform
     return 'Info {0}: {1}.'.format(platform.node(), msg)
+
 
 def strnbytes(nbytes):
     """
@@ -769,6 +798,7 @@ def strnbytes(nbytes):
         return str(nbytes / 2**20) + ' MiB'
     else:
         return str(nbytes / 2**30) + ' GiB'
+
 
 def strplural(n, name, nonumber=False, s=''):
     """
@@ -809,6 +839,7 @@ def strplural(n, name, nonumber=False, s=''):
     else:
         return ('' if nonumber else str(n) + ' ') + name + 's' + s
 
+
 def strshape(shape):
     """ Helper function to convert shapes or list of shapes into strings. """
     if shape is None or len(shape) == 0:
@@ -817,7 +848,7 @@ def strshape(shape):
         return ', '.join(strshape(s) for s in shape)
     if len(shape) == 1:
         return str(shape[0])
-    return str(shape).replace(' ','')
+    return str(shape).replace(' ', '')
 
 
 def tointtuple(data):
@@ -829,6 +860,7 @@ def tointtuple(data):
     except TypeError:
         return (int(data),)
 
+
 @contextmanager
 def uninterruptible():
     """
@@ -839,6 +871,7 @@ def uninterruptible():
     signal_old = signal.getsignal(signal.SIGINT)
     #XXX the nonlocal Python3 would be handy here
     ctrlc_is_pressed = []
+
     def signal_handler(signal, frame):
         ctrlc_is_pressed.append(True)
     signal.signal(signal.SIGINT, signal_handler)
@@ -846,6 +879,7 @@ def uninterruptible():
     signal.signal(signal.SIGINT, signal_old)
     if len(ctrlc_is_pressed) > 0:
         raise KeyboardInterrupt()
+
 
 @contextmanager
 def uninterruptible_if(condition):

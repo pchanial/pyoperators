@@ -30,6 +30,7 @@ except:
 # PRESERVE_INPUT: default except c2r and hc2r
 # DESTROY_INPUT: default for c2r and hc2r, only possibility for multi c2r
 
+
 @linear
 @square
 @inplace
@@ -39,7 +40,7 @@ class _FFTWConvolutionOperator(Operator):
     """
     Multi-dimensional convolution by a real or complex kernel,
     using the discrete Fourier transform.
-        
+
     """
     def __init__(self, kernel, shapein, axes=None, fftw_flag='FFTW_MEASURE',
                  nthreads=None, dtype=None, **keywords):
@@ -54,9 +55,9 @@ class _FFTWConvolutionOperator(Operator):
             Axes along which the convolution is performed. Convolution over
             less axes than the operator's input is not yet supported.
         fftw_flag : string
-            list of strings and is a subset of the flags that FFTW allows for 
+            list of strings and is a subset of the flags that FFTW allows for
             the planners. Specifically, FFTW_ESTIMATE, FFTW_MEASURE,
-            FFTW_PATIENT and FFTW_EXHAUSTIVE are supported. These describe the 
+            FFTW_PATIENT and FFTW_EXHAUSTIVE are supported. These describe the
             increasing amount of effort spent during the planning stage to
             create the fastest possible transform. Usually, FFTW_MEASURE is
             a good compromise and is the default.
@@ -78,13 +79,13 @@ class _FFTWConvolutionOperator(Operator):
 
         shapein = tointtuple(shapein)
         if len(shapein) != kernel.ndim:
-            raise ValueError("The kernel dimension '{0}' is incompatible with t"
-                "hat of the specified shape '{1}'.".format(kernel.ndim,
-                len(shapein)))
+            raise ValueError(
+                "The kernel dimension '{0}' is incompatible with that of the s"
+                "pecified shape '{1}'.".format(kernel.ndim, len(shapein)))
 
         # if the kernel is larger than the image, we don't crop it since it
         # might affect normalisation of the kernel
-        if any([ks > s for ks,s in zip(kernel.shape, shapein)]):
+        if any([ks > s for ks, s in zip(kernel.shape, shapein)]):
             raise ValueError('The kernel must not be larger than the input.')
 
         if axes is None:
@@ -97,8 +98,8 @@ class _FFTWConvolutionOperator(Operator):
             n = product(shapein)
             fft = _FFTWComplexForwardOperator(shapein, axes, fftw_flag,
                                               nthreads, dtype, **keywords)
-            kernel_fft = _get_kernel_fft(kernel, shapein, dtype, shapein, dtype,
-                                         fft.oplan)
+            kernel_fft = _get_kernel_fft(kernel, shapein, dtype, shapein,
+                                         dtype, fft.oplan)
             kernel_fft /= n
             self.__class__ = CompositionOperator
             self.__init__([n, fft.H, DiagonalOperator(kernel_fft), fft])
@@ -148,7 +149,7 @@ class _FFTWRealConvolutionOperator(Operator):
     Convolution by a real kernel.
     The first argument is the FFT of the real kernel. It is not necessarily
     aligned.
-    
+
     """
     def __init__(self, kernel_fft, fplan, bplan, axes, fftw_flag, nthreads,
                  shapein=None, dtype=None, **keywords):
@@ -196,9 +197,9 @@ class _FFTWRealConvolutionOperator(Operator):
         kernel = empty(self.kernel.shape, self.kernel.dtype)
         self.get_kernel(kernel)
         kernel *= scalar.data
-        result = _FFTWRealConvolutionOperator(kernel, self._fplan, self._bplan,
-                     self.axes, self.fftw_flag, self.nthreads, self.shapein,
-                     self.dtype)
+        result = _FFTWRealConvolutionOperator(
+            kernel, self._fplan, self._bplan, self.axes, self.fftw_flag,
+            self.nthreads, self.shapein, self.dtype)
         return result
 
     @staticmethod
@@ -209,9 +210,9 @@ class _FFTWRealConvolutionOperator(Operator):
         kernel = empty(self.kernel.shape, self.kernel.dtype)
         self.get_kernel(kernel)
         np.add(kernel, other.get_kernel(), kernel)
-        result = _FFTWRealConvolutionOperator(kernel, self._fplan, self._bplan,
-                     self.axes, self.fftw_flag, self.nthreads, self.shapein,
-                     self.dtype)
+        result = _FFTWRealConvolutionOperator(
+            kernel, self._fplan, self._bplan, self.axes, self.fftw_flag,
+            self.nthreads, self.shapein, self.dtype)
         return result
 
     @staticmethod
@@ -223,9 +224,9 @@ class _FFTWRealConvolutionOperator(Operator):
         self.get_kernel(kernel)
         kernel *= other.get_kernel()
         kernel *= product(self.shapein)
-        result = _FFTWRealConvolutionOperator(kernel, self._fplan, self._bplan,
-                     self.axes, self.fftw_flag, self.nthreads, self.shapein,
-                     self.dtype)
+        result = _FFTWRealConvolutionOperator(
+            kernel, self._fplan, self._bplan, self.axes, self.fftw_flag,
+            self.nthreads, self.shapein, self.dtype)
         return result
 
     @staticmethod
@@ -234,13 +235,13 @@ class _FFTWRealConvolutionOperator(Operator):
         other.H.direct(kernel, kernel)
         kernel /= product(self.shapein)
         return other, DiagonalOperator(kernel)
-    
+
     @staticmethod
     def _rule_complex_forward(other, self):
         kernel = self._restore_kernel().astype(self.kernel.dtype)
         other.direct(kernel, kernel)
         return DiagonalOperator(kernel), other
-        
+
     def _restore_kernel(self):
         shape = self.kernel.shape
         dtype = self.kernel.dtype
@@ -257,7 +258,7 @@ class _FFTWRealConvolutionOperator(Operator):
 class _FFTWRealConvolutionTransposeOperator(_FFTWRealConvolutionOperator):
     """
     Transpose of the convolution by a real kernel.
-    
+
     """
     __name__ = '_FFTW_RealConvolutionOperator.T'
 
@@ -317,7 +318,7 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
             Axes along which the transform is performed.
         fftw_flag : string
             FFTW flag for the planner: FFTW_ESTIMATE, FFTW_MEASURE,
-            FFTW_PATIENT or FFTW_EXHAUSTIVE. These describe the 
+            FFTW_PATIENT or FFTW_EXHAUSTIVE. These describe the
             increasing amount of effort spent during the planning stage to
             create the fastest possible transform. Usually, FFTW_MEASURE is
             a good compromise and is the default.
@@ -330,11 +331,11 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
         """
         _FFTWComplexOperator.__init__(self, shapein, axes, fftw_flag,
                                       nthreads, dtype, **keywords)
-        self.set_rule('.H', lambda s: 
+        self.set_rule('.H', lambda s:
                       HomothetyOperator(1 / product(s.shapein)) *
                       ReverseOperatorFactory(_FFTWComplexBackwardOperator, s,
                                              forward=s))
-        self.set_rule('{_FFTWComplexBackwardOperator}.', lambda o,s:
+        self.set_rule('{_FFTWComplexBackwardOperator}.', lambda o, s:
                       HomothetyOperator(product(s.shapein)),
                       CompositionOperator)
 
@@ -363,9 +364,9 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
         _FFTWComplexOperator.__init__(self, shapein, forward.axes,
                                       forward.fftw_flag,
                                       forward.nthreads, dtype, **keywords)
-        self.set_rule('.H', lambda s: 
+        self.set_rule('.H', lambda s:
                       HomothetyOperator(product(s.shapein)) * forward)
-        self.set_rule('{_FFTWComplexForwardOperator}.', lambda o,s:
+        self.set_rule('{_FFTWComplexForwardOperator}.', lambda o, s:
                       HomothetyOperator(product(s.shapein)),
                       CompositionOperator)
 
@@ -386,7 +387,7 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
 
 def _get_kernel_fft(kernel, shapein, dtypein, shapeout, dtypeout, fft):
     with _pool.get(shapein, dtypein) as kernel_padded:
-        ker_slice = [slice(0,s) for s in kernel.shape]
+        ker_slice = [slice(0, s) for s in kernel.shape]
         kernel_padded[...] = 0
         kernel_padded[ker_slice] = kernel
         ker_origin = (np.array(kernel.shape)-1) // 2
@@ -397,11 +398,13 @@ def _get_kernel_fft(kernel, shapein, dtypein, shapeout, dtypeout, fft):
         fft.execute()
         return kernel_fft
 
+
 def _load_wisdom():
     """ Loads the 3 wisdom files. """
     global _is_fftw_wisdom_loaded
     if _is_fftw_wisdom_loaded:
         return
+
     def load(filename):
         try:
             with open(filename) as f:
@@ -409,16 +412,16 @@ def _load_wisdom():
         except IOError:
             wisdom = ''
         return wisdom
-    
+
     wisdom = [load(f) for f in FFTW_WISDOM_FILES]
     pyfftw.import_wisdom(wisdom)
     _is_fftw_wisdom_loaded = True
+
 
 def _save_wisdom():
     """ Save wisdom as 3 files. """
     wisdom = pyfftw.export_wisdom()
     for filename, w in zip(FFTW_WISDOM_FILES, wisdom):
-        print 
         try:
             os.remove(filename)
         except OSError:
@@ -427,6 +430,7 @@ def _save_wisdom():
             continue
         with open(filename, 'w') as f:
             f.write(w)
+
 
 # make FFTW the default
 ConvolutionOperator = _FFTWConvolutionOperator

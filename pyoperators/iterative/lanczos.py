@@ -6,6 +6,7 @@ from ..linear import EigendecompositionOperator, TridiagonalOperator
 from .core import IterativeAlgorithm
 from .stopconditions import MaxIterationStopCondition
 
+
 class LanczosAlgorithm(IterativeAlgorithm):
     """
     Tridiagonalization Lanczos step and eigendecomposition at exit.
@@ -93,7 +94,6 @@ class LanczosAlgorithm(IterativeAlgorithm):
 
         # multiply T eigenvectors with lanczos vectors
         w = E.eigenvalues
-        v = np.dot(self.vectors[:-1,:].T, E.eigenvectors)
+        v = np.dot(self.vectors[:-1, :].T, E.eigenvectors)
 
         return EigendecompositionOperator(v=v, w=w)
-

@@ -19,10 +19,11 @@ from .utils import ifirst, product, strshape, tointtuple
 __all__ = ['empty', 'ones', 'zeros']
 
 MEMORY_ALIGNMENT = 32
-MEMORY_TOLERANCE = 1.2 # We allow reuse of pool variables only if they do not
-                       # exceed 20% of the requested size
+MEMORY_TOLERANCE = 1.2  # We allow reuse of pool variables only if they do not
+                        # exceed 20% of the requested size
 
 verbose = False
+
 
 def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
     """
@@ -68,6 +69,7 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
     return np.frombuffer(buf.data, np.int8, count=requested, offset=offset) \
              .view(dtype).reshape(shape, order=order)
 
+
 def ones(shape, dtype=np.float, order='c', description=None, verbose=None):
     """
     Return a new aligned and contiguous array of given shape and type, filled
@@ -77,6 +79,7 @@ def ones(shape, dtype=np.float, order='c', description=None, verbose=None):
     a = empty(shape, dtype, order, description, verbose)
     a[...] = 1
     return a
+
 
 def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
     """
@@ -88,6 +91,7 @@ def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
     a[...] = 0
     return a
 
+
 def iscompatible(array, shape, dtype, aligned=False, contiguous=False,
                  tolerance=np.inf):
     """
@@ -97,7 +101,8 @@ def iscompatible(array, shape, dtype, aligned=False, contiguous=False,
     """
     shape = tointtuple(shape)
     dtype = np.dtype(dtype)
-    if aligned and array.__array_interface__['data'][0]%MEMORY_ALIGNMENT != 0:
+    if aligned and \
+       array.__array_interface__['data'][0] % MEMORY_ALIGNMENT != 0:
         return False
     if not array.flags.contiguous:
         if contiguous:
@@ -105,7 +110,8 @@ def iscompatible(array, shape, dtype, aligned=False, contiguous=False,
         return array.shape == shape and array.itemsize == dtype.itemsize
     nbytes = product(shape) * dtype.itemsize
     return array.nbytes >= nbytes and array.nbytes / nbytes <= tolerance
-    
+
+
 class MemoryPool(object):
     """
     Class implementing a pool of buffers.
@@ -122,8 +128,8 @@ class MemoryPool(object):
             v = v.ravel().view(np.int8)
         a = v.__array_interface__['data'][0]
         if any(_.__array_interface__['data'][0] == a for _ in self._buffers):
-            raise ValueError('There already is an entry in the pool pointing to'
-                             ' this memory location.')
+            raise ValueError('There already is an entry in the pool pointing t'
+                             'o this memory location.')
         try:
             i = ifirst(self._buffers, lambda x: x.nbytes >= v.nbytes)
         except ValueError:
@@ -145,8 +151,6 @@ class MemoryPool(object):
         a buffer from the pool to ensure alignment and contiguity requirements.
 
         """
-        if not isinstance(aligned, bool):
-            stop
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')
         alignment = MEMORY_ALIGNMENT if aligned else 1
@@ -166,8 +170,6 @@ class MemoryPool(object):
         shape, dtype, alignment, contiguity.
 
         """
-        if not isinstance(aligned, bool):
-            stop
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)
         compatible = lambda x: iscompatible(x, shape, dtype, aligned,
@@ -187,8 +189,6 @@ class MemoryPool(object):
         on enter, and set it back in the pool on exit.
 
         """
-        if not isinstance(aligned, bool):
-            stop
         v_ = self.extract(shape, dtype, aligned, contiguous, description,
                           verbose)
         v = self.view(v_, shape, dtype)
@@ -259,7 +259,7 @@ class MemoryPool(object):
             raise ValueError('Shape mismatch.')
         required = dtype.itemsize * product(shape)
         return buf[:required].view(dtype).reshape(shape)
-        
+
     def __contains__(self, v):
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')

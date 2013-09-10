@@ -1,14 +1,15 @@
 import numpy as np
 
 from numpy.testing import assert_equal
-from pyoperators import (Operator, AdditionOperator, CompositionOperator,
-         MultiplicationOperator, ConstantOperator, IdentityOperator,
-         HomothetyOperator, ZeroOperator)
+from pyoperators import (
+    Operator, AdditionOperator, CompositionOperator, MultiplicationOperator,
+    ConstantOperator, IdentityOperator, HomothetyOperator, ZeroOperator)
 from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
 from pyoperators.decorators import linear
 from pyoperators.utils import ndarraywrap
-from pyoperators.utils.testing import (assert_eq, assert_is, assert_is_none,
-         assert_is_not_none, assert_is_instance, assert_raises)
+from pyoperators.utils.testing import (
+    assert_eq, assert_is, assert_is_none, assert_is_not_none,
+    assert_is_instance, assert_raises)
 
 from .common import OPS, ndarray2, attr2
 
@@ -25,25 +26,34 @@ zeros_right = (ZeroOperator(classout=ndarray2, attrout=attr2),
                ZeroOperator(classout=ndarray2, attrout=attr2, flags='square'),
                ZeroOperator(shapein=3, classout=ndarray2, attrout=attr2))
 
+
 class Operator1(Operator): pass
 class Operator2(Operator): pass
 class Operator3(Operator): pass
 class Operator4(Operator1): pass
+
 op1 = Operator1()
 op2 = Operator2()
 op3 = Operator3()
 op4 = Operator4()
 
+
 class NonLinearOperator(Operator):
     pass
+
+
 @linear
 class LinearOperator(Operator):
     pass
 
+
 def p1(o1, o2):
     return (o2, op1)
+
+
 def p2(o1, o2):
     return op3
+
 
 def test_unaryrule1():
     def func(s, p):
@@ -56,6 +66,7 @@ def test_unaryrule1():
         for p in ('.', '1'):
             yield func, s, p
 
+
 def test_unaryrule2():
     assert_raises(ValueError, OperatorUnaryRule, '.', '.')
     assert_raises(ValueError, OperatorUnaryRule, 'T', '.')
@@ -64,8 +75,10 @@ def test_unaryrule2():
     assert_raises(ValueError, OperatorUnaryRule, '.T', '.H')
     assert_raises(ValueError, OperatorUnaryRule, '.T', '.I')
 
+
 def test_binaryrule1():
-    op.T # generate associated operators
+    op.T  # generate associated operators
+
     def func(s1, s2, s3, o1, o2, ref):
             rule = OperatorBinaryRule(s1+s2, s3)
             result = rule(o1, o2)
@@ -86,15 +99,18 @@ def test_binaryrule1():
             for s3 in ('1', '.', '.C', '.T', '.H', '.I'):
                 yield func, s1, s2, s3, o1, o2, ref
 
+
 def test_binaryrule2():
     rule = OperatorBinaryRule('..T', p1)
     yield assert_is_none, rule(op1, op2)
     yield assert_equal, rule(op1, op1.T), (op1.T, op1)
 
+
 def test_binaryrule3():
     rule = OperatorBinaryRule('..T', p2)
     yield assert_is_none, rule(op1, op2)
     yield assert_is_instance, rule(op1, op1.T), Operator3
+
 
 def test_binaryrule4():
     rule = OperatorBinaryRule('.{HomothetyOperator}', p1)
@@ -102,18 +118,17 @@ def test_binaryrule4():
     s = HomothetyOperator(2)
     yield assert_equal, rule(op1, s), (s, op1)
 
+
 def test_binaryrule5():
     rule = OperatorBinaryRule('.{self}', p2)
     yield assert_equal, rule(op1, op1), op3
     yield assert_is_none, rule(op1, op2)
     yield assert_equal, rule(op1, op4), op3
 
-r = lambda o:None
-r2 = lambda o:None
-class Op1(Operator):
-    pass
-class Op2(Op1):
-    pass
+r = lambda o: None
+r2 = lambda o: None
+class Op1(Operator): pass
+class Op2(Op1): pass
 class Op3(Op2):
     def __init__(self):
         Op2.__init__(self)
@@ -126,20 +141,20 @@ class Op3(Op2):
         self.set_rule('..H', r, CompositionOperator)
         self.set_rule('.{Op4}', r, CompositionOperator, globals())
         self.set_rule('.{Op2}', r2, CompositionOperator, globals())
-class Op4(Op3):
-    pass
-class OpA(Operator):
-    pass
-class OpB(Operator):
-    pass
+class Op4(Op3): pass
+class OpA(Operator): pass
+class OpB(Operator): pass
+
 
 def test_binaryrule_priority():
     op = Op3()
     act = [''.join(r.subjects) for r in op.rules[CompositionOperator]['left']]
-    exp = ['..H','..T','.{OpB}','.{Op4}','.{Op3}','.{Op2}','.{Op1}','.{OpA}' ]
+    exp = ['..H', '..T', '.{OpB}', '.{Op4}', '.{Op3}', '.{Op2}', '.{Op1}',
+           '.{OpA}']
     for a, e in zip(act, exp):
         yield assert_eq, a, e
     assert op.rules[CompositionOperator]['left'][5].predicate is r2
+
 
 def test_merge_identity():
     def func(op, op1, op2, op_ref):
@@ -169,6 +184,7 @@ def test_merge_identity():
             op = op2 * op1
             yield func, op, op2, op1, op1
 
+
 def test_merge_zero_left():
     def func(op1, op2):
         op = op1 * op2
@@ -189,6 +205,7 @@ def test_merge_zero_left():
     for op1 in zeros_left:
         for op2 in ops:
             yield func, op1, op2
+
 
 def test_merge_zero_right():
     def func(op1, op2):
@@ -215,6 +232,7 @@ def test_merge_zero_right():
     for op1 in ops:
         for op2 in zeros_right:
             yield func, op1, op2
+
 
 def test_del_rule():
     class Op(Operator):
@@ -251,8 +269,10 @@ def test_del_rule():
     assert_equal(len(op.rules[AdditionOperator]), 0)
     assert_equal(len(op.rules[MultiplicationOperator]), 0)
 
+
 def test_absorb_scalar():
     h = HomothetyOperator(2)
+
     @linear
     class AbsorbRightOperator(Operator):
         def __init__(self, value=3.):
@@ -261,6 +281,7 @@ def test_absorb_scalar():
             self.set_rule('.{HomothetyOperator}', lambda s, o:
                           AbsorbRightOperator(s.value * o.data),
                           CompositionOperator)
+
     @linear
     class AbsorbLeftOperator(Operator):
         def __init__(self, value=3.):
@@ -273,16 +294,16 @@ def test_absorb_scalar():
     l = LinearOperator()
     ar = AbsorbRightOperator()
     al = AbsorbLeftOperator()
-    ops = [[h,nl,h,ar,nl,h,al,nl,h],
-           [h,nl,ar,h,nl,al,h,nl,h],
-           [h,ar,nl,h,al],
-           [ar,h,nl,al,h],
-           [h,ar,l,h,al],
-           [ar,h,l,al,h],
-           [h,l,ar],
-           [l,ar,h],
-           [h,l,al],
-           [l,al,h]]
+    ops = [[h, nl, h, ar, nl, h, al, nl, h],
+           [h, nl, ar, h, nl, al, h, nl, h],
+           [h, ar, nl, h, al],
+           [ar, h, nl, al, h],
+           [h, ar, l, h, al],
+           [ar, h, l, al, h],
+           [h, l, ar],
+           [l, ar, h],
+           [h, l, al],
+           [l, al, h]]
     expected_types = [
         [HomothetyOperator, NonLinearOperator, AbsorbRightOperator,
          NonLinearOperator, AbsorbLeftOperator, NonLinearOperator,
@@ -297,25 +318,25 @@ def test_absorb_scalar():
         [LinearOperator, AbsorbRightOperator],
         [LinearOperator, AbsorbRightOperator],
         [LinearOperator, AbsorbLeftOperator],
-        [LinearOperator, AbsorbLeftOperator]
-    ]
-    expected_values =[[2,0,6,0,6,0,2],
-                      [2,0,6,0,6,0,2],
-                      [6,0,6],
-                      [6,0,6],
-                      [12,0,3],
-                      [12,0,3],
-                      [0,6],
-                      [0,6],
-                      [0,6],
-                      [0,6],
-                     ]
+        [LinearOperator, AbsorbLeftOperator]]
+    expected_values = [[2, 0, 6, 0, 6, 0, 2],
+                       [2, 0, 6, 0, 6, 0, 2],
+                       [6, 0, 6],
+                       [6, 0, 6],
+                       [12, 0, 3],
+                       [12, 0, 3],
+                       [0, 6],
+                       [0, 6],
+                       [0, 6],
+                       [0, 6]]
+
     def get_val(op):
         if isinstance(op, (NonLinearOperator, LinearOperator)):
             return 0
         if isinstance(op, HomothetyOperator):
             return op.data
         return op.value
+
     def func(ops, expected_types, expected_values):
         op = CompositionOperator(ops)
         assert_eq([type(o) for o in op.operands], expected_types)

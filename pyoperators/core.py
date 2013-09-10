@@ -59,27 +59,27 @@ OPERATOR_ATTRIBUTES = ['attrin', 'attrout', 'classin', 'classout', 'commin',
                        'shapeout', 'toshapein', 'toshapeout', 'validatein',
                        'validateout', 'dtype', 'flags']
 
-class OperatorFlags(namedtuple('OperatorFlags',
-                               [
-                                'linear',
-                                'square',     # shapein == shapeout
-                                'real',       # o.C = o
-                                'symmetric',  # o.T = o
-                                'hermitian',  # o.H = o
-                                'idempotent', # o * o = o
-                                'involutary', # o * o = I
-                                'orthogonal', # o * o.T = I
-                                'unitary',    # o * o.H = I
-                                'separable',  # o*[B1...Bn] = [o*B1...o*Bn]
-                                'inplace',
-                                'inplace_reduction',
-                                'aligned_input', # op. requires aligned input
-                                'aligned_output',# op. requires aligned output
-                                'contiguous_input', # op. requires contig input
-                                'contiguous_output',# op. requires contig output
-                                'shape_input',
-                                'shape_output',
-                                ])):
+
+class OperatorFlags(namedtuple(
+        'OperatorFlags',
+        ['linear',
+         'square',      # shapein == shapeout
+         'real',        # o.C = o
+         'symmetric',   # o.T = o
+         'hermitian',   # o.H = o
+         'idempotent',  # o * o = o
+         'involutary',  # o * o = I
+         'orthogonal',  # o * o.T = I
+         'unitary',     # o * o.H = I
+         'separable',   # o*[B1...Bn] = [o*B1...o*Bn]
+         'inplace',
+         'inplace_reduction',
+         'aligned_input',      # op. requires aligned input
+         'aligned_output',     # op. requires aligned output
+         'contiguous_input',   # op. requires contig input
+         'contiguous_output',  # op. requires contig output
+         'shape_input',
+         'shape_output'])):
     """ Informative flags about the operator. """
     def __new__(cls):
         t = 16*(False,) + ('', '')
@@ -87,14 +87,14 @@ class OperatorFlags(namedtuple('OperatorFlags',
 
     def __str__(self):
         n = max(len(f) for f in self._fields)
-        fields = [ '  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
-        return '\n'.join([f + str(v) for f,v in zip(fields,self)])
+        fields = ['  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
+        return '\n'.join([f + str(v) for f, v in zip(fields, self)])
 
     def __repr__(self):
         n = max(len(f) for f in self._fields)
-        fields = [ f.ljust(n) + '= ' for f in self._fields]
-        return self.__class__.__name__ + '(\n  ' + ',\n  '.join(f + repr(v)
-            for f,v in zip(fields,self)) + ')'
+        fields = [f.ljust(n) + '= ' for f in self._fields]
+        return type(self).__name__ + '(\n  ' + ',\n  '.join(
+            f + repr(v) for f, v in zip(fields, self)) + ')'
 
 
 class OperatorRule(object):
@@ -109,8 +109,8 @@ class OperatorRule(object):
     def __init__(self, subjects, predicate):
 
         if not isinstance(subjects, str):
-            raise TypeError("The input first argument '{0}' is not a string." \
-                             .format(subjects))
+            raise TypeError("The input first argument '{0}' is not a string."
+                            .format(subjects))
 
         subjects_ = self._split_subject(subjects)
         if len(subjects_) == 0:
@@ -144,13 +144,13 @@ class OperatorRule(object):
             return self.predicate.func_code is other.predicate.func_code
         if isinstance(self.predicate, str):
             return self.predicate == other.predicate
-        return self.predicate  is other.predicate
+        return self.predicate is other.predicate
 
     @staticmethod
     def _symbol2operator(op, symbol):
         if not isinstance(symbol, str):
             return symbol
-        if  symbol == '1':
+        if symbol == '1':
             return IdentityOperator()
         if symbol[0] == '{' and symbol[-1] == '}':
             return symbol[1:-1]
@@ -215,7 +215,7 @@ class OperatorUnaryRule(OperatorRule):
             '1' : the identity operator
             '.' : the operator itself
             or a callable of one argument.
-    
+
     Example
     -------
     >>> rule = OperatorUnaryRule('.T', '.')
@@ -223,7 +223,7 @@ class OperatorUnaryRule(OperatorRule):
     >>> oT = rule(o)
     >>> oT is o
     True
-    
+
     """
     def __init__(self, subjects, predicate):
         super(OperatorUnaryRule, self).__init__(subjects, predicate)
@@ -239,7 +239,7 @@ class OperatorUnaryRule(OperatorRule):
         predicate = self._symbol2operator(reference, self.predicate)
         if predicate is None:
             return None
-        if not isinstance(predicate, Operator ) and callable(predicate):
+        if not isinstance(predicate, Operator) and callable(predicate):
             predicate = predicate(reference)
         if not isinstance(predicate, Operator):
             raise TypeError('The predicate is not an operator.')
@@ -278,7 +278,7 @@ class OperatorBinaryRule(OperatorRule):
         If the two objects o1, o2, are subjects of the rule, the predicate
         will be returned. The predicate can also be '1', '.', '.C', '.T', '.H'
         of a callable of two arguments.
-    
+
     Example
     -------
     >>> rule = OperatorBinaryRule('..', '.')
@@ -287,7 +287,7 @@ class OperatorBinaryRule(OperatorRule):
     True
     >>> rule(o, IdentityOperator()) is None
     True
-    
+
     """
     def __init__(self, subjects, predicate):
         super(OperatorBinaryRule, self).__init__(subjects, predicate)
@@ -298,7 +298,7 @@ class OperatorBinaryRule(OperatorRule):
 
     def __call__(self, o1, o2):
 
-        reference, other = (o1,o2) if self.reference == 0 else (o2,o1)
+        reference, other = (o1, o2) if self.reference == 0 else (o2, o1)
         subother = self._symbol2operator(reference, self.other)
 
         if isinstance(subother, str):
@@ -322,10 +322,10 @@ class OperatorBinaryRule(OperatorRule):
             predicate = predicate(o1, o2)
         if predicate is None:
             return None
-        if isinstance(predicate, (list,tuple)) and len(predicate) == 1:
+        if isinstance(predicate, (list, tuple)) and len(predicate) == 1:
             predicate = predicate[0]
         if not isinstance(predicate, Operator) and not (isinstance(predicate,
-           (list,tuple)) and all(isinstance(o, Operator) for o in predicate)):
+           (list, tuple)) and all(isinstance(o, Operator) for o in predicate)):
             raise TypeError("The predicate '{0}' is not an operator.".format(
                             predicate))
         return predicate
@@ -341,14 +341,14 @@ class Operator(object):
     ----------
     attrin/attrout : dict or function
         If attrout is a dict, its items are added to the output. If it is
-        a function, it takes the input attributes and returns the output
-        attributes. The attrin attribute is only used in the reversed direction.
+        a function, it takes the input attributes and returns the output attri-
+        butes. The attrin attribute is only used in the reversed direction.
     classin/classout : ndarray subclass
         The classout attribute sets the output class. The classin attribute is
         only used in the reversed direction.
     commin/commout : mpi4py.Comm
-        The commin and commout attributes store the MPI communicator for the in-
-        put and output.
+        The commin and commout attributes store the MPI communicator for the
+        input and output.
     reshapein/reshapeout : function
         The reshapein function takes the input shape and returns the output
         shape. The method is used for implicit output shape operators.
@@ -390,10 +390,9 @@ class Operator(object):
                  shapein=None, shapeout=None, toshapein=None, toshapeout=None,
                  validatein=None, validateout=None, dtype=None, flags={},
                  name=None):
-            
-        for method, name_ in zip( \
-            (direct, transpose, adjoint, conjugate_, inverse, inverse_transpose,
-             inverse_adjoint, inverse_conjugate),
+        for method, name_ in zip(
+            (direct, transpose, adjoint, conjugate_, inverse,
+             inverse_transpose, inverse_adjoint, inverse_conjugate),
             ('direct', 'transpose', 'adjoint', 'conjugate_', 'inverse',
              'inverse_transpose', 'inverse_adjoint', 'inverse_conjugate')):
             if method is not None:
@@ -443,7 +442,6 @@ class Operator(object):
     shapein = None
     shapeout = None
 
-
     def reshapein(self, shape):
         """
         Return the output shape given an input shape.
@@ -487,8 +485,8 @@ class Operator(object):
 
         """
         if self.shapein is None:
-            raise ValueError("The operator '" + self.__name__ + "' does not hav"
-                             "e an explicit shape.")
+            raise ValueError("The operator '" + self.__name__ + "' does not ha"
+                             "ve an explicit shape.")
         return v.reshape(self.shapein)
 
     def toshapeout(self, v):
@@ -498,8 +496,8 @@ class Operator(object):
 
         """
         if self.shapeout is None:
-            raise ValueError("The operator '" + self.__name__ + "' does not hav"
-                             "e an explicit shape.")
+            raise ValueError("The operator '" + self.__name__ + "' does not ha"
+                             "ve an explicit shape.")
         return v.reshape(self.shapeout)
 
     def propagate_attributes(self, cls, attr):
@@ -516,7 +514,8 @@ class Operator(object):
             del attr['shape_global']
         if isinstance(self.attrout, dict):
             for k, v in self.attrout.items():
-                if isinstance(v, (MutableMapping, MutableSequence, MutableSet)):
+                if isinstance(v, (MutableMapping, MutableSequence,
+                                  MutableSet)):
                     if hasattr(v, 'copy'):
                         v = v.copy()
                     elif type(v) is list:
@@ -549,8 +548,9 @@ class Operator(object):
 
         """
         if self.shapein is not None and self.shapein != shapein:
-            raise ValueError("The input shape '{0}' is incompatible with that o"
-                "f {1}: '{2}'.".format(shapein, self.__name__, self.shapein))
+            raise ValueError(
+                "The input shape '{0}' is incompatible with that of {1}: '{2}'"
+                ".".format(shapein, self.__name__, self.shapein))
 
     def validateout(self, shapeout):
         """
@@ -559,20 +559,23 @@ class Operator(object):
 
         """
         if self.shapeout is not None and self.shapeout != shapeout:
-            raise ValueError("The output shape '{0}' is incompatible with that "
-                "of {1}: '{2}'.".format(shapeout, self.__name__, self.shapeout))
-    
+            raise ValueError(
+                "The output shape '{0}' is incompatible with that of {1}: '{2"
+                "}'.".format(shapeout, self.__name__, self.shapeout))
+
     # for the next methods, the following always stand:
     #    - input and output are not in the memory pool
     #    - input and output are compatible with the operator's requirements
     #      in terms of shape, contiguity and alignment.
     direct = None
+
     def conjugate_(self, input, output):
         self.direct(input.conjugate(), output)
         output[...] = output.conjugate()
     transpose = None
     adjoint = None
     inverse = None
+
     def inverse_conjugate(self, input, output):
         self.inverse(input.conjugate(), output)
         output[...] = output.conjugate()
@@ -585,17 +588,17 @@ class Operator(object):
             return CompositionOperator([self, x])
 
         if self.direct is None:
-            raise NotImplementedError('Call to ' + self.__name__ + ' is not imp'
-                                      'lemented.')
+            raise NotImplementedError('Call to ' + self.__name__ + ' is not im'
+                                      'plemented.')
 
         # get valid input and output
         i, i_, o, o_ = self._validate_arguments(x, out)
 
         # perform computation
         reuse_x = isinstance(x, np.ndarray) and not isalias(x, i) and \
-                  not preserve_input
+            not preserve_input
         reuse_out = isinstance(out, np.ndarray) and not isalias(out, i) \
-                    and not isalias(out, o)
+            and not isalias(out, o)
 
         with _pool.set_if(reuse_x, x):
             with _pool.set_if(reuse_out, out):
@@ -662,20 +665,20 @@ class Operator(object):
         """
         shapein, shapeout = self._validate_shapes(shapein, shapeout)
         if shapein is None:
-            raise ValueError("The operator's input shape is not explicit. Speci"
-                             "fy it with the 'shapein' keyword.")
+            raise ValueError("The operator's input shape is not explicit. Spec"
+                             "ify it with the 'shapein' keyword.")
         if shapeout is None:
-            raise ValueError("The operator's output shape is not explicit. Spec"
-                             "ify it with the 'shapeout' keyword.")
+            raise ValueError("The operator's output shape is not explicit. Spe"
+                             "cify it with the 'shapeout' keyword.")
         m, n = product(shapeout), product(shapein)
-        d = np.empty((n,m), self.dtype)
+        d = np.empty((n, m), self.dtype)
 
         if not inplace or not self.flags.inplace:
             v = zeros(n, self.dtype)
             if not self.flags.aligned_output:
                 for i in xrange(n):
                     v[i] = 1
-                    o = d[i,:].reshape(shapeout)
+                    o = d[i, :].reshape(shapeout)
                     self.direct(v.reshape(shapein), o)
                     v[i] = 0
             else:
@@ -683,31 +686,29 @@ class Operator(object):
                 for i in xrange(n):
                     v[i] = 1
                     self.direct(v.reshape(shapein), o)
-                    d[i,:] = o.ravel()
+                    d[i, :] = o.ravel()
                     v[i] = 0
             return d.T
 
         # test in-place mechanism
-        u = empty(max(m,n), self.dtype)
+        u = empty(max(m, n), self.dtype)
         v = u[:n]
         w = u[:m]
         for i in xrange(n):
             v[:] = 0
             v[i] = 1
             self.direct(v.reshape(shapein), w.reshape(shapeout))
-            d[i,:] = w
+            d[i, :] = w
         return d.T
 
     def matvec(self, x, out=None):
-
         assert not isinstance(x, np.ndarray) or x.flags.contiguous
         assert out is None or \
-               isinstance(out, np.ndarray) and out.flags.contiguous
+            isinstance(out, np.ndarray) and out.flags.contiguous
         x = self.toshapein(x)
         if out is not None:
             out = self.toshapeout(out)
         out = self.__call__(x, out=out)
-
         return out.ravel()
 
     def rmatvec(self, x, out=None):
@@ -725,9 +726,11 @@ class Operator(object):
         predicate : str
             See OperatorUnaryRule and OperatorBinaryRule documentation.
         operation : CompositeOperator sub class
-            Operation to which applies the rule. It can be: CompositionOperator,
-            AdditionOperator and MultiplicationOperator. For unary rules,
-            the value must be None.
+            Operation to which applies the rule. It can be:
+                - None, for unary rules
+                - CompositionOperator
+                - AdditionOperator
+                - MultiplicationOperator.
         globals : dict, optional
             Dictionary containing the operator classes used in class-matching
             rules. It is required for classes not from pyoperators.core and for
@@ -755,8 +758,8 @@ class Operator(object):
             rules = self.rules[operation]
         else:
             if operation not in self.rules:
-                self.rules[operation] = {'left':[], 'right':[]}
-            rules = self.rules[operation]['left' if rule.reference == 0 else \
+                self.rules[operation] = {'left': [], 'right': []}
+            rules = self.rules[operation]['left' if rule.reference == 0 else
                                           'right']
         ids = [r.subjects for r in rules]
 
@@ -781,11 +784,11 @@ class Operator(object):
 
         # insert the rule after more specific ones
         cls = type(self) if rule.other[1:-1] == 'self' else \
-              eval(rule.other[1:-1], globals)
-        classes = [ r.other[1:-1] for r in rules[index:] ]
-        classes = [ cls if r == 'self' else eval(r, globals) for r in classes ]
-        is_subclass = [ issubclass(cls, c) for c in classes ]
-        is_supclass = [ issubclass(c, cls) for c in classes ]
+            eval(rule.other[1:-1], globals)
+        classes = [r.other[1:-1] for r in rules[index:]]
+        classes = [cls if r == 'self' else eval(r, globals) for r in classes]
+        is_subclass = [issubclass(cls, c) for c in classes]
+        is_supclass = [issubclass(c, cls) for c in classes]
         try:
             index2 = is_subclass.index(True)
         except ValueError:
@@ -830,7 +833,7 @@ class Operator(object):
                 rules = rules['right' if right else 'left']
         index = [r.subjects for r in rules].index(subjects)
         del rules[index]
-        
+
     @property
     def C(self):
         """ Return the complex-conjugate of the operator. """
@@ -881,7 +884,7 @@ class Operator(object):
         of the instance and of themselves.
         """
         if None in self.rules:
-            rules = dict((r.subjects[0],r) for r in self.rules[None])
+            rules = dict((r.subjects[0], r) for r in self.rules[None])
         else:
             rules = {}
 
@@ -894,13 +897,13 @@ class Operator(object):
         else:
             C = DirectOperatorFactory(Operator, self, direct=self.conjugate_,
                                       name=self.__name__ + '.C',
-                                      flags={'linear':flags.linear,
-                                             'symmetric':flags.symmetric,
-                                             'hermitian':flags.hermitian,
-                                             'idempotent':flags.idempotent,
-                                             'involutary':flags.involutary,
-                                             'orthogonal':flags.orthogonal,
-                                             'unitary':flags.unitary})
+                                      flags={'linear': flags.linear,
+                                             'symmetric': flags.symmetric,
+                                             'hermitian': flags.hermitian,
+                                             'idempotent': flags.idempotent,
+                                             'involutary': flags.involutary,
+                                             'orthogonal': flags.orthogonal,
+                                             'unitary': flags.unitary})
 
         if flags.symmetric:
             T = self
@@ -913,11 +916,11 @@ class Operator(object):
         else:
             T = ReverseOperatorFactory(Operator, self, direct=self.transpose,
                                        name=self.__name__ + '.T',
-                                       flags={'linear':flags.linear,
-                                              'idempotent':flags.idempotent,
-                                              'involutary':flags.involutary,
-                                              'orthogonal':flags.orthogonal,
-                                              'unitary':flags.unitary})
+                                       flags={'linear': flags.linear,
+                                              'idempotent': flags.idempotent,
+                                              'involutary': flags.involutary,
+                                              'orthogonal': flags.orthogonal,
+                                              'unitary': flags.unitary})
 
         if flags.hermitian:
             H = self
@@ -932,11 +935,11 @@ class Operator(object):
         else:
             H = ReverseOperatorFactory(Operator, self, direct=self.adjoint,
                                        name=self.__name__ + '.H',
-                                       flags={'linear':flags.linear,
-                                              'idempotent':flags.idempotent,
-                                              'involutary':flags.involutary,
-                                              'orthogonal':flags.orthogonal,
-                                              'unitary':flags.unitary})
+                                       flags={'linear': flags.linear,
+                                              'idempotent': flags.idempotent,
+                                              'involutary': flags.involutary,
+                                              'orthogonal': flags.orthogonal,
+                                              'unitary': flags.unitary})
 
         if flags.involutary:
             I = self
@@ -949,10 +952,10 @@ class Operator(object):
         else:
             I = ReverseOperatorFactory(Operator, self, direct=self.inverse,
                                        name=self.__name__ + '.I',
-                                       flags={'idempotent':flags.idempotent,
-                                              'involutary':flags.involutary,
-                                              'orthogonal':flags.orthogonal,
-                                              'unitary':flags.unitary})
+                                       flags={'idempotent': flags.idempotent,
+                                              'involutary': flags.involutary,
+                                              'orthogonal': flags.orthogonal,
+                                              'unitary': flags.unitary})
 
         if flags.real:
             IC = I
@@ -968,10 +971,10 @@ class Operator(object):
             IC = ReverseOperatorFactory(Operator, self,
                                         direct=self.inverse_conjugate,
                                         name=self.__name__ + '.I.C',
-                                        flags={'idempotent':flags.idempotent,
-                                               'involutary':flags.involutary,
-                                               'orthogonal':flags.orthogonal,
-                                               'unitary':flags.unitary})
+                                        flags={'idempotent': flags.idempotent,
+                                               'involutary': flags.involutary,
+                                               'orthogonal': flags.orthogonal,
+                                               'unitary': flags.unitary})
 
         if flags.orthogonal:
             IT = self
@@ -987,10 +990,10 @@ class Operator(object):
             IT = DirectOperatorFactory(Operator, self,
                                        direct=self.inverse_transpose,
                                        name=self.__name__ + '.I.T',
-                                       flags={'idempotent':flags.idempotent,
-                                              'involutary':flags.involutary,
-                                              'orthogonal':flags.orthogonal,
-                                              'unitary':flags.unitary})
+                                       flags={'idempotent': flags.idempotent,
+                                              'involutary': flags.involutary,
+                                              'orthogonal': flags.orthogonal,
+                                              'unitary': flags.unitary})
 
         if flags.unitary:
             IH = self
@@ -1010,14 +1013,14 @@ class Operator(object):
             IH = DirectOperatorFactory(Operator, self,
                                        direct=self.inverse_adjoint,
                                        name=self.__name__ + '.I.H',
-                                       flags={'idempotent':flags.idempotent,
-                                              'involutary':flags.involutary,
-                                              'orthogonal':flags.orthogonal,
-                                              'unitary':flags.unitary})
+                                       flags={'idempotent': flags.idempotent,
+                                              'involutary': flags.involutary,
+                                              'orthogonal': flags.orthogonal,
+                                              'unitary': flags.unitary})
 
         # once all the associated operators are instanciated, we set all their
         # associated operators. To do so, we use the fact that the transpose,
-        # adjoint, conjugate and inverse operators are commutative and 
+        # adjoint, conjugate and inverse operators are commutative and
         # involutary.
         self._C, self._T, self._H, self._I = C, T, H, I
         C._C, C._T, C._H, C._I = self, H, T, IC
@@ -1080,7 +1083,7 @@ class Operator(object):
 
         if isinstance(self.direct, np.ufunc):
             if self.direct.nin != 1 or self.direct.nout != 1:
-                raise TypeError('An ufunc with several inputs or outputs cannot'
+                raise TypeError('A ufunc with several inputs or outputs cannot'
                                 ' be converted to an Operator.')
             real = True
             for t in self.direct.types:
@@ -1104,12 +1107,13 @@ class Operator(object):
                 d = self.direct
             if isinstance(flags, (dict, str)) and 'inplace_reduction' not in \
                flags or isinstance(flags, OperatorFlags):
-                if d is not None and 'operation' in d.func_code.co_varnames:
+                if d and 'operation' in d.func_code.co_varnames:
                     self._set_flags('inplace_reduction')
             if self.flags.inplace_reduction:
-                if d is not None and 'operation' not in d.func_code.co_varnames:
-                    raise TypeError("The direct method of an inplace-reduction "
-                            "operator must have an 'operation' keyword.")
+                if d and 'operation' not in d.func_code.co_varnames:
+                    raise TypeError(
+                        "The direct method of an inplace-reduction operator mu"
+                        "st have an 'operation' keyword.")
 
         if self.flags.inplace:
             aligned = max(self.flags.aligned_input,
@@ -1154,22 +1158,24 @@ class Operator(object):
             if not isinstance(attrin, dict) or len(attrin) > 0:
                 self.attrin = attrin
         else:
-            raise TypeError("The 'attrin' keyword should be a dictionary or a f"
-                            "unction.")
+            raise TypeError(
+                "The 'attrin' keyword should be a dictionary or a function.")
         if isinstance(attrout, (dict, types.FunctionType, types.MethodType)):
             if not isinstance(attrout, dict) or len(attrout) > 0:
                 self.attrout = attrout
         else:
-            raise TypeError("The 'attrout' keyword should be a dictionary or a "
-                            "function.")
+            raise TypeError(
+                "The 'attrout' keyword should be a dictionary or a function.")
         if type(classin) is type and issubclass(classin, np.ndarray):
             self.classin = classin
         elif classin is not None:
-            raise TypeError("The 'classin' keyword is not an ndarray subclass.")
+            raise TypeError(
+                "The 'classin' keyword is not an ndarray subclass.")
         if type(classout) is type and issubclass(classout, np.ndarray):
             self.classout = classout
         elif classout is not None:
-            raise TypeError("The 'classout' keyword is not an ndarray subclass.")
+            raise TypeError(
+                "The 'classout' keyword is not an ndarray subclass.")
         if commin is not None:
             self.commin = commin
         if commout is not None:
@@ -1213,7 +1219,7 @@ class Operator(object):
                 self.shapein = self.shapeout
             else:
                 self.shapeout = self.shapein
-            self.reshapein = lambda x:x
+            self.reshapein = lambda x: x
             self.reshapeout = self.reshapein
             self.validatein = self.validatein or self.validateout
             self.validateout = self.validatein
@@ -1234,8 +1240,8 @@ class Operator(object):
             except AttributeError:
                 pass
 
-        flag_is = 'explicit' if self.shapein is not None else 'implicit' \
-            if self.reshapeout != Operator.reshapeout.__get__(self, type(self))\
+        flag_is = 'explicit' if self.shapein is not None else 'implicit' if \
+            self.reshapeout != Operator.reshapeout.__get__(self, type(self)) \
             else 'unconstrained'
         flag_os = 'explicit' if self.shapeout is not None else 'implicit' \
             if self.reshapein != Operator.reshapein.__get__(self, type(self)) \
@@ -1251,7 +1257,8 @@ class Operator(object):
                 self.validateout = self.validatein
             else:
                 self.reshapein = Operator.reshapein.__get__(self, type(self))
-                self.validateout = Operator.validateout.__get__(self,type(self))
+                self.validateout = Operator.validateout.__get__(
+                    self, type(self))
 
     def _init_name(self, name):
         """ Set operator's __name__ attribute. """
@@ -1261,7 +1268,7 @@ class Operator(object):
             if type(self) is not Operator:
                 name = type(self).__name__
             elif self.direct is not None and self.direct.__name__ not in \
-                 ('<lambda>', 'direct'):
+                    ('<lambda>', 'direct'):
                 name = self.direct.__name__
             else:
                 name = 'Operator'
@@ -1275,7 +1282,7 @@ class Operator(object):
             self.flags = flags
             return
         flags = self.validate_flags(flags)
-        f = [k for k,v in flags.items() if v]
+        f = [k for k, v in flags.items() if v]
         if 'symmetric' in f or 'hermitian' in f or 'orthogonal' in f or \
            'unitary' in f:
             flags['linear'] = flags['square'] = True
@@ -1316,8 +1323,9 @@ class Operator(object):
                 raise TypeError('The output argument is not an ndarray.')
             output = output.view(np.ndarray)
             if output.dtype != dtype:
-                raise ValueError("The output has an invalid dtype '{0}'. Expect"
-                    "ed dtype is '{1}'.".format(output.dtype, dtype))
+                raise ValueError(
+                    "The output has an invalid dtype '{0}'. Expected dtype is "
+                    "'{1}'.".format(output.dtype, dtype))
 
             # if the output does not fulfill the operator's alignment &
             # contiguity requirements, or if the operator is out-of-place and
@@ -1325,8 +1333,9 @@ class Operator(object):
             if not iscompatible(output, output.shape, dtype,
                self.flags.aligned_output, self.flags.contiguous_output) or \
                isalias(input, output) and not self.flags.inplace:
-                output_ = _pool.extract(output.shape, dtype,
-                    self.flags.aligned_output, self.flags.contiguous_output)
+                output_ = _pool.extract(
+                    output.shape, dtype, self.flags.aligned_output,
+                    self.flags.contiguous_output)
                 output = _pool.view(output_, output.shape, dtype)
             shapeout = output.shape
         else:
@@ -1338,13 +1347,13 @@ class Operator(object):
         if output is None:
             if self.flags.shape_input == 'implicit' and \
                self.flags.shape_output == 'unconstrained':
-                raise ValueError('The output shape of an implicit input shape a'
-                    'nd unconstrained output shape operator cannot be inferred.'
-                    )
+                raise ValueError(
+                    'The output shape of an implicit input shape and unconstra'
+                    'ined output shape operator cannot be inferred.')
             if shapeout is None:
                 shapeout = input.shape
-            output = empty(shapeout, dtype, description="for {0}'s output.".format(
-                           self.__name__))
+            output = empty(shapeout, dtype, description=
+                           "for {0}'s output.".format(self.__name__))
         return input, input_, output, output_
 
     @staticmethod
@@ -1355,22 +1364,23 @@ class Operator(object):
         if isinstance(flags, dict):
             flags = flags.copy()
         elif isinstance(flags, OperatorFlags):
-            flags = dict((k,v) for k,v in zip(OperatorFlags._fields, flags))
+            flags = dict((k, v) for k, v in zip(OperatorFlags._fields, flags))
         elif isinstance(flags, (list, tuple, str)):
             if isinstance(flags, str):
                 flags = [f.strip() for f in flags.split(',')]
-            flags = dict((f,True) for f in flags)
+            flags = dict((f, True) for f in flags)
         else:
             raise TypeError("The operator flags have an invalid type '{0}'.".
                             format(flags))
         flags.update(keywords)
         if any(not isinstance(f, str) for f in flags):
-            raise TypeError("Invalid type for the operator flags: {0}." \
+            raise TypeError("Invalid type for the operator flags: {0}."
                             .format(flags))
         if any(f not in OperatorFlags._fields for f in flags):
-            raise ValueError("Invalid operator flags '{0}'. The properties "
-                "must be one of the following: ".format(flags.keys()) + \
-                strenum(OperatorFlags._fields) + '.')
+            raise ValueError(
+                "Invalid operator flags '{0}'. The properties must be one of t"
+                "he following: ".format(flags.keys()) + strenum(
+                OperatorFlags._fields) + '.')
         return flags
 
     def _validate_shapes(self, shapein, shapeout):
@@ -1406,11 +1416,13 @@ class Operator(object):
             self.validatein(shapein_)
 
         if None not in (shapein, shapein_) and shapein != shapein_:
-            raise ValueError("The specified input shape '{0}' is incompatible w"
-                "ith the expected one '{1}'.".format(shapein, shapein_))
+            raise ValueError(
+                "The specified input shape '{0}' is incompatible with the expe"
+                "cted one '{1}'.".format(shapein, shapein_))
         if None not in (shapeout, shapeout_) and shapeout != shapeout_:
-            raise ValueError("The specified output shape '{0}' is incompatible "
-                "with the expected one '{1}'.".format(shapeout, shapeout_))
+            raise ValueError(
+                "The specified output shape '{0}' is incompatible with the exp"
+                "ected one '{1}'.".format(shapeout, shapeout_))
 
         return (first_is_not([shapein, shapein_], None),
                 first_is_not([shapeout, shapeout_], None))
@@ -1433,8 +1445,9 @@ class Operator(object):
 
     def __rmul__(self, other):
         if not isscalar(other):
-            raise NotImplementedError("It is not possible to multiply '" + \
-                str(type(other)) + "' with an Operator.")
+            raise NotImplementedError(
+                "It is not possible to multiply '" + str(type(other)) + "' wit"
+                "h an Operator.")
         return CompositionOperator([other, self])
 
     def __imul__(self, other):
@@ -1488,8 +1501,10 @@ class Operator(object):
         d1 = self.__dict__.copy()
         d2 = other.__dict__.copy()
         for k in '_C', '_T', '_H', '_I', '_D':
-            if k in d1: del d1[k]
-            if k in d2: del d2[k]
+            if k in d1:
+                del d1[k]
+            if k in d2:
+                del d2[k]
         return all_eq(d1, d2)
 
     def __ne__(self, other):
@@ -1498,7 +1513,8 @@ class Operator(object):
     def __str__(self):
         if self.shapein is not None or self.shapeout is not None:
             shapein = '?' if self.shapein is None else strshape(self.shapein)
-            shapeout = '?' if self.shapeout is None else strshape(self.shapeout)
+            shapeout = '?' if self.shapeout is None else \
+                strshape(self.shapeout)
             if self.flags.square and self.shapein is not None and \
                len(self.shapein) > 1:
                 s = shapein + '²'
@@ -1517,7 +1533,7 @@ class Operator(object):
         a = []
         init = getattr(self, '__init_original__', self.__init__)
         vars, args, keywords, defaults = inspect.getargspec(init)
-            
+
         for ivar, var in enumerate(vars):
             if var in ('flags', 'self'):
                 continue
@@ -1565,18 +1581,18 @@ class Operator(object):
                 if val.size > 1:
                     s += ', ' if val.size == 2 else ', ..., '
                     s += str(val.flat[-1])
-                s += val.ndim * ']' +  ', dtype={0})'.format(val.dtype)
+                s += val.ndim * ']' + ', dtype={0})'.format(val.dtype)
             elif var == 'dtype':
                 s = str(val)
             else:
                 s = repr(val)
 
             if ivar < nargs:
-                a += [ s ]
+                a += [s]
             else:
                 a += [var + '=' + s]
         name = self.__name__ if hasattr(self, '__name__') else \
-               type(self).__name__ + '[not initialized]'
+            type(self).__name__ + '[not initialized]'
         return name + '(' + ', '.join(a) + ')'
 
 
@@ -1622,13 +1638,13 @@ class CompositeOperator(Operator):
 
     def propagate_attributes(self, cls, attr):
         return self.operands[0].propagate_attributes(cls, attr)
-            
+
     def propagate_commin(self, commin):
         if commin is None:
             return self
         self.commin = commin
         for i, op in enumerate(self.operands):
-           self.operands[i] = op.propagate_commin(commin)
+            self.operands[i] = op.propagate_commin(commin)
         return self
 
     def propagate_commout(self, commout):
@@ -1636,7 +1652,7 @@ class CompositeOperator(Operator):
             return self
         self.commout = commout
         for i, op in enumerate(self.operands):
-           self.operands[i] = op.propagate_commout(commout)
+            self.operands[i] = op.propagate_commout(commout)
         return self
 
     def _apply_rules(self, ops):
@@ -1669,10 +1685,10 @@ class CompositeOperator(Operator):
                     BlockDiagonalOperator)) else str(o) for o in self.operands]
 
         # some special cases
-        if isinstance(self, BlockDiagonalOperator) and  len(operands) > 2:
+        if isinstance(self, BlockDiagonalOperator) and len(operands) > 2:
             operands = [operands[0], '...', operands[-1]]
         elif isinstance(self, CompositionOperator) and \
-           isinstance(self.operands[0], HomothetyOperator):
+                isinstance(self.operands[0], HomothetyOperator):
             # remove trailing 'I'
             operands[0] = operands[0][:-1]
             if self.operands[0].data == -1:
@@ -1703,9 +1719,9 @@ class CommutativeCompositeOperator(CompositeOperator):
         CompositeOperator.__init__(self, operands, **keywords)
         if not isinstance(self, CommutativeCompositeOperator):
             return
-        self.set_rule('.{Operator}', lambda s,o: type(s)(s.operands + [o]),
+        self.set_rule('.{Operator}', lambda s, o: type(s)(s.operands + [o]),
                       type(self))
-        self.set_rule('.{self}', lambda s,o: type(s)(s.operands + o.operands),
+        self.set_rule('.{self}', lambda s, o: type(s)(s.operands + o.operands),
                       type(self))
         self.operation = operation
 
@@ -1769,7 +1785,7 @@ class CommutativeCompositeOperator(CompositeOperator):
             i += 1
 
         # move this up to avoid creations of temporaries
-        i = [i for i,o in enumerate(ops) if isinstance(o, HomothetyOperator)]
+        i = [i for i, o in enumerate(ops) if isinstance(o, HomothetyOperator)]
         if len(i) > 0:
             ops.insert(0, ops[i[0]])
             del ops[i[0]+1]
@@ -1780,38 +1796,41 @@ class CommutativeCompositeOperator(CompositeOperator):
     @classmethod
     def _get_attributes(cls, operands, **keywords):
         attr = {
-            'attrin':first_is_not((o.attrin for o in operands), None),
-            'attrout':first_is_not((o.attrout for o in operands), None),
-            'classin':first_is_not((o.classin for o in operands), None),
-            'classout':first_is_not((o.classout for o in operands), None),
-            'commin':first_is_not((o.commin for o in operands), None),
-            'commout':first_is_not((o.commout for o in operands), None),
-            'dtype':cls._find_common_type(o.dtype for o in operands),
-            'flags':cls._merge_flags(operands),
-            'reshapein':cls._merge_reshapein(operands),
-            'reshapeout':cls._merge_reshapeout(operands),
-            'shapein':cls._merge_shape((o.shapein for o in operands), 'in'),
-            'shapeout':cls._merge_shape((o.shapeout for o in operands), 'out'),
-            'toshapein':first_is_not((o.toshapein for o in operands), None),
-            'toshapeout':first_is_not((o.toshapeout for o in operands), None),
-            'validatein':first_is_not((o.validatein for o in operands), None),
-            'validateout':first_is_not((o.validateout for o in operands), None),
-        }
+            'attrin': first_is_not((o.attrin for o in operands), None),
+            'attrout': first_is_not((o.attrout for o in operands), None),
+            'classin': first_is_not((o.classin for o in operands), None),
+            'classout': first_is_not((o.classout for o in operands), None),
+            'commin': first_is_not((o.commin for o in operands), None),
+            'commout': first_is_not((o.commout for o in operands), None),
+            'dtype': cls._find_common_type(o.dtype for o in operands),
+            'flags': cls._merge_flags(operands),
+            'reshapein': cls._merge_reshapein(operands),
+            'reshapeout': cls._merge_reshapeout(operands),
+            'shapein': cls._merge_shape((o.shapein for o in operands), 'in'),
+            'shapeout': cls._merge_shape((o.shapeout for o in operands),
+                                         'out'),
+            'toshapein': first_is_not((o.toshapein for o in operands), None),
+            'toshapeout': first_is_not((o.toshapeout for o in operands), None),
+            'validatein': first_is_not((o.validatein for o in operands), None),
+            'validateout': first_is_not((o.validateout for o in operands),
+                                        None)}
         for k, v in keywords.items():
             if k is not 'flags':
                 attr[k] = v
-        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
+        attr['flags'].update(
+            Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @staticmethod
     def _merge_flags(operands):
         return {
-            'real':all(o.flags.real for o in operands),
-            'aligned_input':max(o.flags.aligned_input for o in operands),
-            'aligned_output':max(o.flags.aligned_output for o in operands),
-            'contiguous_input':any(o.flags.contiguous_input for o in operands),
-            'contiguous_output':any(o.flags.contiguous_output for o in operands)
-        }
+            'real': all(o.flags.real for o in operands),
+            'aligned_input': max(o.flags.aligned_input for o in operands),
+            'aligned_output': max(o.flags.aligned_output for o in operands),
+            'contiguous_input': any(o.flags.contiguous_input
+                                    for o in operands),
+            'contiguous_output': any(o.flags.contiguous_output
+                                     for o in operands)}
 
     @staticmethod
     def _merge_reshapein(operands):
@@ -1868,11 +1887,11 @@ class AdditionOperator(CommutativeCompositeOperator):
     def _merge_flags(operands):
         flags = CommutativeCompositeOperator._merge_flags(operands)
         flags.update({
-            'linear':all(op.flags.linear for op in operands),
-            'separable':all(o.flags.separable for o in operands),
-            'square':any(o.flags.square for o in operands),
-            'symmetric':all(op.flags.symmetric for op in operands),
-            'hermitian':all(op.flags.symmetric for op in operands)})
+            'linear': all(op.flags.linear for op in operands),
+            'separable': all(o.flags.separable for o in operands),
+            'square': any(o.flags.square for o in operands),
+            'symmetric': all(op.flags.symmetric for op in operands),
+            'hermitian': all(op.flags.symmetric for op in operands)})
         return flags
 
 
@@ -1900,8 +1919,8 @@ class MultiplicationOperator(CommutativeCompositeOperator):
     def _merge_flags(operands):
         flags = CommutativeCompositeOperator._merge_flags(operands)
         flags.update({
-            'separable':all(o.flags.separable for o in operands),
-            'square':any(o.flags.square for o in operands)})
+            'separable': all(o.flags.separable for o in operands),
+            'square': any(o.flags.square for o in operands)})
         return flags
 
 
@@ -1910,10 +1929,10 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     """
     Class for multiple disjoint slices.
 
-    The elements of the input not included in the slices are copied over
-    to the output. This is due to fact that is not easy to derive the complement
-    of a set of slices. To set those values to zeros, you might use MaskOperator
-    or write a custom operator.
+    The elements of the input not included in the slices are copied over to
+    the output. This is due to fact that it is not easy to derive
+    the complement of a set of slices. To set those values to zeros, you might
+    use MaskOperator or write a custom operator.
     Currently, there is no check to verify that the slices are disjoint.
     Non-disjoint slices can lead to unexpected results.
 
@@ -1924,8 +1943,8 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     array([ 3.,  1.,  3.,  1.,  3.,  1.])
 
     >>> op = BlockSliceOperator([ConstantOperator(1), ConstantOperator(2)],
-                                ([slice(0,2), slice(0,2)], 
-                                 [slice(2,4), slice(2,4)]))
+    ...                         ([slice(0, 2), slice(0, 2)],
+    ...                          [slice(2, 4), slice(2, 4)]))
     >>> op(np.zeros((4,4)))
     array([[ 1.,  1.,  0.,  0.],
            [ 1.,  1.,  0.,  0.],
@@ -1945,18 +1964,19 @@ class BlockSliceOperator(CommutativeCompositeOperator):
         if isinstance(slices, slice):
             slices = (slices,)
         if len(operands) != len(slices):
-            raise ValueError("The number of slices '{0}' is not equal to the nu"
-                "mber of operands '{1}'.".format(len(slices), len(operands)))
+            raise ValueError(
+                "The number of slices '{0}' is not equal to the number of oper"
+                "ands '{1}'.".format(len(slices), len(operands)))
 
         keywords = self._get_attributes(operands, **keywords)
         CommutativeCompositeOperator.__init__(self, operands, **keywords)
         self.slices = tuple(slices)
-        self.set_rule('.C', lambda s: 
-                      BlockSliceOperator([op.C for op in s.operands], s.slices))
-        self.set_rule('.T', lambda s: 
-                      BlockSliceOperator([op.T for op in s.operands], s.slices))
-        self.set_rule('.H', lambda s: 
-                      BlockSliceOperator([op.H for op in s.operands], s.slices))
+        self.set_rule('.C', lambda s: BlockSliceOperator(
+                      [op.C for op in s.operands], s.slices))
+        self.set_rule('.T', lambda s: BlockSliceOperator(
+                      [op.T for op in s.operands], s.slices))
+        self.set_rule('.H', lambda s: BlockSliceOperator(
+                      [op.H for op in s.operands], s.slices))
         self.set_rule('.{HomothetyOperator}', lambda s, o: BlockSliceOperator(
                       [o.data * op for op in s.operands], s.slices),
                       CompositionOperator)
@@ -1976,23 +1996,24 @@ class BlockSliceOperator(CommutativeCompositeOperator):
     @classmethod
     def _get_attributes(cls, operands, **keywords):
         attr = {
-            'dtype':cls._find_common_type(o.dtype for o in operands),
-            'flags':cls._merge_flags(operands),
+            'dtype': cls._find_common_type(o.dtype for o in operands),
+            'flags': cls._merge_flags(operands),
         }
         for k, v in keywords.items():
             if k is not 'flags':
                 attr[k] = v
-        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
+        attr['flags'].update(
+            Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @staticmethod
     def _merge_flags(operands):
         flags = CommutativeCompositeOperator._merge_flags(operands)
         flags.update({
-            'linear':all(op.flags.linear for op in operands),
-            'symmetric':all(op.flags.symmetric for op in operands),
-            'hermitian':all(op.flags.hermitian for op in operands),
-            'inplace':all(op.flags.inplace for op in operands)})
+            'linear': all(op.flags.linear for op in operands),
+            'symmetric': all(op.flags.symmetric for op in operands),
+            'hermitian': all(op.flags.hermitian for op in operands),
+            'inplace': all(op.flags.inplace for op in operands)})
         return flags
 
 
@@ -2010,13 +2031,12 @@ class NonCommutativeCompositeOperator(CompositeOperator):
 
         # loop over the len(ops)-1 pairs of operands
         while i >= 0:
-            
             o1 = ops[i]
             o2 = ops[i+1]
             rules1 = o1.rules[cls]['left'] if cls in o1.rules else []
             rules2 = o2.rules[cls]['right'] if cls in o2.rules else []
 
-            # subclasses rules have a higher priority than those of superclasses
+            # subclasses rules priority is higher than those of superclasses
             if cls._ge_operator(o1, o2):
                 rules = rules1 + rules2
             else:
@@ -2086,17 +2106,17 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                       [m.H for m in s.operands[::-1]]))
         self.set_rule('.I', lambda s: CompositionOperator(
                       [m.I for m in s.operands[::-1]]))
-        self.set_rule('.IC',lambda s: CompositionOperator(
+        self.set_rule('.IC', lambda s: CompositionOperator(
                       [m.I.C for m in s.operands[::-1]]))
         self.set_rule('.IT', lambda s: CompositionOperator(
                       [m.I.T for m in s.operands]))
         self.set_rule('.IH', lambda s: CompositionOperator(
                       [m.I.H for m in s.operands]))
-        self.set_rule('.{self}', lambda s,o: CompositionOperator(
+        self.set_rule('.{self}', lambda s, o: CompositionOperator(
                       s.operands + o.operands), CompositionOperator)
-        self.set_rule('.{Operator}', lambda s,o: CompositionOperator(
+        self.set_rule('.{Operator}', lambda s, o: CompositionOperator(
                       s.operands + [o]), CompositionOperator)
-        self.set_rule('{Operator}.', lambda o,s: CompositionOperator(
+        self.set_rule('{Operator}.', lambda o, s: CompositionOperator(
                       [o] + s.operands), CompositionOperator)
 
     def direct(self, input, output, operation=operation_assignment,
@@ -2105,7 +2125,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         preserve_input &= not isalias(input, output)
         preserve_output = operation is not operation_assignment
 
-        shapeouts, dtypes, ninplaces, bufsizes, aligneds, contiguouss  = \
+        shapeouts, dtypes, ninplaces, bufsizes, aligneds, contiguouss = \
             self._get_info(input, output, preserve_input)
 
         i = i_ = input
@@ -2119,14 +2139,15 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         # outer loop over groups of operators
         for igroup, (ninplace, bufsize, aligned, contiguous) in renumerate(
-            zip(ninplaces, bufsizes, aligneds, contiguouss)):
+                zip(ninplaces, bufsizes, aligneds, contiguouss)):
 
             if igroup != ngroups - 1:
 
                 # get output for the current outplace operator if possible
                 reuse_output = not preserve_output and (igroup % 2 == 0) and \
                     iscompatible(output, bufsize, np.int8, aligned,
-                    contiguous) and not isalias(output, i) or igroup == 0
+                                 contiguous) and not isalias(output, i) or \
+                    igroup == 0
                 if reuse_output:
                     o_ = output
                 else:
@@ -2248,8 +2269,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             2) in-place or out-of-place composition
             3) whether the input should be preserved,
 
-        the routine returns the requirements for the intermediate buffers of the
-        composition and the information to perform the composition:
+        the routine returns the requirements for the intermediate buffers of
+        the composition and the information to perform the composition:
             1) output shape and dtype of each operator
             2) groups of operators that will operate on the same output buffer
         Except for the innermost group, which only contains in-place operators
@@ -2267,8 +2288,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         shapeout = output.shape
         dtypein = input.dtype
         dtypeout = output.dtype
-        alignedin = input.__array_interface__['data'][0] % MEMORY_ALIGNMENT == 0
-        alignedout = output.__array_interface__['data'][0] % MEMORY_ALIGNMENT==0
+        alignedin = input.__array_interface__['data'][0] \
+            % MEMORY_ALIGNMENT == 0
+        alignedout = output.__array_interface__['data'][0] \
+            % MEMORY_ALIGNMENT == 0
         contiguousin = input.flags.contiguous
         contiguousout = output.flags.contiguous
 
@@ -2282,9 +2305,9 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         shapes = self._get_shapes(shapein, shapeout, self.operands)[:-1]
         if None in shapes:
-            raise ValueError("The composition of an unconstrained input shape o"
-                             "perator by an unconstrained output shape operator"
-                             " is ambiguous.")
+            raise ValueError(
+                "The composition of an unconstrained input shape operator by a"
+                "n unconstrained output shape operator is ambiguous.")
         dtypes = self._get_dtypes(input.dtype)
         sizes = [product(s) * d.itemsize for s, d in izip(shapes, dtypes)]
 
@@ -2312,7 +2335,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         bufsizes = self._get_bufsizes(sizes, ninplaces)
 
-        v = shapes, dtypes, ninplaces, bufsizes, aligneds, contiguouss 
+        v = shapes, dtypes, ninplaces, bufsizes, aligneds, contiguouss
         self._info[id_] = v
 
         return v
@@ -2392,7 +2415,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 raise ValueError("Incompatible shape in composition.")
             if s is not None:
                 shapes[i] = s
-        
+
         # scanning from the outermost to the innermost operand
         for i in range(n):
             op = operands[i]
@@ -2412,27 +2435,28 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         shapes = cls._get_shapes(operands[-1].shapein, operands[0].shapeout,
                                  operands)
         attr = {
-            'attrin':cls._merge_attr([o.attrin for o in operands]),
-            'attrout':cls._merge_attr([o.attrout for o in operands[::-1]]),
-            'classin':first_is_not((o.classin for o in operands[::-1]), None),
-            'classout':first_is_not((o.classout for o in operands), None),
-            'commin':first_is_not((o.commin for o in operands[::-1]), None),
-            'commout':first_is_not((o.commout for o in operands), None),
-            'dtype':cls._find_common_type(o.dtype for o in operands),
-            'flags':cls._merge_flags(operands),
-            'reshapein':cls._merge_reshapein(operands),
-            'reshapeout':cls._merge_reshapeout(operands),
-            'shapein':shapes[-1],
-            'shapeout':shapes[0],
-            'toshapein':operands[-1].toshapein,
-            'toshapeout':operands[0].toshapeout,
-            'validatein':operands[-1].validatein,
-            'validateout':operands[0].validateout,
+            'attrin': cls._merge_attr([o.attrin for o in operands]),
+            'attrout': cls._merge_attr([o.attrout for o in operands[::-1]]),
+            'classin': first_is_not((o.classin for o in operands[::-1]), None),
+            'classout': first_is_not((o.classout for o in operands), None),
+            'commin': first_is_not((o.commin for o in operands[::-1]), None),
+            'commout': first_is_not((o.commout for o in operands), None),
+            'dtype': cls._find_common_type(o.dtype for o in operands),
+            'flags': cls._merge_flags(operands),
+            'reshapein': cls._merge_reshapein(operands),
+            'reshapeout': cls._merge_reshapeout(operands),
+            'shapein': shapes[-1],
+            'shapeout': shapes[0],
+            'toshapein': operands[-1].toshapein,
+            'toshapeout': operands[0].toshapeout,
+            'validatein': operands[-1].validatein,
+            'validateout': operands[0].validateout,
         }
         for k, v in keywords.items():
             if k is not 'flags':
                 attr[k] = v
-        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
+        attr['flags'].update(
+            Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @classmethod
@@ -2469,6 +2493,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 if a is not None:
                     attr.update(a)
             return attr
+
         def func(attr):
             for a in attrs:
                 if isinstance(a, dict):
@@ -2480,16 +2505,15 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     @staticmethod
     def _merge_flags(operands):
         return {
-            'linear':all(op.flags.linear for op in operands),
-            'real':all(op.flags.real for op in operands),
-            'square':all(op.flags.square for op in operands),
-            'separable':all(op.flags.separable for op in operands),
-            'inplace_reduction':operands[0].flags.inplace_reduction,
-            'aligned_input':operands[-1].flags.aligned_input,
-            'aligned_output':operands[0].flags.aligned_output,
-            'contiguous_input':operands[-1].flags.contiguous_input,
-            'contiguous_output':operands[0].flags.contiguous_output,
-            }
+            'linear': all(op.flags.linear for op in operands),
+            'real': all(op.flags.real for op in operands),
+            'square': all(op.flags.square for op in operands),
+            'separable': all(op.flags.separable for op in operands),
+            'inplace_reduction': operands[0].flags.inplace_reduction,
+            'aligned_input': operands[-1].flags.aligned_input,
+            'aligned_output': operands[0].flags.aligned_output,
+            'contiguous_input': operands[-1].flags.contiguous_input,
+            'contiguous_output': operands[0].flags.contiguous_output}
 
     @staticmethod
     def _merge_names(operands):
@@ -2497,8 +2521,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         if sum(not isinstance(o, HomothetyOperator) for o in operands) > 1:
             return None
         names.sort(key=lambda n: 2 if n == 'IdentityOperator' else
-                                 1 if n == 'HomothetyOperator' else
-                                 0)
+                   1 if n == 'HomothetyOperator' else 0)
         return names[0]
 
     @staticmethod
@@ -2507,18 +2530,20 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             return None
         if all(o.flags.square for o in operands):
             return operands[-1].reshapein
+
         def reshapein(shape):
             for o in operands[::-1]:
                 shape = tointtuple(o.reshapein(shape))
             return shape
         return reshapein
- 
+
     @staticmethod
     def _merge_reshapeout(operands):
         if any(o.flags.shape_input != 'implicit' for o in operands):
             return None
         if all(o.flags.square for o in operands):
             return operands[0].reshapeout
+
         def reshapeout(shape):
             for o in operands:
                 shape = tointtuple(o.reshapeout(shape))
@@ -2537,7 +2562,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 class GroupOperator(CompositionOperator):
     """
     CompositionOperator subclass, without the associativity rules.
-    
+
     Use this operator to make sure that properties such as dtype are not
     lost by composing with other operators.
 
@@ -2548,26 +2573,33 @@ class GroupOperator(CompositionOperator):
             return
 
         dtype = self._find_common_type(o.dtype for o in operands)
-        switch_T_H = self.flags.real and dtype is not None and dtype.kind == 'c'
+        switch_T_H = self.flags.real and dtype is not None and \
+            dtype.kind == 'c'
         if switch_T_H:
             T, H, IT, IH = '.H', '.T', '.IH', '.IT'
         else:
             T, H, IT, IH = '.T', '.H', '.IT', '.IH'
 
-        self.set_rule('.C', lambda s:DirectOperatorFactory(GroupOperator, s,
-            [m.C for m in s.operands], name=self.__name__ + '.C'))
-        self.set_rule(T, lambda s:ReverseOperatorFactory(GroupOperator, s,
-            [m.T for m in s.operands[::-1]], name=self.__name__ + '.T'))
-        self.set_rule(H, lambda s:ReverseOperatorFactory(GroupOperator, s,
-            [m.H for m in s.operands[::-1]], name=self.__name__ + '.H'))
-        self.set_rule('.I', lambda s:ReverseOperatorFactory(GroupOperator, s,
-            [m.I for m in s.operands[::-1]], name=self.__name__ + '.I'))
-        self.set_rule('.IC', lambda s:ReverseOperatorFactory(GroupOperator, s,
-            [m.I.C for m in s.operands[::-1]], name=self.__name__ + '.I.C'))
-        self.set_rule(IT, lambda s:DirectOperatorFactory(GroupOperator, s,
-            [m.I.T for m in s.operands], name=self.__name__ + '.I.T'))
-        self.set_rule(IH, lambda s:DirectOperatorFactory(GroupOperator, s,
-            [m.I.H for m in s.operands], name=self.__name__ + '.I.H'))
+        self.set_rule('.C', lambda s: DirectOperatorFactory(GroupOperator, s,
+                      [m.C for m in s.operands], name=self.__name__ + '.C'))
+        self.set_rule(T, lambda s: ReverseOperatorFactory(GroupOperator, s,
+                      [m.T for m in s.operands[::-1]],
+                      name=self.__name__ + '.T'))
+        self.set_rule(H, lambda s: ReverseOperatorFactory(GroupOperator, s,
+                      [m.H for m in s.operands[::-1]],
+                      name=self.__name__ + '.H'))
+        self.set_rule('.I', lambda s: ReverseOperatorFactory(GroupOperator, s,
+                      [m.I for m in s.operands[::-1]],
+                      name=self.__name__ + '.I'))
+        self.set_rule('.IC', lambda s: ReverseOperatorFactory(GroupOperator, s,
+                      [m.I.C for m in s.operands[::-1]],
+                      name=self.__name__ + '.I.C'))
+        self.set_rule(IT, lambda s: DirectOperatorFactory(GroupOperator, s,
+                      [m.I.T for m in s.operands],
+                      name=self.__name__ + '.I.T'))
+        self.set_rule(IH, lambda s: DirectOperatorFactory(GroupOperator, s,
+                      [m.I.H for m in s.operands],
+                      name=self.__name__ + '.I.H'))
         self.del_rule('.{self}', CompositionOperator)
         self.del_rule('.{Operator}', CompositionOperator)
         self.del_rule('{Operator}.', CompositionOperator)
@@ -2610,37 +2642,39 @@ class BlockOperator(NonCommutativeCompositeOperator):
             if partitionin is None:
                 partitionin = len(operands) * (1,)
             elif any(p not in (None, 1) for p in partitionin):
-                raise ValueError('If the block operator input shape has one mor'
-                                 'e dimension than its blocks, the input partit'
-                                 'ion must be a tuple of ones.')
+                raise ValueError(
+                    'If the block operator input shape has one more dimension '
+                    'than its blocks, the input partition must be a tuple of o'
+                    'nes.')
         if new_axisout is not None:
             if partitionout is None:
                 partitionout = len(operands) * (1,)
             elif any(p not in (None, 1) for p in partitionout):
-                raise ValueError('If the block operator output shape has one mo'
-                                 're dimension than its blocks, the output part'
-                                 'ition must be a tuple of ones.')
+                raise ValueError(
+                    'If the block operator output shape has one more dimension'
+                    ' than its blocks, the output partition must be a tuple of'
+                    ' ones.')
 
         if axisin is not None and new_axisin is not None:
-            raise ValueError("The keywords 'axisin' and 'new_axisin' are exclus"
-                             "ive.")
+            raise ValueError("The keywords 'axisin' and 'new_axisin' are exclu"
+                             "sive.")
         if axisout is not None and new_axisout is not None:
-            raise ValueError("The keywords 'axisout' and 'new_axisout' are excl"
-                             "usive.")
+            raise ValueError("The keywords 'axisout' and 'new_axisout' are exc"
+                             "lusive.")
 
         if partitionin is partitionout is None:
             raise ValueError('No partition is provided.')
         if partitionin is not None:
             if len(partitionin) != len(operands):
-                raise ValueError('The number of operators must be the same as t'
-                                 'he length of the input partition.')
+                raise ValueError('The number of operators must be the same as '
+                                 'the length of the input partition.')
             partitionin = merge_none(partitionin, self._get_partitionin(
-                                      operands, partitionout, axisin, axisout,
-                                      new_axisin, new_axisout))
+                operands, partitionout, axisin, axisout, new_axisin,
+                new_axisout))
         if partitionout is not None:
             if len(partitionout) != len(operands):
-                raise ValueError('The number of operators must be the same as t'
-                                 'he length of the output partition.')
+                raise ValueError('The number of operators must be the same as '
+                                 'the length of the output partition.')
             partitionout = merge_none(partitionout, self._get_partitionout(
                                       operands, partitionin, axisin, axisout,
                                       new_axisin, new_axisout))
@@ -2668,36 +2702,37 @@ class BlockOperator(NonCommutativeCompositeOperator):
             elif self.new_axisout is not None and self.new_axisout < 0:
                 self.new_axisout += n
 
-        self.set_rule('.C', lambda s: BlockOperator([op.C for op in s.operands],
-                      s.partitionin, s.partitionout, s.axisin, s.axisout,
-                      s.new_axisin, s.new_axisout))
-        self.set_rule('.T', lambda s: BlockOperator([op.T for op in s.operands],
-                      s.partitionout, s.partitionin, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-        self.set_rule('.H', lambda s: BlockOperator([op.H for op in s.operands],
-                      s.partitionout, s.partitionin, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
+        self.set_rule('.C', lambda s: BlockOperator(
+            [op.C for op in s.operands], s.partitionin, s.partitionout,
+            s.axisin, s.axisout, s.new_axisin, s.new_axisout))
+        self.set_rule('.T', lambda s: BlockOperator(
+            [op.T for op in s.operands], s.partitionout, s.partitionin,
+            s.axisout, s.axisin, s.new_axisout, s.new_axisin))
+        self.set_rule('.H', lambda s: BlockOperator(
+            [op.H for op in s.operands], s.partitionout, s.partitionin,
+            s.axisout, s.axisin, s.new_axisout, s.new_axisin))
 
         if isinstance(self, BlockDiagonalOperator):
-            self.set_rule('.I', lambda s: type(s)([op.I for op in
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-            self.set_rule('.IC', lambda s: type(s)([op.I.C for op in \
-                      s.operands], s.partitionout, s.axisout, s.axisin,
-                      s.new_axisout, s.new_axisin))
-            self.set_rule('.IT', lambda s: type(s)([op.I.T for op in \
-                      s.operands], s.partitionin, s.axisin, s.axisout,
-                      s.new_axisin, s.new_axisout))
-            self.set_rule('.IH', lambda s: type(s)([o.I.H for o in \
-                      s.operands], s.partitionin, s.axisin, s.axisout,
-                      s.new_axisin, s.new_axisout))
+            self.set_rule('.I', lambda s: type(s)(
+                [op.I for op in s.operands], s.partitionout, s.axisout,
+                s.axisin, s.new_axisout, s.new_axisin))
+            self.set_rule('.IC', lambda s: type(s)(
+                [op.I.C for op in s.operands], s.partitionout, s.axisout,
+                s.axisin, s.new_axisout, s.new_axisin))
+            self.set_rule('.IT', lambda s: type(s)(
+                [op.I.T for op in s.operands], s.partitionin, s.axisin,
+                s.axisout, s.new_axisin, s.new_axisout))
+            self.set_rule('.IH', lambda s: type(s)(
+                [o.I.H for o in s.operands], s.partitionin, s.axisin,
+                s.axisout, s.new_axisin, s.new_axisout))
 
         self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator)
         self.set_rule('.{Operator}', self._rule_left_operator,
                       CompositionOperator)
         self.set_rule('{Operator}.', self._rule_right_operator,
                       CompositionOperator)
-        self.set_rule('{self}.', self._rule_add_blockoperator, AdditionOperator)
+        self.set_rule('{self}.', self._rule_add_blockoperator,
+                      AdditionOperator)
         self.set_rule('{self}.', self._rule_mul_blockoperator,
                       MultiplicationOperator)
         self.set_rule('{BlockOperator}.', self._rule_comp_blockoperator,
@@ -2709,29 +2744,30 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if self.partitionin is None:
             return self.operands[0].toshapein(v)
         axisin = self.axisin if self.axisin is not None else self.new_axisin
-        if None in self.partitionin or axisin not in (0,-1):
+        if None in self.partitionin or axisin not in (0, -1):
             raise ValueError('Ambiguous reshaping.')
         p = sum(self.partitionin)
         if v.size == p:
             return v
         if axisin == 0:
-            return v.reshape((p,-1))
-        return v.reshape((-1,p))
-            
+            return v.reshape((p, -1))
+        return v.reshape((-1, p))
+
     def toshapeout(self, v):
         if self.shapeout is not None:
             return v.reshape(self.shapeout)
         if self.partitionout is None:
             return self.operands[0].toshapeout(v)
-        axisout = self.axisout if self.axisout is not None else self.new_axisout
-        if None in self.partitionout or axisout not in (0,-1):
+        axisout = self.axisout if self.axisout is not None else \
+            self.new_axisout
+        if None in self.partitionout or axisout not in (0, -1):
             raise ValueError('Ambiguous reshaping.')
         p = sum(self.partitionout)
         if v.size == p:
             return v
         if axisout == 0:
-            return v.reshape((p,-1))
-        return v.reshape((-1,p))
+            return v.reshape((p, -1))
+        return v.reshape((-1, p))
 
     def _get_attributes(self, operands, **keywords):
         # UGLY HACK: required by self.reshapein/out. It may be better to make
@@ -2740,21 +2776,22 @@ class BlockOperator(NonCommutativeCompositeOperator):
         self.operands = operands
 
         attr = {
-            'attrin':first_is_not((o.attrin for o in operands), None),
-            'attrout':first_is_not((o.attrout for o in operands), None),
-            'classin':first_is_not((o.classin for o in operands), None),
-            'classout':first_is_not((o.classout for o in operands), None),
-            'commin':first_is_not((o.commin for o in operands), None),
-            'commout':first_is_not((o.commout for o in operands), None),
-            'dtype':self._find_common_type(o.dtype for o in operands),
-            'flags':self._merge_flags(operands),
-            'shapein':self.reshapeout(None),
-            'shapeout':self.reshapein(None),
+            'attrin': first_is_not((o.attrin for o in operands), None),
+            'attrout': first_is_not((o.attrout for o in operands), None),
+            'classin': first_is_not((o.classin for o in operands), None),
+            'classout': first_is_not((o.classout for o in operands), None),
+            'commin': first_is_not((o.commin for o in operands), None),
+            'commout': first_is_not((o.commout for o in operands), None),
+            'dtype': self._find_common_type(o.dtype for o in operands),
+            'flags': self._merge_flags(operands),
+            'shapein': self.reshapeout(None),
+            'shapeout': self.reshapein(None),
         }
         for k, v in keywords.items():
             if k is not 'flags':
                 attr[k] = v
-        attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
+        attr['flags'].update(
+            Operator.validate_flags(keywords.get('flags', {})))
         return attr
 
     @staticmethod
@@ -2765,7 +2802,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
     @staticmethod
     def _get_partitionin(ops, partitionout, axisin, axisout, new_axisin,
-                          new_axisout):
+                         new_axisout):
         """ Infer the input partition from the output partition. """
         if new_axisin is not None:
             return len(ops) * (1,)
@@ -2860,20 +2897,23 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
         rank = len(shape)
         if any(len(s) != rank for s in explicit):
-            raise ValueError("The blocks do not have the same number of dimensi"
-                             "ons: '{0}'.".format(shapes))
+            raise ValueError(
+                "The blocks do not have the same number of dimensions: '{0}'.".
+                format(shapes))
         if any(shapes[i] is not None and shapes[i][axis] != p[i]
                 for i in range(len(p)) if p[i] is not None):
-            raise ValueError("The blocks have shapes '{0}' incompatible with th"
-                             "e partition {1}.".format(shapes, p))
+            raise ValueError(
+                "The blocks have shapes '{0}' incompatible with the partition "
+                "{1}.".format(shapes, p))
         if len(explicit) != 1:
             ok = [all(s is None or s[i] == shape[i] for s in shapes)
                   for i in range(rank)]
             ok[axis] = True
             if not all(ok):
-                raise ValueError("The dimensions of the blocks '{0}' are not th"
-                                 "e same along axes other than that of the part"
-                                 "ition '{1}'.".format(shapes, p))
+                raise ValueError(
+                    "The dimensions of the blocks '{0}' are not the same along"
+                    " axes other than that of the partition '{1}'.".format(
+                    shapes, p))
 
         p = merge_none(p, [s[axis] if s is not None else None for s in shapes])
         if None in p:
@@ -2925,7 +2965,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitionin is None:
             partitionin = self.partitionin
         return self._get_slices(partitionin, self.axisin, self.new_axisin)
- 
+
     def get_slicesout(self, partitionout=None):
         """ Return an iterator of the block output slices. """
         if partitionout is None:
@@ -2934,21 +2974,23 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
     @staticmethod
     def _merge_flags(operands):
-        return {'linear':all(op.flags.linear for op in operands),
-                'real':all(op.flags.real for op in operands),
-                'inplace_reduction':False}
+        return {'linear': all(op.flags.linear for op in operands),
+                'real': all(op.flags.real for op in operands),
+                'inplace_reduction': False}
 
     def reshapein(self, shapein):
-        shapeins = self._get_shape_operands(shapein, self.partitionin,
-            self.partitionout, self.axisin, self.new_axisin)
+        shapeins = self._get_shape_operands(
+            shapein, self.partitionin, self.partitionout, self.axisin,
+            self.new_axisin)
         shapeouts = [o.shapeout if s is None else tointtuple(o.reshapein(s))
                      for o, s in zip(self.operands, shapeins)]
         return self._get_shape_composite(shapeouts, self.partitionout,
                                          self.axisout, self.new_axisout)
 
     def reshapeout(self, shapeout):
-        shapeouts = self._get_shape_operands(shapeout, self.partitionout,
-            self.partitionin, self.axisout, self.new_axisout)
+        shapeouts = self._get_shape_operands(
+            shapeout, self.partitionout, self.partitionin, self.axisout,
+            self.new_axisout)
         shapeins = [o.shapein if s is None else tointtuple(o.reshapeout(s))
                     for o, s in zip(self.operands, shapeouts)]
         return self._get_shape_composite(shapeins, self.partitionin,
@@ -2976,7 +3018,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
     @staticmethod
     def _validate_partition_composition(op1, op2):
-        axisin1= first_is_not([op1.axisin, op1.new_axisin], None)
+        axisin1 = first_is_not([op1.axisin, op1.new_axisin], None)
         axisout2 = first_is_not([op2.axisout, op2.new_axisout], None)
         if axisin1 < 0 and op2.shapeout is not None:
             axisin1 += len(op2.shapeout)
@@ -2997,11 +3039,11 @@ class BlockOperator(NonCommutativeCompositeOperator):
         except ValueError:
             return None
         pout = None if op1.partitionout is None else op1._get_partitionout(
-               op1.operands, p, op1.axisin, op1.axisout, op1.new_axisin,
-               op1.new_axisout)
+            op1.operands, p, op1.axisin, op1.axisout, op1.new_axisin,
+            op1.new_axisout)
         pin = None if op2.partitionin is None else op2._get_partitionin(
-               op2.operands, p, op2.axisin, op2.axisout, op2.new_axisin,
-               op2.new_axisout)
+            op2.operands, p, op2.axisin, op2.axisout, op2.new_axisin,
+            op2.new_axisout)
 
         return None if pout is None else merge_none(op1.partitionout, pout), \
                None if pin is None else merge_none(op2.partitionin, pin)
@@ -3011,9 +3053,10 @@ class BlockOperator(NonCommutativeCompositeOperator):
         """ Rule for BlockOperator + Operator. """
         if not op.flags.separable:
             return None
-        return BlockOperator([o + op for o in self.operands],
-            self.partitionin, self.partitionout, self.axisin, self.axisout,
-            self.new_axisin, self.new_axisout)
+        return BlockOperator(
+            [o + op for o in self.operands], self.partitionin,
+            self.partitionout, self.axisin, self.axisout, self.new_axisin,
+            self.new_axisout)
 
     @staticmethod
     def _rule_right_operator(op, self):
@@ -3025,11 +3068,12 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if not op.flags.separable:
             return None
         n = len(self.partitionout)
-        partitionout = self._get_partitionout(n*[op], self.partitionout,
-            self.axisout, self.axisout, self.new_axisout, self.new_axisout)
-        return BlockOperator([op * o for o in self.operands],
-            self.partitionin, partitionout, self.axisin, self.axisout,
-            self.new_axisin, self.new_axisout)
+        partitionout = self._get_partitionout(
+            n * [op], self.partitionout, self.axisout, self.axisout,
+            self.new_axisout, self.new_axisout)
+        return BlockOperator(
+            [op * o for o in self.operands], self.partitionin, partitionout,
+            self.axisin, self.axisout, self.new_axisin, self.new_axisout)
 
     @staticmethod
     def _rule_left_operator(self, op):
@@ -3039,11 +3083,12 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if not op.flags.separable:
             return None
         n = len(self.partitionin)
-        partitionin = self._get_partitionin(n*[op], self.partitionin,
-            self.axisin, self.axisin, self.new_axisin, self.new_axisin)
-        return BlockOperator([o * op for o in self.operands],
-            partitionin, self.partitionout, self.axisin, self.axisout,
-            self.new_axisin, self.new_axisout)
+        partitionin = self._get_partitionin(
+            n * [op], self.partitionin, self.axisin, self.axisin,
+            self.new_axisin, self.new_axisin)
+        return BlockOperator(
+            [o * op for o in self.operands], partitionin, self.partitionout,
+            self.axisin, self.axisout, self.new_axisin, self.new_axisout)
 
     @staticmethod
     def _rule_commutative_blockoperator(p1, p2, operation):
@@ -3052,10 +3097,11 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitions is None:
             return None
         partitionout, partitionin = partitions
-        operands = [operation([o1, o2]) for o1,o2 in \
+        operands = [operation([o1, o2]) for o1, o2 in
                     zip(p1.operands, p2.operands)]
-        return BlockOperator(operands, partitionin, partitionout,
-            p1.axisin, p1.axisout, p1.new_axisin, p1.new_axisout)
+        return BlockOperator(
+            operands, partitionin, partitionout, p1.axisin, p1.axisout,
+            p1.new_axisin, p1.new_axisout)
 
     @staticmethod
     def _rule_add_blockoperator(p1, p2):
@@ -3063,7 +3109,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
     @staticmethod
     def _rule_mul_blockoperator(p1, p2):
-        return p1._rule_commutative_blockoperator(p1, p2, MultiplicationOperator)
+        return p1._rule_commutative_blockoperator(
+            p1, p2, MultiplicationOperator)
 
     @staticmethod
     def _rule_comp_blockoperator(p1, p2):
@@ -3072,13 +3119,14 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if partitions is None:
             return None
         partitionout, partitionin = partitions
-        operands = [o1 * o2 for o1,o2 in zip(p1.operands, p2.operands)]
+        operands = [o1 * o2 for o1, o2 in zip(p1.operands, p2.operands)]
         if partitionin is partitionout is None:
             return AdditionOperator(operands)
         axisin, axisout = p2.axisin, p1.axisout
         new_axisin, new_axisout = p2.new_axisin, p1.new_axisout
-        return BlockOperator(operands, partitionin, partitionout, axisin,
-            axisout, new_axisin, new_axisout)
+        return BlockOperator(
+            operands, partitionin, partitionout, axisin, axisout, new_axisin,
+            new_axisout)
 
 
 class BlockDiagonalOperator(BlockOperator):
@@ -3124,7 +3172,7 @@ class BlockDiagonalOperator(BlockOperator):
     """
     def __init__(self, operands, partitionin=None, axisin=None, axisout=None,
                  new_axisin=None, new_axisout=None, **keywords):
-   
+
         operands = self._validate_operands(operands)
 
         if axisin is None and new_axisin is None:
@@ -3136,8 +3184,8 @@ class BlockDiagonalOperator(BlockOperator):
             new_axisout = new_axisin
 
         if partitionin is None:
-            partitionin = self._get_partition([op.shapein \
-                for op in operands], axisin, new_axisin)
+            partitionin = self._get_partition(
+                [op.shapein for op in operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
         partitionout = len(partitionin) * (None,)
 
@@ -3152,11 +3200,12 @@ class BlockDiagonalOperator(BlockOperator):
                 if partitionout[i] is not None:
                     continue
                 if self.partitionin[i] is None:
-                    raise ValueError('The shape of an operator with implicit pa'
-                        'rtition cannot be inferred.')
+                    raise ValueError('The shape of an operator with implicit p'
+                                     'artition cannot be inferred.')
                 shapein = list(input.shape)
                 shapein[self.axisin] = self.partitionin[i]
-                partitionout[i] = tointtuple(o.reshapein(shapein))[self.axisout]
+                partitionout[i] = tointtuple(
+                    o.reshapein(shapein))[self.axisout]
         else:
             partitionout = self.partitionout
 
@@ -3173,10 +3222,10 @@ class BlockDiagonalOperator(BlockOperator):
     @staticmethod
     def _merge_flags(operands):
         flags = BlockOperator._merge_flags(operands)
-        flags.update({'square':all(op.flags.square for op in operands),
-                      'symmetric':all(op.flags.symmetric for op in operands),
-                      'hermitian':all(op.flags.hermitian for op in operands),
-                      'inplace':all(op.flags.inplace for op in operands)})
+        flags.update({'square': all(op.flags.square for op in operands),
+                      'symmetric': all(op.flags.symmetric for op in operands),
+                      'hermitian': all(op.flags.hermitian for op in operands),
+                      'inplace': all(op.flags.inplace for op in operands)})
         return flags
 
 
@@ -3204,7 +3253,7 @@ class BlockColumnOperator(BlockOperator):
            [ 0.,  2.,  0.],
            [ 0.,  0.,  2.]])
 
-    """   
+    """
     def __init__(self, operands, partitionout=None, axisout=None,
                  new_axisout=None, **keywords):
 
@@ -3214,14 +3263,14 @@ class BlockColumnOperator(BlockOperator):
             raise NotImplementedError('Free partitioning not implemented yet.')
 
         if partitionout is None:
-            partitionout = self._get_partition([op.shapeout \
-                for op in operands], axisout, new_axisout)
+            partitionout = self._get_partition(
+                [op.shapeout for op in operands], axisout, new_axisout)
         partitionout = tointtuple(partitionout)
 
         BlockOperator.__init__(self, operands, partitionout=partitionout,
                                axisout=axisout, new_axisout=new_axisout,
                                **keywords)
-        
+
     def direct(self, input, output):
         if None in self.partitionout:
             partitionout = list(self.partitionout)
@@ -3266,9 +3315,9 @@ class BlockRowOperator(BlockOperator):
            [ 0.,  1.,  0., 0., 2., 0.],
            [ 0.,  0.,  1., 0., 0., 2.]])
 
-    """   
-    def __init__(self, operands, partitionin=None, axisin=None, new_axisin=None,
-                 operation=operator.iadd, **keywords):
+    """
+    def __init__(self, operands, partitionin=None, axisin=None,
+                 new_axisin=None, operation=operator.iadd, **keywords):
 
         operands = self._validate_operands(operands)
 
@@ -3276,12 +3325,12 @@ class BlockRowOperator(BlockOperator):
             raise NotImplementedError('Free partitioning not implemented yet.')
 
         if partitionin is None:
-            partitionin = self._get_partition([op.shapein for op in
-                operands], axisin, new_axisin)
+            partitionin = self._get_partition(
+                [op.shapein for op in operands], axisin, new_axisin)
         partitionin = tointtuple(partitionin)
 
-        keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}),
-                                linear=operation is operator.iadd)
+        keywords['flags'] = Operator.validate_flags(
+            keywords.get('flags', {}), linear=operation is operator.iadd)
         BlockOperator.__init__(self, operands, partitionin=partitionin, axisin=
                                axisin, new_axisin=new_axisin, **keywords)
 
@@ -3353,7 +3402,8 @@ class ReshapeOperator(Operator):
             self.__init__(shapein, **keywords)
             return
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
-        self.set_rule('.T', lambda s: ReverseOperatorFactory(ReshapeOperator,s))
+        self.set_rule('.T',
+                      lambda s: ReverseOperatorFactory(ReshapeOperator, s))
         self.set_rule('{self}.', self._rule_reshape, CompositionOperator)
 
     def direct(self, input, output):
@@ -3394,28 +3444,35 @@ class BroadcastingOperator(Operator):
             broadcast = broadcast.lower()
         values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
-            raise ValueError("Invalid value '{0}' for the broadcast keyword. Ex"
-                "pected values are {1}.".format(broadcast, strenum(values)))
+            raise ValueError(
+                "Invalid value '{0}' for the broadcast keyword. Expected value"
+                "s are {1}.".format(broadcast, strenum(values)))
         if broadcast == 'disabled':
             if shapeout not in (None, data.shape):
-                raise ValueError("The input shapein is incompatible with the da"
-                                 "ta shape.")
+                raise ValueError(
+                    "The input shapein is incompatible with the data shape.")
             shapeout = data.shape
         self.broadcast = broadcast
         self.data = data
         Operator.__init__(self, shapeout=shapeout, **keywords)
-        self.set_rule('{BroadcastingOperator}.', lambda b1, b2: \
-            self._rule_broadcast(b1, b2, np.add), AdditionOperator)
-        self.set_rule('{BroadcastingOperator}.', lambda b1, b2: \
-            self._rule_broadcast(b1, b2, np.multiply), CompositionOperator)
-        self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, CompositionOperator), CompositionOperator)
-        self.set_rule('{BlockOperator}.', lambda o,s: self._rule_right_block(o,
-                      s, CompositionOperator), CompositionOperator)
-        self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, AdditionOperator), AdditionOperator)
-        self.set_rule('.{BlockOperator}', lambda s,o: self._rule_left_block(s,
-                      o, MultiplicationOperator), MultiplicationOperator)
+        self.set_rule('{BroadcastingOperator}.',
+                      lambda b1, b2: self._rule_broadcast(b1, b2, np.add),
+                      AdditionOperator)
+        self.set_rule('{BroadcastingOperator}.',
+                      lambda b1, b2: self._rule_broadcast(b1, b2, np.multiply),
+                      CompositionOperator)
+        self.set_rule('.{BlockOperator}',
+                      lambda s, o: self._rule_left_block(s, o,
+                      CompositionOperator), CompositionOperator)
+        self.set_rule('{BlockOperator}.',
+                      lambda o, s: self._rule_right_block(o, s,
+                      CompositionOperator), CompositionOperator)
+        self.set_rule('.{BlockOperator}',
+                      lambda s, o: self._rule_left_block(s, o,
+                      AdditionOperator), AdditionOperator)
+        self.set_rule('.{BlockOperator}',
+                      lambda s, o: self._rule_left_block(s, o,
+                      MultiplicationOperator), MultiplicationOperator)
 
     def get_data(self):
         return self.data
@@ -3455,7 +3512,7 @@ class BroadcastingOperator(Operator):
             data = operation(b1.get_data().T, b2.get_data().T).T
         else:
             data = operation(b1.get_data(), b2.get_data())
-        
+
         return cls(data, broadcast)
 
     @staticmethod
@@ -3478,8 +3535,9 @@ class BroadcastingOperator(Operator):
         elif b == 'disabled':
             pass
         elif shape is None:
-            if new_axis is not None and ndim == 1 and (new_axis == -1 and 
-               b == 'rightward' or new_axis ==  0 and b == 'leftward'):
+            if new_axis is not None and ndim == 1 and (
+                    new_axis == -1 and b == 'rightward' or
+                    new_axis == 0 and b == 'leftward'):
                 do_replicate = True
             elif b == 'rightward':
                 if axis_ > ndim:
@@ -3508,8 +3566,8 @@ class BroadcastingOperator(Operator):
         else:
             data = self._as_strided(shape)
             argspec = inspect.getargspec(type(self).__init__)
-            nargs = len(argspec.args) - (len(argspec.defaults)
-                    if argspec.defaults is not None else 0) - 1
+            nargs = len(argspec.args) - 1 - (
+                len(argspec.defaults) if argspec.defaults is not None else 0)
             slices = op._get_slices(partition, axis, new_axis)
             ops = []
             for s, o in zip(slices, op.operands):
@@ -3572,14 +3630,15 @@ class DiagonalOperator(BroadcastingOperator):
 
     Exemple
     -------
-    >>> A = DiagonalOperator(arange(1, 6, 2))
+    >>> A = DiagonalOperator(np.arange(1, 6, 2))
     >>> A.todense()
 
     array([[1, 0, 0],
            [0, 3, 0],
            [0, 0, 5]])
 
-    >>> A = DiagonalOperator(arange(1, 3), broadcast='rightward', shapein=(2, 2))
+    >>> A = DiagonalOperator(arange(1, 3), broadcast='rightward',
+    ...                      shapein=(2, 2))
     >>> A.todense()
 
     array([[1, 0, 0, 0],
@@ -3615,7 +3674,7 @@ class DiagonalOperator(BroadcastingOperator):
                                                          MaskOperator)):
             self.__class__ = MaskOperator
             self.__init__(~data.astype(np.bool8), broadcast=broadcast,
-                           **keywords)
+                          **keywords)
             return
         if nmones + nones == n:
             keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
@@ -3657,15 +3716,15 @@ class DiagonalOperator(BroadcastingOperator):
         n = self.data.ndim
         if len(shape) < n:
             raise ValueError("Invalid number of dimensions.")
-        
+
         if self.broadcast == 'rightward':
             it = zip(shape[:n], self.data.shape[:n])
         else:
             it = zip(shape[-n:], self.data.shape[-n:])
         for si, sd in it:
             if sd != 1 and sd != si:
-                raise ValueError("The data array cannot be broadcast across the"
-                                 " input.")
+                raise ValueError("The data array cannot be broadcast across th"
+                                 "e input.")
 
     def toshapein(self, v):
         if self.shapein is not None:
@@ -3684,7 +3743,7 @@ class DiagonalOperator(BroadcastingOperator):
                 sd.insert(0, -1)
         else:
             sd[sd.index(1)] = -1
-        
+
         try:
             v = v.reshape(sd)
         except ValueError:
@@ -3797,7 +3856,7 @@ class IdentityOperator(HomothetyOperator):
            [ 0.,  0.,  1.]])
 
     >>> I = IdentityOperator(shapein=2)
-    >>> I * arange(2)
+    >>> I * np.arange(2)
     ndarraywrap([ 0.,  1.])
 
     """
@@ -3836,13 +3895,13 @@ class ConstantOperator(BroadcastingOperator):
         if data.ndim > 0 and np.all(data == data.flat[0]):
             self.__init__(data.flat[0], **keywords)
             return
-        if not isinstance(self, ZeroOperator) and data.ndim == 0  and data == 0:
+        if not isinstance(self, ZeroOperator) and data.ndim == 0 and data == 0:
             self.__class__ = ZeroOperator
             self.__init__(**keywords)
             return
         BroadcastingOperator.__init__(self, data, broadcast, **keywords)
-        self.set_rule('.C', lambda s: DirectOperatorFactory(ConstantOperator, s,
-                      s.data.conjugate(), broadcast=s.broadcast))
+        self.set_rule('.C', lambda s: DirectOperatorFactory(ConstantOperator,
+                      s, s.data.conjugate(), broadcast=s.broadcast))
 #        if self.flags.shape_input == 'unconstrained' and \
 #           self.flags.shape_output != 'implicit':
 #            self.set_rule('.T', '.')
@@ -3852,9 +3911,9 @@ class ConstantOperator(BroadcastingOperator):
                       MultiplicationOperator)
         self.set_rule('.{DiagonalOperator}', self._rule_mul,
                       MultiplicationOperator)
-        self.set_rule('.{BlockOperator}', lambda s,o: self.
+        self.set_rule('.{BlockOperator}', lambda s, o: self.
                       _rule_left_block_composition(s, o), CompositionOperator)
-        self.set_rule('{BlockOperator}.', lambda o,s: self.
+        self.set_rule('{BlockOperator}.', lambda o, s: self.
                       _rule_right_block_composition(o, s), CompositionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
@@ -3906,10 +3965,10 @@ class ConstantOperator(BroadcastingOperator):
         return str(self.data)
 
     def __neg__(self):
-        return ConstantOperator(-self.data, broadcast=self.broadcast,
-            shapein=self.shapein, shapeout=self.shapeout,
-            reshapein=self.reshapein, reshapeout=self.reshapeout,
-            dtype=self.dtype)
+        return ConstantOperator(
+            -self.data, broadcast=self.broadcast, shapein=self.shapein,
+            shapeout=self.shapeout, reshapein=self.reshapein,
+            reshapeout=self.reshapeout, dtype=self.dtype)
 
 
 @linear
@@ -3921,7 +3980,7 @@ class ZeroOperator(ConstantOperator):
     def __init__(self, *args, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
         self.set_rule('.T', lambda s: ReverseOperatorFactory(ZeroOperator, s))
-        self.set_rule('.{Operator}', lambda s,o: o, AdditionOperator)
+        self.set_rule('.{Operator}', lambda s, o: o, AdditionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         operation(output, 0)
@@ -3945,8 +4004,9 @@ class DenseOperator(Operator):
 
     Example
     -------
-    >>> m = array([[1.,2.,3.],[2.,3.,4.]])
-    >>> d([1,0,0])
+    >>> m = np.array([[1., 2., 3.], [2., 3., 4.]])
+    >>> d = DenseOperator(m)
+    >>> d([1, 0, 0])
     array([ 1.,  2.])
     """
     def __init__(self, data, shapein=None, shapeout=None, dtype=None,
@@ -3962,27 +4022,28 @@ class DenseOperator(Operator):
         if shapein is None:
             shapein = data.shape[1]
         elif np.product(shapein) != data.shape[1]:
-            raise ValueError("The input shape '{0}' is incompatible with that o"
-                             "f the input matrix '{1}'.".format(strshape(
-                             shapein), data.shape[1]))
+            raise ValueError(
+                "The input shape '{0}' is incompatible with that of the input "
+                "matrix '{1}'.".format(strshape(shapein), data.shape[1]))
         if shapeout is None:
             shapeout = data.shape[0]
         elif np.product(shapeout) != data.shape[0]:
-            raise ValueError("The input shape '{0}' is incompatible with that o"
-                             "f the input matrix '{1}'.".format(strshape(
-                             shapeout), data.shape[0]))
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout, dtype=dtype,
-                          **keywords)
+            raise ValueError(
+                "The input shape '{0}' is incompatible with that of the input "
+                "matrix '{1}'.".format(strshape(shapeout), data.shape[0]))
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout,
+                          dtype=dtype, **keywords)
         self.data = data
-        self.set_rule('.C', lambda s: DirectOperatorFactory(type(s), s,
-            np.conjugate(s.data)))
-        self.set_rule('.T', lambda s: ReverseOperatorFactory(type(s), s,
-            s.data.T))
-        self.set_rule('.H', lambda s: ReverseOperatorFactory(type(s), s,
-            np.conjugate(s.data.T)))
+        self.set_rule('.C', lambda s: DirectOperatorFactory(
+            type(s), s, np.conjugate(s.data)))
+        self.set_rule('.T', lambda s: ReverseOperatorFactory(
+            type(s), s, s.data.T))
+        self.set_rule('.H', lambda s: ReverseOperatorFactory(
+            type(s), s, np.conjugate(s.data.T)))
         self.set_rule('.{HomothetyOperator}', lambda s, o: DenseOperator(
             o.data * s.data, shapein=s.shapein, shapeout=s.shapeout,
-            dtype=s._find_common_type([s.dtype, o.dtype])), CompositionOperator)
+            dtype=s._find_common_type([s.dtype, o.dtype])),
+            CompositionOperator)
 
     def direct(self, input, output):
         np.dot(self.data, input.ravel(), output)
@@ -4024,13 +4085,13 @@ class ReductionOperator(Operator):
             keywords['shapeout'] = ()
         if isinstance(func, np.ufunc):
             if func.nin != 2:
-                raise TypeError("The input ufunc '{0}' has {1} input argument. "
-                                "Expected number is 2.".format(
-                                func.__name__, func.nin))
+                raise TypeError(
+                    "The input ufunc '{0}' has {1} input argument. Expected nu"
+                    "mber is 2.".format(func.__name__, func.nin))
             if func.nout != 1:
-                raise TypeError("The input ufunc '{0}' has {1} output arguments"
-                                ". Expected number is 1.".format(
-                                func.__name__, func.nout))
+                raise TypeError(
+                    "The input ufunc '{0}' has {1} output arguments. Expected "
+                    "number is 1.".format(func.__name__, func.nout))
             if np.__version__ < '1.8':
                 if axis is None:
                     direct = lambda x, out: func.reduce(x.flat, 0, dtype, out)
@@ -4042,8 +4103,8 @@ class ReductionOperator(Operator):
         elif isinstance(func, types.FunctionType):
             vars, junk, junk, junk = inspect.getargspec(func)
             if 'axis' not in vars:
-                raise TypeError("The input function '{0}' does not have an 'axi"
-                                "s' argument.".format(func.__name__))
+                raise TypeError("The input function '{0}' does not have an 'ax"
+                                "is' argument.".format(func.__name__))
             kw = {}
             if 'dtype' in vars:
                 kw['dtype'] = dtype
@@ -4067,9 +4128,9 @@ class ReductionOperator(Operator):
             raise TypeError('Cannot reduce on scalars.')
         if self.axis is None:
             return
-        if len(shape) < (self.axis+1 if self.axis>=0 else abs(self.axis)):
-            raise ValueError('The input shape has an insufficient number of dim'
-                             'ensions.')
+        if len(shape) < (self.axis+1 if self.axis >= 0 else abs(self.axis)):
+            raise ValueError('The input shape has an insufficient number of di'
+                             'mensions.')
 
 
 class Variable(Operator):
@@ -4086,8 +4147,8 @@ class Variable(Operator):
 
     @staticmethod
     def _rule_left(self, other):
-        raise ValueError('A variable cannot be composed with an right-hand side'
-                         ' operator.')
+        raise ValueError('A variable cannot be composed with an right-hand sid'
+                         'e operator.')
 
     def __str__(self):
         return self.name
@@ -4184,6 +4245,7 @@ def asoperator(x, constant=False, **keywords):
        hasattr(x, 'shape'):
         def direct(input, output):
             output[...] = x.matvec(input)
+
         def transpose(input, output):
             output[...] = x.rmatvec(input)
         keywords['flags'] = Operator.validate_flags(keywords.get('flags', {}),
@@ -4191,7 +4253,7 @@ def asoperator(x, constant=False, **keywords):
         return Operator(direct=direct, transpose=transpose,
                         shapein=x.shape[1], shapeout=x.shape[0],
                         dtype=x.dtype, **keywords)
-    
+
     if isinstance(x, np.ufunc):
         return Operator(x, **keywords)
 
@@ -4214,7 +4276,7 @@ def asoperator(x, constant=False, **keywords):
         if x.ndim > 0:
             return DenseOperator(x, **keywords)
         x = x[()]
-            
+
     if isinstance(x, (int, float, complex, np.bool_, np.number)):
         return HomothetyOperator(x, **keywords)
 
@@ -4232,4 +4294,3 @@ O = ZeroOperator()
 X = Variable('X')
 
 _pool = MemoryPool()
-

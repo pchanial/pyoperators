@@ -35,43 +35,57 @@ _constants = ('SUM', 'MIN', 'MAX', 'PROD', 'BAND', 'BOR', 'BXOR',
 for i, c in enumerate(_constants):
     _g[c] = i
 
+
 class Comm(object):
-    _keyvals = {} # class attribute
+    _keyvals = {}  # class attribute
+
     def __init__(self, rank, size):
         self.rank = rank
         self.size = size
         self._attr = {}
+
     def Get_rank(self):
         return self.rank
+
     def Get_size(self):
         return self.size
-    def allgather(self,sendobj=None, recvobj=None):
+
+    def allgather(self, sendobj=None, recvobj=None):
         return [sendobj]
+
     def allreduce(self, sendobj=None, recvobj=None, op=SUM):
         return sendobj
+
     def bcast(self, obj=None, root=0):
         return obj
+
     def gather(self, sendobj=None, recvobj=None, root=0):
         return [sendobj]
+
     def Allgatherv(self, i, o, op=None):
         if isinstance(i, int) and i == IN_PLACE:
             return
         if isinstance(i, (list, tuple)):
             i = i[0]
         o[0][...] = i
+
     def Allreduce(self, i, o, op=None):
         if isinstance(i, int) and i == IN_PLACE:
             return
         if isinstance(i, (list, tuple)):
             i = i[0]
         o[0][...] = i
+
     def Barrier(self):
         pass
+
     def Dup(self):
         return Comm(self.rank, self.size)
     Clone = Dup
+
     def Free(self):
         return
+
     def Split(self, color=0, key=0):
         return Comm(self.rank, self.size)
 
@@ -83,31 +97,37 @@ class Comm(object):
             id = max(cls._keyvals.keys()) + 1
         cls._keyvals[id] = (copy_fn, delete_fn)
         return id
+
     @classmethod
     def Free_keyval(cls, keyval):
         if keyval not in cls._keyvals:
             raise ValueError('Invalid keyval.')
         del cls._keyvals[keyval]
+
     def Delete_attr(self, keyval):
         if keyval not in self._attr:
             raise ValueError('Invalid keyval.')
         del self._attr[keyval]
+
     def Get_attr(self, keyval):
         if keyval not in self._keyvals:
             raise ValueError('Invalid keyval.')
         if keyval not in self._attr:
             return None
         return self._attr[keyval]
+
     def Set_attr(self, keyval, attrval):
         if keyval not in self._keyvals:
             raise ValueError('Invalid keyval.')
         self._attr[keyval] = attrval
-        
+
     @staticmethod
     def f2py(fcomm):
         return COMM_SELF
+
     def py2f(self):
         return 0
+
 
 def Get_processor_name():
     import platform
@@ -116,6 +136,7 @@ def Get_processor_name():
 COMM_NULL = Comm(0, 0)
 COMM_SELF = Comm(0, 1)
 COMM_WORLD = Comm(0, 1)
+
 
 class Exception(__builtin__.Exception):
     """ Exception.__init__(self, int ierr=0) """

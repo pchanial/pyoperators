@@ -12,9 +12,8 @@ from pyoperators.utils.testing import assert_eq, skiptest
 
 # collection of definite positive symmetric linear operators to test
 operator_list = [pyoperators.DiagonalOperator(np.random.rand(16)),
-                 pyoperators.TridiagonalOperator(np.arange(1,17),
-                                                 np.arange(1,16)),
-                ]
+                 pyoperators.TridiagonalOperator(np.arange(1, 17),
+                                                 np.arange(1, 16))]
 
 # collection of vectors
 vector_list = [np.ones(16), np.arange(1, 17)]
@@ -25,6 +24,7 @@ methods = [iterative.algorithms.acg]
 # collection of solvers
 classes = [iterative.cg.PCGAlgorithm]
 solvers = [iterative.cg.pcg]
+
 
 @skiptest
 def test_methods_inv():
@@ -37,6 +37,7 @@ def test_methods_inv():
             for m in methods:
                 yield func, m, A, x
 
+
 def test_classes_inv():
     def func(c, A, x):
         y = A(x)
@@ -47,6 +48,7 @@ def test_classes_inv():
         for x in vector_list:
             for c in classes:
                 yield func, c, A, x
+
 
 def test_solution_as_x0():
     def func(s, v):
