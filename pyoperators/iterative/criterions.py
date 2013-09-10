@@ -1,5 +1,6 @@
 """
-This module implements Criterions. Those are functions defined from
+This module is obsolete.
+It implements Criterions. Those are functions defined from
 Norms and Operators to be minimized by iterative algorithms (such as
 the conjugate-gradient).
 
