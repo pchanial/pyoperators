@@ -72,10 +72,10 @@ class OperatorFlags(namedtuple(
          'separable',   # o*[B1...Bn] = [o*B1...o*Bn]
          'inplace',
          'inplace_reduction',
-         'aligned_input',      # op. requires aligned input
-         'aligned_output',     # op. requires aligned output
-         'contiguous_input',   # op. requires contig input
-         'contiguous_output',  # op. requires contig output
+         'aligned_input',      # aligned input requirement
+         'aligned_output',     # aligned output requirement
+         'contiguous_input',   # contiguous input requirement
+         'contiguous_output',  # contiguous output requirement
          'shape_input',
          'shape_output'])):
     """ Informative flags about the operator. """
