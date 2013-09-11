@@ -17,6 +17,7 @@ from pyoperators.linear import (
     DifferenceOperator,
     IntegrationTrapezeWeightOperator,
     PackOperator,
+    Rotation2dOperator,
     TridiagonalOperator,
     SymmetricBandToeplitzOperator,
     UnpackOperator,
@@ -32,7 +33,7 @@ from pyoperators.utils.testing import (
 )
 from .common import IdentityOutplaceOperator, assert_inplace_outplace
 
-SHAPES = (None, (), (1,), (3,), (2, 3), (2, 3, 4))
+SHAPES = ((), (1,), (3,), (2, 3), (2, 3, 4))
 
 
 def test_dense_broadcasting():
@@ -187,8 +188,26 @@ def test_packing():
     assert np.allclose(u.T([1, 2, 3, 4, 5]), [1, 4])
 
 
+def test_rotation_2d():
+    def func(shape, degrees):
+        angle = np.arange(product(shape)).reshape(shape)
+        if degrees:
+            angle_ = np.radians(angle)
+        else:
+            angle_ = angle
+        angle_ = angle_.reshape(angle.size)
+        r = Rotation2dOperator(angle, degrees=degrees)
+        actual = r([1, 0]).reshape((angle.size, 2))
+        expected = np.array([np.cos(angle_), np.sin(angle_)]).T
+        assert_same(actual, expected)
+
+    for shape in SHAPES:
+        for degrees in False, True:
+            yield func, shape, degrees
+
+
 def test_sum_operator():
-    for s in SHAPES[2:]:
+    for s in SHAPES[1:]:
         for a in [None] + list(range(len(s))):
             op = SumOperator(axis=a)
             d = op.todense(shapein=s)
