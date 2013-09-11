@@ -274,7 +274,6 @@ class UnpackOperator(Operator):
 
 
 @real
-@linear
 class Rotation2dOperator(DenseOperator):
     """
     2-d rotation operator.
@@ -311,6 +310,10 @@ class Rotation2dOperator(DenseOperator):
             keywords.get('flags', {}), orthogonal=m.ndim == 2
         )
         DenseOperator.__init__(self, m, **keywords)
+
+    def validatein(self, shape):
+        if shape[-1] != 2:
+            raise ValueError('The last dimension of the input is not 2.')
 
 
 @real
