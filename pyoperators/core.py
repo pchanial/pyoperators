@@ -426,7 +426,7 @@ class Operator(object):
         direct=None,
         transpose=None,
         adjoint=None,
-        conjugate_=None,
+        conjugate=None,
         inverse=None,
         inverse_transpose=None,
         inverse_adjoint=None,
@@ -454,7 +454,7 @@ class Operator(object):
                 direct,
                 transpose,
                 adjoint,
-                conjugate_,
+                conjugate,
                 inverse,
                 inverse_transpose,
                 inverse_adjoint,
@@ -464,7 +464,7 @@ class Operator(object):
                 'direct',
                 'transpose',
                 'adjoint',
-                'conjugate_',
+                'conjugate',
                 'inverse',
                 'inverse_transpose',
                 'inverse_adjoint',
@@ -476,23 +476,6 @@ class Operator(object):
                     raise TypeError("The method '%s' is not callable." % name_)
                 # should also check that the method has at least two arguments
                 setattr(self, name_, method)
-
-        if self.transpose is None and self.adjoint is not None:
-
-            def transpose(input, output):
-                self.adjoint(input.conjugate(), output)
-                output[...] = output.conjugate()
-
-            self.transpose = transpose
-
-        if self.adjoint is None and self.transpose is not None:
-
-            def adjoint(input, output):
-                self.transpose(input.conjugate(), output)
-                output[...] = output.conjugate()
-
-        if self.inverse is None:
-            self.inverse_conjugate = None
 
         self._init_dtype(dtype)
         self._init_flags(flags)
@@ -667,18 +650,18 @@ class Operator(object):
     #      in terms of shape, contiguity and alignment.
     direct = None
 
-    def conjugate_(self, input, output):
-        self.direct(input.conjugate(), output)
-        output[...] = output.conjugate()
+    def conjugate(self, input, output):
+        if input.dtype.kind == 'c':
+            with _pool.get(input.shape, input.dtype) as buf:
+                np.conjugate(input, buf)
+            input = buf
+        self.direct(input, output)
+        np.conjugate(output, output)
 
     transpose = None
     adjoint = None
     inverse = None
-
-    def inverse_conjugate(self, input, output):
-        self.inverse(input.conjugate(), output)
-        output[...] = output.conjugate()
-
+    inverse_conjugate = None
     inverse_transpose = None
     inverse_adjoint = None
 
@@ -964,10 +947,6 @@ class Operator(object):
             self._generate_associated_operators()
         return self._I
 
-    def conjugate(self):
-        """Return the complex-conjugate of the operator. Same as '.C'."""
-        return self.C
-
     def copy(self):
         """Return a copy of the operator."""
         return copy.copy(self)
@@ -1000,7 +979,7 @@ class Operator(object):
             C = _copy_direct(
                 self,
                 Operator(
-                    direct=self.conjugate_,
+                    direct=self.conjugate,
                     name=self.__name__ + '.C',
                     flags={
                         'linear': flags.linear,
@@ -1014,6 +993,13 @@ class Operator(object):
                 ),
             )
 
+        new_flags = {
+            'linear': flags.linear,
+            'idempotent': flags.idempotent,
+            'involutary': flags.involutary,
+            'orthogonal': flags.orthogonal,
+            'unitary': flags.unitary,
+        }
         if flags.symmetric:
             T = self
         elif '.T' in rules:
@@ -1022,21 +1008,15 @@ class Operator(object):
             T = _copy_reverse(self, rules['.H'](self))
         elif flags.orthogonal and '.I' in rules:
             T = _copy_reverse(self, rules['.I'](self))
-        else:
+        elif self.transpose is not None:
             T = _copy_reverse(
                 self,
                 Operator(
-                    direct=self.transpose,
-                    name=self.__name__ + '.T',
-                    flags={
-                        'linear': flags.linear,
-                        'idempotent': flags.idempotent,
-                        'involutary': flags.involutary,
-                        'orthogonal': flags.orthogonal,
-                        'unitary': flags.unitary,
-                    },
+                    direct=self.transpose, name=self.__name__ + '.T', flags=new_flags
                 ),
             )
+        else:
+            T = None
 
         if flags.hermitian:
             H = self
@@ -1048,19 +1028,32 @@ class Operator(object):
             H = _copy_reverse(self, rules['.H'](self))
         elif flags.unitary and '.I' in rules:
             H = _copy_reverse(self, rules['.I'](self))
-        else:
+        elif self.adjoint is not None:
             H = _copy_reverse(
                 self,
                 Operator(
-                    direct=self.adjoint,
+                    direct=self.adjoint, name=self.__name__ + '.H', flags=new_flags
+                ),
+            )
+        else:
+            H = None
+
+        if T is None:
+            T = _copy_reverse(
+                self,
+                Operator(
+                    direct=H.conjugate if H is not None else None,
+                    name=self.__name__ + '.T',
+                    flags=new_flags,
+                ),
+            )
+        if H is None:
+            H = _copy_reverse(
+                self,
+                Operator(
+                    direct=T.conjugate if T is not None else None,
                     name=self.__name__ + '.H',
-                    flags={
-                        'linear': flags.linear,
-                        'idempotent': flags.idempotent,
-                        'involutary': flags.involutary,
-                        'orthogonal': flags.orthogonal,
-                        'unitary': flags.unitary,
-                    },
+                    flags=new_flags,
                 ),
             )
 
@@ -1088,6 +1081,12 @@ class Operator(object):
                 ),
             )
 
+        new_flags = {
+            'idempotent': flags.idempotent,
+            'involutary': flags.involutary,
+            'orthogonal': flags.orthogonal,
+            'unitary': flags.unitary,
+        }
         if flags.real:
             IC = I
         elif flags.orthogonal:
@@ -1099,18 +1098,15 @@ class Operator(object):
         elif '.IC' in rules:
             IC = _copy_reverse(self, rules['.IC'](self))
         else:
+            if self.inverse_conjugate is not None:
+                func = self.inverse_conjugate
+            elif I is not None:
+                func = I.conjugate
+            else:
+                func = None
             IC = _copy_reverse(
                 self,
-                Operator(
-                    direct=self.inverse_conjugate,
-                    name=self.__name__ + '.I.C',
-                    flags={
-                        'idempotent': flags.idempotent,
-                        'involutary': flags.involutary,
-                        'orthogonal': flags.orthogonal,
-                        'unitary': flags.unitary,
-                    },
-                ),
+                Operator(direct=func, name=self.__name__ + '.I.C', flags=new_flags),
             )
 
         if flags.orthogonal:
@@ -1123,20 +1119,17 @@ class Operator(object):
             IT = T
         elif '.IT' in rules:
             IT = _copy_direct(self, rules['.IT'](self))
-        else:
-            IT = _copy_direct(
+        elif self.inverse_transpose is not None:
+            IT = _copy_reverse(
                 self,
                 Operator(
                     direct=self.inverse_transpose,
                     name=self.__name__ + '.I.T',
-                    flags={
-                        'idempotent': flags.idempotent,
-                        'involutary': flags.involutary,
-                        'orthogonal': flags.orthogonal,
-                        'unitary': flags.unitary,
-                    },
+                    flags=new_flags,
                 ),
             )
+        else:
+            IT = None
 
         if flags.unitary:
             IH = self
@@ -1152,18 +1145,34 @@ class Operator(object):
             IH = IT
         elif '.IH' in rules:
             IH = _copy_direct(self, rules['.IH'](self))
-        else:
-            IH = _copy_direct(
+        elif self.inverse_adjoint is not None:
+            IH = _copy_reverse(
                 self,
                 Operator(
                     direct=self.inverse_adjoint,
                     name=self.__name__ + '.I.H',
-                    flags={
-                        'idempotent': flags.idempotent,
-                        'involutary': flags.involutary,
-                        'orthogonal': flags.orthogonal,
-                        'unitary': flags.unitary,
-                    },
+                    flags=new_flags,
+                ),
+            )
+        else:
+            IH = None
+
+        if IT is None:
+            IT = _copy_reverse(
+                self,
+                Operator(
+                    direct=IH.conjugate if IH is not None else None,
+                    name=self.__name__ + '.I.T',
+                    flags=new_flags,
+                ),
+            )
+        if IH is None:
+            IH = _copy_reverse(
+                self,
+                Operator(
+                    direct=IT.conjugate if IT is not None else None,
+                    name=self.__name__ + '.I.H',
+                    flags=new_flags,
                 ),
             )
 
@@ -4271,7 +4280,7 @@ class DiagonalOperator(BroadcastingOperator):
         else:
             np.multiply(input, self.get_data(), output)
 
-    def conjugate_(self, input, output):
+    def conjugate(self, input, output):
         if self.broadcast == 'rightward':
             np.multiply(input.T, np.conjugate(self.get_data()).T, output.T)
         else:

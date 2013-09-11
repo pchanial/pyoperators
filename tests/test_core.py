@@ -189,6 +189,84 @@ def test_autoflags():
         yield func, f
 
 
+#==================
+# Test conjugation
+#==================
+
+def test_conjugation():
+    @decorators.square
+    class OpBase(Operator):
+        def __init__(self, data_=None):
+            Operator.__init__(self, shapein=2, dtype=complex)
+            if data_ is None:
+                data_ = data
+            self.data = data_
+            self.dataI = np.linalg.inv(data_)
+
+        def direct(self, input, output):
+            np.dot(self.data, input, output)
+
+        def inverse(self, input, output):
+            np.dot(self.dataI, input, output)
+
+    class Op1T(OpBase):
+        def transpose(self, input, output):
+            np.dot(self.data.T, input, output)
+
+    class Op1H(OpBase):
+        def adjoint(self, input, output):
+            np.dot(self.data.T.conj(), input, output)
+
+    class Op1IT(OpBase):
+        def inverse_transpose(self, input, output):
+            np.dot(self.dataI.T, input, output)
+
+    class Op1IH(OpBase):
+        def inverse_adjoint(self, input, output):
+            np.dot(self.dataI.T.conj(), input, output)
+
+    class Op2T(OpBase):
+        def __init__(self):
+            OpBase.__init__(self)
+            self.set_rule('.T', lambda s: OpBase(s.data.T))
+
+    class Op2H(OpBase):
+        def __init__(self):
+            OpBase.__init__(self)
+            self.set_rule('.H', lambda s: OpBase(s.data.T.conj()))
+
+    class Op2IT(OpBase):
+        def __init__(self):
+            OpBase.__init__(self)
+            self.set_rule('.IT', lambda s: OpBase(s.dataI.T))
+
+    class Op2IH(OpBase):
+        def __init__(self):
+            OpBase.__init__(self)
+            self.set_rule('.IH', lambda s: OpBase(s.dataI.T.conj()))
+
+    data = np.array([[1, 1j], [0, 2]])
+    dense = OpBase().todense()
+    denseI = np.linalg.inv(dense)
+
+    def func(opT, opH, opIT, opIH):
+        assert_eq(opT.C.todense(), dense.conj())
+        assert_eq(opT.T.todense(), dense.T)
+        assert_eq(opT.H.todense(), dense.T.conj())
+        assert_eq(opH.C.todense(), dense.conj())
+        assert_eq(opH.T.todense(), dense.T)
+        assert_eq(opH.H.todense(), dense.T.conj())
+        assert_eq(opIT.I.C.todense(), denseI.conj())
+        assert_eq(opIT.I.T.todense(), denseI.T)
+        assert_eq(opIT.I.H.todense(), denseI.T.conj())
+        assert_eq(opIH.I.C.todense(), denseI.conj())
+        assert_eq(opIH.I.T.todense(), denseI.T)
+        assert_eq(opIH.I.H.todense(), denseI.T.conj())
+    for opT, opH, opIT, opIH in [(Op1T(), Op1H(), Op1IT(), Op1IH()),
+                                 (Op2T(), Op2H(), Op2IT(), Op2IH())]:
+        yield func, opT, opH, opIT, opIH
+
+
 #========================
 # Test input/output shape
 #========================
