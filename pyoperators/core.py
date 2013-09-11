@@ -2552,7 +2552,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                     if new_op is not None:
                         raise StopIteration()
         except StopIteration:
-            operands[iop] = new_op
+            operands[iop] = _copy_direct(op, new_op)
         else:
             operands.insert(0, h)
         return operands
