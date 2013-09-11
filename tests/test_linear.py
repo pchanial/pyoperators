@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 import pyoperators
 
+from numpy.testing import assert_allclose
 from pyoperators import (
     Operator,
     BlockColumnOperator,
@@ -17,6 +18,7 @@ from pyoperators.linear import (
     IntegrationTrapezeWeightOperator,
     PackOperator,
     Rotation2dOperator,
+    Rotation3dOperator,
     TridiagonalOperator,
     SymmetricBandToeplitzOperator,
     UnpackOperator,
@@ -165,6 +167,84 @@ def test_rotation_2d():
     for shape in SHAPES:
         for degrees in False, True:
             yield func, shape, degrees
+
+
+def test_rotation_3d():
+    rx = Rotation3dOperator(90, convention='X', degrees=True)
+    ry = Rotation3dOperator(90, convention='Y', degrees=True)
+    rz = Rotation3dOperator(90, convention='Z', degrees=True)
+    ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    exps = (
+        [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
+        [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
+        [[0, 1, 0], [-1, 0, 0], [0, 0, 1]],
+    )
+
+    def func(rot, exp):
+        assert_allclose(rot(ref), exp, atol=1e-15)
+
+    for rot, exp in zip((rx, ry, rz), exps):
+        yield func, rot, exp
+
+    alpha = 0.1
+    beta = 0.2
+    gamma = 0.3
+
+    # intrinsic rotations
+    conventions = (
+        "XZ'X''",
+        "XZ'Y''",
+        "XY'X''",
+        "XY'Z''",
+        "YX'Y''",
+        "YX'Z''",
+        "YZ'Y''",
+        "YZ'X''",
+        "ZY'Z''",
+        "ZY'X''",
+        "ZX'Z''",
+        "ZX'Y''",
+    )
+
+    def func(c):
+        r = Rotation3dOperator(alpha, beta, gamma, convention=c)
+        r2 = (
+            Rotation3dOperator(alpha, convention=c[0])
+            * Rotation3dOperator(beta, convention=c[1])
+            * Rotation3dOperator(gamma, convention=c[3])
+        )
+        assert_allclose(r(ref), r2(ref))
+
+    for c in conventions:
+        yield func, c
+
+    # extrinsic rotations
+    conventions = (
+        "XZX",
+        "XZY",
+        "XYX",
+        "XYZ",
+        "YXY",
+        "YXZ",
+        "YZY",
+        "YZX",
+        "ZYZ",
+        "ZYX",
+        "ZXZ",
+        "ZXY",
+    )
+
+    def func(c):
+        r = Rotation3dOperator(alpha, beta, gamma, convention=c)
+        r2 = (
+            Rotation3dOperator(gamma, convention=c[2])
+            * Rotation3dOperator(beta, convention=c[1])
+            * Rotation3dOperator(alpha, convention=c[0])
+        )
+        assert_allclose(r(ref), r2(ref))
+
+    for c in conventions:
+        yield func, c
 
 
 def test_sum_operator():

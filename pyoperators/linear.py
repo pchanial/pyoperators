@@ -36,6 +36,7 @@ __all__ = [
     'IntegrationTrapezeWeightOperator',
     'PackOperator',
     'Rotation2dOperator',
+    'Rotation3dOperator',
     'SumOperator',
     'SymmetricBandOperator',
     'SymmetricBandToeplitzOperator',
@@ -314,6 +315,279 @@ class Rotation2dOperator(DenseOperator):
     def validatein(self, shape):
         if shape[-1] != 2:
             raise ValueError('The last dimension of the input is not 2.')
+
+
+@real
+class Rotation3dOperator(DenseOperator):
+    """
+    Operator for 3-d active rotations.
+
+    The rotation axes can be specified one by one by using the convention
+    keyword.
+
+    For intrinsic rotations (in which the coordinate system changes),
+    the following conventions are possible:
+        XZ'X'', XZ'Y'', XY'X'', XY'Z'',  YX'Y'', YX'Z'',
+        YZ'Y'', YZ'X'', ZY'Z'', ZY'X'', ZX'Z'' and ZX'Y''.
+    The primes denote the rotated axes after the first elemental rotation and
+    the double primes the rotated axes after the second one.
+
+    And for the extrinsic rotations (in which the original coordinate system
+    remains motionless):
+        X, Y, Z, XZX, XZY, XYX, XYZ, YXY, YXZ, YZY, YZX, ZYZ, ZYX, ZXZ and ZXY.
+
+    Parameters
+    ----------
+    a1 : float, array-like
+        Rotation angle about the first axis, in radians.
+    a2 : float, array-like
+        Rotation angle about the second axis, in radians.
+    a3 : float, array-like
+        Rotation angle about the third axis, in radians.
+    convention : string
+        Specify from left to right the axes about which the elemental rotations
+        are performed.
+    degrees : bool, optional
+        If set, the angle inputs are in degrees, instead of radians.
+
+    Example
+    -------
+    >>> r1 = Rotation3dOperator(90, convention="Y", degrees=True)
+    >>> print r1([1, 0, 0])
+    [  6.12323400e-17   0.00000000e+00  -1.00000000e+00]
+    >>> r2 = Rotation3dOperator(30, 40, 50, convention="XYZ", degrees=True)
+    >>> print r2([1, 0, 0])
+    [ 0.49240388  0.58682409 -0.64278761]
+    >>> r3 = Rotation3dOperator(50, 40, 30, convention="ZY'X''", degrees=True)
+    >>> print r3([1, 0, 0])
+    [ 0.49240388  0.58682409 -0.64278761]
+
+    """
+
+    def __init__(
+        self,
+        a1,
+        a2=None,
+        a3=None,
+        convention="ZX'Z''",
+        degrees=False,
+        dtype=None,
+        **keywords,
+    ):
+        a1 = np.asarray(a1)
+        if a2 is not None:
+            a2 = np.asarray(a2)
+            if a3 is None:
+                raise ValueError('Either one or two angles can be speficied.')
+            a3 = np.asarray(a3)
+        if dtype is None:
+            dtype = float_dtype(a1.dtype)
+            if a2 is not None:
+                dtype = np.find_common_type([dtype, a2.dtype, a3.dtype], [])
+        a1 = a1.astype(dtype)
+        if a2 is not None:
+            a2 = a2.astype(dtype)
+            a3 = a3.astype(dtype)
+        if degrees:
+            a1 = np.radians(a1)
+            if a2 is not None:
+                a2 = np.radians(a2)
+                a3 = np.radians(a3)
+        convention = convention.upper()
+
+        # Extrinsic to Intrinsic rotation conversion
+        if len(convention) == 3 and all(s in 'XYZ' for s in convention):
+            convention = convention[2:0:-1] + "'" + convention[0] + "''"
+            a1, a2, a3 = a3, a2, a1
+
+        c1 = np.cos(a1)
+        s1 = np.sin(a1)
+        if a2 is not None:
+            c2 = np.cos(a2)
+            s2 = np.sin(a2)
+            c3 = np.cos(a3)
+            s3 = np.sin(a3)
+        gm = self._get_matrix
+        if convention == 'X':
+            m = gm(1, 0, 0, 0, c1, -s1, 0, s1, c1)
+        elif convention == 'Y':
+            m = gm(c1, 0, s1, 0, 1, 0, -s1, 0, c1)
+        elif convention == 'Z':
+            m = gm(c1, -s1, 0, s1, c1, 0, 0, 0, 1)
+        elif convention == "XZ'X''":
+            m = gm(
+                c2,
+                -c3 * s2,
+                s2 * s3,
+                c1 * s2,
+                c1 * c2 * c3 - s1 * s3,
+                -c3 * s1 - c1 * c2 * s3,
+                s1 * s2,
+                c1 * s3 + c2 * c3 * s1,
+                c1 * c3 - c2 * s1 * s3,
+            )
+        elif convention == "XZ'Y''":
+            m = gm(
+                c2 * c3,
+                -s2,
+                c2 * s3,
+                s1 * s3 + c1 * c3 * s2,
+                c1 * c2,
+                c1 * s2 * s3 - c3 * s1,
+                c3 * s1 * s2 - c1 * s3,
+                c2 * s1,
+                c1 * c3 + s1 * s2 * s3,
+            )
+        elif convention == "XY'X''":
+            m = gm(
+                c2,
+                s2 * s3,
+                c3 * s2,
+                s1 * s2,
+                c1 * c3 - c2 * s1 * s3,
+                -c1 * s3 - c2 * c3 * s1,
+                -c1 * s2,
+                c3 * s1 + c1 * c2 * s3,
+                c1 * c2 * c3 - s1 * s3,
+            )
+        elif convention == "XY'Z''":
+            m = gm(
+                c2 * c3,
+                -c2 * s3,
+                s2,
+                c1 * s3 + c3 * s1 * s2,
+                c1 * c3 - s1 * s2 * s3,
+                -c2 * s1,
+                s1 * s3 - c1 * c3 * s2,
+                c3 * s1 + c1 * s2 * s3,
+                c1 * c2,
+            )
+        elif convention == "YX'Y''":
+            m = gm(
+                c1 * c3 - c2 * s1 * s3,
+                s1 * s2,
+                c1 * s3 + c2 * c3 * s1,
+                s2 * s3,
+                c2,
+                -c3 * s2,
+                -c3 * s1 - c1 * c2 * s3,
+                c1 * s2,
+                c1 * c2 * c3 - s1 * s3,
+            )
+        elif convention == "YX'Z''":
+            m = gm(
+                c1 * c3 + s1 * s2 * s3,
+                c3 * s1 * s2 - c1 * s3,
+                c2 * s1,
+                c2 * s3,
+                c2 * c3,
+                -s2,
+                c1 * s2 * s3 - c3 * s1,
+                s1 * s3 + c1 * c3 * s2,
+                c1 * c2,
+            )
+        elif convention == "YZ'Y''":
+            m = gm(
+                c1 * c2 * c3 - s1 * s3,
+                -c1 * s2,
+                c3 * s1 + c1 * c2 * s3,
+                c3 * s2,
+                c2,
+                s2 * s3,
+                -c1 * s3 - c2 * c3 * s1,
+                s1 * s2,
+                c1 * c3 - c2 * s1 * s3,
+            )
+        elif convention == "YZ'X''":
+            m = gm(
+                c1 * c2,
+                s1 * s3 - c1 * c3 * s2,
+                c3 * s1 + c1 * s2 * s3,
+                s2,
+                c2 * c3,
+                -c2 * s3,
+                -c2 * s1,
+                c1 * s3 + c3 * s1 * s2,
+                c1 * c3 - s1 * s2 * s3,
+            )
+        elif convention == "ZY'Z''":
+            m = gm(
+                c1 * c2 * c3 - s1 * s3,
+                -c3 * s1 - c1 * c2 * s3,
+                c1 * s2,
+                c1 * s3 + c2 * c3 * s1,
+                c1 * c3 - c2 * s1 * s3,
+                s1 * s2,
+                -c3 * s2,
+                s2 * s3,
+                c2,
+            )
+        elif convention == "ZY'X''":
+            m = gm(
+                c1 * c2,
+                c1 * s2 * s3 - c3 * s1,
+                s1 * s3 + c1 * c3 * s2,
+                c2 * s1,
+                c1 * c3 + s1 * s2 * s3,
+                c3 * s1 * s2 - c1 * s3,
+                -s2,
+                c2 * s3,
+                c2 * c3,
+            )
+        elif convention == "ZX'Z''":
+            m = gm(
+                c1 * c3 - c2 * s1 * s3,
+                -c1 * s3 - c2 * c3 * s1,
+                s1 * s2,
+                c3 * s1 + c1 * c2 * s3,
+                c1 * c2 * c3 - s1 * s3,
+                -c1 * s2,
+                s2 * s3,
+                c3 * s2,
+                c2,
+            )
+        elif convention == "ZX'Y''":
+            m = gm(
+                c1 * c3 - s1 * s2 * s3,
+                -c2 * s1,
+                c1 * s3 + c3 * s1 * s2,
+                c3 * s1 + c1 * s2 * s3,
+                c1 * c2,
+                s1 * s3 - c1 * c3 * s2,
+                -c2 * s3,
+                s2,
+                c2 * c3,
+            )
+        else:
+            raise ValueError("Invalid rotation convention '{0}'.".format(convention))
+
+        for i in range(a1.ndim):
+            m = np.rollaxis(m, -1)
+        keywords['flags'] = self.validate_flags(
+            keywords.get('flags', {}), orthogonal=m.ndim == 2
+        )
+        DenseOperator.__init__(self, m, **keywords)
+
+    def validatein(self, shape):
+        if shape[-1] != 3:
+            raise ValueError('The last dimension of the input is not 3.')
+
+    @staticmethod
+    def _get_matrix(a11, a12, a13, a21, a22, a23, a31, a32, a33):
+        a11, a12, a13, a21, a22, a23, a31, a32, a33 = np.broadcast_arrays(
+            a11, a12, a13, a21, a22, a23, a31, a32, a33
+        )
+        m = np.empty(a11.shape + (3, 3))
+        m[..., 0, 0] = a11
+        m[..., 0, 1] = a12
+        m[..., 0, 2] = a13
+        m[..., 1, 0] = a21
+        m[..., 1, 1] = a22
+        m[..., 1, 2] = a23
+        m[..., 2, 0] = a31
+        m[..., 2, 1] = a32
+        m[..., 2, 2] = a33
+        return m
 
 
 @real
