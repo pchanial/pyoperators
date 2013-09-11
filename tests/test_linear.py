@@ -11,7 +11,6 @@ from pyoperators import (
     DiagonalOperator,
 )
 from pyoperators.linear import (
-    DenseBroadcastingOperator,
     DiagonalNumexprNonSeparableOperator,
     DiagonalNumexprOperator,
     DifferenceOperator,
@@ -34,44 +33,6 @@ from pyoperators.utils.testing import (
 from .common import IdentityOutplaceOperator, assert_inplace_outplace
 
 SHAPES = ((), (1,), (3,), (2, 3), (2, 3, 4))
-
-
-def test_dense_broadcasting():
-    shapeins = ((2,), (5, 2), (4, 5, 2))
-    datashapes = ((2,), (3, 2), (4, 3, 2))
-    data = [np.arange(product(s)).reshape(s) for s in datashapes]
-
-    def func(s, d):
-        b = DenseBroadcastingOperator(d, shapein=s)
-        if len(d.shape) > 1:
-            assert b.shapeout == s[:-1] + d.shape[:-1]
-        bdense = b.todense()
-        bTdense = b.T.todense()
-        expected = BlockDiagonalOperator(
-            product(s[:-1]) * [DenseOperator(d.reshape((-1, 2)))], axisin=0
-        )
-        assert_same(bdense, expected.todense())
-        assert_same(bTdense, bdense.T)
-
-        b2 = DenseBroadcastingOperator(d)
-        assert_same(b2.todense(shapein=s), bdense)
-        assert_same(b2.T.todense(shapein=b.T.shapein), bTdense)
-
-    for s in shapeins:
-        for d in data:
-            yield func, s, d
-
-
-def test_dense_broadcasting_error():
-    shapes = ((2,), (3, 2), (4, 3, 2))
-    data = (np.arange(product(s)).reshape(s) for s in shapes)
-
-    def func(d):
-        b = DenseBroadcastingOperator(d)
-        assert_raises(ValueError, b, np.ones(3))
-
-    for d in data:
-        yield func, d
 
 
 def test_diagonal_numexpr():
@@ -228,7 +189,7 @@ def test_symmetric_band_toeplitz_operator():
             for j in xrange(n):
                 if abs(i - j) <= ncorr:
                     dense[i, j] = firstrow[abs(i - j)]
-        return DenseOperator(dense)
+        return DenseOperator(dense, shapein=dense.shape[1])
 
     def func(n, firstrow):
         s = SymmetricBandToeplitzOperator(n, firstrow)

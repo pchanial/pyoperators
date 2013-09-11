@@ -18,7 +18,7 @@ from pyoperators.utils import (
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (
     assert_eq, assert_is, assert_is_not, assert_is_none, assert_not_in,
-    assert_is_instance, assert_raises, skiptest)
+    assert_is_instance, assert_raises, assert_same, skiptest)
 from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
 PYTHON_26 = sys.version_info < (2, 7)
@@ -2333,7 +2333,7 @@ def test_zero8():
     assert type(o + O) is Op
 
 
-def test_dense_operator():
+def test_dense():
     def func(m, d, v):
         expected = np.dot(m, v)
         assert_eq(d(v), expected)
@@ -2359,7 +2359,7 @@ def test_dense_operator():
         yield func, m.T.conj(), d.H, v
 
 
-def test_dense_operator_rule_homothety():
+def test_dense_rule_homothety():
     m = np.array([[1, 2], [3, 4], [5, 6]])
     d = HomothetyOperator(2) * DenseOperator(m)
     assert_is_instance(d, DenseOperator)
@@ -2368,6 +2368,43 @@ def test_dense_operator_rule_homothety():
     assert_is_instance(d, DenseOperator)
     assert_eq(d.data, m * 2j)
     assert_eq(d.dtype, complex)
+
+
+def test_dense_broadcasting():
+    shapeins = ((2,), (5, 2), (4, 5, 2))
+    datashapes = ((2,), (3, 2), (4, 3, 2))
+    data = [np.arange(product(s)).reshape(s) for s in datashapes]
+
+    def func(s, d):
+        b = DenseOperator(d, shapein=s)
+        if len(d.shape) > 1:
+            assert b.shapeout == s[:-1] + d.shape[:-1]
+        bdense = b.todense()
+        bTdense = b.T.todense()
+        expected = BlockDiagonalOperator(
+            product(s[:-1]) * [DenseOperator(d.reshape((-1, 2)), shapein=2)],
+            axisin=0)
+        assert_same(bdense, expected.todense())
+        assert_same(bTdense, bdense.T)
+
+        b2 = DenseOperator(d)
+        assert_same(b2.todense(shapein=s), bdense)
+        assert_same(b2.T.todense(shapein=b.T.shapein), bTdense)
+
+    for s in shapeins:
+        for d in data:
+            yield func, s, d
+
+
+def test_dense_error():
+    shapes = ((2,), (3, 2), (4, 3, 2))
+    data = (np.arange(product(s)).reshape(s) for s in shapes)
+
+    def func(d):
+        b = DenseOperator(d)
+        assert_raises(ValueError, b, np.ones(3))
+    for d in data:
+        yield func, d
 
 
 #========================

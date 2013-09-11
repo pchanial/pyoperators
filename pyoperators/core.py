@@ -20,6 +20,7 @@ from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
 from .utils import (
     all_eq,
     first_is_not,
+    float_dtype,
     inspect_special_values,
     isalias,
     isclassattr,
@@ -36,7 +37,16 @@ from .utils import (
     ufuncs,
 )
 from .utils.mpi import MPI
-from .decorators import linear, real, idempotent, involutary, square, symmetric, inplace
+from .decorators import (
+    contiguous,
+    linear,
+    real,
+    idempotent,
+    involutary,
+    square,
+    symmetric,
+    inplace,
+)
 
 __all__ = [
     'Operator',
@@ -4618,9 +4628,16 @@ class ZeroOperator(ConstantOperator):
 
 
 @linear
+@contiguous
 class DenseOperator(Operator):
     """
-    Operator representing a dense matrix.
+    Dense operator. Multiplication can be broadcast over inputs of larger
+    dimensions.
+
+    Given a tensor data of shape (L, M, N) and an input of shape (P, Q, N),
+    the output of this operator will have a shape (P, Q, L, M) and for
+    each p, q:
+        output[p, q, :, :] = np.dot(data, input[p, q, :])
 
     Example
     -------
@@ -4628,54 +4645,75 @@ class DenseOperator(Operator):
     >>> d = DenseOperator(m)
     >>> d([1, 0, 0])
     array([ 1.,  2.])
+
+    >>> theta = np.pi / 4
+    >>> m = [[np.cos(theta), -np.sin(theta)],
+    ...      [np.sin(theta),  np.cos(theta)]]
+    >>> input = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+    >>> op = DenseOperator(m)
+    >>> print op(input)
+    [[ 0.70710678  0.70710678]
+     [-0.70710678  0.70710678]
+     [-0.70710678 -0.70710678]
+     [ 0.70710678 -0.70710678]]
+    >>> print op.T(op(input))
+    [[ 1.  0.]
+     [ 0.  1.]
+     [-1.  0.]
+     [ 0. -1.]]
+
     """
 
-    def __init__(self, data, shapein=None, shapeout=None, dtype=None, **keywords):
-        if data is None:
-            raise ValueError('The input data is None.')
-        data = np.asarray(data)
+    def __init__(self, data, dtype=None, _naxes=1, **keywords):
+        data = np.atleast_2d(data)
+        if _naxes == 0 or _naxes >= data.ndim:
+            raise ValueError('Invalid _naxes keyword.')
+        if data.ndim == 0:
+            self.__class__ = HomothetyOperator
+            self.__init__(data, dtype=dtype, **keywords)
+            return
         if dtype is None:
-            dtype = data.dtype
-        data = np.array(data, dtype, copy=False)
-        if data.ndim != 2:
-            raise ValueError('The input is not a 2-dimensional array.')
-        if shapein is None:
-            shapein = data.shape[1]
-        elif np.product(shapein) != data.shape[1]:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that of the input "
-                "matrix '{1}'.".format(strshape(shapein), data.shape[1])
-            )
-        if shapeout is None:
-            shapeout = data.shape[0]
-        elif np.product(shapeout) != data.shape[0]:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that of the input "
-                "matrix '{1}'.".format(strshape(shapeout), data.shape[0])
-            )
-        Operator.__init__(
-            self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
+            dtype = float_dtype(data.dtype)
+        self._naxes = _naxes
+        self.data = data.astype(dtype)
+        self._data = data.reshape(
+            (product(data.shape[:-_naxes]), product(data.shape[-_naxes:]))
         )
-        self.data = data
-        self.set_rule('.C', lambda s: type(s)(np.conjugate(s.data)))
-        self.set_rule('.T', lambda s: type(s)(s.data.T))
-        self.set_rule('.H', lambda s: type(s)(np.conjugate(s.data).T))
+        keywords['flags'] = self.validate_flags(
+            keywords.get('flags', {}), real=dtype.kind != 'c'
+        )
+        Operator.__init__(self, dtype=dtype, **keywords)
+        self.set_rule('.T', self._rule_transpose)
         self.set_rule(
             '.{HomothetyOperator}',
-            lambda s, o: DenseOperator(
-                o.data * s.data,
-                shapein=s.shapein,
-                shapeout=s.shapeout,
-                dtype=s._find_common_type([s.dtype, o.dtype]),
-            ),
+            lambda s, o: DenseOperator(o.data * s.data),
             CompositionOperator,
         )
 
     def direct(self, input, output):
-        np.dot(self.data, input.ravel(), output)
+        input = np.atleast_1d(input)
+        ninput = product(input.shape[: -self._naxes])
+        input_ = input.reshape((ninput, self._data.shape[1]))
+        output_ = output.reshape((ninput, self._data.shape[0]))
+        np.einsum('ai,bi->ba', self._data, input_, out=output_)
 
-    def todense(self, shapein=None):
-        return self.data
+    def reshapein(self, shape):
+        return shape[: -self._naxes] + self.data.shape[: -self._naxes]
+
+    def reshapeout(self, shape):
+        n = self.data.ndim - self._naxes
+        return shape[:-n] + self.data.shape[-self._naxes :]
+
+    def validatein(self, shape):
+        if shape[-self._naxes :] != self.data.shape[-self._naxes :]:
+            return ValueError('The input has an invalid last dimension.')
+
+    @staticmethod
+    def _rule_transpose(self):
+        data = self.data
+        for i in range(self._naxes):
+            data = np.rollaxis(data, -1)
+        return DenseOperator(data, _naxes=data.ndim - self._naxes)
 
 
 class ReductionOperator(Operator):
@@ -4899,6 +4937,7 @@ def asoperator(x, constant=False, **keywords):
 
     if isinstance(x, (np.matrix, np.ndarray)):
         if x.ndim > 0:
+            keywords['shapein'] = x.shape[-1]
             return DenseOperator(x, **keywords)
         x = x[()]
 

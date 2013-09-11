@@ -332,9 +332,9 @@ def test_absorb_scalar():
 
     @linear
     class AbsorbRightOperator(Operator):
-        def __init__(self, value=3.0):
+        def __init__(self, value=3.0, **keywords):
             self.value = np.array(value)
-            Operator.__init__(self)
+            Operator.__init__(self, **keywords)
             self.set_rule(
                 '.{HomothetyOperator}',
                 lambda s, o: AbsorbRightOperator(s.value * o.data),
@@ -343,9 +343,9 @@ def test_absorb_scalar():
 
     @linear
     class AbsorbLeftOperator(Operator):
-        def __init__(self, value=3.0):
+        def __init__(self, value=3.0, **keywords):
             self.value = np.array(value)
-            Operator.__init__(self)
+            Operator.__init__(self, **keywords)
             self.set_rule(
                 '{HomothetyOperator}.',
                 lambda o, s: AbsorbLeftOperator(s.value * o.data),
