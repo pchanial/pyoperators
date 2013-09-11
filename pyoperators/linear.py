@@ -29,6 +29,7 @@ __all__ = [
     'EigendecompositionOperator',
     'IntegrationTrapezeWeightOperator',
     'PackOperator',
+    'Rotation2dOperator',
     'SumOperator',
     'SymmetricBandOperator',
     'SymmetricBandToeplitzOperator',
@@ -434,6 +435,44 @@ class UnpackOperator(Operator):
     def direct(self, input, output):
         output[...] = 0
         output[self.mask] = input
+
+
+@real
+@linear
+class Rotation2dOperator(DenseBroadcastingOperator):
+    """
+    2-d rotation operator.
+
+    Parameters
+    ----------
+    angle : float, array-like
+        The counter-clockwise rotation angle, in radians.
+    degrees : bool, optional
+        If set, the angle input is in degrees, instead of radians.
+
+    Example
+    -------
+    >>> r = Rotation2dOperator([45, 90], degrees=True)
+    >>> r([1, 0])
+    >>> print r([1, 0])
+    [[  7.07106781e-01   7.07106781e-01]
+     [  6.12323400e-17   1.00000000e+00]]
+
+    """
+    def __init__(self, angle, degrees=False, dtype=None, **keywords):
+        angle = np.asarray(angle)
+        if dtype is None:
+            dtype = float_dtype(angle.dtype)
+        if degrees:
+            angle = np.radians(angle)
+        cosa = np.cos(angle)
+        sina = np.sin(angle)
+        m = np.array([[cosa, -sina], [sina, cosa]], dtype=dtype)
+        for i in range(angle.ndim):
+            m = np.rollaxis(m, -1)
+        keywords['flags'] = self.validate_flags(
+            keywords.get('flags', {}), orthogonal=m.ndim == 2)
+        DenseBroadcastingOperator.__init__(self, m, **keywords)
 
 
 @real
