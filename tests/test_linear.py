@@ -146,13 +146,16 @@ def test_rotation_2d():
         for degrees in False, True:
             yield func, shape, degrees
 
+
 def test_rotation_3d():
-    rx = Rotation3dOperator(90, convention='X', degrees=True)
-    ry = Rotation3dOperator(90, convention='Y', degrees=True)
-    rz = Rotation3dOperator(90, convention='Z', degrees=True)
+    rx = Rotation3dOperator('X', 90, degrees=True)
+    ry = Rotation3dOperator('Y', 90, degrees=True)
+    rz = Rotation3dOperator('Z', 90, degrees=True)
     ref = [[1, 0, 0],
            [0, 1, 0],
            [0, 0, 1]]
+
+    # single axis rotations
     exps = (
         [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
         [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
@@ -174,11 +177,12 @@ def test_rotation_3d():
                    "YZ'Y''", "YZ'X''",
                    "ZY'Z''", "ZY'X''",
                    "ZX'Z''", "ZX'Y''")
+
     def func(c):
-        r = Rotation3dOperator(alpha, beta, gamma, convention=c)
-        r2 = Rotation3dOperator(alpha, convention=c[0]) * \
-             Rotation3dOperator(beta, convention=c[1]) * \
-             Rotation3dOperator(gamma, convention=c[3])
+        r = Rotation3dOperator(c, alpha, beta, gamma)
+        r2 = Rotation3dOperator(c[0], alpha) * \
+             Rotation3dOperator(c[1], beta) * \
+             Rotation3dOperator(c[3], gamma)
         assert_allclose(r(ref), r2(ref))
     for c in conventions:
         yield func, c
@@ -190,11 +194,12 @@ def test_rotation_3d():
                    "YZY", "YZX",
                    "ZYZ", "ZYX",
                    "ZXZ", "ZXY")
+
     def func(c):
-        r = Rotation3dOperator(alpha, beta, gamma, convention=c)
-        r2 = Rotation3dOperator(gamma, convention=c[2]) * \
-             Rotation3dOperator(beta, convention=c[1]) * \
-             Rotation3dOperator(alpha, convention=c[0])
+        r = Rotation3dOperator(c, alpha, beta, gamma)
+        r2 = Rotation3dOperator(c[2], gamma) * \
+             Rotation3dOperator(c[1], beta) * \
+             Rotation3dOperator(c[0], alpha)
         assert_allclose(r(ref), r2(ref))
     for c in conventions:
         yield func, c

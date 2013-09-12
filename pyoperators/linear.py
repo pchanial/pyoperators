@@ -288,8 +288,7 @@ class Rotation3dOperator(DenseOperator):
     """
     Operator for 3-d active rotations.
 
-    The rotation axes can be specified one by one by using the convention
-    keyword.
+    The rotation axes are specified one by one by selecting a convention.
 
     For intrinsic rotations (in which the coordinate system changes),
     the following conventions are possible:
@@ -300,36 +299,38 @@ class Rotation3dOperator(DenseOperator):
 
     And for the extrinsic rotations (in which the original coordinate system
     remains motionless):
-        X, Y, Z, XZX, XZY, XYX, XYZ, YXY, YXZ, YZY, YZX, ZYZ, ZYX, ZXZ and ZXY.
+        XZX, XZY, XYX, XYZ, YXY, YXZ, YZY, YZX, ZYZ, ZYX, ZXZ and ZXY.
+
+    Rotation about a single axis are also handled by the convention X, Y and Z.
 
     Parameters
     ----------
+    convention : string
+        Specify from left to right the axes about which the elemental rotations
+        are performed.
     a1 : float, array-like
         Rotation angle about the first axis, in radians.
     a2 : float, array-like
         Rotation angle about the second axis, in radians.
     a3 : float, array-like
         Rotation angle about the third axis, in radians.
-    convention : string
-        Specify from left to right the axes about which the elemental rotations
-        are performed.
     degrees : bool, optional
         If set, the angle inputs are in degrees, instead of radians.
 
     Example
     -------
-    >>> r1 = Rotation3dOperator(90, convention="Y", degrees=True)
+    >>> r1 = Rotation3dOperator("Y", 90, degrees=True)
     >>> print r1([1, 0, 0])
     [  6.12323400e-17   0.00000000e+00  -1.00000000e+00]
-    >>> r2 = Rotation3dOperator(30, 40, 50, convention="XYZ", degrees=True)
+    >>> r2 = Rotation3dOperator("XYZ", 30, 40, 50, degrees=True)
     >>> print r2([1, 0, 0])
-    [ 0.49240388  0.58682409 -0.64278761]
-    >>> r3 = Rotation3dOperator(50, 40, 30, convention="ZY'X''", degrees=True)
+    [ 0.49240388  0.58682409 -0.64278761]d
+    >>> r3 = Rotation3dOperator("ZY'X''", 50, 40, 30, degrees=True)
     >>> print r3([1, 0, 0])
     [ 0.49240388  0.58682409 -0.64278761]
 
     """
-    def __init__(self, a1, a2=None, a3=None, convention="ZX'Z''", degrees=False,
+    def __init__(self, convention, a1, a2=None, a3=None, degrees=False,
                  dtype=None, **keywords):
         a1 = np.asarray(a1)
         if a2 is not None:
@@ -355,7 +356,7 @@ class Rotation3dOperator(DenseOperator):
         # Extrinsic to Intrinsic rotation conversion
         if len(convention) == 3 and all(s in 'XYZ' for s in convention):
             convention = convention[2:0:-1] + "'" + convention[0] + "''"
-            a1, a2, a3 = a3, a2, a1
+            a1, a3 = a3, a1
 
         c1 = np.cos(a1)
         s1 = np.sin(a1)
