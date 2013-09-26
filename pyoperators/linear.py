@@ -296,7 +296,7 @@ class Rotation2dOperator(DenseOperator):
 
     """
 
-    def __init__(self, angle, degrees=False, dtype=None, **keywords):
+    def __init__(self, angle, degrees=False, roll_input=False, dtype=None, **keywords):
         angle = np.asarray(angle)
         if dtype is None:
             dtype = float_dtype(angle.dtype)
@@ -310,11 +310,7 @@ class Rotation2dOperator(DenseOperator):
         keywords['flags'] = self.validate_flags(
             keywords.get('flags', {}), orthogonal=m.ndim == 2
         )
-        DenseOperator.__init__(self, m, **keywords)
-
-    def validatein(self, shape):
-        if shape[-1] != 2:
-            raise ValueError('The last dimension of the input is not 2.')
+        DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
 
 
 @real
@@ -366,7 +362,15 @@ class Rotation3dOperator(DenseOperator):
     """
 
     def __init__(
-        self, convention, a1, a2=None, a3=None, degrees=False, dtype=None, **keywords
+        self,
+        convention,
+        a1,
+        a2=None,
+        a3=None,
+        degrees=False,
+        roll_input=False,
+        dtype=None,
+        **keywords,
     ):
         a1 = np.asarray(a1)
         if a2 is not None:
@@ -560,11 +564,7 @@ class Rotation3dOperator(DenseOperator):
         keywords['flags'] = self.validate_flags(
             keywords.get('flags', {}), orthogonal=m.ndim == 2
         )
-        DenseOperator.__init__(self, m, **keywords)
-
-    def validatein(self, shape):
-        if shape[-1] != 3:
-            raise ValueError('The last dimension of the input is not 3.')
+        DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
 
     @staticmethod
     def _get_matrix(a11, a12, a13, a21, a22, a23, a31, a32, a33):

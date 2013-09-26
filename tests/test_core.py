@@ -2371,29 +2371,51 @@ def test_dense_rule_homothety():
 
 
 def test_dense_broadcasting():
-    shapeins = ((2,), (5, 2), (4, 5, 2))
-    datashapes = ((2,), (3, 2), (4, 3, 2))
-    data = [np.arange(product(s)).reshape(s) for s in datashapes]
+    shapeins = ((2,), (3, 2), (3, 1, 2))
+    shapeouts = ((3,), (2, 3), (2, 1, 3))
+    extradatas = ((), (4,), (2, 4))
+    extrainputs = ((), (5,), (3, 4))
 
-    def func(s, d):
-        b = DenseOperator(d, shapein=s)
-        if len(d.shape) > 1:
-            assert b.shapeout == s[:-1] + d.shape[:-1]
+    def func(shapein, shapeout, extradata, extrainput, roll_input):
+        datashape = extradata + shapeout + shapein
+        inputshape = extrainput + shapein
+        d = np.arange(product(datashape)).reshape(datashape)
+        b = DenseOperator(d, naxesin=len(shapein), naxesout=len(shapeout),
+                          roll_input=roll_input, shapein=inputshape)
+        if roll_input:
+            assert b.shapeout == extrainput + extradata + shapeout
+        else:
+            assert b.shapeout == extradata + extrainput + shapeout
         bdense = b.todense()
+        n = product(shapein)
+        if roll_input:
+            expected = BlockDiagonalOperator(
+                product(extrainput) *
+                [DenseOperator(d.reshape((-1, n)), shapein=n)],
+                axisin=0).todense()
+        else:
+            expected = BlockColumnOperator(
+                [BlockDiagonalOperator(product(extrainput) *
+                [DenseOperator(_.reshape((-1, n)), shapein=n)], axisin=0)
+                for _ in d.reshape((product(extradata), -1, n))],
+                axisout=0).todense()
+
+        assert_same(bdense, expected)
         bTdense = b.T.todense()
-        expected = BlockDiagonalOperator(
-            product(s[:-1]) * [DenseOperator(d.reshape((-1, 2)), shapein=2)],
-            axisin=0)
-        assert_same(bdense, expected.todense())
         assert_same(bTdense, bdense.T)
 
-        b2 = DenseOperator(d)
-        assert_same(b2.todense(shapein=s), bdense)
+        b2 = DenseOperator(d, naxesin=len(shapein), naxesout=len(shapeout),
+                           roll_input=roll_input)
+        assert_same(b2.todense(shapein=inputshape), bdense)
         assert_same(b2.T.todense(shapein=b.T.shapein), bTdense)
 
-    for s in shapeins:
-        for d in data:
-            yield func, s, d
+    for shapein in shapeins:
+        for shapeout in shapeouts:
+            for extradata in extradatas:
+                for extrainput in extrainputs:
+                    for roll_input in (False,): #(False, True):
+                        yield (func, shapein, shapeout, extradata, extrainput,
+                               roll_input)
 
 
 def test_dense_error():
