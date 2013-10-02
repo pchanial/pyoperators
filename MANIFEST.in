@@ -1,1 +1,2 @@
+include .coveragerc
 include README.rst

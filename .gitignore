@@ -1,5 +1,8 @@
 *pyc
+.coverage
+MANIFEST
 build
 dist
 _site
+htmlcov
 pyoperators/__init__.py
