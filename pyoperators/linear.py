@@ -24,7 +24,7 @@ __all__ = [
     'DiagonalNumexprNonSeparableOperator',
     'DifferenceOperator',
     'EigendecompositionOperator',
-    'IntegrationTrapezeWeightOperator',
+    'IntegrationTrapezeOperator',
     'PackOperator',
     'Rotation2dOperator',
     'Rotation3dOperator',
@@ -153,16 +153,17 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
 
 
 @real
-class IntegrationTrapezeWeightOperator(BlockRowOperator):
+class IntegrationTrapezeOperator(BlockRowOperator):
     """
-    Return weights as a block row operator to perform trapeze integration.
+    Return a block row operator whose blocks are the weights to perform
+    a trapeze integration.
 
     This operator can be used to integrate over X the bivariate function
         f = f(X,Y).
     Let's assume f is sampled at n abscissa x_n non necessarily equally spaced
         f_i(Y) = f(x_i, Y).
-    The operator IntegrationTrapezeWeightOperator returns a block row operator
-        W = [ w_1 * I ... w_n * I]
+    The operator IntegrationTrapezeOperator returns a block row operator
+        W = [ w_1 I ... w_n I]
     such that, given the block column operator
             [ f_1 ]
         F = [ ... ]
@@ -180,7 +181,7 @@ class IntegrationTrapezeWeightOperator(BlockRowOperator):
     >>> F = BlockColumnOperator(
     ...         [Operator(lambda i, o, v=v: f(v, i, o), flags='square')
     ...          for v in x], new_axisout=0)
-    >>> W = IntegrationTrapezeWeightOperator(x)
+    >>> W = IntegrationTrapezeOperator(x)
     >>> int_f = W * F
     >>> int_f([0,1,2])
     array([  3.5   ,   7.875 ,  22.8125])
