@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 import numpy as np
 import re
+import subprocess
 import sys
 from distutils.extension import Extension
-from numpy.distutils.core import setup
+from numpy.distutils.core import setup, Command
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import get_info
 from subprocess import Popen, PIPE
@@ -28,6 +29,33 @@ def version_sdist():
     if stderr:
         return VERSION
     return VERSION + '-' + stdout[:-1]
+
+
+class NewCommand(Command):
+    user_options = []
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+
+class CoverageCommand(NewCommand):
+    description = "run the package coverage"
+
+    def run(self):
+        subprocess.call(
+            ['nosetests', '--with-coverage', '--cover-package', 'pyoperators']
+        )
+        subprocess.call(['coverage', 'html'])
+
+
+class TestCommand(NewCommand):
+    description = "run the test suite"
+
+    def run(self):
+        subprocess.call(['nosetests', 'test'])
 
 
 version = version_sdist()
@@ -76,7 +104,7 @@ setup(
     packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
-    cmdclass={'build_ext': build_ext},
+    cmdclass={'build_ext': build_ext, 'coverage': CoverageCommand, 'test': TestCommand},
     ext_modules=ext_modules,
     license='CeCILL-B',
     classifiers=[
