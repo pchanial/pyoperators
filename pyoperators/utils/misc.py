@@ -1,7 +1,6 @@
 from __future__ import division
 
 import collections
-import gc
 import itertools
 import multiprocessing
 import numpy as np
@@ -9,47 +8,46 @@ import operator
 import os
 import scipy.sparse
 import signal
-import timeit
 import types
 
 from contextlib import contextmanager
 from itertools import izip
 from . import cythonutils as cu
 
-__all__ = ['all_eq',
-           'benchmark',
-           'cast',
-           'complex_dtype',
-           'first',
-           'first_is_not',
-           'float_dtype',
-           'ifirst',
-           'ifirst_is_not',
-           'inspect_special_values',
-           'interruptible',
-           'interruptible_if',
-           'isalias',
-           'isclassattr',
-           'isscalar',
-           'izip_broadcast',
-           'least_greater_multiple',
-           'memory_usage',
-           'merge_none',
-           'ndarraywrap',
-           'openmp_num_threads',
-           'operation_assignment',
-           'operation_symbol',
-           'product',
-           'renumerate',
-           'strelapsed',
-           'strenum',
-           'strinfo',
-           'strnbytes',
-           'strplural',
-           'strshape',
-           'tointtuple',
-           'uninterruptible',
-           'uninterruptible_if']
+__all__ = [
+    'all_eq',
+    'cast',
+    'complex_dtype',
+    'first',
+    'first_is_not',
+    'float_dtype',
+    'ifirst',
+    'ifirst_is_not',
+    'inspect_special_values',
+    'interruptible',
+    'interruptible_if',
+    'isalias',
+    'isclassattr',
+    'isscalar',
+    'izip_broadcast',
+    'least_greater_multiple',
+    'merge_none',
+    'ndarraywrap',
+    'openmp_num_threads',
+    'operation_assignment',
+    'operation_symbol',
+    'product',
+    'renumerate',
+    'strelapsed',
+    'strenum',
+    'strinfo',
+    'strnbytes',
+    'strplural',
+    'strshape',
+    'tointtuple',
+    'uninterruptible',
+    'uninterruptible_if',
+]
 
 
 def all_eq(a, b):
@@ -71,8 +69,9 @@ def all_eq(a, b):
         if type(a) is not type(b):
             return False
         return a == b
-    if isinstance(a, (float, np.ndarray, np.number)) or \
-       isinstance(b, (float, np.ndarray, np.number)):
+    if isinstance(a, (float, np.ndarray, np.number)) or isinstance(
+        b, (float, np.ndarray, np.number)
+    ):
         return np.allclose(a, b)
     if isinstance(a, collections.Container):
         if type(a) is not type(b):
@@ -92,189 +91,6 @@ def all_eq(a, b):
             return False
         return a.func_code is b.func_code
     return a == b
-
-
-def benchmark(stmt, args=None, keywords=None, ids=None, setup='pass',
-              verbose=True):
-    """
-    Automate the creation of benchmark tables for functions.
-
-    This tool benchmarks a function given a sequence of different arguments,
-    keywords or identifiers. Note that a little overhead is incurred.
-    It returns a dictionary containing the elapsed time and memory usage
-    for each benchmark.
-
-    Parameters
-    ----------
-    stmt : callable or string
-        The function or snippet to be timed. In case of a string, the arguments
-        are matched by the substrings '*args'.
-        Caveat: these must be interpreted correctly through their repr.
-        Otherwise, they should be passed as a string (then both stmt and setup
-        should be a string). See example below.
-    args : sequence of sequences of arguments, optional
-        The different arguments that will be passed to the function.
-    keywords : sequence of dictionaries of keywords, optional
-        The different keywords that will be passed to the function.
-    ids : sequence of string, optional
-        The identifier for each timing. If not provided, it is inferred
-        from the arguments and the keywords.
-    setup : callable or string, optional
-        Initialisation before timing. In case of a string, arguments and
-        keywords are passed with the same mechanism as the stmt argument.
-    verbose : boolean
-        If true, benchmark results are printed while they are executed.
-
-    Example
-    -------
-    >>> def f(dtype, n=10):
-    ...     return np.zeros(n, dtype)
-    >>> b = benchmark(f, [(float,), (int,)], [{'n':10}, {'n':100}],
-    ...               ['n=10', 'n=100'])
-    n=10: 100000 loops, best of 3: 2.12 usec per loop
-    n=100: 100000 loops, best of 3: 2.21 usec per loop
-
-    >>> class A():
-    ...     def __init__(self, n, dtype=float):
-    ...         self.a = 2 * np.ones(n, dtype)
-    ...     def run(self):
-    ...         np.sqrt(self.a)
-    >>> b = benchmark('a.run()', ['1,dtype=int', '10,dtype=float'],
-    ...               setup='from __main__ import A; a=A(*args)')
-
-    Overhead:
-    >>> def f():
-    ...     pass
-    >>> b = benchmark(f)
-    1000000 loops, best of 3: 0.562 usec per loop
-
-    """
-    if not callable(stmt) and not isinstance(stmt, str):
-        raise TypeError('The argument stmt is neither a string nor callable.')
-
-    if not callable(setup) and not isinstance(setup, str):
-        raise TypeError('The argument setup is neither a string nor callable.')
-
-    precision = 3
-    repeat = 3
-
-    class wrapper(object):
-        def __call__(self):
-            stmt(*self.args, **self.keywords)
-
-    w = wrapper()
-    single_test = args is keywords is None
-
-    def default_args():
-        while True:
-            yield ()
-
-    def default_keywords():
-        while True:
-            yield {}
-
-    def default_ids():
-        i = 0
-        while True:
-            yield i
-            i += 1
-
-    # ensure args, keywords and ids are iterators
-    if args is None:
-        args = default_args()
-    elif isinstance(args, (list, tuple)):
-        args = iter(args)
-    if keywords is None:
-        keywords = default_keywords()
-    elif isinstance(keywords, (list, tuple)):
-        keywords = iter(keywords)
-    if ids is None:
-        ids = default_ids()
-    elif isinstance(ids, (list, tuple)):
-        ids = iter(ids)
-
-    result = {'time': [],
-              'VmData': [],
-              'VmRSS': [],
-              'VmSize': []}
-
-    while True:
-
-        try:
-            arg = next(args)
-            keyword = next(keywords)
-            id_ = str(next(ids))
-        except StopIteration:
-            break
-
-        if not isinstance(arg, (list, tuple, str)):
-            raise TypeError('The function arguments must be supplied as a sequ'
-                            'ence.')
-        if not isinstance(keyword, dict):
-            raise TypeError('The function keywords must be supplied as a '
-                            'dict.')
-
-        if isinstance(stmt, str) and isinstance(arg, str):
-            while '*args' in stmt:
-                stmt = stmt.replace('*args', arg)
-        if isinstance(setup, str) and isinstance(arg, str):
-            while '*args' in setup:
-                setup = setup.replace('*args', arg)
-
-        if callable(stmt):
-            w.args = arg
-            w.keywords = keyword
-            t = timeit.Timer(w, setup=setup)
-        else:
-            t = timeit.Timer(stmt, setup=setup)
-
-        # determine number so that 0.2 <= total time < 2.0
-        for i in range(10):
-            number = 10**i
-            x = t.timeit(number)
-            if x >= 0.2:
-                break
-
-        # actual runs
-        gc.collect()
-        memory = memory_usage()
-        if number > 1 or x <= 2:
-            r = t.repeat(repeat, number)
-        else:
-            r = t.repeat(repeat-1, number)
-            r = [x] + r
-        best = min(r)
-        memory = memory_usage(since=memory)
-
-        result['time'].append(best / number)
-        result['VmData'].append(memory['VmData'])
-        result['VmRSS'].append(memory['VmRSS'])
-        result['VmSize'].append(memory['VmSize'])
-
-        if verbose:
-            if id_ != '':
-                id_ += ': '
-            print id_ + "%d loops," % number,
-            usec = best * 1e6 / number
-            if usec < 1000:
-                print "best of %d: %.*g us per loop. " % (
-                    repeat, precision, usec),
-            else:
-                msec = usec / 1000
-                if msec < 1000:
-                    print "best of %d: %.*g ms per loop. " % (
-                        repeat, precision, msec),
-                else:
-                    sec = msec / 1000
-                    print "best of %d: %.*g s per loop. " % (
-                        repeat, precision, sec),
-
-            print ', '.join([k + ':' + str(v) + 'MiB'
-                             for k, v in memory.items()])
-        if single_test:
-            break
-
-    return result
 
 
 def cast(arrays, dtype=None, order='c'):
@@ -299,8 +115,10 @@ def cast(arrays, dtype=None, order='c'):
     if dtype is None:
         arrays_ = [np.array(a, copy=False) for a in arrays if a is not None]
         dtype = np.result_type(*arrays_)
-    result = (np.array(a, dtype=dtype, order=order, copy=False)
-              if a is not None else None for a in arrays)
+    result = (
+        np.array(a, dtype=dtype, order=order, copy=False) if a is not None else None
+        for a in arrays
+    )
     return tuple(result)
 
 
@@ -501,7 +319,7 @@ def inspect_special_values(x):
 
 @contextmanager
 def interruptible():
-    """ Make a block of code interruptible with CTRL-C. """
+    """Make a block of code interruptible with CTRL-C."""
     signal_old = signal.getsignal(signal.SIGINT)
     signal.signal(signal.SIGINT, signal.default_int_handler)
     yield
@@ -510,7 +328,7 @@ def interruptible():
 
 @contextmanager
 def interruptible_if(condition):
-    """ Conditionally make a block of code interruptible with CTRL-C. """
+    """Conditionally make a block of code interruptible with CTRL-C."""
     if not condition:
         yield
     else:
@@ -523,12 +341,13 @@ def isalias(array1, array2):
     Return True if the two input arrays point to the same memory location.
 
     """
-    return array1.__array_interface__['data'][0] == \
-           array2.__array_interface__['data'][0]
+    return (
+        array1.__array_interface__['data'][0] == array2.__array_interface__['data'][0]
+    )
 
 
 def isclassattr(cls, a):
-    """ Test if an attribute is a class attribute. """
+    """Test if an attribute is a class attribute."""
     for c in cls.__mro__:
         if a in c.__dict__:
             return True
@@ -552,10 +371,12 @@ def izip_broadcast(*args):
     repeated.
 
     """
+
     def wrap(a):
         if hasattr(a, '__len__') and len(a) == 1:
             return itertools.repeat(a[0])
         return a
+
     if any(not hasattr(a, '__len__') or len(a) != 1 for a in args):
         args = [wrap(arg) for arg in args]
     return izip(*args)
@@ -573,11 +394,11 @@ def least_greater_multiple(a, l, out=None):
     """
     if any(v <= 0 for v in l):
         raise ValueError('The list of multiple is not positive;')
-    it = np.nditer([a, out],
-                   op_flags=[['readonly'],
-                             ['writeonly', 'allocate', 'no_broadcast']])
-    max_power = [int(np.ceil(np.log(np.max(a))/np.log(v))) for v in l]
-    slices = [slice(0, m+1) for m in max_power]
+    it = np.nditer(
+        [a, out], op_flags=[['readonly'], ['writeonly', 'allocate', 'no_broadcast']]
+    )
+    max_power = [int(np.ceil(np.log(np.max(a)) / np.log(v))) for v in l]
+    slices = [slice(0, m + 1) for m in max_power]
     powers = np.ogrid[slices]
     values = 1
     for v, p in izip(l, powers):
@@ -592,49 +413,6 @@ def least_greater_multiple(a, l, out=None):
     if out.ndim == 0:
         return out.flat[0]
     return out
-
-
-def memory_usage(keys=('VmRSS', 'VmData', 'VmSize'), since=None):
-    """
-    Return a dict containing information about the process' memory usage.
-
-    Parameters
-    ----------
-    keys : sequence of strings
-        Process status identifiers (see /proc/###/status). Default are
-        the resident, data and virtual memory sizes.
-    since : dict
-        Dictionary as returned by a previous call to memory_usage function and
-        used to compute the difference of memory usage since then.
-
-    """
-    proc_status = '/proc/%d/status' % os.getpid()
-    scale = {'kB': 1024, 'mB': 1024 * 1024,
-             'KB': 1024, 'MB': 1024 * 1024}
-
-    # get pseudo file  /proc/<pid>/status
-    with open(proc_status) as f:
-        status = f.read()
-
-    result = {}
-    for k in keys:
-        # get VmKey line e.g. 'VmRSS:  9999  kB\n ...'
-        i = status.index(k)
-        v = status[i:].split(None, 3)  # whitespace
-        if len(v) < 3:
-            raise ValueError('Invalid format.')
-
-        # convert Vm value to Mbytes
-        result[k] = float(v[1]) * scale[v[2]] / 2**20
-
-    if since is not None:
-        if not isinstance(since, dict):
-            raise TypeError('The input is not a dict.')
-        common_keys = set(result.keys())
-        common_keys.intersection_update(since.keys())
-        result = dict((k, result[k] - since[k]) for k in common_keys)
-
-    return result
 
 
 def merge_none(a, b):
@@ -690,7 +468,7 @@ operation_symbol = {
 
 
 def product(a):
-    """ Return the product of a arbitrary input, including generators. """
+    """Return the product of a arbitrary input, including generators."""
     if isinstance(a, (list, tuple, types.GeneratorType)):
         # a for loop is a bit faster than reduce(operator.imul, a)
         r = 1
@@ -703,8 +481,8 @@ def product(a):
 
 
 def renumerate(l):
-    """ Reversed enumerate. """
-    return izip(xrange(len(l)-1, -1, -1), reversed(l))
+    """Reversed enumerate."""
+    return izip(xrange(len(l) - 1, -1, -1), reversed(l))
 
 
 def strelapsed(t0, msg='Elapsed time'):
@@ -728,7 +506,8 @@ def strelapsed(t0, msg='Elapsed time'):
 
     """
     import time
-    return strinfo(msg + '... {0:.2f}s'.format(time.time()-t0))[:-1]
+
+    return strinfo(msg + '... {0:.2f}s'.format(time.time() - t0))[:-1]
 
 
 def strenum(choices, last='or'):
@@ -771,6 +550,7 @@ def strinfo(msg):
 
     """
     import platform
+
     return 'Info {0}: {1}.'.format(platform.node(), msg)
 
 
@@ -841,7 +621,7 @@ def strplural(n, name, nonumber=False, s=''):
 
 
 def strshape(shape):
-    """ Helper function to convert shapes or list of shapes into strings. """
+    """Helper function to convert shapes or list of shapes into strings."""
     if shape is None or len(shape) == 0:
         return str(shape)
     if isinstance(shape[0], tuple):
@@ -869,11 +649,12 @@ def uninterruptible():
 
     """
     signal_old = signal.getsignal(signal.SIGINT)
-    #XXX the nonlocal Python3 would be handy here
+    # XXX the nonlocal Python3 would be handy here
     ctrlc_is_pressed = []
 
     def signal_handler(signal, frame):
         ctrlc_is_pressed.append(True)
+
     signal.signal(signal.SIGINT, signal_handler)
     yield
     signal.signal(signal.SIGINT, signal_old)
@@ -883,7 +664,7 @@ def uninterruptible():
 
 @contextmanager
 def uninterruptible_if(condition):
-    """ Conditionally make a block of code uninterruptible with CTRL-C. """
+    """Conditionally make a block of code uninterruptible with CTRL-C."""
     if not condition:
         yield
     else:
