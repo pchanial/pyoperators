@@ -95,11 +95,7 @@ setup(
     author_email='pierre.chanial@gmail.com',
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
-    requires=[
-        'numpy(>=1.6)',
-        'scipy(>=0.9)',
-        'pyfftw',
-    ],
+    requires=['numpy(>=1.6)', 'scipy(>=0.9)', 'pyfftw'],
     install_requires=['numexpr>2'],
     packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],
     platforms=platforms.split(','),
