@@ -1,13 +1,14 @@
 """
-The pyoperator package contains the following modules or packages:
+The PyOperators package contains the following modules or packages:
 
 - core : defines the Operator class
 - linear : defines standard linear operators
 - nonlinear : defines non-linear operators (such as thresholding or rounding)
-- operators_mpi : MPI operators (even if mpi4py is not present)
 - iterative : defines iterative algorithms working with operators
-
+- utils : miscellaneous routines
+- operators_mpi : MPI operators (even if mpi4py is not present)
 - operators_pywt : (optional) loaded if PyWavelets is present.
+
 """
 
 from .utils import *
