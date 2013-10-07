@@ -4,7 +4,7 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import square, idempotent, inplace, separable
+from .decorators import idempotent, inplace, real, separable, square
 from .core import (
     Operator,
     BlockColumnOperator,
@@ -23,6 +23,7 @@ __all__ = [
     'MinMaxOperator',
     'MaximumOperator',
     'MinimumOperator',
+    'NormalizeOperator',
     'NumexprOperator',
     'ProductOperator',
     'RoundOperator',
@@ -272,6 +273,27 @@ class MinimumOperator(Operator):
 
     def __init__(self, value, **keywords):
         Operator.__init__(self, lambda i, o: np.minimum(i, value, o), **keywords)
+
+
+@square
+@inplace
+class NormalizeOperator(Operator):
+    """
+    Normalize a cartesian vector.
+
+    Example
+    -------
+    >>> n = NormalizeOperator()
+    >>> n([1, 1])
+    array([ 0.70710678,  0.70710678])
+
+    """
+
+    def __init__(self, dtype=float, **keywords):
+        Operator.__init__(self, dtype=dtype, **keywords)
+
+    def direct(self, input, output):
+        np.divide(input, np.sqrt(np.sum(input**2, axis=-1))[..., None], output)
 
 
 @square
