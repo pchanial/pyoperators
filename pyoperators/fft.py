@@ -168,16 +168,16 @@ class _FFTWRealConvolutionOperator(Operator):
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
         self.set_rule('.T', lambda s: _FFTWRealConvolutionTransposeOperator(
             s.kernel, s._fplan, s._bplan, s.axes, s.fftw_flag, s.nthreads))
-        self.set_rule('.{HomothetyOperator}', self._rule_homothety,
-                      CompositionOperator, globals())
-        self.set_rule('.{_FFTWRealConvolutionOperator}', self.
-                      _rule_add_real, AdditionOperator, globals())
-        self.set_rule('.{_FFTWRealConvolutionOperator}', self.
-                      _rule_cmp_real, CompositionOperator, globals())
-        self.set_rule('.{_FFTWComplexBackwardOperator}', self.
-                      _rule_complex_backward, CompositionOperator, globals())
-        self.set_rule('{_FFTWComplexForwardOperator}.', self.
-                      _rule_complex_forward, CompositionOperator, globals())
+        self.set_rule(('.', HomothetyOperator), self._rule_homothety,
+                      CompositionOperator)
+        self.set_rule(('.', _FFTWRealConvolutionOperator), self.
+                      _rule_add_real, AdditionOperator)
+        self.set_rule(('.', _FFTWRealConvolutionOperator), self.
+                      _rule_cmp_real, CompositionOperator)
+        self.set_rule(('.', _FFTWComplexBackwardOperator), self.
+                      _rule_complex_backward, CompositionOperator)
+        self.set_rule((_FFTWComplexForwardOperator, '.'), self.
+                      _rule_complex_forward, CompositionOperator)
 
     def direct(self, input, output):
         shape = self.kernel.shape
@@ -339,7 +339,7 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
         self.set_rule('.H', lambda s:
                       HomothetyOperator(1 / product(s.shapein)) *
                       _FFTWComplexBackwardOperator(s.shapein, forward=s))
-        self.set_rule('{_FFTWComplexBackwardOperator}.', lambda o, s:
+        self.set_rule((_FFTWComplexBackwardOperator, '.'), lambda o, s:
                       HomothetyOperator(product(s.shapein)),
                       CompositionOperator)
 
@@ -371,7 +371,7 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
                                       forward.nthreads, dtype, **keywords)
         self.set_rule('.H', lambda s:
                       HomothetyOperator(product(s.shapein)) * forward)
-        self.set_rule('{_FFTWComplexForwardOperator}.', lambda o, s:
+        self.set_rule((_FFTWComplexForwardOperator, '.'), lambda o, s:
                       HomothetyOperator(product(s.shapein)),
                       CompositionOperator)
 
