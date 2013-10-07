@@ -5,9 +5,9 @@ from pyoperators import Operator
 from pyoperators.utils import (
     cast, complex_dtype, first, float_dtype, ifirst, first_is_not,
     ifirst_is_not, inspect_special_values, interruptible, isscalar,
-    izip_broadcast, least_greater_multiple, product, strenum, strplural,
-    strshape, uninterruptible)
-from pyoperators.utils.testing import assert_eq, assert_raises
+    izip_broadcast, least_greater_multiple, one, pi, product, strenum,
+    strplural, strshape, uninterruptible, zero)
+from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
@@ -229,6 +229,17 @@ def test_least_greater_multiple():
     expected = 2**a * 3**b * 5**c
     yield func, least_greater_multiple(expected, [2, 3, 5]), expected
     yield func, least_greater_multiple(expected-1, [2, 3, 5]), expected
+
+
+def test_one_pi_zero():
+    expected = 1, 4 * np.arctan(np.array(1, np.float128)), 0
+
+    def func(f, dtype, exp):
+        assert_same(f(dtype), np.array(exp, dtype=dtype))
+    for f, exp in zip((one, pi, zero), expected):
+        for dtype in (np.float16, np.float32, np.float64, np.float128,
+                      np.complex64, np.complex128, np.complex256):
+            yield func, f, dtype, exp
 
 
 def test_product():

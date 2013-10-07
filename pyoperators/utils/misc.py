@@ -32,9 +32,11 @@ __all__ = ['all_eq',
            'least_greater_multiple',
            'merge_none',
            'ndarraywrap',
+           'one',
            'openmp_num_threads',
            'operation_assignment',
            'operation_symbol',
+           'pi',
            'product',
            'renumerate',
            'strelapsed',
@@ -45,7 +47,8 @@ __all__ = ['all_eq',
            'strshape',
            'tointtuple',
            'uninterruptible',
-           'uninterruptible_if']
+           'uninterruptible_if',
+           'zero']
 
 
 def all_eq(a, b):
@@ -437,6 +440,11 @@ class ndarraywrap(np.ndarray):
     pass
 
 
+def one(dtype):
+    """ Return 1 with a given dtype. """
+    return np.ones((), dtype=dtype)[()]
+
+
 def openmp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
     if n is not None:
@@ -457,6 +465,11 @@ operation_symbol = {
     operator.imul: '*',
     operator.idiv: '/',
 }
+
+
+def pi(dtype):
+    """ Return pi with a given dtype. """
+    return 4 * np.arctan(one(dtype))
 
 
 def product(a):
@@ -659,3 +672,8 @@ def uninterruptible_if(condition):
     else:
         with uninterruptible():
             yield
+
+
+def zero(dtype):
+    """ Return 0 with a given dtype. """
+    return np.zeros((), dtype=dtype)[()]
