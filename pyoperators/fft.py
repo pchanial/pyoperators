@@ -232,31 +232,25 @@ class _FFTWRealConvolutionOperator(Operator):
             ),
         )
         self.set_rule(
-            '.{HomothetyOperator}', self._rule_homothety, CompositionOperator, globals()
+            ('.', HomothetyOperator), self._rule_homothety, CompositionOperator
         )
         self.set_rule(
-            '.{_FFTWRealConvolutionOperator}',
-            self._rule_add_real,
-            AdditionOperator,
-            globals(),
+            ('.', _FFTWRealConvolutionOperator), self._rule_add_real, AdditionOperator
         )
         self.set_rule(
-            '.{_FFTWRealConvolutionOperator}',
+            ('.', _FFTWRealConvolutionOperator),
             self._rule_cmp_real,
             CompositionOperator,
-            globals(),
         )
         self.set_rule(
-            '.{_FFTWComplexBackwardOperator}',
+            ('.', _FFTWComplexBackwardOperator),
             self._rule_complex_backward,
             CompositionOperator,
-            globals(),
         )
         self.set_rule(
-            '{_FFTWComplexForwardOperator}.',
+            (_FFTWComplexForwardOperator, '.'),
             self._rule_complex_forward,
             CompositionOperator,
-            globals(),
         )
 
     def direct(self, input, output):
@@ -460,7 +454,7 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
             * _FFTWComplexBackwardOperator(s.shapein, forward=s),
         )
         self.set_rule(
-            '{_FFTWComplexBackwardOperator}.',
+            (_FFTWComplexBackwardOperator, '.'),
             lambda o, s: HomothetyOperator(product(s.shapein)),
             CompositionOperator,
         )
@@ -508,7 +502,7 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
         )
         self.set_rule('.H', lambda s: HomothetyOperator(product(s.shapein)) * forward)
         self.set_rule(
-            '{_FFTWComplexForwardOperator}.',
+            (_FFTWComplexForwardOperator, '.'),
             lambda o, s: HomothetyOperator(product(s.shapein)),
             CompositionOperator,
         )

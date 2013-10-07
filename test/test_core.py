@@ -569,7 +569,7 @@ def test_merge_name():
 
         def __init__(self, **keywords):
             Operator.__init__(self, **keywords)
-            self.set_rule('.{HomothetyOperator}', lambda s, o: s.copy(),
+            self.set_rule(('.', HomothetyOperator), lambda s, o: s.copy(),
                           CompositionOperator)
 
     class sqrt(AbsorbOperator):

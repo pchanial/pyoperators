@@ -146,61 +146,63 @@ def test_binaryrule3():
 
 
 def test_binaryrule4():
-    rule = OperatorBinaryRule('.{HomothetyOperator}', p1)
+    rule = OperatorBinaryRule(('.', HomothetyOperator), p1)
     yield assert_is_none, rule(op1, op2)
     s = HomothetyOperator(2)
     yield assert_equal, rule(op1, s), (s, op1)
 
 
 def test_binaryrule5():
-    rule = OperatorBinaryRule('.{self}', p2)
+    rule = OperatorBinaryRule((type(op1), '.'), p2)
     yield assert_equal, rule(op1, op1), op3
-    yield assert_is_none, rule(op1, op2)
-    yield assert_equal, rule(op1, op4), op3
-
-
-r = lambda o: None
-r2 = lambda o: None
-
-
-class Op1(Operator):
-    pass
-
-
-class Op2(Op1):
-    pass
-
-
-class Op3(Op2):
-    def __init__(self):
-        Op2.__init__(self)
-        self.set_rule('.{OpA}', r, CompositionOperator, globals())
-        self.set_rule('.{Op3}', r, CompositionOperator, globals())
-        self.set_rule('..T', r, CompositionOperator)
-        self.set_rule('.{Op2}', r, CompositionOperator, globals())
-        self.set_rule('.{OpB}', r, CompositionOperator, globals())
-        self.set_rule('.{Op1}', r, CompositionOperator, globals())
-        self.set_rule('..H', r, CompositionOperator)
-        self.set_rule('.{Op4}', r, CompositionOperator, globals())
-        self.set_rule('.{Op2}', r2, CompositionOperator, globals())
-
-
-class Op4(Op3):
-    pass
-
-
-class OpA(Operator):
-    pass
-
-
-class OpB(Operator):
-    pass
+    yield assert_is_none, rule(op2, op1)
+    yield assert_equal, rule(op4, op1), op3
 
 
 def test_binaryrule_priority():
+    r1 = lambda o: None
+    r2 = lambda o: None
+
+    class Op1(Operator):
+        pass
+
+    class Op2(Op1):
+        pass
+
+    class Op3(Op2):
+        def __init__(self):
+            Op2.__init__(self)
+            self.set_rule(('.', OpA), r1, CompositionOperator)
+            self.set_rule(('.', Op3), r1, CompositionOperator)
+            self.set_rule('..T', r1, CompositionOperator)
+            self.set_rule(('.', Op2), r1, CompositionOperator)
+            self.set_rule(('.', OpB), r1, CompositionOperator)
+            self.set_rule(('.', Op1), r1, CompositionOperator)
+            self.set_rule('..H', r1, CompositionOperator)
+            self.set_rule(('.', Op4), r1, CompositionOperator)
+            self.set_rule(('.', Op2), r2, CompositionOperator)
+
+    class Op4(Op3):
+        pass
+
+    class OpA(Operator):
+        pass
+
+    class OpB(Operator):
+        pass
+
     op = Op3()
-    act = [''.join(r.subjects) for r in op.rules[CompositionOperator]['left']]
-    exp = ['..H', '..T', '.{OpB}', '.{Op4}', '.{Op3}', '.{Op2}', '.{Op1}', '.{OpA}']
+    act = [r.subjects for r in op.rules[CompositionOperator]['left']]
+    exp = [
+        ('.', '.H'),
+        ('.', '.T'),
+        ('.', OpB),
+        ('.', Op4),
+        ('.', Op3),
+        ('.', Op2),
+        ('.', Op1),
+        ('.', OpA),
+    ]
     for a, e in zip(act, exp):
         yield assert_eq, a, e
     assert op.rules[CompositionOperator]['left'][5].predicate is r2
@@ -336,7 +338,7 @@ def test_absorb_scalar():
             self.value = np.array(value)
             Operator.__init__(self, **keywords)
             self.set_rule(
-                '.{HomothetyOperator}',
+                ('.', HomothetyOperator),
                 lambda s, o: AbsorbRightOperator(s.value * o.data),
                 CompositionOperator,
             )
@@ -347,7 +349,7 @@ def test_absorb_scalar():
             self.value = np.array(value)
             Operator.__init__(self, **keywords)
             self.set_rule(
-                '{HomothetyOperator}.',
+                (HomothetyOperator, '.'),
                 lambda o, s: AbsorbLeftOperator(s.value * o.data),
                 CompositionOperator,
             )

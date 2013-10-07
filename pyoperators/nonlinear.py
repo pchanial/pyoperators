@@ -408,7 +408,7 @@ class HardThresholdingOperator(Operator):
         Operator.__init__(self, **keywords)
         self.a = a
         self.set_rule(
-            '.{HardThresholdingOperator}',
+            ('.', HardThresholdingOperator),
             lambda s, o: HardThresholdingOperator(np.maximum(s.a, o.a)),
             CompositionOperator,
         )

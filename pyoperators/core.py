@@ -146,22 +146,29 @@ class OperatorRule(object):
     """
     Abstract class for operator rules.
 
-    A operator rule is a relation that can be expressed by the sentence
+    An operator rule is a relation that can be expressed by the sentence
     "'subjects' are 'predicate'". An instance of this class, when called with
     checks if the inputs are subjects to the rule, and returns the predicate
     if it is the case. Otherwise, it returns None.
+
     """
 
     def __init__(self, subjects, predicate):
 
-        if not isinstance(subjects, str):
-            raise TypeError(
-                "The input first argument '{0}' is not a string.".format(subjects)
-            )
+        if not isinstance(subjects, (list, str, tuple)):
+            raise TypeError("The input {0} is invalid.".format(subjects))
 
         subjects_ = self._split_subject(subjects)
+        if any(
+            not isinstance(s, str)
+            and (not isinstance(s, type) or not issubclass(s, Operator))
+            for s in subjects_
+        ):
+            raise TypeError("The subjects {0} are invalid.".format(subjects))
         if len(subjects_) == 0:
             raise ValueError('No rule subject is specified.')
+        if len(subjects_) > 2:
+            raise ValueError('No more than 2 subjects can be specified.')
         if not isinstance(self, OperatorUnaryRule) and len(subjects_) == 1:
             self.__class__ = OperatorUnaryRule
             self.__init__(subjects, predicate)
@@ -173,7 +180,8 @@ class OperatorRule(object):
 
         if '1' in subjects_:
             raise ValueError("'1' cannot be a subject.")
-
+        if not isinstance(predicate, (str, types.FunctionType)):
+            raise TypeError('Invalid predicate.')
         if isinstance(predicate, str) and '{' in predicate:
             raise ValueError("Predicate cannot be a subclass.")
 
@@ -185,7 +193,7 @@ class OperatorRule(object):
             return NotImplemented
         if self.subjects != other.subjects:
             return False
-        if isinstance(self.predicate, types.LambdaType):
+        if isinstance(self.predicate, types.FunctionType):
             if type(self.predicate) is not type(other.predicate):
                 return False
             return self.predicate.func_code is other.predicate.func_code
@@ -210,27 +218,39 @@ class OperatorRule(object):
 
     @classmethod
     def _split_subject(cls, subject):
-        if isinstance(subject, (list, tuple)):
+        if isinstance(subject, list):
+            subject = tuple(subject)
+        if isinstance(subject, tuple):
+            if any(
+                not isinstance(s, str)
+                and not issubclass(s, Operator)
+                and not isinstance(s, (list, tuple))
+                or isinstance(s, (list, tuple))
+                and any(not issubclass(_, Operator) for _ in s)
+                for s in subject
+            ):
+                raise TypeError('The rule subject is invalid.')
             return subject
         if not isinstance(subject, str):
             raise TypeError('The rule subject is not a string.')
         if len(subject) == 0:
-            return []
+            return ()
         associated = '.IC', '.IT', '.IH', '.C', '.T', '.H', '.I', '.'
         for a in associated:
             if subject[: len(a)] == a:
-                return [a] + cls._split_subject(subject[len(a) :])
+                return (a,) + cls._split_subject(subject[len(a) :])
         if subject[0] == '{':
             try:
                 pos = subject.index('}')
             except ValueError:
                 raise ValueError("Invalid subject: no matching closing '}'.")
-            return [subject[: pos + 1]] + cls._split_subject(subject[pos + 1 :])
+            return (subject[: pos + 1],) + cls._split_subject(subject[pos + 1 :])
 
         raise ValueError("The subject {0} is not understood.".format(subject))
 
     def __str__(self):
-        return '{0} = {1}'.format(''.join(self.subjects), self.predicate)
+        subjects = [s if isinstance(s, str) else s.__name__ for s in self.subjects]
+        return '{0} = {1}'.format(','.join(subjects), self.predicate)
 
     __repr__ = __str__
 
@@ -239,7 +259,7 @@ class OperatorUnaryRule(OperatorRule):
     """
     Binary rule on operators.
 
-    A operator unary rule is a relation that can be expressed by the sentence
+    An operator unary rule is a relation that can be expressed by the sentence
     "'subject' is 'predicate'".
 
     Parameters
@@ -295,7 +315,7 @@ class OperatorBinaryRule(OperatorRule):
     """
     Binary rule on operators.
 
-    A operator rule is a relation that can be expressed by the sentence
+    An operator rule is a relation that can be expressed by the sentence
     "'subjects' are 'predicate'". An instance of this class, when called with
     two input arguments checks if the inputs are subjects to the rule, and
     returns the predicate if it is the case. Otherwise, it returns None.
@@ -352,11 +372,14 @@ class OperatorBinaryRule(OperatorRule):
                 if not isinstance(other, reference.__class__):
                     return None
             elif subother == 'HomothetyOperator':
-                if not isinstance(other, ZeroOperator) and subother not in (
-                    c.__name__ for c in other.__class__.__mro__
-                ):
+                if not isinstance(other, (HomothetyOperator, ZeroOperator)):
                     return None
             elif subother not in (c.__name__ for c in other.__class__.__mro__):
+                return None
+        elif isinstance(subother, (type, tuple)):
+            if subother is HomothetyOperator:
+                subother = (HomothetyOperator, ZeroOperator)
+            if not isinstance(other, subother):
                 return None
         elif other != subother:
             return None
@@ -828,6 +851,18 @@ class Operator(object):
             rules. It is required for classes not from pyoperators.core and for
             which more than one class-matching rule is set.
         """
+
+        # Handle first the case of multiple subclass matching rules
+        if isinstance(subjects, (list, tuple)) and len(subjects) == 2:
+            if isinstance(subjects[0], (list, tuple)):
+                for s in subjects[0][::-1]:
+                    self.set_rule((s, subjects[1]), predicate, operation=operation)
+                return
+            if isinstance(subjects[1], (list, tuple)):
+                for s in subjects[1][::-1]:
+                    self.set_rule((subjects[0], s), predicate, operation=operation)
+                return
+
         rule = OperatorRule(subjects, predicate)
 
         if len(rule.subjects) > 2:
@@ -862,25 +897,45 @@ class Operator(object):
         except ValueError:
             pass
 
-        if len(rule.subjects) == 1 or not rule.other.startswith('{'):
+        # class matching rules have lower priority
+        if (
+            len(rule.subjects) == 1
+            or isinstance(rule.other, str)
+            and not rule.other.startswith('{')
+        ):
             rules.insert(0, rule)
             return
 
         # search for subclass rules
-        try:
-            index = [r.other[0] for r in rules].index('{')
-        except ValueError:
+        # try:
+        #    index = [r.other[0] for r in rules].index('{')
+        # except ValueError:
+        #    rules.append(rule)
+        #    return
+        for index, r in enumerate(rules):
+            if isinstance(r.other, str):
+                if '{' in r.other[0]:
+                    break
+            elif isinstance(r.other, type):
+                break
+            else:
+                raise Exception('should not happen.')
+        else:
             rules.append(rule)
             return
 
+        def _get_cls(rule):
+            if isinstance(rule.other, type):
+                return rule.other
+            return (
+                type(self)
+                if rule.other[1:-1] == 'self'
+                else eval(rule.other[1:-1], globals)
+            )
+
         # insert the rule after more specific ones
-        cls = (
-            type(self)
-            if rule.other[1:-1] == 'self'
-            else eval(rule.other[1:-1], globals)
-        )
-        classes = [r.other[1:-1] for r in rules[index:]]
-        classes = [cls if r == 'self' else eval(r, globals) for r in classes]
+        cls = _get_cls(rule)
+        classes = [_get_cls(r) for r in rules[index:]]
         is_subclass = [issubclass(cls, c) for c in classes]
         is_supclass = [issubclass(c, cls) for c in classes]
         try:
@@ -1974,9 +2029,11 @@ class CommutativeCompositeOperator(CompositeOperator):
         CompositeOperator.__init__(self, operands, **keywords)
         if not isinstance(self, CommutativeCompositeOperator):
             return
-        self.set_rule('.{Operator}', lambda s, o: type(s)(s.operands + [o]), type(self))
         self.set_rule(
-            '.{self}', lambda s, o: type(s)(s.operands + o.operands), type(self)
+            ('.', Operator), lambda s, o: type(s)(s.operands + [o]), type(self)
+        )
+        self.set_rule(
+            ('.', type(self)), lambda s, o: type(s)(s.operands + o.operands), type(self)
         )
         self.operation = operation
 
@@ -2248,7 +2305,7 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             '.H', lambda s: BlockSliceOperator([op.H for op in s.operands], s.slices)
         )
         self.set_rule(
-            '.{HomothetyOperator}',
+            ('.', HomothetyOperator),
             lambda s, o: BlockSliceOperator(
                 [o.data * op for op in s.operands], s.slices
             ),
@@ -2396,17 +2453,17 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         self.set_rule('.IT', lambda s: CompositionOperator([m.I.T for m in s.operands]))
         self.set_rule('.IH', lambda s: CompositionOperator([m.I.H for m in s.operands]))
         self.set_rule(
-            '.{self}',
+            ('.', type(self)),
             lambda s, o: CompositionOperator(s.operands + o.operands),
             CompositionOperator,
         )
         self.set_rule(
-            '.{Operator}',
+            ('.', Operator),
             lambda s, o: CompositionOperator(s.operands + [o]),
             CompositionOperator,
         )
         self.set_rule(
-            '{Operator}.',
+            (Operator, '.'),
             lambda o, s: CompositionOperator([o] + s.operands),
             CompositionOperator,
         )
@@ -2947,9 +3004,9 @@ class GroupOperator(CompositionOperator):
                 [m.I.H for m in s.operands], name=self.__name__ + '.I.H'
             ),
         )
-        self.del_rule('.{self}', CompositionOperator)
-        self.del_rule('.{Operator}', CompositionOperator)
-        self.del_rule('{Operator}.', CompositionOperator)
+        self.del_rule(('.', type(self)), CompositionOperator)
+        self.del_rule(('.', Operator), CompositionOperator)
+        self.del_rule((Operator, '.'), CompositionOperator)
 
 
 class BlockOperator(NonCommutativeCompositeOperator):
@@ -3160,13 +3217,15 @@ class BlockOperator(NonCommutativeCompositeOperator):
                 ),
             )
 
-        self.set_rule('.{Operator}', self._rule_add_operator, AdditionOperator)
-        self.set_rule('.{Operator}', self._rule_left_operator, CompositionOperator)
-        self.set_rule('{Operator}.', self._rule_right_operator, CompositionOperator)
-        self.set_rule('{self}.', self._rule_add_blockoperator, AdditionOperator)
-        self.set_rule('{self}.', self._rule_mul_blockoperator, MultiplicationOperator)
+        self.set_rule(('.', Operator), self._rule_add_operator, AdditionOperator)
+        self.set_rule(('.', Operator), self._rule_left_operator, CompositionOperator)
+        self.set_rule((Operator, '.'), self._rule_right_operator, CompositionOperator)
+        self.set_rule((type(self), '.'), self._rule_add_blockoperator, AdditionOperator)
         self.set_rule(
-            '{BlockOperator}.', self._rule_comp_blockoperator, CompositionOperator
+            (type(self), '.'), self._rule_mul_blockoperator, MultiplicationOperator
+        )
+        self.set_rule(
+            (BlockOperator, '.'), self._rule_comp_blockoperator, CompositionOperator
         )
 
     def toshapein(self, v):
@@ -3972,7 +4031,7 @@ class ReshapeOperator(Operator):
             return
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
         self.set_rule('.T', lambda s: ReshapeOperator())
-        self.set_rule('{self}.', self._rule_reshape, CompositionOperator)
+        self.set_rule((type(self), '.'), self._rule_reshape, CompositionOperator)
 
     def direct(self, input, output):
         if isalias(input, output):
@@ -4027,32 +4086,32 @@ class BroadcastingOperator(Operator):
         self.data = data
         Operator.__init__(self, shapeout=shapeout, **keywords)
         self.set_rule(
-            '{BroadcastingOperator}.',
+            (BroadcastingOperator, '.'),
             lambda b1, b2: self._rule_broadcast(b1, b2, np.add),
             AdditionOperator,
         )
         self.set_rule(
-            '{BroadcastingOperator}.',
+            (BroadcastingOperator, '.'),
             lambda b1, b2: self._rule_broadcast(b1, b2, np.multiply),
             CompositionOperator,
         )
         self.set_rule(
-            '.{BlockOperator}',
+            ('.', BlockOperator),
             lambda s, o: self._rule_left_block(s, o, CompositionOperator),
             CompositionOperator,
         )
         self.set_rule(
-            '{BlockOperator}.',
+            (BlockOperator, '.'),
             lambda o, s: self._rule_right_block(o, s, CompositionOperator),
             CompositionOperator,
         )
         self.set_rule(
-            '.{BlockOperator}',
+            ('.', BlockOperator),
             lambda s, o: self._rule_left_block(s, o, AdditionOperator),
             AdditionOperator,
         )
         self.set_rule(
-            '.{BlockOperator}',
+            ('.', BlockOperator),
             lambda s, o: self._rule_left_block(s, o, MultiplicationOperator),
             MultiplicationOperator,
         )
@@ -4473,8 +4532,8 @@ class IdentityOperator(HomothetyOperator):
 
     def __init__(self, shapein=None, **keywords):
         HomothetyOperator.__init__(self, 1, shapein=shapein, **keywords)
-        self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
-        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
+        self.set_rule(('.', Operator), self._rule_left, CompositionOperator)
+        self.set_rule((Operator, '.'), self._rule_right, CompositionOperator)
 
     def direct(self, input, output):
         if isalias(input, output):
@@ -4518,17 +4577,19 @@ class ConstantOperator(BroadcastingOperator):
         #        if self.flags.shape_input == 'unconstrained' and \
         #           self.flags.shape_output != 'implicit':
         #            self.set_rule('.T', '.')
-        self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
-        self.set_rule('{Operator}.', self._rule_right, CompositionOperator)
-        self.set_rule('.{CompositionOperator}', self._rule_mul, MultiplicationOperator)
-        self.set_rule('.{DiagonalOperator}', self._rule_mul, MultiplicationOperator)
+        self.set_rule(('.', Operator), self._rule_left, CompositionOperator)
+        self.set_rule((Operator, '.'), self._rule_right, CompositionOperator)
         self.set_rule(
-            '.{BlockOperator}',
+            ('.', CompositionOperator), self._rule_mul, MultiplicationOperator
+        )
+        self.set_rule(('.', DiagonalOperator), self._rule_mul, MultiplicationOperator)
+        self.set_rule(
+            ('.', BlockOperator),
             lambda s, o: self._rule_left_block_composition(s, o),
             CompositionOperator,
         )
         self.set_rule(
-            '{BlockOperator}.',
+            (BlockOperator, '.'),
             lambda o, s: self._rule_right_block_composition(o, s),
             CompositionOperator,
         )
@@ -4610,7 +4671,7 @@ class ZeroOperator(ConstantOperator):
     def __init__(self, *args, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
         self.set_rule('.T', lambda s: ZeroOperator())
-        self.set_rule('.{Operator}', lambda s, o: o, AdditionOperator)
+        self.set_rule(('.', Operator), lambda s, o: o, AdditionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         operation(output, 0)
@@ -4774,7 +4835,7 @@ class DenseOperator(Operator):
         if self._roll_input:
             self.set_rule('.T', self._rule_transpose)
         self.set_rule(
-            '.{HomothetyOperator}',
+            ('.', HomothetyOperator),
             lambda s, o: DenseOperator(
                 o.data * s.data,
                 roll_input=s.roll_input,
@@ -4783,7 +4844,7 @@ class DenseOperator(Operator):
             ),
             CompositionOperator,
         )
-        self.set_rule('.{DenseOperator}', self._rule_dense, CompositionOperator)
+        self.set_rule(('.', DenseOperator), self._rule_dense, CompositionOperator)
 
     def direct(self, input, output):
         input = np.atleast_1d(input)
@@ -4958,7 +5019,7 @@ class Variable(Operator):
         self.name = name
         Operator.__init__(self, shapein=shape)
         self.set_rule('.T', lambda s: VariableTranspose(self.name, self.shapein))
-        self.set_rule('.{Operator}', self._rule_left, CompositionOperator)
+        self.set_rule(('.', Operator), self._rule_left, CompositionOperator)
 
     @staticmethod
     def _rule_left(self, other):
