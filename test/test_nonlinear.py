@@ -1,10 +1,11 @@
 import numpy as np
 from numpy.testing import assert_equal
 
-from pyoperators import (HardThresholdingOperator, IdentityOperator,
-                         NumexprOperator, RoundOperator,
-                         SoftThresholdingOperator)
-from pyoperators.utils.testing import assert_is_instance
+from pyoperators import (
+    HardThresholdingOperator, IdentityOperator, NormalizeOperator,
+    NumexprOperator, RoundOperator, SoftThresholdingOperator)
+from pyoperators.utils import product
+from pyoperators.utils.testing import assert_is_instance, assert_same
 
 
 def test_rounding():
@@ -35,6 +36,17 @@ def test_rounding():
     #yield assert_equal, result[mask], [-3,-3,-2,0,0,1,1]
     #yield assert_, result[2] in (-3,-2)
     #yield assert_, result[-4] in (0,1)
+
+
+def test_normalize():
+    n = NormalizeOperator()
+
+    def func(shape):
+        vec = np.arange(product(shape)).reshape(shape)
+        exp = vec / np.sqrt(np.sum(vec ** 2, axis=-1))[..., None]
+        assert_same(n(vec), exp)
+    for shape in ((2,), (4,), (2, 3), (4, 5, 2)):
+        yield func, shape
 
 
 def test_numexpr1():
