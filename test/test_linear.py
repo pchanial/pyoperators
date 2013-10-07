@@ -147,7 +147,7 @@ def test_rotation_2d():
             yield func, shape, degrees
 
 
-def test_rotation_3d():
+def test_rotation_3d_1axis():
     rx = Rotation3dOperator('X', 90, degrees=True)
     ry = Rotation3dOperator('Y', 90, degrees=True)
     rz = Rotation3dOperator('Z', 90, degrees=True)
@@ -166,6 +166,41 @@ def test_rotation_3d():
     for rot, exp in zip((rx, ry, rz), exps):
         yield func, rot, exp
 
+
+def test_rotation_3d_2axis():
+    ref = [[1, 0, 0],
+           [0, 1, 0],
+           [0, 0, 1]]
+    alpha = 0.1
+    beta = 0.2
+
+    # intrinsic rotations
+    conventions = ("XY'", "XZ'", "YX'", "YZ'", "ZX'", "ZY'")
+
+    def func(c):
+        r = Rotation3dOperator(c, alpha, beta)
+        r2 = Rotation3dOperator(c[0], alpha) * \
+             Rotation3dOperator(c[1], beta)
+        assert_allclose(r(ref), r2(ref))
+    for c in conventions:
+        yield func, c
+
+    # extrinsic rotations
+    conventions = ('XY', 'XZ', 'YX', 'YZ', 'ZX', 'ZY')
+
+    def func(c):
+        r = Rotation3dOperator(c, alpha, beta)
+        r2 = Rotation3dOperator(c[1], beta) * \
+             Rotation3dOperator(c[0], alpha)
+        assert_allclose(r(ref), r2(ref))
+    for c in conventions:
+        yield func, c
+
+
+def test_rotation_3d_3axis():
+    ref = [[1, 0, 0],
+           [0, 1, 0],
+           [0, 0, 1]]
     alpha = 0.1
     beta = 0.2
     gamma = 0.3

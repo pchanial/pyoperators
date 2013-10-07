@@ -284,12 +284,14 @@ class Rotation2dOperator(DenseOperator):
 @real
 class Rotation3dOperator(DenseOperator):
     """
-    Operator for 3-d active rotations.
+    Operator for 3-d active rotations about 1, 2 or 3 axes.
 
     The rotation axes are specified one by one by selecting a convention.
 
-    For intrinsic rotations (in which the coordinate system changes),
-    the following conventions are possible:
+    For intrinsic rotations (in which the coordinate system changes with
+    the rotation), the following conventions are possible:
+        X, Y, Z,
+        XY', XZ', YX', YZ', ZX', ZY',
         XZ'X'', XZ'Y'', XY'X'', XY'Z'',  YX'Y'', YX'Z'',
         YZ'Y'', YZ'X'', ZY'Z'', ZY'X'', ZX'Z'' and ZX'Y''.
     The primes denote the rotated axes after the first elemental rotation and
@@ -297,9 +299,9 @@ class Rotation3dOperator(DenseOperator):
 
     And for the extrinsic rotations (in which the original coordinate system
     remains motionless):
+        X, Y, Z,
+        XY, XZ, YX, YZ, ZX, ZY,
         XZX, XZY, XYX, XYZ, YXY, YXZ, YZY, YZX, ZYZ, ZYX, ZXZ and ZXY.
-
-    Rotation about a single axis are also handled by the convention X, Y and Z.
 
     Parameters
     ----------
@@ -328,41 +330,43 @@ class Rotation3dOperator(DenseOperator):
     [ 0.49240388  0.58682409 -0.64278761]
 
     """
-    def __init__(self, convention, a1, a2=None, a3=None, degrees=False,
+    def __init__(self, convention, a1, a2=0, a3=0, degrees=False,
                  roll_input=False, dtype=None, **keywords):
+        if not isinstance(convention, str):
+            raise TypeError('Invalid type for the input convention.')
+        convention = convention.upper()
+        if any(l not in "XYZ'" for l in convention):
+            raise ValueError("Invalid convention '{0}'.".format(convention))
         a1 = np.asarray(a1)
-        if a2 is not None:
-            a2 = np.asarray(a2)
-            if a3 is None:
-                raise ValueError('Either one or two angles can be speficied.')
-            a3 = np.asarray(a3)
+        a2 = np.asarray(a2)
+        a3 = np.asarray(a3)
         if dtype is None:
-            dtype = float_dtype(a1.dtype)
-            if a2 is not None:
-                dtype = np.find_common_type([dtype, a2.dtype, a3.dtype], [])
+            dtype = np.find_common_type([float_dtype(a.dtype)
+                                         for a in (a1, a2, a3)], [])
         a1 = a1.astype(dtype)
-        if a2 is not None:
-            a2 = a2.astype(dtype)
-            a3 = a3.astype(dtype)
+        a2 = a2.astype(dtype)
+        a3 = a3.astype(dtype)
         if degrees:
             a1 = np.radians(a1)
-            if a2 is not None:
-                a2 = np.radians(a2)
-                a3 = np.radians(a3)
+            a2 = np.radians(a2)
+            a3 = np.radians(a3)
         convention = convention.upper()
+        naxes = len(convention.replace("'", ''))
 
-        # Extrinsic to Intrinsic rotation conversion
-        if len(convention) == 3 and all(s in 'XYZ' for s in convention):
+        # Extrinsic to intrinsic rotation conversion
+        if naxes == 2 and len(convention) == 2:
+            convention = convention[1] + convention[0] + "'"
+            a1, a2 = a2, a1
+        elif naxes == 3 and len(convention) == 3:
             convention = convention[2:0:-1] + "'" + convention[0] + "''"
             a1, a3 = a3, a1
 
         c1 = np.cos(a1)
         s1 = np.sin(a1)
-        if a2 is not None:
-            c2 = np.cos(a2)
-            s2 = np.sin(a2)
-            c3 = np.cos(a3)
-            s3 = np.sin(a3)
+        c2 = np.cos(a2)
+        s2 = np.sin(a2)
+        c3 = np.cos(a3)
+        s3 = np.sin(a3)
         gm = self._get_matrix
         if convention == 'X':
             m = gm(1,  0,  0,
@@ -376,6 +380,30 @@ class Rotation3dOperator(DenseOperator):
             m = gm(c1,-s1, 0,
                    s1, c1, 0,
                     0,  0, 1)
+        elif convention == "XZ'":
+            m = gm(c2, -s2, 0,
+                   c1*s2, c1*c2, -s1,
+                   s1*s2, c2*s1, c1)
+        elif convention == "XY'":
+            m = gm(c2, 0, s2,
+                   s1*s2, c1, -c2*s1,
+                   -c1*s2, s1, c1*c2)
+        elif convention == "YX'":
+            m = gm(c1, s1*s2, c2*s1,
+                   0, c2, -s2,
+                   -s1, c1*s2, c1*c2)
+        elif convention == "YZ'":
+            m = gm(c1*c2, -c1*s2, s1,
+                   s2, c2, 0,
+                   -c2*s1, s1*s2, c1)
+        elif convention == "ZY'":
+            m = gm(c1*c2,  -s1, c1*s2,
+                   c2*s1, c1, s1*s2,
+                   -s2, 0, c2)
+        elif convention == "ZX'":
+            m = gm(c1, -c2*s1, s1*s2,
+                   s1, c1*c2, -c1*s2,
+                   0, s2, c2)
         elif convention == "XZ'X''":
             m = gm(c2, -c3*s2, s2*s3,
                    c1*s2, c1*c2*c3 - s1*s3,  -c3*s1 - c1*c2*s3,
@@ -426,7 +454,7 @@ class Rotation3dOperator(DenseOperator):
                    -c2*s3, s2, c2*c3)
         else:
             raise ValueError(
-                "Invalid rotation convention '{0}'.".format(convention))
+                "Invalid rotation convention {0}.".format(convention))
 
         for i in range(a1.ndim):
             m = np.rollaxis(m, -1)
