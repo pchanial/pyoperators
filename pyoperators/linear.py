@@ -13,19 +13,21 @@ from scipy.sparse.linalg import eigsh
 from .decorators import inplace, linear, real, square, symmetric
 from .core import (Operator, BlockRowOperator, BroadcastingOperator,
                    CompositionOperator, DenseOperator, DiagonalOperator,
-                   ReductionOperator, Variable, X, _pool)
+                   HomothetyOperator, ReductionOperator, Variable, X, _pool)
 from .memory import empty
 from .utils import (
-    cast, complex_dtype, float_dtype, ifirst, izip_broadcast, tointtuple)
+    cast, complex_dtype, float_dtype, ifirst, izip_broadcast, pi, tointtuple)
 
 __all__ = [
     'BandOperator',
+    'DegreesOperator',
     'DiagonalNumexprOperator',
     'DiagonalNumexprNonSeparableOperator',
     'DifferenceOperator',
     'EigendecompositionOperator',
     'IntegrationTrapezeOperator',
     'PackOperator',
+    'RadiansOperator',
     'Rotation2dOperator',
     'Rotation3dOperator',
     'SumOperator',
@@ -34,6 +36,22 @@ __all__ = [
     'TridiagonalOperator',
     'UnpackOperator',
 ]
+
+
+class DegreesOperator(HomothetyOperator):
+    """
+    Convert angles from radians to degrees.
+
+    Example
+    -------
+    >>> d = DegreesOperator()
+    >>> d(np.pi/2)
+    array(90.0)
+
+    """
+    def __init__(self, dtype=float, **keywords):
+        HomothetyOperator.__init__(self, 180 / pi(dtype), **keywords)
+        self.set_rule('.I', lambda s: RadiansOperator(s.dtype))
 
 
 class DiagonalNumexprOperator(DiagonalOperator):
@@ -241,6 +259,22 @@ class UnpackOperator(Operator):
     def direct(self, input, output):
         output[...] = 0
         output[self.mask] = input
+
+
+class RadiansOperator(HomothetyOperator):
+    """
+    Convert angles from degrees to radians.
+
+    Example
+    -------
+    >>> r = RadiansOperator()
+    >>> r(180)
+    array(3.141592653589793)
+
+    """
+    def __init__(self, dtype=float, **keywords):
+        HomothetyOperator.__init__(self, pi(dtype) / 180, **keywords)
+        self.set_rule('.I', lambda s: DegreesOperator(s.dtype))
 
 
 @real
