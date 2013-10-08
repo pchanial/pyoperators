@@ -1,11 +1,129 @@
-import numpy as np
-from numpy.testing import assert_equal
+from __future__ import division
 
+import itertools
+import numpy as np
+from numpy.testing import assert_allclose, assert_equal, assert_raises
 from pyoperators import (
-    HardThresholdingOperator, IdentityOperator, NormalizeOperator,
-    NumexprOperator, RoundOperator, SoftThresholdingOperator)
+    Cartesian2SphericalOperator, CompositionOperator, HardThresholdingOperator,
+    IdentityOperator, NormalizeOperator, NumexprOperator, RoundOperator,
+    SoftThresholdingOperator, Spherical2CartesianOperator)
 from pyoperators.utils import product
-from pyoperators.utils.testing import assert_is_instance, assert_same
+from pyoperators.utils.testing import (
+    assert_is_instance, assert_is_type, assert_same)
+
+
+def test_cartesian_spherical():
+    vecs = ((1, 0, 0), (0, 1, 0), (0, 0, 1),
+            ((1, 0, 0), (0, 1, 0), (0, 0, 1)),
+            (((1, 0, 0), (0, 1, 0)),))
+    shapes = ((), (), (), (3,), (1, 2))
+
+    def func(c, v, s):
+        c2s = Cartesian2SphericalOperator(c)
+        s2c = Spherical2CartesianOperator(c)
+        a = s2c(c2s(v))
+        assert_equal(a.shape, s + (3,))
+        assert_allclose(a, v, atol=1e-16)
+    for c in Cartesian2SphericalOperator.CONVENTIONS:
+        for v, s in zip(vecs, shapes):
+            yield func, c, v, s
+
+
+def test_cartesian_spherical_error():
+    assert_raises(TypeError, Cartesian2SphericalOperator, 3)
+    assert_raises(ValueError, Cartesian2SphericalOperator, 'bla')
+    op = Cartesian2SphericalOperator('zenith,azimuth')
+
+    def func(i, o):
+        if i.shape == (3,) and o.shape == (2,):
+            op(i, o)
+            return
+        assert_raises(ValueError, op.__call__, i, o)
+    for i, o in itertools.product((np.array(1.), np.zeros(2), np.zeros(3)),
+                                  (np.array(1.), np.zeros(2), np.zeros(3))):
+        yield func, i, o
+
+
+def test_cartesian_spherical_rules():
+    def func(c1, c2):
+        op1 = Cartesian2SphericalOperator(c1)
+        op2 = Spherical2CartesianOperator(c2)
+        op = op1 * op2
+        if c1 == c2:
+            assert_is_type(op, IdentityOperator)
+        else:
+            assert_is_type(op, CompositionOperator)
+    for c1 in 'zenith,azimuth', 'azimuth,elevation':
+        op = Cartesian2SphericalOperator(c1)
+        assert_is_type(op.I, Spherical2CartesianOperator)
+        assert_equal(op.convention, c1)
+        for c2 in 'zenith,azimuth', 'azimuth,elevation':
+            yield func, c1, c2
+
+
+def test_spherical_cartesian():
+    dirs_za = ((0, 0), (20, 0), (130, 0), (10, 20), (20, 130),
+               ((0, 0), (20, 0), (130, 0), (10, 20), (20, 130)),
+               (((0, 0), (20, -160), (130, -60)),))
+    dirs_az = ((0, 0), (0, 20), (0, 130), (20, 10), (130, 20),
+               ((0, 0), (0, 20), (0, 130), (20, 10), (130, 20)),
+               (((0, 0), (-160, 20), (-60, 130)),))
+    dirs_ea = ((90, 0), (70, 0), (-40, 0), (80, 20), (70, 130),
+               ((90, 0), (70, 0), (-40, 0), (80, 20), (70, 130)),
+               (((90, 0), (70, -160), (-40, -60)),))
+    dirs_ae = ((0, 90), (0, 70), (0, -40), (20, 80), (130, 70),
+               ((0, 90), (0, 70), (0, -40), (20, 80), (130, 70)),
+               (((0, 90), (-160, 70), (-60, -40)),))
+    shapes = ((), (), (), (), (), (5,), (1, 3))
+
+    op_ref = Spherical2CartesianOperator('zenith,azimuth')
+    refs = [op_ref(np.radians(v)) for v in dirs_za]
+
+    def func(c, v, s, r):
+        s2c = Spherical2CartesianOperator(c)
+        c2s = Cartesian2SphericalOperator(c)
+        assert_allclose(s2c(np.radians(v)), r)
+        a = np.degrees(c2s(s2c(np.radians(v))))
+        assert_equal(a.shape, s + (2,))
+        assert_allclose(a, v, atol=1e-16)
+    for c, d in (('zenith,azimuth', dirs_za),
+                 ('azimuth,zenith', dirs_az),
+                 ('elevation,azimuth', dirs_ea),
+                 ('azimuth,elevation', dirs_ae)):
+        for v, s, r in zip(d, shapes, refs):
+            yield func, c, v, s, r
+
+
+def test_spherical_cartesian_error():
+    assert_raises(TypeError, Spherical2CartesianOperator, 3)
+    assert_raises(ValueError, Spherical2CartesianOperator, 'bla')
+    op = Spherical2CartesianOperator('zenith,azimuth')
+
+    def func(i, o):
+        if i.shape == (2,) and o.shape == (3,):
+            op(i, o)
+            return
+        assert_raises(ValueError, op.__call__, i, o)
+    for i, o in itertools.product((np.array(1.), np.zeros(2), np.zeros(3)),
+                                  (np.array(1.), np.zeros(2), np.zeros(3))):
+        yield func, i, o
+
+
+def test_spherical_cartesian_rules():
+    def func(c1, c2):
+        op1 = Spherical2CartesianOperator(c1)
+        op2 = Cartesian2SphericalOperator(c2)
+        op = op1 * op2
+        if c1 == c2:
+            assert_is_type(op, IdentityOperator)
+        else:
+            assert_is_type(op, CompositionOperator)
+    for c1 in 'zenith,azimuth', 'azimuth,elevation':
+        op = Spherical2CartesianOperator(c1)
+        assert_is_type(op.I, Cartesian2SphericalOperator)
+        assert_equal(op.convention, c1)
+        for c2 in 'zenith,azimuth', 'azimuth,elevation':
+            yield func, c1, c2
 
 
 def test_rounding():
