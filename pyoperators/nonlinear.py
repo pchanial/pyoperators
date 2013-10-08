@@ -12,10 +12,11 @@ from .core import (
     IdentityOperator,
     ReductionOperator,
 )
-from .utils import operation_assignment, operation_symbol, strenum, tointtuple
+from .utils import operation_assignment, operation_symbol, pi, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 
 __all__ = [
+    'Cartesian2SphericalOperator',
     'ClipOperator',
     'HardThresholdingOperator',
     'MaxOperator',
@@ -27,10 +28,169 @@ __all__ = [
     'NumexprOperator',
     'ProductOperator',
     'RoundOperator',
+    'SoftThresholdingOperator',
+    'Spherical2CartesianOperator',
     'To1dOperator',
     'ToNdOperator',
-    'SoftThresholdingOperator',
 ]
+
+
+@real
+class _CartesianSpherical(Operator):
+    CONVENTIONS = (
+        'zenith,azimuth',
+        'azimuth,zenith',
+        'elevation,azimuth',
+        'azimuth,elevation',
+    )
+
+    def __init__(self, convention, dtype=float, **keywords):
+        if not isinstance(convention, str):
+            raise TypeError(
+                "The input convention '{0}' is not a string.".format(convention)
+            )
+        convention_ = convention.replace(' ', '').lower()
+        if convention_ not in self.CONVENTIONS:
+            raise ValueError(
+                "Invalid spherical convention '{0}'. Expected values are {1}.".format(
+                    convention, strenum(self.CONVENTIONS)
+                )
+            )
+        self.convention = convention_
+        Operator.__init__(self, dtype=dtype, **keywords)
+
+    @staticmethod
+    def _reshapecartesian(shape):
+        return shape[:-1] + (2,)
+
+    @staticmethod
+    def _reshapespherical(shape):
+        return shape[:-1] + (3,)
+
+    @staticmethod
+    def _validatecartesian(shape):
+        if len(shape) == 0 or shape[-1] != 3:
+            raise ValueError('Invalid cartesian shape.')
+
+    @staticmethod
+    def _validatespherical(shape):
+        if len(shape) == 0 or shape[-1] != 2:
+            raise ValueError('Invalid spherical shape.')
+
+    @staticmethod
+    def _rule_identity(s, o):
+        if s.convention == o.convention:
+            return IdentityOperator()
+
+
+class Cartesian2SphericalOperator(_CartesianSpherical):
+    """
+    Convert cartesian unit vectors into spherical coordinates in radians.
+
+    The spherical coordinate system is defined by:
+       - the zenith direction of coordinate (0, 0, 1)
+       - the azimuthal reference of coordinate (1, 0, 0)
+       - the azimuth signedness: it is counted positively from the X axis
+    to the Y axis.
+
+    The last dimension of the operator's output is 2 and it encodes
+    the two spherical angles. Four conventions define what these angles are:
+       - 'zenith,azimuth': (theta, phi) angles commonly used
+       in physics or the (colatitude, longitude) angles used
+       in the celestial and geographical coordinate systems
+       - 'azimuth,zenith': (longitude, colatitude) convention
+       - 'elevation,azimuth: (latitude, longitude) convention
+       - 'azimuth,elevation': (longitude, latitude) convention
+
+    """
+
+    def __init__(self, convention, **keywords):
+        """
+        convention : string
+            One of the following spherical coordinate conventions:
+            'zenith,azimuth', 'azimuth,zenith', 'elevation,azimuth' and
+            'azimuth,elevation'.
+
+        """
+        _CartesianSpherical.__init__(
+            self,
+            convention,
+            reshapein=self._reshapecartesian,
+            reshapeout=self._reshapespherical,
+            validatein=self._validatecartesian,
+            validateout=self._validatespherical,
+            **keywords,
+        )
+        self.set_rule('.I', lambda s: Spherical2CartesianOperator(s.convention))
+        self.set_rule(
+            ('.', Spherical2CartesianOperator), self._rule_identity, CompositionOperator
+        )
+
+    def direct(self, input, output):
+        if self.convention.startswith('azimuth'):
+            o1, o2 = output[..., 1], output[..., 0]
+        else:
+            o1, o2 = output[..., 0], output[..., 1]
+        np.arccos(input[..., 2], o1)
+        if 'elevation' in self.convention:
+            np.subtract(pi(self.dtype) / 2, o1, o1)
+        np.arctan2(input[..., 1], input[..., 0], o2)
+
+
+class Spherical2CartesianOperator(_CartesianSpherical):
+    """
+    Convert spherical coordinates in radians into unit cartesian vectors.
+
+    The spherical coordinate system is defined by:
+       - the zenith direction of coordinate (0, 0, 1)
+       - the azimuthal reference of coordinate (1, 0, 0)
+       - the azimuth signedness: it is counted positively from the X axis
+    to the Y axis.
+
+    The last dimension of the operator's input is 2 and it encodes
+    the two spherical angles. Four conventions define what these angles are:
+       - 'zenith,azimuth': (theta, phi) angles commonly used
+       in physics or the (colatitude, longitude) angles used
+       in the celestial and geographical coordinate systems
+       - 'azimuth,zenith': (longitude, colatitude) convention
+       - 'elevation,azimuth: (latitude, longitude) convention
+       - 'azimuth,elevation': (longitude, latitude) convention
+
+    """
+
+    def __init__(self, convention, **keywords):
+        """
+        convention : string
+            One of the following spherical coordinate conventions:
+            'zenith,azimuth', 'azimuth,zenith', 'elevation,azimuth' and
+            'azimuth,elevation'.
+
+        """
+        _CartesianSpherical.__init__(
+            self,
+            convention,
+            reshapein=self._reshapespherical,
+            reshapeout=self._reshapecartesian,
+            validatein=self._validatespherical,
+            validateout=self._validatecartesian,
+            **keywords,
+        )
+        self.set_rule('.I', lambda s: Cartesian2SphericalOperator(s.convention))
+        self.set_rule(
+            ('.', Cartesian2SphericalOperator), self._rule_identity, CompositionOperator
+        )
+
+    def direct(self, input, output):
+        if self.convention.startswith('azimuth'):
+            theta, phi = input[..., 1], input[..., 0]
+        else:
+            theta, phi = input[..., 0], input[..., 1]
+        if 'elevation' in self.convention:
+            theta = 0.5 * pi(self.dtype) - theta
+        sintheta = np.sin(theta)
+        np.multiply(sintheta, np.cos(phi), output[..., 0])
+        np.multiply(sintheta, np.sin(phi), output[..., 1])
+        np.cos(theta, output[..., 2])
 
 
 @square
