@@ -12,11 +12,13 @@ from pyoperators import (
     DiagonalOperator,
 )
 from pyoperators.linear import (
+    DegreesOperator,
     DiagonalNumexprNonSeparableOperator,
     DiagonalNumexprOperator,
     DifferenceOperator,
     IntegrationTrapezeOperator,
     PackOperator,
+    RadiansOperator,
     Rotation2dOperator,
     Rotation3dOperator,
     TridiagonalOperator,
@@ -29,12 +31,27 @@ from pyoperators.utils.testing import (
     assert_eq,
     assert_is_instance,
     assert_is_none,
+    assert_is_type,
     assert_raises,
     assert_same,
 )
 from .common import IdentityOutplaceOperator, assert_inplace_outplace
 
 SHAPES = ((), (1,), (3,), (2, 3), (2, 3, 4))
+
+
+def test_degrees():
+    def func(dtype):
+        d = DegreesOperator(dtype=dtype)
+        assert_same(d(1), np.degrees(np.ones((), dtype=dtype)))
+
+    for dtype in (np.float16, np.float32, np.float64, np.float128):
+        yield func, dtype
+
+
+def test_degrees_rules():
+    d = DegreesOperator()
+    assert_is_type(d.I, RadiansOperator)
 
 
 def test_diagonal_numexpr():
@@ -149,6 +166,20 @@ def test_packing():
     assert u.T.__class__ == PackOperator
     assert np.allclose(u([1, 4]), [1, 0, 0, 4, 0])
     assert np.allclose(u.T([1, 2, 3, 4, 5]), [1, 4])
+
+
+def test_radians():
+    def func(dtype):
+        d = RadiansOperator(dtype=dtype)
+        assert_same(d(1), np.radians(np.ones((), dtype=dtype)))
+
+    for dtype in (np.float16, np.float32, np.float64, np.float128):
+        yield func, dtype
+
+
+def test_radians_rules():
+    d = RadiansOperator()
+    assert_is_type(d.I, DegreesOperator)
 
 
 def test_rotation_2d():
