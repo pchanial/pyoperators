@@ -411,7 +411,7 @@ class Rotation3dOperator(DenseOperator):
         s2 = np.sin(a2)
         c3 = np.cos(a3)
         s3 = np.sin(a3)
-        gm = self._get_matrix
+        gm = lambda *args: self._get_matrix(*(args + (dtype,)))
         if convention == 'X':
             m = gm(1, 0, 0, 0, c1, -s1, 0, s1, c1)
         elif convention == 'Y':
@@ -585,11 +585,11 @@ class Rotation3dOperator(DenseOperator):
         DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
 
     @staticmethod
-    def _get_matrix(a11, a12, a13, a21, a22, a23, a31, a32, a33):
+    def _get_matrix(a11, a12, a13, a21, a22, a23, a31, a32, a33, dtype):
         a11, a12, a13, a21, a22, a23, a31, a32, a33 = np.broadcast_arrays(
             a11, a12, a13, a21, a22, a23, a31, a32, a33
         )
-        m = np.empty(a11.shape + (3, 3))
+        m = np.empty(a11.shape + (3, 3), dtype)
         m[..., 0, 0] = a11
         m[..., 0, 1] = a12
         m[..., 0, 2] = a13
