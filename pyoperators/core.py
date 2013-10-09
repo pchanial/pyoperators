@@ -5054,7 +5054,18 @@ def _copy_direct(source, target):
     keywords = {}
     for attr in OPERATOR_ATTRIBUTES:
         if attr != 'flags':
-            keywords[attr] = getattr(source, attr)
+            v = getattr(source, attr)
+            if attr in (
+                'reshapein',
+                'reshapeout',
+                'toshapein',
+                'toshapeout',
+                'validatein',
+                'validateout',
+            ):
+                if v == getattr(Operator, attr).__get__(source, type(source)):
+                    continue
+            keywords[attr] = v
     Operator.__init__(target, **keywords)
     return target
 
@@ -5063,7 +5074,18 @@ def _copy_reverse(source, target):
     keywords = {}
     for attr in OPERATOR_ATTRIBUTES:
         if attr != 'flags':
-            keywords[attr] = getattr(source, _swap_inout(attr))
+            v = getattr(source, attr)
+            if attr in (
+                'reshapein',
+                'reshapeout',
+                'toshapein',
+                'toshapeout',
+                'validatein',
+                'validateout',
+            ):
+                if v == getattr(Operator, attr).__get__(source, type(source)):
+                    continue
+            keywords[_swap_inout(attr)] = v
     Operator.__init__(target, **keywords)
     return target
 
