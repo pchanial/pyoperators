@@ -1796,7 +1796,7 @@ class Operator(object):
             return False
         d1 = self.__dict__.copy()
         d2 = other.__dict__.copy()
-        for k in '_C', '_T', '_H', '_I', '_D':
+        for k in 'rules', '_C', '_T', '_H', '_I', '_D':
             if k in d1:
                 del d1[k]
             if k in d2:
