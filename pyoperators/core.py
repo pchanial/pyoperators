@@ -911,12 +911,9 @@ class Operator(object):
         """
         Compute at once the conjugate, transpose, adjoint and inverse operators
         of the instance and of themselves.
-        """
-        if None in self.rules:
-            rules = dict((r.subjects[0], r) for r in self.rules[None])
-        else:
-            rules = {}
 
+        """
+        rules = dict((r.subjects[0], r) for r in self.rules.get(None, {}))
         flags = self.flags
 
         if flags.real:
@@ -974,9 +971,19 @@ class Operator(object):
             H = None
 
         if T is None:
-            T = _copy_reverse(
-                self, Operator(direct=H.conjugate if H is not None else None,
-                               name=self.__name__ + '.T', flags=new_flags))
+            if H is not None:
+                if flags.real:
+                    T = H
+                else:
+                    T = _copy_reverse(
+                        self, Operator(direct=H.conjugate, name=
+                                       self.__name__ + '.T', flags=new_flags))
+            else:
+                T = _copy_reverse(
+                    self, Operator(name=self.__name__ + '.T', flags=new_flags))
+                if flags.real:
+                    H = T
+
         if H is None:
             H = _copy_reverse(
                 self, Operator(direct=T.conjugate if T is not None else None,
@@ -1037,7 +1044,7 @@ class Operator(object):
         elif '.IT' in rules:
             IT = _copy_direct(self, rules['.IT'](self))
         elif self.inverse_transpose is not None:
-            IT = _copy_reverse(
+            IT = _copy_direct(
                 self, Operator(direct=self.inverse_transpose,
                                name=self.__name__ + '.I.T', flags=new_flags))
         else:
@@ -1058,18 +1065,30 @@ class Operator(object):
         elif '.IH' in rules:
             IH = _copy_direct(self, rules['.IH'](self))
         elif self.inverse_adjoint is not None:
-            IH = _copy_reverse(
+            IH = _copy_direct(
                 self, Operator(direct=self.inverse_adjoint,
                                name=self.__name__ + '.I.H', flags=new_flags))
         else:
             IH = None
 
         if IT is None:
-            IT = _copy_reverse(
-                self, Operator(direct=IH.conjugate if IH is not None else None,
-                               name=self.__name__ + '.I.T', flags=new_flags))
+            if IH is not None:
+                if flags.real:
+                    IT = IH
+                else:
+                    IT = _copy_direct(
+                        self, Operator(direct=IH.conjugate,
+                                       name=self.__name__ + '.I.T',
+                                       flags=new_flags))
+            else:
+                IT = _copy_direct(
+                    self, Operator(name=self.__name__ + '.I.T',
+                                   flags=new_flags))
+                if flags.real:
+                    IH = IT
+
         if IH is None:
-            IH = _copy_reverse(
+            IH = _copy_direct(
                 self, Operator(direct=IT.conjugate if IT is not None else None,
                                name=self.__name__ + '.I.H', flags=new_flags))
 
