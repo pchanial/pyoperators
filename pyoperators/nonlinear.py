@@ -121,7 +121,7 @@ class Cartesian2SphericalOperator(_CartesianSpherical):
             validateout=self._validatespherical,
             **keywords,
         )
-        self.set_rule('.I', lambda s: Spherical2CartesianOperator(s.convention))
+        self.set_rule('I', lambda s: Spherical2CartesianOperator(s.convention))
         self.set_rule(
             ('.', Spherical2CartesianOperator), self._rule_identity, CompositionOperator
         )
@@ -175,7 +175,7 @@ class Spherical2CartesianOperator(_CartesianSpherical):
             validateout=self._validatecartesian,
             **keywords,
         )
-        self.set_rule('.I', lambda s: Cartesian2SphericalOperator(s.convention))
+        self.set_rule('I', lambda s: Cartesian2SphericalOperator(s.convention))
         self.set_rule(
             ('.', Cartesian2SphericalOperator), self._rule_identity, CompositionOperator
         )
@@ -708,7 +708,7 @@ class To1dOperator(_1dNdOperator):
         if 'validatein' not in keywords:
             keywords['validatein'] = self._validate_to1d
         _1dNdOperator.__init__(self, shape_, order=order, **keywords)
-        self.set_rule('.I', lambda s: ToNdOperator(s.shape_, order=s.order))
+        self.set_rule('I', lambda s: ToNdOperator(s.shape_, order=s.order))
 
     def direct(self, input, output):
         np.dot(input, self.coefs, out=output)
@@ -750,7 +750,7 @@ class ToNdOperator(_1dNdOperator):
         if 'validateout' not in keywords:
             keywords['validateout'] = self._validate_to1d
         _1dNdOperator.__init__(self, shape_, order=order, **keywords)
-        self.set_rule('.I', lambda s: To1dOperator(s.shape_, order=s.order))
+        self.set_rule('I', lambda s: To1dOperator(s.shape_, order=s.order))
 
     def direct(self, input, output):
         np.floor_divide(input[..., None], self.coefs, out=output)

@@ -70,7 +70,7 @@ class DegreesOperator(HomothetyOperator):
 
     def __init__(self, dtype=float, **keywords):
         HomothetyOperator.__init__(self, 180 / pi(dtype), **keywords)
-        self.set_rule('.I', lambda s: RadiansOperator(s.dtype))
+        self.set_rule('I', lambda s: RadiansOperator(s.dtype))
 
 
 class DiagonalNumexprOperator(DiagonalOperator):
@@ -276,8 +276,8 @@ class PackOperator(Operator):
             self, shapein=self.mask.shape, shapeout=np.sum(self.mask), **keywords
         )
         # XXX .T does not share the same mask...
-        self.set_rule('.T', lambda s: UnpackOperator(~s.mask, dtype=s.dtype))
-        self.set_rule('.T.', '1', CompositionOperator)
+        self.set_rule('T', lambda s: UnpackOperator(~s.mask, dtype=s.dtype))
+        self.set_rule('T,.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = input[self.mask]
@@ -295,8 +295,8 @@ class UnpackOperator(Operator):
         Operator.__init__(
             self, shapein=np.sum(self.mask), shapeout=self.mask.shape, **keywords
         )
-        self.set_rule('.T', lambda s: PackOperator(~s.mask, dtype=s.dtype))
-        self.set_rule('.T.', '1', CompositionOperator)
+        self.set_rule('T', lambda s: PackOperator(~s.mask, dtype=s.dtype))
+        self.set_rule('T,.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = 0
@@ -317,7 +317,7 @@ class RadiansOperator(HomothetyOperator):
 
     def __init__(self, dtype=float, **keywords):
         HomothetyOperator.__init__(self, pi(dtype) / 180, **keywords)
-        self.set_rule('.I', lambda s: DegreesOperator(s.dtype))
+        self.set_rule('I', lambda s: DegreesOperator(s.dtype))
 
 
 @real
@@ -770,17 +770,17 @@ class TridiagonalOperator(Operator):
 
         Operator.__init__(self, dtype=dtype, **keywords)
         self.set_rule(
-            '.T',
+            'T',
             lambda s: TridiagonalOperator(s.diagonal, s.superdiagonal, s.subdiagonal),
         )
         self.set_rule(
-            '.C',
+            'C',
             lambda s: TridiagonalOperator(
                 s.diagonal.conj(), s.subdiagonal.conj(), s.superdiagonal.conj()
             ),
         )
         self.set_rule(
-            '.H',
+            'H',
             lambda s: TridiagonalOperator(
                 s.diagonal.conj(), s.superdiagonal.conj(), s.subdiagonal.conj()
             ),
@@ -1235,11 +1235,11 @@ class EigendecompositionOperator(CompositionOperator):
             w, v = eigsh(A, return_eigenvectors=True, **kwargs)
         W = DiagonalOperator(w)
         V = DenseOperator(v)
-        V.set_rule('.T.', '1', CompositionOperator)
+        V.set_rule('T,.', '1', CompositionOperator)
         self.eigenvalues = w
         self.eigenvectors = v
         CompositionOperator.__init__(self, [V, W, V.T], **kwargs)
-        self.set_rule('.I', lambda s: s**-1)
+        self.set_rule('I', lambda s: s**-1)
 
     def det(self):
         """

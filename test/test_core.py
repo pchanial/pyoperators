@@ -228,22 +228,22 @@ def test_conjugation():
     class Op2T(OpBase):
         def __init__(self):
             OpBase.__init__(self)
-            self.set_rule('.T', lambda s: OpBase(s.data.T))
+            self.set_rule('T', lambda s: OpBase(s.data.T))
 
     class Op2H(OpBase):
         def __init__(self):
             OpBase.__init__(self)
-            self.set_rule('.H', lambda s: OpBase(s.data.T.conj()))
+            self.set_rule('H', lambda s: OpBase(s.data.T.conj()))
 
     class Op2IT(OpBase):
         def __init__(self):
             OpBase.__init__(self)
-            self.set_rule('.IT', lambda s: OpBase(s.dataI.T))
+            self.set_rule('IT', lambda s: OpBase(s.dataI.T))
 
     class Op2IH(OpBase):
         def __init__(self):
             OpBase.__init__(self)
-            self.set_rule('.IH', lambda s: OpBase(s.dataI.T.conj()))
+            self.set_rule('IH', lambda s: OpBase(s.dataI.T.conj()))
 
     data = np.array([[1, 1j], [0, 2]])
     dense = OpBase().todense()

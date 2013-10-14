@@ -226,7 +226,7 @@ class _FFTWRealConvolutionOperator(Operator):
 
         Operator.__init__(self, shapein=shapein, dtype=dtype, **keywords)
         self.set_rule(
-            '.T',
+            'T',
             lambda s: _FFTWRealConvolutionTransposeOperator(
                 s.kernel, s._fplan, s._bplan, s.axes, s.fftw_flag, s.nthreads
             ),
@@ -449,7 +449,7 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
         )
 
         self.set_rule(
-            '.H',
+            'H',
             lambda s: HomothetyOperator(1 / product(s.shapein))
             * _FFTWComplexBackwardOperator(s.shapein, forward=s),
         )
@@ -500,7 +500,7 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
             dtype,
             **keywords,
         )
-        self.set_rule('.H', lambda s: HomothetyOperator(product(s.shapein)) * forward)
+        self.set_rule('H', lambda s: HomothetyOperator(product(s.shapein)) * forward)
         self.set_rule(
             (_FFTWComplexForwardOperator, '.'),
             lambda o, s: HomothetyOperator(product(s.shapein)),

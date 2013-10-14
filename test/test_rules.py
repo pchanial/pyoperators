@@ -94,53 +94,53 @@ def test_unaryrule1():
         else:
             assert_is_instance(r(op1), IdentityOperator)
 
-    for s in ('.C', '.T', '.H', '.I', '.IC', '.IT', '.IH'):
+    for s in ('C', 'T', 'H', 'I', 'IC', 'IT', 'IH'):
         for p in ('.', '1'):
             yield func, s, p
 
 
 def test_unaryrule2():
     assert_raises(ValueError, OperatorUnaryRule, '.', '.')
-    assert_raises(ValueError, OperatorUnaryRule, 'T', '.')
-    assert_raises(ValueError, OperatorUnaryRule, '.T', '.C')
-    assert_raises(ValueError, OperatorUnaryRule, '.T', '.T')
-    assert_raises(ValueError, OperatorUnaryRule, '.T', '.H')
-    assert_raises(ValueError, OperatorUnaryRule, '.T', '.I')
+    assert_raises(ValueError, OperatorUnaryRule, '.T', '.')
+    assert_raises(ValueError, OperatorUnaryRule, 'T', 'C')
+    assert_raises(ValueError, OperatorUnaryRule, 'T', 'T')
+    assert_raises(ValueError, OperatorUnaryRule, 'T', 'H')
+    assert_raises(ValueError, OperatorUnaryRule, 'T', 'I')
 
 
 def test_binaryrule1():
     op.T  # generate associated operators
 
     def func(s1, s2, s3, o1, o2, ref):
-        rule = OperatorBinaryRule(s1 + s2, s3)
+        rule = OperatorBinaryRule(s1 + ',' + s2, s3)
         result = rule(o1, o2)
         assert_is_not_none(result)
         assert_is_instance(result, Operator)
         if s3 == '1':
             assert_is_instance(result, IdentityOperator)
             return
-        o3 = eval('ref' + s3) if s3 != '.' else ref
+        o3 = eval('ref.' + s3) if s3 != '.' else ref
         assert_is(result, o3)
 
-    for s1 in ('.', '.C', '.T', '.H', '.I'):
-        o1 = eval('op' + s1) if s1 != '.' else op
-        for s2 in ('.', '.C', '.T', '.H', '.I'):
+    for s1 in ('.', 'C', 'T', 'H', 'I'):
+        o1 = eval('op.' + s1) if s1 != '.' else op
+        for s2 in ('.', 'C', 'T', 'H', 'I'):
             if '.' not in (s1, s2):
                 continue
-            o2 = eval('op' + s2) if s2 != '.' else op
+            o2 = eval('op.' + s2) if s2 != '.' else op
             ref = o1 if s2[-1] != '.' else o2
-            for s3 in ('1', '.', '.C', '.T', '.H', '.I'):
+            for s3 in ('1', '.', 'C', 'T', 'H', 'I'):
                 yield func, s1, s2, s3, o1, o2, ref
 
 
 def test_binaryrule2():
-    rule = OperatorBinaryRule('..T', p1)
+    rule = OperatorBinaryRule('.,T', p1)
     yield assert_is_none, rule(op1, op2)
     yield assert_equal, rule(op1, op1.T), (op1.T, op1)
 
 
 def test_binaryrule3():
-    rule = OperatorBinaryRule('..T', p2)
+    rule = OperatorBinaryRule('.,T', p2)
     yield assert_is_none, rule(op1, op2)
     yield assert_is_instance, rule(op1, op1.T), Operator3
 
@@ -174,11 +174,11 @@ def test_binaryrule_priority():
             Op2.__init__(self)
             self.set_rule(('.', OpA), r1, CompositionOperator)
             self.set_rule(('.', Op3), r1, CompositionOperator)
-            self.set_rule('..T', r1, CompositionOperator)
+            self.set_rule('.,T', r1, CompositionOperator)
             self.set_rule(('.', Op2), r1, CompositionOperator)
             self.set_rule(('.', OpB), r1, CompositionOperator)
             self.set_rule(('.', Op1), r1, CompositionOperator)
-            self.set_rule('..H', r1, CompositionOperator)
+            self.set_rule('.,H', r1, CompositionOperator)
             self.set_rule(('.', Op4), r1, CompositionOperator)
             self.set_rule(('.', Op2), r2, CompositionOperator)
 
@@ -297,14 +297,14 @@ def test_del_rule():
     class Op(Operator):
         def __init__(self):
             Operator.__init__(self)
-            self.set_rule('.T', '.')
-            self.set_rule('.C', '1')
-            self.set_rule('..T', '.', CompositionOperator)
-            self.set_rule('.T.', '.', CompositionOperator)
-            self.set_rule('..C', '.I', AdditionOperator)
-            self.set_rule('.H.', '.I', AdditionOperator)
-            self.set_rule('..C', '.I', MultiplicationOperator)
-            self.set_rule('.H.', '.I', MultiplicationOperator)
+            self.set_rule('T', '.')
+            self.set_rule('C', '1')
+            self.set_rule('.,T', '.', CompositionOperator)
+            self.set_rule('T,.', '.', CompositionOperator)
+            self.set_rule('.,C', '.I', AdditionOperator)
+            self.set_rule('H,.', '.I', AdditionOperator)
+            self.set_rule('.,C', '.I', MultiplicationOperator)
+            self.set_rule('H,.', '.I', MultiplicationOperator)
 
     op = Op()
     assert_equal(len(op.rules[None]), 2)
@@ -313,14 +313,14 @@ def test_del_rule():
     assert_equal(len(op.rules[AdditionOperator]), 2)
     assert_equal(len(op.rules[MultiplicationOperator]), 2)
 
-    op.del_rule('.T')
-    op.del_rule('.C')
-    op.del_rule('..T', CompositionOperator)
-    op.del_rule('.T.', CompositionOperator)
-    op.del_rule('.C.', AdditionOperator)
-    op.del_rule('..H', AdditionOperator)
-    op.del_rule('..C', MultiplicationOperator)
-    op.del_rule('.H.', MultiplicationOperator)
+    op.del_rule('T')
+    op.del_rule('C')
+    op.del_rule('.,T', CompositionOperator)
+    op.del_rule('T,.', CompositionOperator)
+    op.del_rule('C,.', AdditionOperator)
+    op.del_rule('.,H', AdditionOperator)
+    op.del_rule('.,C', MultiplicationOperator)
+    op.del_rule('H,.', MultiplicationOperator)
 
     assert_equal(len(op.rules[None]), 0)
     assert_equal(len(op.rules[CompositionOperator]['left']), 0)
