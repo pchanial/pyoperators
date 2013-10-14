@@ -64,7 +64,7 @@ class WaveletOperator(Operator):
         shapeout = sum(self.sizes)
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
         if self.wavelet.orthogonal:
-            self.set_rule('.T.', '1', CompositionOperator)
+            self.set_rule('T,.', '1', CompositionOperator)
 
     def direct(self, x, out):
         coeffs = pywt.wavedec(x, self.wavelet, mode=self.mode,
@@ -134,7 +134,7 @@ class Wavelet2dOperator(Operator):
 
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
         if self.wavelet.orthogonal:
-            self.set_rule('.T.', '1', CompositionOperator)
+            self.set_rule('T,.', '1', CompositionOperator)
 
     def direct(self, x, out):
         coeffs = pywt.wavedec2(x, self.wavelet, mode=self.mode,
