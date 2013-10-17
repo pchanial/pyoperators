@@ -566,7 +566,8 @@ class Operator(object):
     inverse_transpose = None
     inverse_adjoint = None
 
-    def __call__(self, x, out=None, preserve_input=True):
+    def __call__(self, x, out=None, operation=operation_assignment,
+                 preserve_input=True):
 
         if isinstance(x, Operator):
             return CompositionOperator([self, x])
@@ -574,6 +575,14 @@ class Operator(object):
         if self.direct is None:
             raise NotImplementedError('Call to ' + self.__name__ + ' is not im'
                                       'plemented.')
+
+        if operation is not operation_assignment:
+            if not self.flags.inplace_reduction:
+                raise ValueError(
+                    'This operator does not handle inplace reductions.')
+            if out is None:
+                raise ValueError(
+                    'The output placeholder is not specified.')
 
         # get valid input and output
         i, i_, o, o_ = self._validate_arguments(x, out)
@@ -586,7 +595,10 @@ class Operator(object):
 
         with _pool.set_if(reuse_x, x):
             with _pool.set_if(reuse_out, out):
-                self.direct(i, o)
+                if self.flags.inplace_reduction:
+                    self.direct(i, o, operation=operation)
+                else:
+                    self.direct(i, o)
 
         # add back temporaries for input & output in the memory pool
         if i_ is not None:
