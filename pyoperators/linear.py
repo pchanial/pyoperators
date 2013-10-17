@@ -13,10 +13,10 @@ from scipy.sparse.linalg import eigsh
 from .decorators import inplace, linear, real, square, symmetric
 from .core import (Operator, BlockRowOperator, BroadcastingOperator,
                    CompositionOperator, DenseOperator, DiagonalOperator,
-                   HomothetyOperator, ReductionOperator, Variable, X, _pool)
+                   HomothetyOperator, ReductionOperator, _pool)
 from .memory import empty
 from .utils import (
-    cast, complex_dtype, float_dtype, ifirst, izip_broadcast, pi, tointtuple)
+    cast, complex_dtype, float_dtype, izip_broadcast, pi, tointtuple)
 
 __all__ = [
     'BandOperator',
