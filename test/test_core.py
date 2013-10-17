@@ -102,9 +102,14 @@ class Op3(Operator):
         pass
 
 
+class OperatorNIR(Operator):
+    def direct(self, input, output):
+        output[...] = input
+
+
 class OperatorIR(Operator):
     def direct(self, input, output, operation=operation_assignment):
-        pass
+        operation(output, input)
 
 
 #===========
@@ -177,10 +182,28 @@ def test_shape_input_and_output():
         yield func, op.flags, type(op).__name__
 
 
-def test_inplace_reduction():
-    assert not Operator().flags.inplace_reduction
+def test_inplace_reduction1():
+    out = np.zeros(3, dtype=int)
+    assert not OperatorNIR().flags.inplace_reduction
+    assert_raises(ValueError, OperatorNIR(), [1, 0, 0], out,
+                  operation=operator.iadd)
     assert OperatorIR().flags.inplace_reduction
+    assert_raises(ValueError, OperatorIR(), [1, 0, 0], operation=operator.iadd)
 
+
+def test_inplace_reduction2():
+    op = OperatorIR()
+    inputs = [1, 1, 0], [0, 2, 1], [0, 1, 1]
+    expecteds = [0, 1, 1], [2, 5, 3], [0, 2, 0]
+
+    def func(o, e):
+        output = np.ones(3, dtype=int)
+        for i in inputs:
+            op(i, output, operation=o)
+        assert_same(output, e)
+    for o, e in zip((operation_assignment, operator.iadd, operator.imul),
+                    expecteds):
+        yield func, o, e
 
 def test_autoflags():
     def func(f):
