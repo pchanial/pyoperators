@@ -21,20 +21,10 @@ from .core import (
     DiagonalOperator,
     HomothetyOperator,
     ReductionOperator,
-    Variable,
-    X,
     _pool,
 )
 from .memory import empty
-from .utils import (
-    cast,
-    complex_dtype,
-    float_dtype,
-    ifirst,
-    izip_broadcast,
-    pi,
-    tointtuple,
-)
+from .utils import cast, complex_dtype, float_dtype, izip_broadcast, pi, tointtuple
 
 __all__ = [
     'BandOperator',
