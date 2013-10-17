@@ -11,6 +11,7 @@ import copy
 import inspect
 import numpy as np
 import operator
+import scipy.sparse as sp
 import scipy.sparse.linalg
 import types
 
@@ -46,6 +47,7 @@ __all__ = [
     'MultiplicationOperator',
     'ReshapeOperator',
     'ReductionOperator',
+    'SparseOperator',
     'ZeroOperator',
     'asoperator',
     'I',
@@ -4264,6 +4266,109 @@ class DenseOperator(Operator):
         return DenseOperator(np.dot(self.data, other.data))
 
 
+@linear
+@contiguous
+class SparseBase(Operator):
+    def __init__(self, matrix, dtype=None, shapein=None, shapeout=None,
+                 **keywords):
+        if dtype is None:
+            dtype = matrix.dtype
+        if shapein is None:
+            shapein = matrix.shape[1]
+        elif product(shapein) != matrix.shape[1]:
+            raise ValueError(
+                "The input shape '{0}' is incompatible with the sparse matrix "
+                "shape {1}.".format(shapein, matrix.shape))
+        if shapeout is None:
+            shapeout = matrix.shape[0]
+        elif product(shapeout) != matrix.shape[0]:
+            raise ValueError(
+                "The output shape '{0}' is incompatible with the sparse matrix"
+                " shape {1}.".format(shapeout, matrix.shape))
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout,
+                          dtype=dtype, **keywords)
+        self.matrix = matrix
+
+
+@linear
+@contiguous
+class SparseOperator(SparseBase):
+    """
+    Operator handling sparse matrix storages.
+
+    The sparse storage can be any of the scipy.sparse packages (except
+    the LIL format, which is not suited for matrix-vector multiplication):
+        - bsr_matrix: Block Sparse Row matrix
+        - coo_matrix: A sparse matrix in COOrdinate format
+        - csc_matrix: Compressed Sparse Column matrix
+        - csr_matrix: Compressed Sparse Row matrix
+        - dia_matrix: Sparse matrix with DIAgonal storage
+        - dok_matrix: Dictionary Of Keys based sparse matrix
+
+    Example
+    -------
+    >>> from scipy.sparse import csr_matrix
+    >>> sm = csr_matrix([[1, 0, 2, 0],
+    ...                  [0, 0, 3, 0],
+    ...                  [4, 5, 6, 0],
+    ...                  [1, 0, 0, 1]])
+    >>> so = SparseOperator(sm)
+    >>> so([1, 0, 0, 0])
+    array([1, 0, 4, 1])
+    >>> so.T([1, 0, 0, 0])
+    array([1, 0, 2, 0])
+
+    """
+    def __init__(self, matrix, dtype=None, shapein=None, shapeout=None,
+                 **keywords):
+        """
+        matrix : sparse matrix from scipy.sparse
+           The sparse matrix to be wrapped into an Operator.
+
+        """
+        if not sp.issparse(matrix):
+            raise TypeError('The input sparse matrix type is not recognised.')
+        if isinstance(matrix, sp.lil_matrix):
+            raise TypeError('The LIL format is not suited for arithmetic opera'
+                            'tions.')
+        SparseBase.__init__(self, matrix, dtype=dtype, shapein=shapein,
+                            shapeout=shapeout, **keywords)
+        self.set_rule('T', lambda s: SparseOperator(s.matrix.transpose()))
+        self.set_rule(('.', HomothetyOperator), lambda s, o:
+                      SparseOperator(o * s.matrix), CompositionOperator)
+
+    def direct(self, input, output, operation=operation_assignment):
+        input = input.ravel().astype(output.dtype)
+        output = output.ravel()
+        if operation is operation_assignment:
+            output[...] = 0
+        elif operation is not operator.iadd:
+            raise ValueError('Invalid reduction operation.')
+        m = self.matrix
+        if isinstance(m, sp.dok_matrix):
+            for (i, j), v in m.iteritems():
+                output[i] += v * input[j]
+            return
+        M, N = m.shape
+        fn = getattr(sp.sparsetools, m.format + '_matvec')
+        if isinstance(m, (sp.csr_matrix, sp.csc_matrix)):
+            fn(M, N, m.indptr, m.indices, m.data, input, output)
+        elif isinstance(m, sp.coo_matrix):
+            fn(m.nnz, m.row, m.col, m.data, input, output)
+        elif isinstance(m, sp.bsr_matrix):
+            R, C = m.blocksize
+            fn(M // R, N // C, R, C, m.indptr, m.indices, m.data.ravel(),
+               input, output)
+        elif isinstance(m, sp.dia_matrix):
+            fn(M, N, len(m.offsets), m.data.shape[1], m.offsets, m.data,
+               input, output)
+        else:
+            raise NotImplementedError()
+
+    def todense(self, shapein=None, shapeout=None, inplace=False):
+        return self.matrix.toarray()
+
+
 class ReductionOperator(Operator):
     """
     Reduction-along-axis operator.
@@ -4472,16 +4577,27 @@ def asoperator(x, constant=False, **keywords):
                                np.ndarray)) and not isinstance(x, np.matrix):
         return ConstantOperator(x, **keywords)
 
+    if sp.issparse(x):
+        return SparseOperator(x, **keywords)
+
     if isinstance(x, (np.matrix, np.ndarray)):
-        if x.ndim > 0:
-            keywords['shapein'] = x.shape[-1]
+        if x.ndim > 2:
+            raise ValueError(
+                'Casting an array of dimensions greater than 2 into an Operato'
+                'r is ambiguous. Use DenseBlockColumnOperator or DenseBlockDia'
+                'gonalOperator.')
+        if x.ndim == 1:
+            x = x[None, :]
+        if x.ndim == 2:
+            keywords['shapein'] = x.shape[1]
+            keywords['shapeout'] = x.shape[0]
             return DenseOperator(x, **keywords)
         x = x[()]
 
     if isinstance(x, (int, float, complex, np.bool_, np.number)):
         return HomothetyOperator(x, **keywords)
 
-    return asoperator(scipy.sparse.linalg.aslinearoperator(x), **keywords)
+    return asoperator(sp.linalg.aslinearoperator(x), **keywords)
 
 
 def asoperator1d(x):
