@@ -1,2 +1,3 @@
 include .coveragerc
 include README.rst
+include pyoperators/__init__.py.in
