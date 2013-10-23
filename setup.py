@@ -44,7 +44,7 @@ class CoverageCommand(NewCommand):
 
     def run(self):
         subprocess.call(['nosetests', '--with-coverage', '--cover-package',
-                         'pyoperators'])
+                         'pyoperators'] + coverage_extra)
         subprocess.call(['coverage', 'html'])
 
 
@@ -54,6 +54,10 @@ class TestCommand(NewCommand):
     def run(self):
         subprocess.call(['nosetests', 'test'])
 
+if 'coverage' in sys.argv:
+    index = sys.argv.index('coverage') + 1
+    coverage_extra = sys.argv[index:]
+    sys.argv = sys.argv[:index]
 
 version = version_sdist()
 if 'install' in sys.argv[1:]:
