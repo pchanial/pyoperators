@@ -23,7 +23,7 @@ __all__ = [
 ]
 
 
-def assert_same(actual, desired, rtol=2, broadcasting=False):
+def assert_same(actual, desired, rtol=5, broadcasting=False):
     """
     Compare arrays of floats. The relative error depends on the data type.
 
