@@ -20,6 +20,7 @@ from .core import (
     DenseOperator,
     DiagonalOperator,
     HomothetyOperator,
+    IdentityOperator,
     ReductionOperator,
     _pool,
 )
@@ -39,6 +40,7 @@ __all__ = [
     'Rotation2dOperator',
     'Rotation3dOperator',
     'SumOperator',
+    'SwapAxesOperator',
     'SymmetricBandOperator',
     'SymmetricBandToeplitzOperator',
     'TridiagonalOperator',
@@ -1268,3 +1270,66 @@ class EigendecompositionOperator(CompositionOperator):
         """
         nze = self.eigenvalues[self.eigenvalues != 0]
         return nze.max() / nze.min()
+
+
+@real
+@linear
+class SwapAxesOperator(Operator):
+    """
+    Operator that swaps axes in arrays.
+
+    Example
+    -------
+    >>> op = SwapAxesOperator(0, 1)
+    >>> op(np.ones((2, 3))).shape
+    (3, 2)
+
+    """
+
+    def __init__(self, axis1, axis2, **keywords):
+        if axis1 == axis2:
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+        axis1 = int(axis1)
+        axis2 = int(axis2)
+        self.axis1, self.axis2 = min(axis1, axis2), max(axis1, axis2)
+        Operator.__init__(self, **keywords)
+        l = lambda s: SwapAxesOperator(s.axis2, s.axis1)
+        self.set_rule('I', l)
+        self.set_rule('T', l)
+        self.set_rule(('.', type(self)), self._rule_swapaxes, CompositionOperator)
+
+    def direct(self, input, output):
+        output[...] = input.swapaxes(self.axis1, self.axis2)
+
+    def reshapein(self, shape):
+        shape = list(shape)
+        shape[self.axis1], shape[self.axis2] = shape[self.axis2], shape[self.axis1]
+        return shape
+
+    def validatein(self, shape):
+        if self.axis1 >= len(shape) or self.axis1 < -len(shape):
+            raise ValueError(
+                "The input number of dimension '{0}' is lesser than that requi"
+                "red by axis1 '{1}'.".format(len(shape), self.axis1)
+            )
+        if self.axis2 >= len(shape) or self.axis2 < -len(shape):
+            raise ValueError(
+                "The input number of dimension '{0}' is lesser than that requi"
+                "red by axis2 '{1}'.".format(len(shape), self.axis2)
+            )
+
+    reshapeout = reshapein
+    validateout = validatein
+
+    @staticmethod
+    def _rule_swapaxes(self, other):
+        if self.axis1 == other.axis1:
+            return SwapAxesOperator(self.axis2, other.axis2)
+        if self.axis1 == other.axis2:
+            return SwapAxesOperator(self.axis2, other.axis1)
+        if self.axis2 == other.axis1:
+            return SwapAxesOperator(self.axis1, other.axis2)
+        if self.axis2 == other.axis2:
+            return SwapAxesOperator(self.axis1, other.axis1)

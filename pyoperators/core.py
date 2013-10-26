@@ -4031,24 +4031,25 @@ class ReshapeOperator(Operator):
             raise ValueError('The output shape is None.')
         shapein = tointtuple(shapein)
         shapeout = tointtuple(shapeout)
-        if product(shapein) != product(shapeout):
-            raise ValueError('The total size of the output must be unchanged.')
         if shapein == shapeout:
             self.__class__ = IdentityOperator
-            self.__init__(shapein, **keywords)
+            self.__init__(shapein=shapein, **keywords)
             return
+        if product(shapein) != product(shapeout):
+            raise ValueError('The total size of the output must be unchanged.')
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
-        self.set_rule('T', lambda s: ReshapeOperator())
-        self.set_rule((type(self), '.'), self._rule_reshape, CompositionOperator)
+        self.set_rule('I', lambda s: ReshapeOperator(s.shapeout, s.shapein))
+        self.set_rule('T', lambda s: ReshapeOperator(s.shapeout, s.shapein))
+        self.set_rule(('.', type(self)), self._rule_reshape, CompositionOperator)
 
     def direct(self, input, output):
         if isalias(input, output):
-            pass
-        output.ravel()[:] = input.ravel()
+            return
+        output[...] = input.reshape(self.shapeout)
 
     @staticmethod
-    def _rule_reshape(other, self):
-        return ReshapeOperator(self.shapein, other.shapeout)
+    def _rule_reshape(self, other):
+        return ReshapeOperator(self.shapeout, other.shapein)
 
     def __str__(self):
         return strshape(self.shapeout) + '←' + strshape(self.shapein)
