@@ -47,8 +47,9 @@ def assert_same(actual, desired, rtol=5, broadcasting=False):
             assert np.all(actual == desired)
         return
     eps = np.finfo(dtype).eps * rtol
-    same = abs(actual - desired) <= eps * np.maximum(abs(actual), abs(desired))
+    same = abs(actual - desired) <= eps * np.minimum(abs(actual), abs(desired))
     same |= np.isnan(actual) & np.isnan(desired)
+    same |= actual == desired
     if not np.all(same):
         def trepr(x):
             r = repr(x).split('\n')
