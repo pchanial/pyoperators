@@ -38,34 +38,35 @@ In this documentation, the same term __operator__ will be used for the @Operator
 
 h2. 2.2. <a name="manipulating_operators"></a> Manipulating operators
 
-Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, composition, element-wise (Hadamard) multiplication or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not element-wise multiplication), following the convention for linear operators.
+Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, multiplication, composition or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not multiplication), following the convention for linear operators.
 
 {% highlight python %}
->>> o1 = DiagonalOperator([1., 2.])
->>> o2 = DiagonalOperator([1., 1.])
->>> (3 * o1)([2., 2.])
+>>> A = DiagonalOperator([1., 2.])
+>>> B = DiagonalOperator([1., 1.])
+>>> (3 * A)([2., 2.])
 array([  6.,  12.])
->>> (o1 + o2)([2., 2.])
+>>> (A + B)([2., 2.])
 array([ 4.,  6.])
->>> (o1 * o2)([2., 2.])  # same as o1(o2)
+>>> (A * B)([2., 2.])  # same as A(B)
 array([ 2.,  4.])
 {% endhighlight %}
 
 Unless an algebraic simplification is possible, the resulting operator is a composite operator:
 
 <div class="definition">
-|  *addition*       | @AdditionOperator@ |
-|  *composition*    | @CompositionOperator@ |
-|  *multiplication* | @MultiplicationOperator@ |
-|/2.  *partition*   | @BlockOperator@, @BlockRowOperator@|
-|@BlockDiagonalOperator@, @BlockColumnOperator@|
+|  *addition*       | @AdditionOperator@ | <code>\( A(x) + B(x) \) </code> |
+|  *multiplication* | @MultiplicationOperator@ | <code>\( A(x) \times B(x) \)</code> |
+|  *composition*    | @CompositionOperator@ | <code>\( A(B(x)) \) </code> |
+|/3.  *partition*   | @BlockColumnOperator@ |  <code>\( \begin{bmatrix} A \\ B \end{bmatrix} \)</code>  |
+|                     @BlockDiagonalOperator@ | <code> \begin{bmatrix} A & 0 \\ 0 & B \end{bmatrix} </code> |
+|                     @BlockRowOperator@ | <code>\( \begin{bmatrix} A & B \end{bmatrix} \)</code> |
 </div>
 <hr>
 
-The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform element-wise multiplication is to call the composite operator:
+The multiplication is an element-wise multiplication of the outputs of the operands (and not their Hadamard product). The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform element-wise multiplication is to call the composite operator:
 
 {% highlight python %}
->>> MultiplicationOperator([o1, o2])([2., 2.])
+>>> MultiplicationOperator([A, B])([2., 2.])
 array([ 4.,  8.])
 {% endhighlight %}
 
@@ -507,18 +508,18 @@ More flexibility is possible by passing a function, instead of a dictionary, to 
 
 h2. 2.10. <a name="unary_rules"></a> Operator's unary rules
 
-The set of operators that can be obtained by using any number of times the @'.C'@, @'.T'@, @'.H'@ and @'.I'@ attributes over a given operator is finite. The set is made of the operator itself, its conjugate, transpose, hermitian, inverse, inverse-conjugate, inverse-transpose and inverse-adjoint.
+The set of operators that can be obtained by using any number of times the @'.C'@, @'.T'@, @'.H'@ and @'.I'@ attributes over a given operator is finite. The set is made of the operator itself, its conjugate, transpose, adjoint, inverse, inverse-conjugate, inverse-transpose and inverse-adjoint.
 
 It is possible to define such operators by using a unary rule of the form 'subject' is 'predicate'. The subject being
 
 <div class="definition">
-|@'.C'@    | operator's conjugate|
-|@'.T'@    | operator's transpose|
-|@'.H'@    | operator's adjoint|
-|@'.I'@    | operator's inverse|
-|@'.IC'@   | operator's inverse-conjugate|
-|@'.IT'@   | operator's inverse-transpose|
-|@'.IH'@   | operator's inverse-adjoint|
+|@'C'@    | operator's conjugate|
+|@'T'@    | operator's transpose|
+|@'H'@    | operator's adjoint|
+|@'I'@    | operator's inverse|
+|@'IC'@   | operator's inverse-conjugate|
+|@'IT'@   | operator's inverse-transpose|
+|@'IH'@   | operator's inverse-adjoint|
 </div>
 
 and the predicate being
@@ -528,7 +529,7 @@ and the predicate being
 |@function@ | callback function ||
 </div>
 
-For instance, the rule @'.C'@ &rarr; @'.'@ means that the operator's conjugate is the operator itself. This is how the @real@ decorator is translated internally. Likewise, the @involutary@ decorator is represented by the rule @'.I'@ &rarr; @'.'@.
+For instance, the rule @'C'@ &rarr; @'.'@ means that the operator's conjugate is the operator itself. This is how the @real@ decorator is translated internally. Likewise, the @involutary@ decorator is represented by the rule @'I'@ &rarr; @'.'@.
 
 Unary rules are attached to an operator by using the @set_rule@ method:
 
@@ -537,7 +538,7 @@ Unary rules are attached to an operator by using the @set_rule@ method:
 ... class Op1(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
-...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op2, s))
+...         self.set_rule('T', lambda s: ReverseOperatorFactory(Op2, s))
 ...     def direct(self, input, output):
 ...         output[:-1] = input
 ...         output[-1] = 0
@@ -548,7 +549,7 @@ Unary rules are attached to an operator by using the @set_rule@ method:
 ... class Op2(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
-...         self.set_rule('.T', lambda s: ReverseOperatorFactory(Op1, s))
+...         self.set_rule('T', lambda s: ReverseOperatorFactory(Op1, s))
 ...     def direct(self, input, output):
 ...         output[...] = input[:-1]
 ...     def reshapein(self, shapein):
@@ -567,27 +568,22 @@ The @ReverseOperatorFactory@ is a convenience factory which returns an operator 
 
 h2. 2.11. <a name="binary_rules"></a> Operator's binary rules
 
-PyOperators has the ability to reduce arithmetic expressions involving operators. This is achieved by means of binary rules which are applied to pairs of operators. Such a rule is specific to an operation (addition, multiplication or composition). It is binary and has the form 'subject &rarr; predicate'. The subject is a pair of properties that will be matched against the pair of operators. The properties are represented by a string. One of them stands for the reference operator, it is the operator to which the rule is attached. In addition to those for unary rules, the following subjects can be used:
+PyOperators has the ability to reduce arithmetic expressions involving operators. This is achieved by means of binary rules which are applied to pairs of operators. Such a rule is specific to an operation (addition, multiplication or composition) and has the form 'subject1 \& subject2 &rarr; predicate', in which subject1 and subject2 are properties that will be matched against the pair of actual operators. One of them must be '.', and stands for the reference operator to which the rule is attached. For instance and for a given operator @P@, the subject @('.', '.')@ will match the pair (@P@, @P@), the subject @('T', '.')@ the pair (@P.T@, @P@) and @('.', 'H')@ the pair (@P@, @P.H@). 
+In addition to the subjects that can be used for unary rules, it is possible to specify an @Operator@ subclass for subclass matching. For example the subject ('.', Operator) will match any Operator instance on the right of the reference operator.
+
+When the pair of operators is matched by the subject, it is replaced by the predicate:
 
 <div class="definition">
-|@'.'@     | reference operator |
-|@'{...}'@ | instance of the class '...'|
-|@'{self}'@| instance of the reference operator's class |
-</div>
-
-For instance and for a given operator @P@, the subject @'..'@ will match the pair (@P@, @P@), the subject @'.T.'@ the pair (@P.T@, @P@) and @'..H'@ the pair (@P@, @P.H@). When the pair of operators is matched by the subject, it is replaced by the predicate:
-
-<div class="definition">
-|@'.'@     | reference operator |
-|@'.C'@    | reference operator's conjugate|
-|@'.T'@    | reference operator's transpose|
-|@'.H'@    | reference operator's ajoint|
-|@'.I'@    | reference operator's inverse|
-|@'1'@     | identity operator|
+|@'.'@    | reference operator |
+|@'C'@    | reference operator's conjugate|
+|@'T'@    | reference operator's transpose|
+|@'H'@    | reference operator's ajoint|
+|@'I'@    | reference operator's inverse|
+|@'1'@    | identity operator|
 |@function@  | callback function|
 </div>
 
-For a non-commutative operation (composition), the rules attached to the left-hand side operator applying on a right-hand-side operator are combined to the rules of the right-hand side operators applying on a left-hand-side operator:
+For a non-commutative operation (such as composition), the rules attached to the left-hand side operator applying on a right-hand-side operator are combined to the rules of the right-hand side operators applying on a left-hand-side operator:
 
 * if one of the operator is a subclass of the other, its rules have higher priority
 * otherwise, the rules of the right-hand side operator have higher priority
@@ -600,9 +596,9 @@ Rules attached to an operator are also prioritised:
 
 Let's examine some examples for the composition operation:
 
-* @'.T.'@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
-* @'..I'@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
-* @'.{Operator}'@ &rarr; @myfunc1@: every time @P@ appears as the left-hand-side operator of a pair, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
+* @('T', '.')@ &rarr; @'1'@: if the expression @P.T*P@ is matched, it will be replaced by the identity. This is how the orthogonal property is translated into a rule.
+* @('.', 'I')@ &rarr; @'1'@: if the expression @P*P.I@ is matched, it will be replaced by the identity.
+* @('.', Operator)@ &rarr; @myfunc1@: every time @P@ appears as the left-hand-side operator of a pair, the callback function @myfunc@ will be called and the pair of operators will be replaced by the result of this function, unless it is @None@, in which case the pair of operators is unchanged.
 
 The rules attached to an operator are stored in the @rules@ attribute. It is a dictionary whose keys can be @AdditionOperator@, @CompositionOperator@ or @MultiplicationOperator@. For the non-commutative composition operation, rules are further split according to whether the operator is matched on the left or right hand side of the pair.
 Rules are added by using the @set_rule@ method, which has 3 arguments:
@@ -619,7 +615,7 @@ The predicate can be a function, in which case it must be a static method with t
 ...     def __init__(self, exponent):
 ...         Operator.__init__(self)
 ...         self.exponent = exponent
-...         self.set_rule('.{Power}', self.rule_power, CompositionOperator)
+...         self.set_rule(('.', Power), self.rule_power, CompositionOperator)
 ...     def direct(input, output):
 ...         output[...] = input ** self.exponent
 ...     @staticmethod
@@ -831,26 +827,30 @@ h3. Linear operators
 
 * BandOperator
 * ConvolutionOperator
+* DegreesOperator
 * DenseOperator
 * DiagonalOperator
 * DiagonalNumexprOperator
 * DiagonalNumexprNonSeparableOperator
-* DistributionIdentityOperator
-* DistributionGlobalOperator
+* DifferenceOperator
 * EigendecompositionOperator
 * FFTOperator
 * HomothetyOperator
 * IdentityOperator
-* IntegrationTrapezeWeightOperator
+* IntegrationTrapezeOperator
 * MaskOperator
 * PackOperator
+* RadiansOperator
 * ReshapeOperator
+* Rotation2dOperator
+* Rotation3dOperator
 * SumOperator
 * SymmetricBandOperator
+* SymmetricBandToeplitzOperator
 * TridiagonalOperator
 * UnpackOperator
 * WaveletOperator
-* Wavelet2Operator
+* Wavelet2dOperator
 * ZeroOperator
 
 
@@ -864,11 +864,14 @@ h3. Non-linear operators
 * MinOperator
 * MinimumOperator
 * MinMaxOperator
+* NormalizeOperator
 * NumexprOperator
 * ProductOperator
 * ReductionOperator
 * RoundOperator
 * SoftThresholdingOperator
+* To1dOperator
+* ToNdOperator
 
 
 h3. Composite operators
@@ -881,6 +884,13 @@ h3. Composite operators
 * CompositionOperator
 * GroupOperator
 * MultiplicationOperator
+
+
+h3. MPI operators
+
+* MPIDistributionGlobalOperator
+* MPIDistributionIdentityOperator
+
 
 More operators can be found in the project "Tamasis/PACS":http://pchanial.github.com/tamasis-pacs, projection, discrete differences, compression, downsampling, MPI operators, etc.
 There is an on-going work consisting in migrating the most generic ones into the pyoperators package.

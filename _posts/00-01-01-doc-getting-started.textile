@@ -53,7 +53,7 @@ The previous @A@ matrix could be defined more easily like this :
 
 where @I@ is the identity operator with no explicit shape.
 
-Operators can be combined together by addition, element-wise multiplication or composition (note that the @*@ sign stands for composition):
+Operators can be combined together by addition, multiplication or composition (note that the @*@ sign stands for composition):
 
 {% highlight python %}
 >>> B = 2 * I + DiagonalOperator(np.arange(3))
