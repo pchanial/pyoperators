@@ -57,7 +57,7 @@ Unless an algebraic simplification is possible, the resulting operator is a comp
 |  *addition*       | @AdditionOperator@ | <code>\( A(x) + B(x) \) </code> |
 |  *multiplication* | @MultiplicationOperator@ | <code>\( A(x) \times B(x) \)</code> |
 |  *composition*    | @CompositionOperator@ | <code>\( A(B(x)) \) </code> |
-|/3.  *partition*   | @BlockColumnOperator@ |  <code>\( \begin{bmatrix} A \\ B \end{bmatrix} \)</code>  |
+|/3.  *partition*   | @BlockColumnOperator@ | <code>\( \begin{bmatrix} A \\ B \end{bmatrix} \)</code> |
 |                     @BlockDiagonalOperator@ | <code> \begin{bmatrix} A & 0 \\ 0 & B \end{bmatrix} </code> |
 |                     @BlockRowOperator@ | <code>\( \begin{bmatrix} A & B \end{bmatrix} \)</code> |
 </div>
