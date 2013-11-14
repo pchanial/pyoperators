@@ -11,6 +11,21 @@
   <link rel="stylesheet" href="{{ site.baseurl }}/css/screen.css" type="text/css" />
   <link rel="stylesheet" href="{{ site.baseurl }}/css/syntax.css" type="text/css" />
   <script src="{{ site.baseurl }}/js/jquery.js" type="text/javascript"></script>
+  <script type="text/javascript"
+ src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  <script type="text/javascript">
+  MathJax.Hub.Config({
+    tex2jax: {
+      skipTags: ['script', 'noscript', 'style', 'textarea', 'pre']
+    }
+  });
+  MathJax.Hub.Queue(function() {
+      var all = MathJax.Hub.getAllJax(), i;
+      for(i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+      }
+  });
+  </script>
 </head>
 <body>
   <div id="outer">
