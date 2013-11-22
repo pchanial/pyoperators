@@ -3,6 +3,7 @@ import numpy as np
 import operator
 import sys
 
+from nose import with_setup
 from nose.plugins.skip import SkipTest
 from pyoperators import memory, decorators
 from pyoperators.core import (
@@ -24,7 +25,8 @@ from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 PYTHON_26 = sys.version_info < (2, 7)
 np.seterr(all='raise')
 
-memory.verbose = True
+old_memory_verbose = None
+old_memory_tolerance = None
 
 
 def assert_flags(operator, flags, msg=''):
@@ -1185,7 +1187,21 @@ def test_inplace1():
     assert_eq(len(pool), 1)
 
 
-@skiptest
+def setup_memory():
+    global old_memory_tolerance, old_memory_verbose
+    old_memory_tolerance = memory.MEMORY_TOLERANCE
+    old_memory_verbose = memory.verbose
+    # ensure buffers in the pool are always used
+    memory.MEMORY_TOLERANCE = np.inf
+    memory.verbose = True
+
+
+def teardown_memory():
+    memory.MEMORY_TOLERANCE = old_memory_tolerance
+    memory.verbose = old_memory_verbose
+
+
+@with_setup(setup_memory, teardown_memory)
 def test_inplace_can_use_output():
     A = zeros(10*8, dtype=np.int8).view(ndarraywrap)
     B = zeros(10*8, dtype=np.int8).view(ndarraywrap)
@@ -1324,7 +1340,6 @@ def test_inplace_can_use_output():
         assert_eq(w, w2, strops)
 
     # prevent memory manager from allocating buffer: only use the provided pool
-    memory.MEMORY_TOLERANCE = np.inf
     for n in [2, 3, 4]:
         for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
             strops = bin(i)[2:]
@@ -1341,6 +1356,7 @@ def test_inplace_can_use_output():
 
 
 @skiptest
+@with_setup(setup_memory, teardown_memory)
 def test_inplace_cannot_use_output():
     A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
     B = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
