@@ -2,6 +2,7 @@ from __future__ import division
 
 import itertools
 import numpy as np
+from numpy.testing import assert_equal
 from pyoperators.memory import MemoryPool, empty, MEMORY_ALIGNMENT
 from pyoperators.utils import tointtuple
 
@@ -30,8 +31,8 @@ def test_empty():
     dtypes = (float, np.int8, complex)
 
     def func(v, s, d):
-        assert v.shape == tointtuple(s)
-        assert v.dtype == d
+        assert_equal(v.shape, tointtuple(s))
+        assert_equal(v.dtype, d)
         assert_aligned(v)
         assert_contiguous(v)
     for s in shapes:
@@ -63,7 +64,7 @@ def test_get():
     pool.add(pc)
 
     def func(v, b, bs, ba, bc, s, a, c):
-        assert v.shape == s
+        assert_equal(v.shape, s)
         if a:
             assert_aligned(v)
         if c:
@@ -92,7 +93,7 @@ def test_new_entry():
     shapes = ((4,), (15,), (30,))
 
     def func(i, s, d=-1):
-        assert len(pool) == 3 + i
+        assert_equal(len(pool), 3 + i)
     for i, s in enumerate(shapes):
         with pool.get(s, float):
             pass
