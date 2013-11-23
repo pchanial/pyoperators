@@ -240,6 +240,7 @@ def test_interruptible():
                 func_uninterruptible()
             func_uninterruptible()
         func_interruptible()
+    func_interruptible()
 
 
 def test_is_scalar():
