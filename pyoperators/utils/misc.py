@@ -666,10 +666,14 @@ def uninterruptible():
     def signal_handler(signal, frame):
         ctrlc_is_pressed.append(True)
     signal.signal(signal.SIGINT, signal_handler)
-    yield
-    signal.signal(signal.SIGINT, signal_old)
-    if len(ctrlc_is_pressed) > 0:
-        raise KeyboardInterrupt()
+    try:
+        yield
+    except:
+        raise
+    finally:
+        signal.signal(signal.SIGINT, signal_old)
+        if len(ctrlc_is_pressed) > 0:
+            raise KeyboardInterrupt()
 
 
 @contextmanager
