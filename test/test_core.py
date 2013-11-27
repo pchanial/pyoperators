@@ -9,10 +9,10 @@ from numpy.testing import assert_equal
 from pyoperators import memory, flags
 from pyoperators.core import (
     Operator, AdditionOperator, BlockColumnOperator, BlockDiagonalOperator,
-    BlockRowOperator, BlockSliceOperator, CompositionOperator, GroupOperator,
-    ConstantOperator, DenseOperator, DiagonalOperator, IdentityOperator,
-    MaskOperator, MultiplicationOperator, HomothetyOperator, ReductionOperator,
-    ZeroOperator, asoperator, _pool as pool, I, O)
+    BlockRowOperator, BlockSliceOperator, CompositionOperator, CopyOperator,
+    GroupOperator, ConstantOperator, DenseOperator, DiagonalOperator,
+    IdentityOperator, MaskOperator, MultiplicationOperator, HomothetyOperator,
+    ReductionOperator, ZeroOperator, asoperator, _pool as pool, I, O)
 from pyoperators.memory import zeros
 from pyoperators.utils import (
     ndarraywrap, first_is_not, isalias, operation_assignment, product)
@@ -2011,6 +2011,19 @@ def test_powers_diagonal():
         assert_eq((d**n).todense(), DiagonalOperator(diag**n).todense())
     for n in (-1.2, -1, -0.5, 0, 0.5, 1, 2.4):
         yield func, n
+
+
+#====================
+# Test copy operator
+#====================
+
+def test_copy():
+    C = CopyOperator()
+    x = np.array([10, 20])
+    assert_equal(x, C(x))
+    x_ = x.copy()
+    C(x, x)
+    assert_equal(x, x_)
 
 
 #=============================
