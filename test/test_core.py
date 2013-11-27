@@ -5,6 +5,7 @@ import sys
 
 from nose import with_setup
 from nose.plugins.skip import SkipTest
+from numpy.testing import assert_equal
 from pyoperators import memory, decorators
 from pyoperators.core import (
     Operator, AdditionOperator, BroadcastingOperator, BlockColumnOperator,
@@ -15,7 +16,7 @@ from pyoperators.core import (
     _pool as pool, I, O)
 from pyoperators.memory import zeros
 from pyoperators.utils import (
-    ndarraywrap, first_is_not, operation_assignment, product)
+    ndarraywrap, first_is_not, isalias, operation_assignment, product)
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (
     assert_eq, assert_is, assert_is_not, assert_is_none, assert_not_in,
@@ -1219,18 +1220,20 @@ def test_inplace_can_use_output():
             self.log = log
 
         def direct(self, input, output):
+            if not self.inplace and isalias(input, output):
+                raise RuntimeError()
             if self.flags.inplace:
                 tmp = input[0]
                 output[1:] = 2 * input
                 output[0] = tmp
             else:
-                output[...] = 0
+                output[:] = 0
                 output[0] = input[0]
                 output[1:] = 2 * input
             try:
                 self.log.insert(0, ids[output.__array_interface__['data'][0]])
             except KeyError:
-                self.log.insert(0, 'unknown')
+                self.log.insert(0, '?')
 
         def reshapein(self, shape):
             return (shape[0]+1,)
@@ -1241,7 +1244,7 @@ def test_inplace_can_use_output():
             try:
                 result += ids[s.__array_interface__['data'][0]]
             except:
-                result += 'U'
+                result += '?'
         return result
 
     expecteds_outplace = {
@@ -1315,12 +1318,12 @@ def test_inplace_can_use_output():
         w = B[:(n+1)*8].view(float)
         op(v, w)
         log = ''.join(log) + 'A'
-        assert_eq(log, expected, strops)
-        assert_eq(show_pool(), 'CD', strops)
+        assert_equal(log, expected)
+        assert_equal(show_pool(), 'CD')
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_eq(w, w2, strops)
+        assert_equal(w, w2)
 
     def func_inplace(n, i, expected, strops):
         pool._buffers = [B, C]
@@ -1332,14 +1335,13 @@ def test_inplace_can_use_output():
         w = A[:(n+1)*8].view(float)
         op(v, w)
         log = ''.join(log) + 'A'
-        assert_eq(log, expected, strops)
-        assert_eq(show_pool(), 'BC', strops)
+        assert_equal(log, expected)
+        assert_equal(show_pool(), 'BC')
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_eq(w, w2, strops)
+        assert_equal(w, w2)
 
-    # prevent memory manager from allocating buffer: only use the provided pool
     for n in [2, 3, 4]:
         for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
             strops = bin(i)[2:]
@@ -1355,7 +1357,6 @@ def test_inplace_can_use_output():
             yield func_inplace, n, i, expected, strops
 
 
-@skiptest
 @with_setup(setup_memory, teardown_memory)
 def test_inplace_cannot_use_output():
     A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
@@ -1370,16 +1371,19 @@ def test_inplace_cannot_use_output():
     class Op(Operator):
         def __init__(self, inplace, log):
             Operator.__init__(self, flags={'inplace': inplace})
+            self.inplace = inplace
             self.log = log
 
         def direct(self, input, output):
-            if not self.flags.inplace:
-                output[...] = 0
+            if not self.inplace and isalias(input, output):
+                raise RuntimeError()
+            if not self.inplace:
+                output[:] = 0
             output[:] = input[1:]
             try:
                 self.log.insert(0, ids[output.__array_interface__['data'][0]])
             except KeyError:
-                self.log.insert(0, 'unknown')
+                self.log.insert(0, '?')
 
         def reshapein(self, shape):
             return (shape[0]-1,)
@@ -1459,12 +1463,12 @@ def test_inplace_cannot_use_output():
         op(v, w)
         delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
-        assert_eq(log, expected, strops)
-        assert_eq(show_stack(), 'CD', strops)
+        assert_equal(log, expected)
+        assert_equal(show_stack(), 'CD')
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_eq(w, w2, strops)
+        assert_equal(w, w2)
 
     def func_inplace(n, i, expected, strops):
         pool._buffers = [B, C]
@@ -1478,12 +1482,12 @@ def test_inplace_cannot_use_output():
         op(v, w)
         delattr(op, 'show_stack')
         log = ''.join(log) + 'A'
-        assert_eq(log, expected, strops)
-        assert_eq(show_stack(), 'BC', strops)
+        assert_equal(log, expected)
+        assert_equal(show_stack(), 'BC')
         w2 = v
         for op in reversed(ops):
             w2 = op(w2)
-        assert_eq(w, w2, strops)
+        assert_equal(w, w2)
 
     for n in [2, 3, 4]:
         for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
