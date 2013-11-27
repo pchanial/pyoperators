@@ -3,7 +3,7 @@ import numpy as np
 
 from .common import HomothetyOutplaceOperator, Stretch
 from pyoperators import (
-    decorators,
+    flags,
     Operator,
     AdditionOperator,
     BlockColumnOperator,
@@ -76,7 +76,7 @@ def test_partition4():
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=3)
 
-    @decorators.separable
+    @flags.separable
     class Op(Operator):
         pass
 
@@ -125,7 +125,7 @@ def test_block4():
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=2)
 
-    @decorators.separable
+    @flags.separable
     class Op(Operator):
         pass
 

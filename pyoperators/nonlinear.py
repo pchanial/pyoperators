@@ -4,7 +4,6 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import idempotent, inplace, real, separable, square
 from .core import (
     Operator,
     BlockColumnOperator,
@@ -12,6 +11,7 @@ from .core import (
     IdentityOperator,
     ReductionOperator,
 )
+from .flags import idempotent, inplace, real, separable, square
 from .utils import operation_assignment, operation_symbol, pi, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 

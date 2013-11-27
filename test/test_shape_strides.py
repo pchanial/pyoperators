@@ -3,8 +3,7 @@ from __future__ import division
 import numpy as np
 from nose import SkipTest
 from numpy.testing import assert_equal, assert_raises
-from pyoperators import Operator, IdentityOperator, ReshapeOperator, SwapAxesOperator
-from pyoperators.decorators import contiguous, square
+from pyoperators import IdentityOperator, ReshapeOperator, SwapAxesOperator
 from pyoperators.utils import product
 from pyoperators.utils.testing import assert_is, assert_same
 

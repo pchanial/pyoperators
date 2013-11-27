@@ -1,7 +1,7 @@
 import numpy as np
 import pyoperators
 
-from pyoperators import Operator, decorators
+from pyoperators import Operator, flags
 from pyoperators.utils.testing import assert_eq
 
 DTYPES = [
@@ -132,14 +132,14 @@ ALL_OPS = [
 ]
 
 
-@decorators.square
+@flags.square
 class IdentityOutplaceOperator(Operator):
     def direct(self, input, output):
         output[...] = input
 
 
-@decorators.real
-@decorators.symmetric
+@flags.real
+@flags.symmetric
 class HomothetyOutplaceOperator(Operator):
     def __init__(self, value, **keywords):
         Operator.__init__(self, **keywords)
