@@ -1432,6 +1432,21 @@ class Operator(object):
         return name + '(' + ', '.join(a) + ')'
 
 
+@real
+@symmetric
+@idempotent
+@involutary
+class CopyOperator(Operator):
+    """
+    Copy operator.
+
+    Unlike IdentityOperator, this is an out-of-place operator.
+
+    """
+    def direct(self, input, output, operation=operation_assignment):
+        operation(output, input)
+
+
 class CompositeOperator(Operator):
     """
     Abstract class for handling a list of operands.
