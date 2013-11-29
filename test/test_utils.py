@@ -5,9 +5,10 @@ from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
     broadcast_shapes, cast, complex_dtype, first, float_dtype, ifirst,
-    first_is_not, ifirst_is_not, inspect_special_values, interruptible,
-    isscalar, izip_broadcast, least_greater_multiple, one, pi, product,
-    reshape_broadcast, strenum, strplural, strshape, uninterruptible, zero)
+    first_is_not, ifirst_is_not, groupbykey, inspect_special_values,
+    interruptible, isscalar, izip_broadcast, least_greater_multiple, one, pi,
+    product, reshape_broadcast, strenum, strplural, strshape, uninterruptible,
+    zero)
 from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
@@ -141,6 +142,19 @@ def test_ifirst_is_not():
     assert ifirst_is_not([None, None, {}], None) == 2
     assert_raises(ValueError, ifirst_is_not, [], None)
     assert_raises(ValueError, ifirst_is_not, [None, None], None)
+
+
+def test_groupbykey():
+    vals = ['a', 'b', 'c', 'd']
+    keys = itertools.combinations_with_replacement([1, 2, 3, 4], 4)
+
+    def func(k):
+        result = list(groupbykey(vals, k))
+        expected = [(k, tuple(i[0] for i in it)) for k, it in
+                    itertools.groupby(zip(vals, k), lambda x: x[1])]
+        assert_equal(result, expected)
+    for k in keys:
+        yield func, k
 
 
 def test_inspect_special_values():
