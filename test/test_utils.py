@@ -108,26 +108,32 @@ def test_float_dtype():
 
 def test_first1():
     assert first([1, 2, 3], lambda x: x > 1.5) == 2
+    assert first([1, 2, 3], lambda x: x > 1.5, reverse=True) == 3
 
 
 def test_first2():
     assert_raises(ValueError, first, [1, 2, 3], lambda x: x > 3)
+    assert_raises(ValueError, first, [1, 2, 3], lambda x: x > 3, reverse=True)
 
 
 def test_ifirst1():
     assert ifirst([1, 2, 3], lambda x: x > 1.5) == 1
+    assert ifirst([1, 2, 3], lambda x: x > 1.5, reverse=True) == 2
 
 
 def test_ifirst2():
     assert_raises(ValueError, ifirst, [1, 2, 3], lambda x: x > 3)
+    assert_raises(ValueError, ifirst, [1, 2, 3], lambda x: x > 3, reverse=True)
 
 
 def test_ifirst3():
-    assert ifirst([1, 2, 3], 2.) == 1
+    assert ifirst([1, 2, 2, 3], 2.) == 1
+    assert ifirst([1, 2, 2, 3], 2., reverse=True) == 2
 
 
 def test_ifirst4():
     assert_raises(ValueError, ifirst, [1, 2, 3], 4)
+    assert_raises(ValueError, ifirst, [1, 2, 3], 4, reverse=True)
 
 
 def test_first_is_not():
@@ -136,12 +142,17 @@ def test_first_is_not():
     assert first_is_not([], None) is None
     assert first_is_not([None, None], None) is None
 
+    assert first_is_not([1, 2], 2, reverse=True) == 1
+    assert first_is_not([{}, None, None], None, reverse=True) == {}
+    assert first_is_not([], None, reverse=True) is None
+    assert first_is_not([None, None], None, reverse=True) is None
+
 
 def test_ifirst_is_not():
-    assert ifirst_is_not([1, 2], 1) == 1
-    assert ifirst_is_not([None, None, {}], None) == 2
-    assert_raises(ValueError, ifirst_is_not, [], None)
-    assert_raises(ValueError, ifirst_is_not, [None, None], None)
+    assert ifirst_is_not([1, 2], 2, reverse=True) == 0
+    assert ifirst_is_not([{}, None, None], None, reverse=True) == 0
+    assert_raises(ValueError, ifirst_is_not, [], None, reverse=True)
+    assert_raises(ValueError, ifirst_is_not, [None, None], None, reverse=True)
 
 
 def test_groupbykey():
