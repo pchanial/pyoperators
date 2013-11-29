@@ -12,6 +12,7 @@ from pyoperators.utils import (
     ifirst,
     first_is_not,
     ifirst_is_not,
+    groupbykey,
     inspect_special_values,
     interruptible,
     isscalar,
@@ -248,6 +249,22 @@ def test_ifirst_is_not():
     assert ifirst_is_not([None, None, {}], None) == 2
     assert_raises(ValueError, ifirst_is_not, [], None)
     assert_raises(ValueError, ifirst_is_not, [None, None], None)
+
+
+def test_groupbykey():
+    vals = ['a', 'b', 'c', 'd']
+    keys = itertools.combinations_with_replacement([1, 2, 3, 4], 4)
+
+    def func(k):
+        result = list(groupbykey(vals, k))
+        expected = [
+            (k, tuple(i[0] for i in it))
+            for k, it in itertools.groupby(zip(vals, k), lambda x: x[1])
+        ]
+        assert_equal(result, expected)
+
+    for k in keys:
+        yield func, k
 
 
 def test_inspect_special_values():
