@@ -183,7 +183,7 @@ def float_dtype(dtype):
     return dtype
 
 
-def first(l, f):
+def first(l, f, reverse=False):
     """
     Return first item in list that verifies a certain condition, or raise
     a ValueError exception otherwise.
@@ -194,20 +194,27 @@ def first(l, f):
         List of elements to be searched for.
     f : function
         Function that evaluates to True to match an element.
+    reverse : boolean
+        True for reverse search.
 
     Example:
     --------
     >>> first([1.,2.,3.], lambda x: x > 1.5)
-    2.
+    2.0
+    >>> first([1.,2.,3.], lambda x: x > 1.5, reverse=True)
+    3.0
 
     """
+    if reverse:
+        return first(reversed(tuple(l)), f)
+
     try:
         return next((_ for _ in l if f(_)))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
 
-def first_is_not(l, v):
+def first_is_not(l, v, reverse=False):
     """
     Return first item in list which is not the specified value.
     If all items are the specified value, return it.
@@ -218,13 +225,19 @@ def first_is_not(l, v):
         The list of elements to be inspected.
     v : object
         The value not to be matched.
+    reverse : boolean
+        True for reverse search.
 
     Example:
     --------
     >>> first_is_not(['a', 'b', 'c'], 'a')
     'b'
+    >>> first_is_not(['a', 'b', 'c'], 'b', reverse=True)
+    'c'
 
     """
+    if reverse:
+        return first_is_not(reversed(tuple(l)), v)
     return next((_ for _ in l if _ is not v), v)
 
 
@@ -248,7 +261,7 @@ def groupbykey(iterable, key):
         yield value, l
 
 
-def ifirst(l, match):
+def ifirst(l, match, reverse=False):
     """
     Return the index of the first item in a list that verifies a certain
     condition or is equal to a certain value. Raise a ValueError exception
@@ -256,20 +269,29 @@ def ifirst(l, match):
 
     Parameters
     ----------
-    l : list
+    l : iterator
         List of elements to be searched for.
     match : callable or object
         Function that evaluates to True to match an element or the element
         to be matched.
+    reverse : boolean
+        True for reverse search.
 
     Example:
     --------
     >>> ifirst([1.,2.,3.], lambda x: x > 1.5)
     1
+    >>> ifirst([1.,2.,3.], lambda x: x > 1.5, reverse=True)
+    2
     >>> ifirst([1., 2., 3.], 2)
     1
 
     """
+    if reverse:
+        l = tuple(l)
+        index = ifirst(reversed(l), match)
+        return len(l) - index - 1
+
     try:
         if not callable(match):
             return next((i for i, _ in enumerate(l) if _ == match))
@@ -278,7 +300,7 @@ def ifirst(l, match):
         raise ValueError('There is no matching item in the list.')
 
 
-def ifirst_is_not(l, v):
+def ifirst_is_not(l, v, reverse=False):
     """
     Return index of first item in list which is not the specified value.
     If the list is empty or if all items are the specified value, raise
@@ -290,13 +312,21 @@ def ifirst_is_not(l, v):
         The list of elements to be inspected.
     v : object
         The value not to be matched.
+    reverse : boolean
+        True for reverse search.
 
     Example:
     --------
     >>> ifirst_is_not(['a', 'b', 'c'], 'a')
     1
+    >>> ifirst_is_not(['a', 'b', 'c'], 'a', reverse=True)
+    2
 
     """
+    if reverse:
+        l = tuple(l)
+        index = ifirst_is_not(reversed(l), v)
+        return len(l) - index - 1
     try:
         return next((i for i, _ in enumerate(l) if _ is not v))
     except StopIteration:
