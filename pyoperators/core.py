@@ -441,7 +441,7 @@ class Operator(object):
     def rmatvec(self, x, out=None):
         return self.T.matvec(x, out=out)
 
-    def set_rule(self, subjects, predicate, operation=None, globals=None):
+    def set_rule(self, subjects, predicate, operation=None):
         """
         Add a rule to the rule list, taking care of duplicates and priorities.
         Class-matching rules have a lower priority than the others.
@@ -458,12 +458,8 @@ class Operator(object):
                 - CompositionOperator
                 - AdditionOperator
                 - MultiplicationOperator.
-        globals : dict, optional
-            Dictionary containing the operator classes used in class-matching
-            rules. It is required for classes not from pyoperators.core and for
-            which more than one class-matching rule is set.
-        """
 
+        """
         # Handle first the case of multiple subclass matching rules
         if isinstance(subjects, (list, tuple)) and len(subjects) == 2:
             if isinstance(subjects[0], (list, tuple)):
@@ -519,32 +515,16 @@ class Operator(object):
             return
 
         # search for subclass rules
-        #try:
-        #    index = [r.other[0] for r in rules].index('{')
-        #except ValueError:
-        #    rules.append(rule)
-        #    return
         for index, r in enumerate(rules):
-            if isinstance(r.other, str):
-                if '{' in r.other[0]:
-                    break
-            elif isinstance(r.other, type):
+            if isinstance(r.other, type):
                 break
-            else:
-                raise Exception('should not happen.')
         else:
             rules.append(rule)
             return
 
-        def _get_cls(rule):
-            if isinstance(rule.other, type):
-                return rule.other
-            return type(self) if rule.other[1:-1] == 'self' else \
-                eval(rule.other[1:-1], globals)
-
         # insert the rule after more specific ones
-        cls = _get_cls(rule)
-        classes = [_get_cls(r) for r in rules[index:]]
+        cls = rule.other
+        classes = [r.other for r in rules[index:]]
         is_subclass = [issubclass(cls, c) for c in classes]
         is_supclass = [issubclass(c, cls) for c in classes]
         try:
