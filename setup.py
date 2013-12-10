@@ -13,20 +13,35 @@ VERSION = '0.9'
 
 
 def version_sdist():
+    stdout, stderr = Popen(['git', 'tag', '--contains', 'HEAD'],
+                           stdout=PIPE, stderr=PIPE).communicate()
+    # use commit tag
+    if stderr:
+        return VERSION
+    tag = stdout.split('\n')[0]
+    if tag != '':
+        if tag[0] == 'v':
+            tag = tag[1:]
+        return tag
+
+    # use version
+    version = VERSION
+
+    # use branch unless it is 'master' or e.g. 'v3.4'
     stdout, stderr = Popen(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
                            stdout=PIPE, stderr=PIPE).communicate()
     if stderr:
-        return VERSION
+        return version
     branch = stdout[:-1]
-    if re.search('^v[0-9]', branch) is not None:
-        branch = branch[1:]
-    if branch != 'master':
-        return VERSION
+    if re.match('(v[0-9.]+|master)', branch) is None:
+        version += '-' + branch
+
+    # use commit's short hash
     stdout, stderr = Popen(['git', 'rev-parse', '--verify', '--short', 'HEAD'],
                            stdout=PIPE, stderr=PIPE).communicate()
     if stderr:
-        return VERSION
-    return VERSION + '-' + stdout[:-1]
+        return version
+    return version + '-' + stdout[:-1]
 
 
 class NewCommand(Command):
@@ -60,6 +75,8 @@ if 'coverage' in sys.argv:
     sys.argv = sys.argv[:index]
 
 version = version_sdist()
+print 'VERSION:', version
+
 if 'install' in sys.argv[1:]:
     if '-' in version:
         version = VERSION + '-dev'
