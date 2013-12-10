@@ -16,6 +16,7 @@ import types
 
 from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
+from .caller import CallingSequenceManager
 from .flags import (
     Flags,
     contiguous,
@@ -77,6 +78,11 @@ __all__ = [
     'X',
 ]
 
+
+class Mismatch(Exception):
+    pass
+
+
 OPERATOR_ATTRIBUTES = [
     'attrin',
     'attrout',
@@ -84,14 +90,16 @@ OPERATOR_ATTRIBUTES = [
     'classout',
     'commin',
     'commout',
+    'redtypein',
+    'redtypeout',
     'reshapein',
     'reshapeout',
+    'restridesin',
+    'restridesout',
     'shapein',
     'shapeout',
     'toshapein',
     'toshapeout',
-    'validatein',
-    'validateout',
     'dtype',
     'flags',
 ]
@@ -127,10 +135,18 @@ class Operator(object):
         The toshapein function reshapes a vector into a multi-dimensional array
         compatible with the operator's input shape. The toshapeout method is
         only used in the reversed direction.
-    validatein/validateout : function
-        The validatein function raises a ValueError exception if the input
-        shape is not valid. The validateout function is used in the reversed
-        direction
+    validate_dtypein/validate_dtypeout : function
+        The function validate_dtypein raises a DtypeMismatch exception if
+        the input cannot be handled. The validate_dtypeout function is used
+        in the reversed direction.
+    validate_shapein/validate_shapeout : function
+        The function validate_shapein raises a ShapeMismatch exception if
+        the input shape is not valid. The validate_shapeout function is used
+        in the reversed direction.
+    validate_stridesin/validate_stridesout : function
+        The function validate_stridesin raises a StridesMismatch exception if
+        the input strides cannot be handled. The validate_stridesout function
+        is used in the reversed direction.
     flags : Flags
         The flags describe properties of the operator.
     dtype : dtype
@@ -165,14 +181,22 @@ class Operator(object):
         classout=None,
         commin=None,
         commout=None,
+        redtypein=None,
+        redtypeout=None,
         reshapein=None,
         reshapeout=None,
+        restridesin=None,
+        restridesout=None,
         shapein=None,
         shapeout=None,
         toshapein=None,
         toshapeout=None,
-        validatein=None,
-        validateout=None,
+        validate_dtypein=None,
+        validate_dtypeout=None,
+        validate_shapein=None,
+        validate_shapeout=None,
+        validate_stridesin=None,
+        validate_stridesout=None,
         dtype=None,
         flags={},
         name=None,
@@ -216,14 +240,22 @@ class Operator(object):
             classout,
             commin,
             commout,
+            redtypein,
+            redtypeout,
             reshapein,
             reshapeout,
+            restridesin,
+            restridesout,
             shapein,
             shapeout,
             toshapein,
             toshapeout,
-            validatein,
-            validateout,
+            validate_dtypein,
+            validate_dtypeout,
+            validate_shapein,
+            validate_shapeout,
+            validate_stridesin,
+            validate_stridesout,
         )
 
     __name__ = None
@@ -246,6 +278,40 @@ class Operator(object):
     shapein = None
     shapeout = None
 
+    def redtypein(self, dtype):
+        """
+        Return the output dtype given an input dtype.
+
+        Parameter
+        ---------
+        dtype : numpy.dtype
+            The input data type.
+
+        """
+        if dtype is not None and dtype.kind not in 'biufc':
+            raise TypeError("The input data type '{0}' is not numerical.".format(dtype))
+        if self.dtype is None:
+            return dtype
+        return np.find_common_type([dtype, self.dtype], [])
+
+    def redtypeout(self, dtype):
+        """
+        Return the input dtype given an output dtype.
+
+        Parameter
+        ---------
+        dtype : numpy.dtype
+            The input data type.
+
+        """
+        if dtype is not None and dtype.kind not in 'biufc':
+            raise TypeError(
+                "The output data type '{0}' is not numerical.".format(dtype)
+            )
+        if self.dtype is None:
+            return dtype
+        return np.find_common_type([dtype, self.dtype], [])
+
     def reshapein(self, shape):
         """
         Return the output shape given an input shape.
@@ -262,6 +328,11 @@ class Operator(object):
         Implicit output shape operators do override this method.
 
         """
+        if self.shapein is not None and self.shapein != shape:
+            raise ValueError(
+                "The input shape '{0}' is incompatible with that of {1}: '{2}'"
+                ".".format(shape, self.__name__, self.shapein)
+            )
         return self.shapeout
 
     def reshapeout(self, shape):
@@ -280,7 +351,74 @@ class Operator(object):
         Implicit input shape operators do override this method.
 
         """
+        if self.shapeout is not None and self.shapeout != shape:
+            raise ValueError(
+                "The output shape '{0}' is incompatible with that of {1}: '{2"
+                "}'.".format(shape, self.__name__, self.shapeout)
+            )
         return self.shapein
+
+    def restridesin(self, strides, shape, dtype, inplace):
+        """
+        Return strides of the output buffer or None if the operator can
+        handle outputs of any strides.
+
+        Parameters
+        ----------
+        strides : tuple
+            The input strides.
+        shape : tuple
+            The input shape.
+        dtype : numpy.dtype
+            The input data type.
+        inplace : boolean
+            Whether the operation is in-place or out-of-place.
+
+        """
+        if (
+            self.flags.contiguous_input
+            and strides is not None
+            and strides != strides_contiguousarray(shape, dtype)
+        ):
+            raise Mismatch()
+        if inplace:
+            return strides
+        if not self.flags.contiguous_output:
+            return None
+        shapeout = self.reshapein(shape)
+        dtypeout = self.redtypein(dtype)
+        return strides_contiguousarray(shapeout, dtypeout)
+
+    def restridesout(self, strides, shape, dtype, inplace):
+        """
+        Return strides of the input buffer or None if the operator can
+        handle inputs of any strides.
+
+        Parameters
+        ----------
+        strides : tuple
+            The output strides.
+        shape : tuple
+            The output shape.
+        dtype : numpy.dtype
+            The output data type.
+        inplace : boolean
+            Whether the operation is in-place or out-of-place.
+
+        """
+        if (
+            self.flags.contiguous_input
+            and strides is not None
+            and strides != strides_contiguousarray(shape, dtype)
+        ):
+            raise Mismatch()
+        if inplace:
+            return strides
+        if not self.flags.contiguous_input:
+            return None
+        shapein = self.reshapeout(shape)
+        dtypein = self.redtypeout(dtype)
+        return strides_contiguousarray(shapein, dtypein)
 
     def toshapein(self, v):
         """
@@ -348,29 +486,53 @@ class Operator(object):
         """
         return self
 
-    def validatein(self, shapein):
+    def validate_dtypein(self, dtype):
+        """
+        Validate an input dtype by raising a ValueError exception if it is
+        invalid.
+
+        """
+
+        if self.shapein is not None and self.shapein != shape:
+            raise ShapeMismatch(
+                "The input shape '{0}' is incompatible with that of {1}: '{2}'"
+                ".".format(shape, self.__name__, self.shapein)
+            )
+
+    def validate_shapein(self, shape):
         """
         Validate an input shape by raising a ValueError exception if it is
         invalid.
 
         """
-        if self.shapein is not None and self.shapein != shapein:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with that of {1}: '{2}'"
-                ".".format(shapein, self.__name__, self.shapein)
-            )
+        pass
 
-    def validateout(self, shapeout):
+    def validate_shapeout(self, shape):
         """
         Validate an output shape by raising a ValueError exception if it is
         invalid.
 
         """
-        if self.shapeout is not None and self.shapeout != shapeout:
-            raise ValueError(
-                "The output shape '{0}' is incompatible with that of {1}: '{2"
-                "}'.".format(shapeout, self.__name__, self.shapeout)
-            )
+        pass
+
+    def validate_stridesin(self, strides, shape, dtype):
+        """
+        Raise a StridesMismatch exception if the input strides cannot be
+        handled by the operator.
+
+        """
+        pass
+
+    def validate_stridesout(self, strides, shape, dtype):
+        """
+        Raise a StridesMismatch exception if the output strides cannot be
+        handled by the operator.
+
+        """
+        if not self.flags.contiguous_output:
+            return
+        if strides != strides_contiguousarray(shape, dtype):
+            raise StridesMismatch()
 
     # for the next methods, the following always stand:
     #    - input and output are not in the memory pool
@@ -392,6 +554,7 @@ class Operator(object):
     inverse_conjugate = None
     inverse_transpose = None
     inverse_adjoint = None
+    _calls = None
 
     def __call__(
         self, x, out=None, operation=operation_assignment, preserve_input=True
@@ -402,8 +565,16 @@ class Operator(object):
 
         if self.direct is None:
             raise NotImplementedError(
-                'Call to ' + self.__name__ + ' is not im' 'plemented.'
+                'Call to {0} is not implemented.'.format(self.__name__)
             )
+
+        if self._calls is None:
+            if isinstance(self, CompositionOperator):
+                self._calls = CallingSequenceManager(self.operands[::-1])
+            else:
+                self._calls = CallingSequenceManager([self])
+
+        return self._calls(x, out, operation, preserve_input)
 
         if operation is not operation_assignment:
             if not self.flags.inplace_reduction:
@@ -1087,14 +1258,22 @@ class Operator(object):
         classout,
         commin,
         commout,
+        redtypein,
+        redtypeout,
         reshapein,
         reshapeout,
+        restridesin,
+        restridesout,
         shapein,
         shapeout,
         toshapein,
         toshapeout,
-        validatein,
-        validateout,
+        validate_dtypein,
+        validate_dtypeout,
+        validate_shapein,
+        validate_shapeout,
+        validate_stridesin,
+        validate_stridesout,
     ):
         """
         Set methods and attributes dealing with the input and output handling.
@@ -1126,18 +1305,30 @@ class Operator(object):
             self.commin = commin
         if commout is not None:
             self.commout = commout
+        if redtypein is not None:
+            self.redtypein = redtypein
+        if redtypeout is not None:
+            self.redtypeout = redtypeout
         if reshapein is not None:
             self.reshapein = reshapein
         if reshapeout is not None:
             self.reshapeout = reshapeout
+        if restridesin is not None:
+            self.restridesin = restridesin
+        if restridesout is not None:
+            self.restridesout = restridesout
         if toshapein is not None:
             self.toshapein = toshapein
         if toshapeout is not None:
             self.toshapeout = toshapeout
-        if validatein is not None:
-            self.validatein = validatein
-        if validateout is not None:
-            self.validateout = validateout
+        if validate_shapein is not None:
+            self.validate_shapein = validate_shapein
+        if validate_shapeout is not None:
+            self.validate_shapeout = validate_shapeout
+        if validate_stridesin is not None:
+            self.validate_stridesin = validate_stridesin
+        if validate_stridesout is not None:
+            self.validate_stridesout = validate_stridesout
 
         shapein = tointtuple(shapein)
         shapeout = tointtuple(shapeout)
@@ -1153,9 +1344,9 @@ class Operator(object):
                 self.shapein = shapein
 
         if shapein is not None:
-            self.validatein(shapein)
+            self.validate_shapein(shapein)
         if shapeout is not None:
-            self.validateout(shapeout)
+            self.validate_shapeout(shapeout)
 
         if self.shapein is not None and self.shapein == self.shapeout:
             self._set_flags('square')
@@ -1167,15 +1358,11 @@ class Operator(object):
                 self.shapeout = self.shapein
             self.reshapein = lambda x: x
             self.reshapeout = self.reshapein
-            self.validatein = self.validatein or self.validateout
-            self.validateout = self.validatein
-            if (
-                self.toshapein.im_func is Operator.toshapein.im_func
-                and self.toshapeout.im_func is not Operator.toshapeout.im_func
-            ):
-                self.toshapein = self.toshapeout
-            else:
-                self.toshapeout = self.toshapein
+            self.restridesin = lambda strides, shape, dtype: strides
+            self.restridesout = self.restridesin
+            self._init_inout_attribute_square('validate_shape')
+            self._init_inout_attribute_square('validate_strides')
+            self._init_inout_attribute_square('toshape')
 
         if self.shapein is not None:
             try:
@@ -1206,14 +1393,24 @@ class Operator(object):
 
         if flag_is == 'explicit':
             self.reshapeout = Operator.reshapeout.__get__(self, type(self))
-            self.validatein = Operator.validatein.__get__(self, type(self))
+            self.validate_shapein = Operator.validate_shapein.__get__(self, type(self))
+
         if flag_os == 'explicit':
-            if self.flags.square:
-                self.reshapein = self.reshapeout
-                self.validateout = self.validatein
-            else:
-                self.reshapein = Operator.reshapein.__get__(self, type(self))
-                self.validateout = Operator.validateout.__get__(self, type(self))
+            self.reshapein = Operator.reshapein.__get__(self, type(self))
+            self.validate_shapeout = Operator.validate_shapeout.__get__(
+                self, type(self)
+            )
+
+    def _init_inout_attribute_square(self, attr):
+        attrin = getattr(self, attr + 'in')
+        attrout = getattr(self, attr + 'out')
+        if (
+            attrin.im_func is getattr(Operator, attr + 'in').im_func
+            and attrout.im_func is not getattr(Operator, attr + 'out').im_func
+        ):
+            setattr(self, attr + 'in', attrout)
+        else:
+            setattr(self, attr + 'out', attrin)
 
     def _init_name(self, name):
         """Set operator's __name__ attribute."""
@@ -1261,31 +1458,16 @@ class Operator(object):
 
         # if the input is not compatible, copy it into a buffer from the pool
         if input.dtype != dtype or not iscompatible(
-            input,
-            input.shape,
-            dtype,
-            self.flags.aligned_input,
-            self.flags.contiguous_input,
+            input, input.shape, dtype, self.flags.aligned_input
         ):
             if (
                 output is not None
                 and self.flags.inplace
-                and iscompatible(
-                    output,
-                    input.shape,
-                    dtype,
-                    self.flags.aligned_input,
-                    self.flags.contiguous_input,
-                )
+                and iscompatible(output, input.shape, dtype, self.flags.aligned_input)
             ):
                 buf = output
             else:
-                input_ = _pool.extract(
-                    input.shape,
-                    dtype,
-                    self.flags.aligned_input,
-                    self.flags.contiguous_input,
-                )
+                input_ = _pool.extract(input.shape, dtype, self.flags.aligned_input)
                 buf = input_
             input, input[...] = _pool.view(buf, input.shape, dtype), input
 
@@ -1304,22 +1486,11 @@ class Operator(object):
             # contiguity requirements, or if the operator is out-of-place and
             # an in-place operation is required, let's use a temporary buffer
             if (
-                not iscompatible(
-                    output,
-                    output.shape,
-                    dtype,
-                    self.flags.aligned_output,
-                    self.flags.contiguous_output,
-                )
+                not iscompatible(output, output.shape, dtype, self.flags.aligned_output)
                 or isalias(input, output)
                 and not self.flags.inplace
             ):
-                output_ = _pool.extract(
-                    output.shape,
-                    dtype,
-                    self.flags.aligned_output,
-                    self.flags.contiguous_output,
-                )
+                output_ = _pool.extract(output.shape, dtype, self.flags.aligned_output)
                 output = _pool.view(output_, output.shape, dtype)
             shapeout = output.shape
         else:
@@ -1383,25 +1554,25 @@ class Operator(object):
         """
         shapein = tointtuple(shapein)
         if shapein is not None:
-            self.validatein(shapein)
+            self.validate_shapein(shapein)
         if self.flags.shape_output == 'explicit':
             shapeout_ = self.shapeout
         elif self.flags.shape_output == 'unconstrained' or shapein is None:
             shapeout_ = None
         else:
             shapeout_ = tointtuple(self.reshapein(shapein))
-            self.validateout(shapeout_)
+            self.validate_shapeout(shapeout_)
 
         shapeout = tointtuple(shapeout)
         if shapeout is not None:
-            self.validateout(shapeout)
+            self.validate_shapeout(shapeout)
         if self.flags.shape_input == 'explicit':
             shapein_ = self.shapein
         elif self.flags.shape_input == 'unconstrained' or shapeout is None:
             shapein_ = None
         else:
             shapein_ = tointtuple(self.reshapeout(shapeout))
-            self.validatein(shapein_)
+            self.validate_shapein(shapein_)
 
         if None not in (shapein, shapein_) and shapein != shapein_:
             raise ValueError(
@@ -1832,15 +2003,24 @@ class CommutativeCompositeOperator(CompositeOperator):
             'commout': first_is_not((o.commout for o in operands), None),
             'dtype': cls._find_common_type(o.dtype for o in operands),
             'flags': cls._merge_flags(operands),
+            # XXX 'redtypein': not implemented
+            # XXX 'redtypeout': not implemented
             'reshapein': cls._merge_reshapein(operands),
             'reshapeout': cls._merge_reshapeout(operands),
+            # XXX 'restridesin': not implemented
+            # XXX 'restridesout': not implemented
             'shapein': cls._merge_shape((o.shapein for o in operands), 'in'),
             'shapeout': cls._merge_shape((o.shapeout for o in operands), 'out'),
-            'toshapein': first_is_not((o.toshapein for o in operands), None),
-            'toshapeout': first_is_not((o.toshapeout for o in operands), None),
-            'validatein': first_is_not((o.validatein for o in operands), None),
-            'validateout': first_is_not((o.validateout for o in operands), None),
+            'toshapein': cls._merge_attribute('toshapein', operands),
+            'toshapeout': cls._merge_attribute('toshapein', operands),
+            'validate_shapein': cls._merge_attribute('validate_shapein', operands),
+            'validate_shapeout': cls._merge_attribute('validate_shapeout', operands),
+            'validate_stridesin': cls._merge_attribute('validate_stridesin', operands),
+            'validate_stridesout': cls._merge_attribute(
+                'validate_stridesout', operands
+            ),
         }
+
         for k, v in keywords.items():
             if k is not 'flags':
                 attr[k] = v
@@ -1889,6 +2069,14 @@ class CommutativeCompositeOperator(CompositeOperator):
                 )
             )
         return shapes[0]
+
+    @staticmethod
+    def _merge_attribute(attr, operands):
+        for op in operands:
+            candidate = getattr(op, attr)
+            if candidate.im_func is not getattr(Operator, attr).im_func:
+                return candidate
+        return None
 
 
 class AdditionOperator(CommutativeCompositeOperator):
@@ -2215,14 +2403,14 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 reuse_output = (
                     not preserve_output
                     and (igroup % 2 == 0)
-                    and iscompatible(output, bufsize, np.int8, aligned, contiguous)
+                    and iscompatible(output, bufsize, np.int8, aligned)
                     and not isalias(output, i)
                     or igroup == 0
                 )
                 if reuse_output:
                     o_ = output
                 else:
-                    o_ = _pool.extract(bufsize, np.int8, aligned, contiguous)
+                    o_ = _pool.extract(bufsize, np.int8, aligned)
                     _pool.add(output)
                 o = _pool.view(o_, shapeouts[iop], dtypes[iop])
                 op = self.operands[iop]
@@ -2537,14 +2725,20 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'commout': first_is_not((o.commout for o in operands), None),
             'dtype': cls._find_common_type(o.dtype for o in operands),
             'flags': cls._merge_flags(operands),
+            # XXX 'redtypein': not implemented
+            # XXX 'redtypeout': not implemented
             'reshapein': cls._merge_reshapein(operands),
             'reshapeout': cls._merge_reshapeout(operands),
+            # XXX 'restridesin': not implemented
+            # XXX 'restridesout': not implemented
             'shapein': shapes[-1],
             'shapeout': shapes[0],
             'toshapein': operands[-1].toshapein,
             'toshapeout': operands[0].toshapeout,
-            'validatein': operands[-1].validatein,
-            'validateout': operands[0].validateout,
+            'validate_shapein': operands[-1].validate_shapein,
+            'validate_shapeout': operands[0].validate_shapeout,
+            'validate_stridesin': operands[-1].validate_stridesin,
+            'validate_stridesout': operands[0].validate_stridesout,
         }
         for k, v in keywords.items():
             if k is not 'flags':
@@ -4089,7 +4283,7 @@ class DiagonalOperator(BroadcastingOperator):
             return BroadcastingOperator.__pow__(self, n)
         return DiagonalOperator(self.get_data() ** n, broadcast=self.broadcast)
 
-    def validatein(self, shape):
+    def validate_shapein(self, shape):
         if self.data.size == 1:
             return
         n = self.data.ndim
@@ -4604,7 +4798,7 @@ class DenseOperator(Operator):
             # L, P, M -> P, N
             return shape[l : l + p] + self.data.shape[-self.naxesin :]
 
-    def validatein(self, shape):
+    def validate_shapein(self, shape):
         expected = self.data.shape[-self.naxesin :]
         if shape[-self.naxesin :] != expected:
             return ValueError(
@@ -4612,7 +4806,7 @@ class DenseOperator(Operator):
                 "d be '{1}'.".format(shape, expected)
             )
 
-    def validateout(self, shape):
+    def validate_shapeout(self, shape):
         expected = self.data.shape[-self.naxesout - self.naxesin : -self.naxesin]
         if shape[-self.naxesout :] != expected:
             return ValueError(
@@ -4823,7 +5017,7 @@ class ReductionOperator(Operator):
             return shape[:-1]
         return shape[: self.axis] + shape[self.axis + 1 :]
 
-    def validatein(self, shape):
+    def validate_shapein(self, shape):
         if len(shape) == 0:
             raise TypeError('Cannot reduce on scalars.')
         if self.axis is None:
@@ -4885,8 +5079,10 @@ def _copy_direct(source, target):
                 'reshapeout',
                 'toshapein',
                 'toshapeout',
-                'validatein',
-                'validateout',
+                'validate_shapein',
+                'validate_shapeout',
+                'validate_stridesin',
+                'validate_stridesout',
             ):
                 if v == getattr(Operator, attr).__get__(source, type(source)):
                     continue
@@ -4905,8 +5101,10 @@ def _copy_reverse(source, target):
                 'reshapeout',
                 'toshapein',
                 'toshapeout',
-                'validatein',
-                'validateout',
+                'validate_shapein',
+                'validate_shapeout',
+                'validate_stridesin',
+                'validate_stridesout',
             ):
                 if v == getattr(Operator, attr).__get__(source, type(source)):
                     continue
@@ -5019,8 +5217,16 @@ def asoperator1d(x):
     return s * x * r
 
 
+def strides_contiguousarray(shape, dtype):
+    """
+    Return strides for a C-contiguous array.
+
+    """
+    return tuple(np.cumproduct((dtype.itemsize,) + shape[:0:-1])[::-1])
+
+
 I = IdentityOperator()
 O = ZeroOperator()
 X = Variable('X')
-
+_C = CopyOperator()
 _pool = MemoryPool()

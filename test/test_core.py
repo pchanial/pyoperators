@@ -3,7 +3,6 @@ import numpy as np
 import operator
 import sys
 
-from nose import with_setup
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
 from pyoperators import memory, flags
@@ -25,9 +24,6 @@ from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
 PYTHON_26 = sys.version_info < (2, 7)
 np.seterr(all='raise')
-
-old_memory_verbose = None
-old_memory_tolerance = None
 
 
 def assert_flags(operator, flags, msg=''):
@@ -56,9 +52,9 @@ def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
     assert_eq(op.shapein, op.shapeout)
     assert_eq(op.reshapein, op.reshapeout)
-    assert_eq(op.validatein, op.validateout)
-    if op.shapein is None:
-        assert_eq(op.toshapein, op.toshapeout)
+    assert_eq(op.toshapein, op.toshapeout)
+    assert_eq(op.validate_shapein, op.validate_shapeout)
+    assert_eq(op.validate_stridesin, op.validate_stridesout)
 
 SHAPES = (None, (), (1,), (3,), (2, 3))
 
@@ -499,7 +495,7 @@ def test_validation():
     y_err = np.empty(7)
 
     def func(cls):
-        op = cls(validatein=vin, validateout=vout)
+        op = cls(validate_shapein=vin, validate_shapeout=vout)
         op(x_ok, y_ok)
         cls_error = ValueError if op.flags.shape_input == 'explicit' else \
             ValidationError
@@ -509,10 +505,10 @@ def test_validation():
         assert_raises(cls_error, op, x_ok, y_err)
 
         if op.flags.shape_output == 'implicit':
-            assert_raises(ValidationError, cls, validateout=vout,
+            assert_raises(ValidationError, cls, validate_shapeout=vout,
                           shapein=x_err.shape)
         if op.flags.shape_input == 'implicit':
-            assert_raises(ValidationError, cls, validatein=vin,
+            assert_raises(ValidationError, cls, validate_shapein=vin,
                           shapeout=y_err.shape)
     for cls in OPS:
         yield func, cls
@@ -1167,341 +1163,6 @@ def test_comm_propagation():
             op_in = cls(ops_in, **keywords)
             for j, op in enumerate([op_in*opsetcomm2, opsetcomm2*op_in]):
                 yield func5, i, j, op
-
-
-#===========================
-# Test in-place/out-of-place
-#===========================
-
-def test_inplace1():
-    @flags.square
-    class NotInplace(Operator):
-
-        def direct(self, input, output):
-            output[...] = 0
-            output[0] = input[0]
-    pool.clear()
-    op = NotInplace()
-    v = np.array([2., 0., 1.])
-    op(v, v)
-    assert_eq(v, [2, 0, 0])
-    assert_eq(len(pool), 1)
-
-
-def setup_memory():
-    global old_memory_tolerance, old_memory_verbose
-    old_memory_tolerance = memory.MEMORY_TOLERANCE
-    old_memory_verbose = memory.verbose
-    # ensure buffers in the pool are always used
-    memory.MEMORY_TOLERANCE = np.inf
-    memory.verbose = True
-
-
-def teardown_memory():
-    memory.MEMORY_TOLERANCE = old_memory_tolerance
-    memory.verbose = old_memory_verbose
-
-
-@with_setup(setup_memory, teardown_memory)
-def test_inplace_can_use_output():
-    A = zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    B = zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    C = zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    D = zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    ids = {A.__array_interface__['data'][0]: 'A',
-           B.__array_interface__['data'][0]: 'B',
-           C.__array_interface__['data'][0]: 'C',
-           D.__array_interface__['data'][0]: 'D'}
-
-    class Op(Operator):
-        def __init__(self, inplace, log):
-            Operator.__init__(self, flags={'inplace': inplace})
-            self.inplace = inplace
-            self.log = log
-
-        def direct(self, input, output):
-            if not self.inplace and isalias(input, output):
-                raise RuntimeError()
-            if self.flags.inplace:
-                tmp = input[0]
-                output[1:] = 2 * input
-                output[0] = tmp
-            else:
-                output[:] = 0
-                output[0] = input[0]
-                output[1:] = 2 * input
-            try:
-                self.log.insert(0, ids[output.__array_interface__['data'][0]])
-            except KeyError:
-                self.log.insert(0, '?')
-
-        def reshapein(self, shape):
-            return (shape[0]+1,)
-
-    def show_pool():
-        result = ''
-        for s in pool:
-            try:
-                result += ids[s.__array_interface__['data'][0]]
-            except:
-                result += '?'
-        return result
-
-    expecteds_outplace = {
-        2: ['BBA',     # II
-            'BBA',     # IO
-            'BCA',     # OI
-            'BCA'],    # OO
-        3: ['BBBA',    # III
-            'BBBA',    # IIO
-            'BBCA',    # IOI
-            'BBCA',    # IOO
-            'BCCA',    # OII
-            'BCCA',    # OIO
-            'BCBA',    # OOI
-            'BCBA'],   # OOO
-        4: ['BBBBA',   # IIII
-            'BBBBA',   # IIIO
-            'BBBCA',   # IIOI
-            'BBBCA',   # IIOO
-            'BBCCA',   # IOII
-            'BBCCA',   # IOIO
-            'BBCBA',   # IOOI
-            'BBCBA',   # IOOO
-            'BCCCA',   # OIII
-            'BCCCA',   # OIIO
-            'BCCBA',   # OIOI
-            'BCCBA',   # OIOO
-            'BCBBA',   # OOII
-            'BCBBA',   # OOIO
-            'BCBCA',   # OOOI
-            'BCBCA']}  # OOOO
-
-    expecteds_inplace = {
-        2: ['AAA',     # II
-            'ABA',     # IO
-            'ABA',     # OI
-            'ABA'],    # OO
-        3: ['AAAA',    # III
-            'ABBA',    # IIO
-            'ABAA',    # IOI
-            'AABA',    # IOO
-            'ABAA',    # OII
-            'ABBA',    # OIO
-            'ABAA',    # OOI
-            'ACBA'],   # OOO
-        4: ['AAAAA',   # IIII
-            'ABBBA',   # IIIO
-            'ABBAA',   # IIOI
-            'AAABA',   # IIOO
-            'ABAAA',   # IOII
-            'AABBA',   # IOIO
-            'AABAA',   # IOOI
-            'ABABA',   # IOOO
-            'ABAAA',   # OIII
-            'ABBBA',   # OIIO
-            'ABBAA',   # OIOI
-            'ABABA',   # OIOO
-            'ABAAA',   # OOII
-            'ABABA',   # OOIO
-            'ABABA',   # OOOI
-            'ABABA']}  # OOOO
-
-    def func_outplace(n, i, expected, strops):
-        pool._buffers = [C, D]
-        log = []
-        ops = [Op(s == '1', log) for s in strops]
-        op = CompositionOperator(ops)
-        op.show_pool = show_pool  # debug
-        v = A[:8].view(float)
-        v[0] = 1
-        w = B[:(n+1)*8].view(float)
-        op(v, w)
-        log = ''.join(log) + 'A'
-        assert_equal(log, expected)
-        assert_equal(show_pool(), 'CD')
-        w2 = v
-        for op in reversed(ops):
-            w2 = op(w2)
-        assert_equal(w, w2)
-
-    def func_inplace(n, i, expected, strops):
-        pool._buffers = [B, C]
-        log = []
-        ops = [Op(s == '1', log) for s in strops]
-        op = CompositionOperator(ops)
-        v = A[:8].view(float)
-        v[0] = 1
-        w = A[:(n+1)*8].view(float)
-        op(v, w)
-        log = ''.join(log) + 'A'
-        assert_equal(log, expected)
-        assert_equal(show_pool(), 'BC')
-        w2 = v
-        for op in reversed(ops):
-            w2 = op(w2)
-        assert_equal(w, w2)
-
-    for n in [2, 3, 4]:
-        for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
-            strops = bin(i)[2:]
-            while len(strops) != n:
-                strops = '0' + strops
-            yield func_outplace, n, i, expected, strops
-
-    for n in [2, 3, 4]:
-        for i, expected in zip(reversed(range(2**n)), expecteds_inplace[n]):
-            strops = bin(i)[2:]
-            while len(strops) != n:
-                strops = '0' + strops
-            yield func_inplace, n, i, expected, strops
-
-
-@with_setup(setup_memory, teardown_memory)
-def test_inplace_cannot_use_output():
-    A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    B = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    C = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    D = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
-    ids = {A.__array_interface__['data'][0]: 'A',
-           B.__array_interface__['data'][0]: 'B',
-           C.__array_interface__['data'][0]: 'C',
-           D.__array_interface__['data'][0]: 'D'}
-
-    class Op(Operator):
-        def __init__(self, inplace, log):
-            Operator.__init__(self, flags={'inplace': inplace})
-            self.inplace = inplace
-            self.log = log
-
-        def direct(self, input, output):
-            if not self.inplace and isalias(input, output):
-                raise RuntimeError()
-            if not self.inplace:
-                output[:] = 0
-            output[:] = input[1:]
-            try:
-                self.log.insert(0, ids[output.__array_interface__['data'][0]])
-            except KeyError:
-                self.log.insert(0, '?')
-
-        def reshapein(self, shape):
-            return (shape[0]-1,)
-
-    def show_stack():
-        return ''.join([ids[s.__array_interface__['data'][0]] for s in pool])
-
-    expecteds_outplace = {
-        2: ['BCA',     # II
-            'BCA',     # IO
-            'BCA',     # OI
-            'BCA'],    # OO
-        3: ['BCCA',    # III
-            'BCCA',    # IIO
-            'BDCA',    # IOI
-            'BDCA',    # IOO
-            'BCCA',    # OII
-            'BCCA',    # OIO
-            'BDCA',    # OOI
-            'BDCA'],   # OOO
-        4: ['BCCCA',   # IIII
-            'BCCCA',   # IIIO
-            'BDDCA',   # IIOI
-            'BDDCA',   # IIOO
-            'BDCCA',   # IOII
-            'BDCCA',   # IOIO
-            'BCDCA',   # IOOI
-            'BCDCA',   # IOOO
-            'BCCCA',   # OIII
-            'BCCCA',   # OIIO
-            'BDDCA',   # OIOI
-            'BDDCA',   # OIOO
-            'BDCCA',   # OOII
-            'BDCCA',   # OOIO
-            'BCDCA',   # OOOI
-            'BCDCA']}  # OOOO
-
-    expecteds_inplace = {
-        2: ['ABA',     # II
-            'ABA',     # IO
-            'ABA',     # OI
-            'ABA'],    # OO
-        3: ['ABBA',    # III
-            'ABBA',    # IIO
-            'ACBA',    # IOI
-            'ACBA',    # IOO
-            'ABBA',    # OII
-            'ABBA',    # OIO
-            'ACBA',    # OOI
-            'ACBA'],   # OOO
-        4: ['ABBBA',   # IIII
-            'ABBBA',   # IIIO
-            'ACCBA',   # IIOI
-            'ACCBA',   # IIOO
-            'ACBBA',   # IOII
-            'ACBBA',   # IOIO
-            'ABCBA',   # IOOI
-            'ABCBA',   # IOOO
-            'ABBBA',   # OIII
-            'ABBBA',   # OIIO
-            'ACCBA',   # OIOI
-            'ACCBA',   # OIOO
-            'ACBBA',   # OOII
-            'ACBBA',   # OOIO
-            'ABCBA',   # OOOI
-            'ABCBA']}  # OOOO
-
-    def func_outplace(n, i, expected, strops):
-        pool._buffers = [C, D]
-        log = []
-        ops = [Op(s == '1', log) for s in strops]
-        op = CompositionOperator(ops)
-        op.show_stack = show_stack
-        v = A[:(n+1)*8].view(float)
-        v[:] = range(n+1)
-        w = B[:8].view(float)
-        op(v, w)
-        delattr(op, 'show_stack')
-        log = ''.join(log) + 'A'
-        assert_equal(log, expected)
-        assert_equal(show_stack(), 'CD')
-        w2 = v
-        for op in reversed(ops):
-            w2 = op(w2)
-        assert_equal(w, w2)
-
-    def func_inplace(n, i, expected, strops):
-        pool._buffers = [B, C]
-        log = []
-        ops = [Op(s == '1', log) for s in strops]
-        op = CompositionOperator(ops)
-        op.show_stack = show_stack
-        v = A[:(n+1)*8].view(float)
-        v[:] = range(n+1)
-        w = A[:8].view(float)
-        op(v, w)
-        delattr(op, 'show_stack')
-        log = ''.join(log) + 'A'
-        assert_equal(log, expected)
-        assert_equal(show_stack(), 'BC')
-        w2 = v
-        for op in reversed(ops):
-            w2 = op(w2)
-        assert_equal(w, w2)
-
-    for n in [2, 3, 4]:
-        for i, expected in zip(reversed(range(2**n)), expecteds_outplace[n]):
-            strops = bin(i)[2:]
-            while len(strops) != n:
-                strops = '0' + strops
-            yield func_outplace, n, i, expected, strops
-
-    for n in [2, 3, 4]:
-        for i, expected in zip(reversed(range(2**n)), expecteds_inplace[n]):
-            strops = bin(i)[2:]
-            while len(strops) != n:
-                strops = '0' + strops
-            yield func_inplace, n, i, expected, strops
 
 
 #====================

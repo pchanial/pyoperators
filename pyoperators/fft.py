@@ -36,25 +36,6 @@ except:
 # PRESERVE_INPUT: default except c2r and hc2r
 # DESTROY_INPUT: default for c2r and hc2r, only possibility for multi c2r
 
-OPERATOR_ATTRIBUTES = [
-    'attrin',
-    'attrout',
-    'classin',
-    'classout',
-    'commin',
-    'commout',
-    'reshapein',
-    'reshapeout',
-    'shapein',
-    'shapeout',
-    'toshapein',
-    'toshapeout',
-    'validatein',
-    'validateout',
-    'dtype',
-    'flags',
-]
-
 
 @linear
 @square

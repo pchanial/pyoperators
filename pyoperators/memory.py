@@ -105,29 +105,56 @@ def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
     return a
 
 
-def iscompatible(
-    array, shape, dtype, aligned=False, contiguous=False, tolerance=np.inf
-):
+def isvalid(shape, dtype, strides):
+    """
+    Negative strides are rejected because isalias would not handle them.
+    Buffers with holes are also rejected since their interest is marginal
+    compared to the complexity that would be required to handle them.
+
+    """
+    if len(shape) == 0 or strides is None:
+        return True
+    if any(s < 0 for s in strides):
+        return False
+    imax = np.argmax(strides)
+    if product(shape) * dtype.itemsize != shape[imax] * strides[imax]:
+        return False
+    return True
+
+
+def iscompatible(array, nbytes, aligned=False, tolerance=np.inf):
     """
     Return True if a buffer with specified requirements can be extracted
     from an numpy array.
 
     """
-    shape = tointtuple(shape)
-    dtype = np.dtype(dtype)
     if aligned and array.__array_interface__['data'][0] % MEMORY_ALIGNMENT != 0:
         return False
-    if not array.flags.contiguous:
-        if contiguous:
-            return False
-        return array.shape == shape and array.itemsize == dtype.itemsize
-    nbytes = product(shape) * dtype.itemsize
     return array.nbytes >= nbytes and array.nbytes / nbytes <= tolerance
+
+
+def view(buf, shape, dtype, strides=None):
+    """
+    Return a view of a buffer for a given shape and dtype.
+
+    """
+    shape = tointtuple(shape)
+    dtype = np.dtype(dtype)
+    if buf.flags.contiguous:
+        buf = buf.ravel().view(np.int8)
+    elif buf.shape == shape and buf.itemsize == dtype.itemsize:
+        return buf
+    else:
+        raise ValueError('Shape mismatch.')
+    required = dtype.itemsize * product(shape)
+    buf = buf[:required].view(dtype)
+    return np.lib.stride_tricks.as_strided(buf, shape, strides)
 
 
 class MemoryPool(object):
     """
     Class implementing a pool of buffers.
+
     """
 
     def __init__(self):
@@ -137,10 +164,10 @@ class MemoryPool(object):
         """Add a numpy array to the pool."""
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')
-        if v.flags.contiguous:
-            v = v.ravel().view(np.int8)
-        a = v.__array_interface__['data'][0]
-        if any(_.__array_interface__['data'][0] == a for _ in self._buffers):
+        if not isvalid(v.shape, v.dtype, v.strides):
+            raise ValueError('This strided input cannot be added to the pool.')
+        v = v.ravel('K').view(np.int8)
+        if v in self:
             raise ValueError(
                 'There already is an entry in the pool pointing t'
                 'o this memory location.'
@@ -168,9 +195,10 @@ class MemoryPool(object):
         """
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')
-        alignment = MEMORY_ALIGNMENT if aligned else 1
+        address = v.__array_interface__['data'][0]
         if (
-            v.__array_interface__['data'][0] % alignment != 0
+            aligned
+            and address % MEMORY_ALIGNMENT != 0
             or contiguous
             and not v.flags.contiguous
         ):
@@ -181,25 +209,17 @@ class MemoryPool(object):
         else:
             yield v
 
-    def extract(
-        self,
-        shape,
-        dtype,
-        aligned=False,
-        contiguous=False,
-        description=None,
-        verbose=None,
-    ):
+    def extract(self, shape, dtype, aligned=False, description=None, verbose=None):
         """
         Extract a buffer from the pool given the following requirements:
-        shape, dtype, alignment, contiguity.
+        shape, dtype, alignment.
 
         """
-        shape = tointtuple(shape)
-        dtype = np.dtype(dtype)
-        compatible = lambda x: iscompatible(
-            x, shape, dtype, aligned, contiguous, MEMORY_TOLERANCE
-        )
+        if isinstance(shape, int):
+            nbytes = shape
+        else:
+            nbytes = product(shape) * dtype.itemsize
+        compatible = lambda x: iscompatible(x, nbytes, aligned, MEMORY_TOLERANCE)
         try:
             i = ifirst(self._buffers, compatible)
             v = self._buffers.pop(i)
@@ -208,21 +228,13 @@ class MemoryPool(object):
         return v
 
     @contextmanager
-    def get(
-        self,
-        shape,
-        dtype,
-        aligned=False,
-        contiguous=False,
-        description=None,
-        verbose=None,
-    ):
+    def get(self, shape, dtype, aligned=False, description=None, verbose=None):
         """
         Return a context manager which retrieves a buffer from the pool
         on enter, and set it back in the pool on exit.
 
         """
-        v_ = self.extract(shape, dtype, aligned, contiguous, description, verbose)
+        v_ = self.extract(shape, dtype, aligned, description, verbose)
         v = self.view(v_, shape, dtype)
 
         yield v
@@ -281,6 +293,7 @@ class MemoryPool(object):
     def view(buf, shape, dtype):
         """
         Return a view of given shape and dtype from a buffer.
+
         """
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)
@@ -314,21 +327,23 @@ class MemoryPool(object):
         """Return the number of entries in the pool."""
         return len(self._buffers)
 
-    def __str__(self, names={}):
+    def __str__(self, **keywords):
         """
         Print the stack.
         A dict of ndarray addresses can be used to name the stack elements.
 
         Example
         -------
-        print(pool.__str__({'output':myoutput}))
+        >>> output = np.empty(10)
+        >>> pool.add(output)
+        >>> print(pool.__str__(output=output))
 
         """
         if len(self) == 0:
             return 'The memory stack is empty.'
         d = dict(
             (v.__array_interface__['data'][0] if isinstance(v, np.ndarray) else v, k)
-            for k, v in names.items()
+            for k, v in keywords.items()
         )
         result = []
         for i, s in enumerate(self._buffers):
