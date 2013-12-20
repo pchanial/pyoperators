@@ -12,6 +12,7 @@ from .core import (
     IdentityOperator,
     ReductionOperator,
 )
+from .linear import DegreesOperator, RadiansOperator
 from .utils import operation_assignment, operation_symbol, pi, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 
@@ -85,7 +86,8 @@ class _CartesianSpherical(Operator):
 
 class Cartesian2SphericalOperator(_CartesianSpherical):
     """
-    Convert cartesian unit vectors into spherical coordinates in radians.
+    Convert cartesian unit vectors into spherical coordinates in radians
+    or degrees.
 
     The spherical coordinate system is defined by:
        - the zenith direction of coordinate (0, 0, 1)
@@ -104,14 +106,24 @@ class Cartesian2SphericalOperator(_CartesianSpherical):
 
     """
 
-    def __init__(self, convention, **keywords):
+    def __init__(self, convention, degrees=False, **keywords):
         """
         convention : string
             One of the following spherical coordinate conventions:
             'zenith,azimuth', 'azimuth,zenith', 'elevation,azimuth' and
             'azimuth,elevation'.
+        degrees : boolean, optional
+            If true, the spherical coordinates are returned in degrees.
 
         """
+        if degrees:
+            self.__class__ = CompositionOperator
+            self.__init__(
+                [DegreesOperator(), Cartesian2SphericalOperator(convention, **keywords)]
+            )
+            return
+        self.degrees = False
+
         _CartesianSpherical.__init__(
             self,
             convention,
@@ -139,7 +151,8 @@ class Cartesian2SphericalOperator(_CartesianSpherical):
 
 class Spherical2CartesianOperator(_CartesianSpherical):
     """
-    Convert spherical coordinates in radians into unit cartesian vectors.
+    Convert spherical coordinates in radians or degrees into unit cartesian
+    vectors.
 
     The spherical coordinate system is defined by:
        - the zenith direction of coordinate (0, 0, 1)
@@ -158,14 +171,25 @@ class Spherical2CartesianOperator(_CartesianSpherical):
 
     """
 
-    def __init__(self, convention, **keywords):
+    def __init__(self, convention, degrees=False, **keywords):
         """
         convention : string
             One of the following spherical coordinate conventions:
             'zenith,azimuth', 'azimuth,zenith', 'elevation,azimuth' and
             'azimuth,elevation'.
+        degrees : boolean, optional
+            If true, the input spherical coordinates are assumed to be in
+            degrees.
 
         """
+        if degrees:
+            self.__class__ = CompositionOperator
+            self.__init__(
+                [Spherical2CartesianOperator(convention, **keywords), RadiansOperator()]
+            )
+            return
+        self.degrees = False
+
         _CartesianSpherical.__init__(
             self,
             convention,
