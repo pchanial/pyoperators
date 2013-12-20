@@ -28,16 +28,17 @@ def test_cartesian_spherical():
     )
     shapes = ((), (), (), (3,), (1, 2))
 
-    def func(c, v, s):
-        c2s = Cartesian2SphericalOperator(c)
-        s2c = Spherical2CartesianOperator(c)
+    def func(c, v, s, d):
+        c2s = Cartesian2SphericalOperator(c, degrees=d)
+        s2c = Spherical2CartesianOperator(c, degrees=d)
         a = s2c(c2s(v))
         assert_equal(a.shape, s + (3,))
         assert_allclose(a, v, atol=1e-16)
 
     for c in Cartesian2SphericalOperator.CONVENTIONS:
         for v, s in zip(vecs, shapes):
-            yield func, c, v, s
+            for d in (False, True):
+                yield func, c, v, s, d
 
 
 def test_cartesian_spherical_error():
@@ -118,22 +119,28 @@ def test_spherical_cartesian():
     op_ref = Spherical2CartesianOperator('zenith,azimuth')
     refs = [op_ref(np.radians(v)) for v in dirs_za]
 
-    def func(c, v, s, r):
-        s2c = Spherical2CartesianOperator(c)
-        c2s = Cartesian2SphericalOperator(c)
-        assert_allclose(s2c(np.radians(v)), r)
-        a = np.degrees(c2s(s2c(np.radians(v))))
+    def func(c, v, s, d, r):
+        orig = v
+        if not d:
+            v = np.radians(v)
+        s2c = Spherical2CartesianOperator(c, degrees=d)
+        c2s = Cartesian2SphericalOperator(c, degrees=d)
+        assert_allclose(s2c(v), r)
+        a = c2s(s2c(v))
+        if not d:
+            a = np.degrees(a)
         assert_equal(a.shape, s + (2,))
-        assert_allclose(a, v, atol=1e-16)
+        assert_allclose(a, orig, atol=1e-16)
 
-    for c, d in (
+    for c, vs in (
         ('zenith,azimuth', dirs_za),
         ('azimuth,zenith', dirs_az),
         ('elevation,azimuth', dirs_ea),
         ('azimuth,elevation', dirs_ae),
     ):
-        for v, s, r in zip(d, shapes, refs):
-            yield func, c, v, s, r
+        for v, s, r in zip(vs, shapes, refs):
+            for d in (False, True):
+                yield func, c, v, s, d, r
 
 
 def test_spherical_cartesian_error():
