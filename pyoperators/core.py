@@ -2370,9 +2370,11 @@ class NonCommutativeCompositeOperator(CompositeOperator):
     def _apply_rules(self, ops):
         if len(ops) <= 1:
             return ops
-        cls = type(self)
-        i = len(ops) - 2
 
+        # Get the NonCommutativeCompositeOperator direct subclass
+        cls = type(self).__mro__[-5]
+
+        i = len(ops) - 2
         # loop over the len(ops)-1 pairs of operands
         while i >= 0:
             o1 = ops[i]
@@ -2461,7 +2463,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         self.set_rule('IT', lambda s: CompositionOperator([m.I.T for m in s.operands]))
         self.set_rule('IH', lambda s: CompositionOperator([m.I.H for m in s.operands]))
         self.set_rule(
-            ('.', type(self)),
+            ('.', CompositionOperator),
             lambda s, o: CompositionOperator(s.operands + o.operands),
             CompositionOperator,
         )
@@ -3012,7 +3014,7 @@ class GroupOperator(CompositionOperator):
                 [m.I.H for m in s.operands], name=self.__name__ + '.I.H'
             ),
         )
-        self.del_rule(('.', type(self)), CompositionOperator)
+        self.del_rule(('.', CompositionOperator), CompositionOperator)
         self.del_rule(('.', Operator), CompositionOperator)
         self.del_rule((Operator, '.'), CompositionOperator)
 
