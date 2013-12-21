@@ -55,6 +55,8 @@ __all__ = [
     'X',
 ]
 
+DEBUG = 0
+
 OPERATOR_ATTRIBUTES = ['attrin', 'attrout', 'classin', 'classout', 'commin',
                        'commout', 'reshapein', 'reshapeout', 'shapein',
                        'shapeout', 'toshapein', 'toshapeout', 'validatein',
@@ -2092,7 +2094,30 @@ class NonCommutativeCompositeOperator(CompositeOperator):
 
     """
     def _apply_rules(self, ops):
+        if DEBUG:
+            def print_rules(i, rules):
+                print 'Rules for ({0}, {1}):'.format(i, i+1)
+                for i, r in enumerate(rules):
+                    print '    {0}: {1}'.format(i, r)
+                print
+            def print_operands():
+                print
+                print '========'
+                print 'OPERANDS'
+                print '========'
+                for i, op in enumerate(ops):
+                    print '{0}: {1!r}'.format(i, op)
+            import pdb
+            print
+            print
+            print
+            pdb.traceback.print_stack()
+            print_operands()
+
         if len(ops) <= 1:
+            if DEBUG:
+                print 'OUT (only one operand)'
+                print
             return ops
 
         # Get the NonCommutativeCompositeOperator direct subclass
@@ -2106,27 +2131,46 @@ class NonCommutativeCompositeOperator(CompositeOperator):
             rules1 = o1.rules[cls]['left'] if cls in o1.rules else []
             rules2 = o2.rules[cls]['right'] if cls in o2.rules else []
 
-            # subclasses rules priority is higher than those of superclasses
-            if cls._ge_operator(o1, o2):
-                rules = rules1 + rules2
-            else:
-                rules = rules2 + rules1
+            def key_rule(x):
+                if isinstance(x.other, str):
+                    return 0
+                if x.reference == 0:
+                    return 1000 - len(type(o1).__mro__) - len(x.other.__mro__)
+                return 1000 - len(x.other.__mro__) - len(type(o2).__mro__)
 
+            rules = rules1 + rules2
+            rules.sort(key=key_rule)
+
+            if DEBUG > 1:
+                print_rules(i, rules)
             consumed = False
             for rule in rules:
                 new_ops = rule(o1, o2)
                 if new_ops is None:
                     continue
                 consumed = True
+                if DEBUG:
+                    print 'Because of rule {0}:'.format(rule)
                 if isinstance(new_ops, tuple):
                     if len(new_ops) != 2:
                         raise NotImplementedError()
                     ops[i], ops[i+1] = new_ops
+                    if DEBUG:
+                        print '    DOUBLE CHANGE: {0} into {1}'.format(
+                            i, new_ops[0])
+                        print '    DOUBLE CHANGE: {0} into {1}'.format(
+                            i+1, new_ops[1])
+                        print_operands()
                     i += 1
                     break
+                if DEBUG:
+                    print '     MERGING ({0}, {1}) into {2!s} ~ {2!r}'.format(
+                        i, i+1, new_ops)
                 cls._merge(new_ops, o1, o2)
                 del ops[i+1]
                 ops[i] = new_ops
+                if DEBUG:
+                    print_operands()
                 break
 
             if consumed and i < len(ops) - 1:
@@ -2134,17 +2178,12 @@ class NonCommutativeCompositeOperator(CompositeOperator):
 
             i -= 1
 
-        return ops
+        if DEBUG:
+            print 'OUT (because of rule exhaustion)'
+            print
+            print
 
-    @staticmethod
-    def _ge_operator(o1, o2):
-        """
-        Return true if the first operator has a higher priority, i.e. if it
-        subclasses the second argument class.
-        """
-        t1 = type(o1)
-        t2 = type(o2)
-        return issubclass(t1, t2) and t1 is not t2
+        return ops
 
 
 @inplace
