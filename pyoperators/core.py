@@ -12,7 +12,6 @@ import inspect
 import numpy as np
 import operator
 import scipy.sparse as sp
-import scipy.sparse.linalg
 import types
 
 from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
