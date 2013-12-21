@@ -2586,7 +2586,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             return
 
         keywords = cls._get_attributes([op1, op2])
-        keywords['name'] = cls._merge_names([op1, op2])
 
         # reset attributes
         for attr in OPERATOR_ATTRIBUTES + ['_C', '_T', '_H', '_I']:
@@ -2626,15 +2625,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'aligned_output': operands[0].flags.aligned_output,
             'contiguous_input': operands[-1].flags.contiguous_input,
             'contiguous_output': operands[0].flags.contiguous_output}
-
-    @staticmethod
-    def _merge_names(operands):
-        names = [o.__name__ for o in operands]
-        if sum(not isinstance(o, HomothetyOperator) for o in operands) > 1:
-            return None
-        names.sort(key=lambda n: 2 if n == 'IdentityOperator' else
-                   1 if n == 'HomothetyOperator' else 0)
-        return names[0]
 
     @staticmethod
     def _merge_reshapein(operands):
