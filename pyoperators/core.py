@@ -191,7 +191,11 @@ class OperatorRule(object):
     def __str__(self):
         subjects = [s if isinstance(s, str) else s.__name__
                     for s in self.subjects]
-        return '{0} = {1}'.format(','.join(subjects), self.predicate)
+        spredicate = ' '.join(s.strip() for s in inspect.getsource(
+            self.predicate).split('\n')) \
+            if isinstance(self.predicate, types.LambdaType) \
+            else self.predicate
+        return '{0} = {1}'.format(','.join(subjects), spredicate)
 
     __repr__ = __str__
 
