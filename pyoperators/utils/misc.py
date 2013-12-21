@@ -399,11 +399,11 @@ def least_greater_multiple(a, l, out=None):
     for v, p in izip(l, powers):
         values = values * v**p
     for v, o in it:
-        if np.__version__ >= '1.8':
-            o[...] = np.amin(values, where=values >= v)
-        else:
+        if np.__version__ < '2':
             values_ = np.ma.MaskedArray(values, mask=values < v, copy=False)
             o[...] = np.min(values_)
+        else:
+            o[...] = np.amin(values, where=values >= v)
     out = it.operands[1]
     if out.ndim == 0:
         return out.flat[0]
