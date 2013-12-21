@@ -4333,7 +4333,7 @@ class ReductionOperator(Operator):
                 raise TypeError(
                     "The input ufunc '{0}' has {1} output arguments. Expected "
                     "number is 1.".format(func.__name__, func.nout))
-            if np.__version__ < '1.8':
+            if np.__version__ < '2':
                 if axis is None:
                     direct = lambda x, out: func.reduce(x.flat, 0, dtype, out)
                 else:
