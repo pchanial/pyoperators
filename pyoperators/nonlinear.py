@@ -132,6 +132,10 @@ class Cartesian2SphericalOperator(_CartesianSpherical):
         if 'elevation' in self.convention:
             np.subtract(pi(self.dtype) / 2, o1, o1)
         np.arctan2(input[..., 1], input[..., 0], o2)
+        if o2.ndim > 0:
+            o2[o2 < 0] += 2 * pi(self.dtype)
+        elif o2 < 0:
+            o2 += 2 * pi(self.dtype)
 
 
 class Spherical2CartesianOperator(_CartesianSpherical):
