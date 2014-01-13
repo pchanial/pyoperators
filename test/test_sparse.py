@@ -35,7 +35,7 @@ def test_shapes():
         for vec in vecs:
             assert_same(so(np.reshape(vec, shapein)), np.dot(A, vec).reshape(shapeout))
             assert_same(
-                so.T(np.reshape(vec, shapeout)), np.dot(A.T, vec).reshape(shapeout)
+                so.T(np.reshape(vec, shapeout)), np.dot(A.T, vec).reshape(shapein)
             )
 
     for format in formats:
