@@ -3524,33 +3524,37 @@ class BroadcastingOperator(Operator):
     Leftward broadcasting is the normal numpy's broadcasting along the slow
     dimensions, if the array is stored in C order. Rightward broadcasting is
     a broadcasting along the fast dimension.
+
     """
-    def __init__(self, data, broadcast=None, shapeout=None, **keywords):
+    def __init__(self, data, broadcast=None, shapeout=None, dtype=None,
+                 **keywords):
         if data is None:
-            raise ValueError('The input data is None.')
-        if 'dtype' in keywords:
-            dtype = keywords['dtype']
+            if dtype is None:
+                raise ValueError('The data type is not specified.')
+            if broadcast is None:
+                raise ValueError('The broadcast mode is not specified.')
         else:
-            data = np.asarray(data)
-            dtype = keywords['dtype'] = data.dtype
-        data = np.array(data, dtype, order='c', copy=False)
-        if broadcast is None:
-            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
-        else:
-            broadcast = broadcast.lower()
+            if dtype is None:
+                data = np.asarray(data)
+                dtype = data.dtype
+            data = np.array(data, dtype, copy=False)
+            if broadcast is None:
+                broadcast = 'scalar' if data.ndim == 0 else 'disabled'
+        broadcast = broadcast.lower()
         values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError(
                 "Invalid value '{0}' for the broadcast keyword. Expected value"
                 "s are {1}.".format(broadcast, strenum(values)))
-        if broadcast == 'disabled':
+        if data is not None and broadcast == 'disabled':
             if shapeout not in (None, data.shape):
                 raise ValueError(
                     "The input shapein is incompatible with the data shape.")
             shapeout = data.shape
         self.broadcast = broadcast
         self.data = data
-        Operator.__init__(self, shapeout=shapeout, **keywords)
+        self.data_shape = self.get_data().shape
+        Operator.__init__(self, shapeout=shapeout, dtype=dtype, **keywords)
         self.set_rule((BroadcastingOperator, '.'),
                       lambda b1, b2: self._rule_broadcast(b1, b2, np.add),
                       AdditionOperator)
@@ -3807,16 +3811,14 @@ class DiagonalOperator(BroadcastingOperator):
         return DiagonalOperator(self.get_data()**n, broadcast=self.broadcast)
 
     def validatein(self, shape):
-        if self.data.size == 1:
-            return
-        n = self.data.ndim
+        n = len(self.data_shape)
         if len(shape) < n:
             raise ValueError("Invalid number of dimensions.")
 
         if self.broadcast == 'rightward':
-            it = zip(shape[:n], self.data.shape[:n])
+            it = zip(shape[:n], self.data_shape[:n])
         else:
-            it = zip(shape[-n:], self.data.shape[-n:])
+            it = zip(shape[-n:], self.data_shape[-n:])
         for si, sd in it:
             if sd != 1 and sd != si:
                 raise ValueError("The data array cannot be broadcast across th"
@@ -3825,10 +3827,10 @@ class DiagonalOperator(BroadcastingOperator):
     def toshapein(self, v):
         if self.shapein is not None:
             return v.reshape(self.shapein)
-        if self.data.ndim < 1:
+        if len(self.data_shape) < 1:
             return v
 
-        sd = list(self.data.shape)
+        sd = list(self.data_shape)
         n = sd.count(1)
         if n > 1:
             raise ValueError('Ambiguous broadcasting.')

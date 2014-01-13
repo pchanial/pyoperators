@@ -73,20 +73,27 @@ class DiagonalNumexprOperator(DiagonalOperator):
     >>> d = DiagonalNumexprOperator(alpha, '(x/x0)**data', {'x':1.2, 'x0':1.})
 
     """
-    def __init__(self, data, expr, global_dict=None, var='data', dtype=float,
-                 **keywords):
+    def __init__(self, data, expr, global_dict=None, var='data',
+                 broadcast=None, dtype=None, **keywords):
         if not isinstance(expr, str):
             raise TypeError('The second argument is not a string expression.')
         if numexpr.__version__ < '2.0.2':
             keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
                                                     inplace=False)
-        BroadcastingOperator.__init__(self, data, dtype=dtype, **keywords)
+        data = np.asarray(data)
+        if dtype is None:
+            dtype = data.dtype
+        data = np.array(data, dtype, copy=False)
+
         self.expr = expr
         self.var = var
         self.global_dict = global_dict
         self._global_dict = {} if global_dict is None else global_dict.copy()
-        self._global_dict[var] = self.data.T if self.broadcast == \
-            'rightward' else self.data
+        self._global_dict[var] = data.T \
+            if broadcast is not None and broadcast.lower() == 'rightward' \
+            else data
+        BroadcastingOperator.__init__(self, data, broadcast=broadcast,
+                                      dtype=dtype, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -152,7 +159,7 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
         if numexpr.__version__ < '2.0.2':
             keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
                                                     inplace=False)
-        BroadcastingOperator.__init__(self, 0, dtype=dtype, **keywords)
+        BroadcastingOperator.__init__(self, None, dtype=dtype, **keywords)
 
     def direct(self, input, output):
         numexpr.evaluate('(' + self.expr + ') * input',
