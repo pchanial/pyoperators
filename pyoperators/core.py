@@ -1284,8 +1284,8 @@ class Operator(object):
         if shapeout is not None:
             self.validateout(shapeout)
 
-        if self.shapein is not None and self.shapein == self.shapeout:
-            self._set_flags('square')
+        if self.shapein is not None and self.shapeout is not None:
+            self._set_flags(square=self.shapein == self.shapeout)
 
         if self.flags.square:
             if self.shapein is None:
@@ -1346,6 +1346,25 @@ class Operator(object):
             else:
                 name = 'Operator'
         self.__name__ = name
+
+    def _reset(self, **keywords_):
+        """
+        Use this method with cautious: the operator's flags are carried over
+        unless the 'flag' keyword is specified. It may lead to inconsistencies.
+
+        """
+        keywords = dict((k, v)
+                        for k, v in self.__dict__.items()
+                        if k in OPERATOR_ATTRIBUTES)
+        keywords.update(keywords_)
+
+        # reset attributes
+        for attr in OPERATOR_ATTRIBUTES + ['_C', '_T', '_H', '_I']:
+            if attr in self.__dict__:
+                del self.__dict__[attr]
+
+        # re-init operator with new attributes
+        Operator.__init__(self, **keywords)
 
     def _set_flags(self, flags=None, **keywords):
         """ Set flags to an Operator. """
@@ -2584,16 +2603,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         # bail if the merging has already been done
         if any(isinstance(o, CompositionOperator) for o in [op1, op2]):
             return
-
         keywords = cls._get_attributes([op1, op2])
-
-        # reset attributes
-        for attr in OPERATOR_ATTRIBUTES + ['_C', '_T', '_H', '_I']:
-            if attr in op.__dict__ and attr != 'flags':
-                del op.__dict__[attr]
-
-        # re-init operator with merged attributes
-        Operator.__init__(op, **keywords)
+        op._reset(**keywords)
 
     @staticmethod
     def _merge_attr(attrs):
