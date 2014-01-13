@@ -73,6 +73,7 @@ def test_diagonal_numexpr():
         else:
             assert op.broadcast == 'disabled'
             assert_eq(op.shapein, diag.shape)
+            assert_eq(op.shapeout, diag.shape)
         assert_inplace_outplace(op, values, expected)
 
     for cls, args in zip(
