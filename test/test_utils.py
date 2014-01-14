@@ -1,6 +1,7 @@
 import itertools
 import numpy as np
 
+from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
     cast,
@@ -374,5 +375,25 @@ def test_strplural():
 
 
 def test_strshape():
-    for shape, expected in zip(((1,), (2, 3)), ('1', '(2,3)')):
-        yield assert_eq, strshape(shape), expected
+    shapes = (None, (), (1,), (2, 3))
+    broadcasts = None, 'leftward', 'rightward'
+    expectedss = [
+        ('None', '()', '1', '(2,3)'),
+        ('None', '(...)', '(...,1)', '(...,2,3)'),
+        ('None', '(...)', '(1,...)', '(2,3,...)'),
+    ]
+
+    def func(shape, broadcast, expected):
+        assert_equal(strshape(shape, broadcast=broadcast), expected)
+
+    for broadcast, expecteds in zip(broadcasts, expectedss):
+        for shape, expected in zip(shapes, expecteds):
+            yield func, shape, broadcast, expected
+
+
+def test_strshape_error():
+    def func(x):
+        assert_raises(TypeError, strshape, x)
+
+    for x in 1, object(), [1]:
+        yield func, x

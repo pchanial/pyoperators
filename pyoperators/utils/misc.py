@@ -633,15 +633,23 @@ def strplural(n, name, nonumber=False, s=''):
         return ('' if nonumber else str(n) + ' ') + name + 's' + s
 
 
-def strshape(shape):
+def strshape(shape, broadcast=None):
     """Helper function to convert shapes or list of shapes into strings."""
-    if shape is None or len(shape) == 0:
+    if shape is None:
         return str(shape)
-    if isinstance(shape[0], tuple):
-        return ', '.join(strshape(s) for s in shape)
+    if not isinstance(shape, tuple):
+        raise TypeError('Invalid shape.')
+    if len(shape) == 0 and broadcast in ('leftward', 'rightward'):
+        return '(...)'
+    if broadcast == 'leftward':
+        shape = ('...',) + shape
+    elif broadcast == 'rightward':
+        shape = shape + ('...',)
+    if len(shape) == 0:
+        return str(shape)
     if len(shape) == 1:
         return str(shape[0])
-    return str(shape).replace(' ', '')
+    return str(shape).replace(' ', '').replace("'", '')
 
 
 def tointtuple(data):
