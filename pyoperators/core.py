@@ -1846,7 +1846,22 @@ class CommutativeCompositeOperator(CompositeOperator):
         return Operator.propagate_attributes(self, cls, attr)
 
     def _apply_rules(self, ops):
+        if DEBUG:
+            strcls = type(self).__name__.upper()[:-8]
+
+            def print_operands():
+                print()
+                print(len(strcls) * '=' + '=========')
+                print(strcls + ' OPERANDS')
+                print(len(strcls) * '=' + '=========')
+                for i, op in enumerate(ops):
+                    print('{0}: {1!r}'.format(i, op))
+            print_operands()
+
         if len(ops) <= 1:
+            if DEBUG:
+                print('OUT (only one operand)')
+                print()
             return ops
         i = 0
         while i < len(ops):
@@ -1858,13 +1873,22 @@ class CommutativeCompositeOperator(CompositeOperator):
             while j < len(ops):
                 if j != i:
                     for rule in ops[i].rules[type(self)]:
+                        if DEBUG:
+                            print("({0}, {1}): testing rule '{2}'".
+                                  format(i, j, rule))
                         new_ops = rule(ops[i], ops[j])
                         if new_ops is None:
                             continue
+                        if DEBUG:
+                            print('Because of rule {0}:'.format(rule))
+                            print('     MERGING ({0}, {1}) into {2!s} ~ {2!r}'.
+                                  format(i, j, new_ops))
                         del ops[j]
                         if j < i:
                             i -= 1
                         ops[i] = new_ops
+                        if DEBUG:
+                            print_operands()
                         consumed = True
                         break
                     if consumed:
@@ -2124,9 +2148,9 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                 print
             def print_operands():
                 print
-                print '========'
-                print 'OPERANDS'
-                print '========'
+                print '===================='
+                print 'COMPOSITION OPERANDS'
+                print '===================='
                 for i, op in enumerate(ops):
                     print '{0}: {1!r}'.format(i, op)
             import pdb
