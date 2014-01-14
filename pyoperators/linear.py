@@ -90,7 +90,7 @@ class DiagonalNumexprOperator(DiagonalOperator):
         global_dict=None,
         var='data',
         broadcast=None,
-        dtype=None,
+        dtype=float,
         **keywords,
     ):
         if not isinstance(expr, str):
@@ -99,10 +99,11 @@ class DiagonalNumexprOperator(DiagonalOperator):
             keywords['flags'] = self.validate_flags(
                 keywords.get('flags', {}), inplace=False
             )
-        data = np.asarray(data)
-        if dtype is None:
-            dtype = data.dtype
         data = np.array(data, dtype, copy=False)
+        if broadcast is None:
+            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
+        if broadcast == 'disabled':
+            keywords['shapein'] = data.shape
 
         self.expr = expr
         self.var = var
@@ -113,9 +114,7 @@ class DiagonalNumexprOperator(DiagonalOperator):
             if broadcast is not None and broadcast.lower() == 'rightward'
             else data
         )
-        BroadcastingOperator.__init__(
-            self, data, broadcast=broadcast, dtype=dtype, **keywords
-        )
+        BroadcastingOperator.__init__(self, data, broadcast, dtype=dtype, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -174,30 +173,30 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
 
     """
 
-    def __init__(self, expr, global_dict=None, dtype=float, **keywords):
+    def __init__(self, expr, global_dict=None, broadcast=None, dtype=float, **keywords):
         if not isinstance(expr, str):
             raise TypeError('The first argument is not a string expression.')
-        if 'broadcast' in keywords and keywords['broadcast'] == 'rightward':
+        if broadcast is None:
+            broadcast = 'disabled'
+        if broadcast.lower() == 'rightward':
             raise ValueError(
                 'The class DiagonalNumexprNonSeparableOperator does not handle'
                 ' rightward broadcasting. Use the class DiagonalNumexprOperato'
                 'r for this purpose.'
             )
-        if 'broadcast' not in keywords or keywords['broadcast'] != 'leftward':
-            keywords['broadcast'] = 'disabled'
         self.expr = expr
         self.global_dict = global_dict
         if (
             'shapein' not in keywords
             and 'shapeout' not in keywords
-            and keywords['broadcast'] == 'disabled'
+            and broadcast == 'disabled'
         ):
             keywords['shapein'] = self.get_data().shape
         if numexpr.__version__ < '2.0.2':
             keywords['flags'] = self.validate_flags(
                 keywords.get('flags', {}), inplace=False
             )
-        BroadcastingOperator.__init__(self, None, dtype=dtype, **keywords)
+        BroadcastingOperator.__init__(self, None, broadcast, dtype=dtype, **keywords)
 
     def direct(self, input, output):
         numexpr.evaluate(

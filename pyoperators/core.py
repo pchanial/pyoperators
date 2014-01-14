@@ -3537,7 +3537,7 @@ class BroadcastingOperator(Operator):
     a broadcasting along the fast dimension.
 
     """
-    def __init__(self, data, broadcast=None, shapeout=None, dtype=None,
+    def __init__(self, data, broadcast, shapeout=None, dtype=None,
                  **keywords):
         if data is None:
             if dtype is None:
@@ -3557,11 +3557,6 @@ class BroadcastingOperator(Operator):
             raise ValueError(
                 "Invalid value '{0}' for the broadcast keyword. Expected value"
                 "s are {1}.".format(broadcast, strenum(values)))
-        if data is not None and broadcast == 'disabled':
-            if shapeout not in (None, data.shape):
-                raise ValueError(
-                    "The input shapein is incompatible with the data shape.")
-            shapeout = data.shape
         self.broadcast = broadcast
         self.data = data
         self.data_shape = self.get_data().shape
@@ -3881,14 +3876,13 @@ class MaskOperator(DiagonalOperator):
 
     """
     def __init__(self, mask, broadcast=None, **keywords):
-        mask = np.array(mask, dtype=np.bool8, copy=False)
+        mask = np.array(mask, dtype=bool, copy=False)
+        if broadcast is None:
+            broadcast = 'scalar' if mask.ndim == 0 else 'disabled'
+        if broadcast == 'disabled':
+            keywords['shapein'] = mask.shape
         nmones, nzeros, nones, other, same = inspect_special_values(mask)
         if mask.size in (nzeros, nones):
-            if broadcast is None:
-                broadcast = 'scalar' if mask.ndim == 0 else 'disabled'
-            if broadcast == 'disabled':
-                keywords['shapein'] = mask.shape
-                keywords['shapeout'] = mask.shape
             if nzeros == mask.size:
                 self.__class__ = IdentityOperator
                 self.__init__(**keywords)
