@@ -15,7 +15,7 @@ from .decorators import inplace, linear, real, square, symmetric
 from .core import (
     Operator,
     BlockRowOperator,
-    BroadcastingOperator,
+    BroadcastingBase,
     CompositionOperator,
     DenseOperator,
     DiagonalOperator,
@@ -90,7 +90,7 @@ class DiagonalNumexprOperator(DiagonalOperator):
         global_dict=None,
         var='data',
         broadcast=None,
-        dtype=float,
+        dtype=None,
         **keywords,
     ):
         if not isinstance(expr, str):
@@ -99,11 +99,13 @@ class DiagonalNumexprOperator(DiagonalOperator):
             keywords['flags'] = self.validate_flags(
                 keywords.get('flags', {}), inplace=False
             )
-        data = np.array(data, dtype, copy=False)
+        data = np.asarray(data)
         if broadcast is None:
             broadcast = 'scalar' if data.ndim == 0 else 'disabled'
         if broadcast == 'disabled':
             keywords['shapein'] = data.shape
+        if dtype is None:
+            dtype = float_dtype(data.dtype)
 
         self.expr = expr
         self.var = var
@@ -114,7 +116,7 @@ class DiagonalNumexprOperator(DiagonalOperator):
             if broadcast is not None and broadcast.lower() == 'rightward'
             else data
         )
-        BroadcastingOperator.__init__(self, data, broadcast, dtype=dtype, **keywords)
+        BroadcastingBase.__init__(self, data, broadcast, dtype=dtype, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -207,7 +209,7 @@ class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
         return numexpr.evaluate(self.expr, global_dict=self.global_dict)
 
     @staticmethod
-    def _rule_left_block(self, op, cls):
+    def _rule_left_block(self, op):
         return None
 
     @staticmethod
