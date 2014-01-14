@@ -2222,7 +2222,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         operands = self._validate_operands(operands)
         operands = self._apply_rule_homothety(operands)
         operands = self._apply_rules(operands)
-        if len(operands) == 1:
+        if len(operands) == 1 and not isinstance(self, GroupOperator):
             self.__class__ = operands[0].__class__
             self.__dict__ = operands[0].__dict__.copy()
             return
@@ -2685,7 +2685,7 @@ class GroupOperator(CompositionOperator):
         if not isinstance(self, GroupOperator):
             return
 
-        dtype = self._find_common_type(o.dtype for o in operands)
+        dtype = self._find_common_type(o.dtype for o in self.operands)
         switch_T_H = self.flags.real and dtype is not None and \
             dtype.kind == 'c'
         if switch_T_H:
