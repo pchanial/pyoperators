@@ -6,12 +6,11 @@ import sys
 from nose.plugins.skip import SkipTest
 from pyoperators import memory, decorators
 from pyoperators.core import (
-    Operator, AdditionOperator, BroadcastingOperator, BlockColumnOperator,
-    BlockDiagonalOperator, BlockRowOperator, BlockSliceOperator,
-    CompositionOperator, GroupOperator, ConstantOperator, DenseOperator,
-    DiagonalOperator, IdentityOperator, MaskOperator, MultiplicationOperator,
-    HomothetyOperator, ReductionOperator, ZeroOperator, asoperator,
-    _pool as pool, I, O)
+    Operator, AdditionOperator, BlockColumnOperator, BlockDiagonalOperator,
+    BlockRowOperator, BlockSliceOperator, CompositionOperator, GroupOperator,
+    ConstantOperator, DenseOperator, DiagonalOperator, IdentityOperator,
+    MaskOperator, MultiplicationOperator, HomothetyOperator, ReductionOperator,
+    ZeroOperator, asoperator, _pool as pool, I, O)
 from pyoperators.memory import zeros
 from pyoperators.utils import (
     ndarraywrap, first_is_not, operation_assignment, product)
@@ -1997,22 +1996,6 @@ def test_powers_diagonal():
 #=============================
 # Test broadcasting operators
 #=============================
-
-def test_broadcasting_as_strided():
-    shapes = {'leftward': (2, 4, 3, 4, 2, 2),
-              'rightward': (3, 2, 2, 3, 1, 2)}
-
-    def func(b):
-        o = BroadcastingOperator(np.arange(6).reshape((3, 1, 2, 1)), b)
-        s = shapes[b]
-        if b == 'leftward':
-            v = o.data*np.ones(s)
-        else:
-            v = (o.data.T * np.ones(s, int).T).T
-        assert_eq(o._as_strided(s), v)
-    for b in ('rightward', 'leftward'):
-        yield func, b
-
 
 def test_diagonal1():
     data = (0., 1., [0, 0], [1, 1], 2, [2, 2], [0, 1], [-1, -1], [-1, 1],

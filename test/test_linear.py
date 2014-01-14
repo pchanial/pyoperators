@@ -39,15 +39,12 @@ def test_diagonal_numexpr():
     diag = np.array([1, 2, 3])
     expr = '(data+1)*3'
 
-    def func1(cls, args, broadcast):
-        assert_raises(ValueError, cls, broadcast=broadcast, *args)
-
-    def func2(cls, args, broadcast, values):
+    def func(broadcast, values):
         if broadcast == 'rightward':
             expected = (values.T*(diag.T+1)*3).T
         else:
             expected = values*(diag+1)*3
-        op = cls(broadcast=broadcast, *args)
+        op = DiagonalNumexprOperator(diag, expr, broadcast=broadcast)
         if broadcast in ('leftward', 'rightward'):
             assert op.broadcast == broadcast
             assert_is_none(op.shapein)

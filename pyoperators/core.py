@@ -34,7 +34,6 @@ __all__ = [
     'BlockDiagonalOperator',
     'BlockRowOperator',
     'BlockSliceOperator',
-    'BroadcastingOperator',
     'CompositionOperator',
     'ConstantOperator',
     'DenseOperator',
@@ -3550,7 +3549,7 @@ class ReshapeOperator(Operator):
         return strshape(self.shapeout) + '←' + strshape(self.shapein)
 
 
-class BroadcastingOperator(Operator):
+class BroadcastingBase(Operator):
     """
     Abstract class for operators that operate on a data array and
     the input array, and for which broadcasting of the data array across
@@ -3558,65 +3557,60 @@ class BroadcastingOperator(Operator):
 
     Leftward broadcasting is the normal numpy's broadcasting along the slow
     dimensions, if the array is stored in C order. Rightward broadcasting is
-    a broadcasting along the fast dimension.
+    a broadcasting along the fast dimensions.
 
     """
-    def __init__(self, data, broadcast, shapeout=None, dtype=None,
-                 **keywords):
-        if data is None:
-            if dtype is None:
-                raise ValueError('The data type is not specified.')
-            if broadcast is None:
-                raise ValueError('The broadcast mode is not specified.')
-        else:
-            if dtype is None:
-                data = np.asarray(data)
-                dtype = data.dtype
-            data = np.array(data, dtype, copy=False)
-            if broadcast is None:
-                broadcast = 'scalar' if data.ndim == 0 else 'disabled'
+    def __init__(self, data, broadcast, **keywords):
+        if broadcast is None:
+            raise ValueError('The broadcast mode is not specified.')
+        data = np.asarray(data)
         broadcast = broadcast.lower()
         values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError(
                 "Invalid value '{0}' for the broadcast keyword. Expected value"
                 "s are {1}.".format(broadcast, strenum(values)))
+        if data.ndim == 0 and broadcast in ('leftward', 'rightward'):
+            broadcast = 'scalar'
         self.broadcast = broadcast
         self.data = data
-        self.data_shape = self.get_data().shape
-        Operator.__init__(self, shapeout=shapeout, dtype=dtype, **keywords)
-        self.set_rule((BroadcastingOperator, '.'),
-                      lambda b1, b2: self._rule_broadcast(b1, b2, np.add),
+        Operator.__init__(self, **keywords)
+        self.set_rule(('.', BroadcastingBase),
+                      lambda s, b: s._rule_broadcast(s, b, np.add),
                       AdditionOperator)
-        self.set_rule((BroadcastingOperator, '.'),
-                      lambda b1, b2: self._rule_broadcast(b1, b2, np.multiply),
+        self.set_rule(('.', BroadcastingBase),
+                      lambda s, b: s._rule_broadcast(s, b, np.multiply),
+                      MultiplicationOperator)
+        self.set_rule(('.', BroadcastingBase),
+                      lambda s, b: s._rule_broadcast(s, b, np.multiply),
                       CompositionOperator)
         self.set_rule(('.', BlockOperator),
-                      lambda s, o: self._rule_left_block(s, o,
-                      CompositionOperator), CompositionOperator)
+                      lambda s, o: s._rule_right_block(
+                          s, o, CompositionOperator), CompositionOperator)
         self.set_rule((BlockOperator, '.'),
-                      lambda o, s: self._rule_right_block(o, s,
-                      CompositionOperator), CompositionOperator)
+                      lambda o, s: s._rule_left_block(o, s),
+                      CompositionOperator)
         self.set_rule(('.', BlockOperator),
-                      lambda s, o: self._rule_left_block(s, o,
-                      AdditionOperator), AdditionOperator)
+                      lambda s, o: s._rule_right_block(s, o, AdditionOperator),
+                      AdditionOperator)
         self.set_rule(('.', BlockOperator),
-                      lambda s, o: self._rule_left_block(s, o,
-                      MultiplicationOperator), MultiplicationOperator)
+                      lambda s, o: s._rule_right_block(
+                          s, o, MultiplicationOperator),
+                      MultiplicationOperator)
 
     def get_data(self):
         return self.data
 
     @staticmethod
     def _rule_broadcast(b1, b2, operation):
-        # this rule only returns direct subclasses of BroadcastingOperator:
-        i1 = b1.__class__.__mro__.index(BroadcastingOperator) - 1
+        # this rule only returns direct subclasses of BroadcastingBase:
+        i1 = b1.__class__.__mro__.index(BroadcastingBase) - 1
         try:
-            i2 = b2.__class__.__mro__.index(BroadcastingOperator) - 1
+            i2 = b2.__class__.__mro__.index(BroadcastingBase) - 1
         except ValueError:
             i2 = -1
         if i1 == i2 == -1:
-            cls = BroadcastingOperator
+            cls = BroadcastingBase
         elif i1 == -1:
             cls = b2.__class__.__mro__[i2]
         elif i2 == -1:
@@ -3702,27 +3696,26 @@ class BroadcastingOperator(Operator):
             ops = []
             for s, o in zip(slices, op.operands):
                 if nargs == 0:
-                    replicated = type(self)(shapeout=data[s].shape, *args,
-                                            **keywords)
+                    sliced = type(self)(*args, **keywords)
                 else:
-                    replicated = type(self)(data[s], broadcast=b, *args,
-                                            **keywords)
-                ops.append(func_operation(replicated, o))
+                    sliced = type(self)(data[s], broadcast=b,
+                                        *args, **keywords)
+                ops.append(func_operation(sliced, o))
 
         return BlockOperator(ops, op.partitionin, op.partitionout, op.axisin,
                              op.axisout, op.new_axisin, op.new_axisout)
 
     @staticmethod
-    def _rule_left_block(self, op, cls):
-        func_op = lambda d, b: cls([d, b])
-        return self._rule_block(self, op, op.shapeout, op.partitionout,
-                                op.axisout, op.new_axisout, func_op)
-
-    @staticmethod
-    def _rule_right_block(op, self, cls):
-        func_op = lambda d, b: cls([b, d])
+    def _rule_left_block(op, self):
+        func_op = lambda o, b: CompositionOperator([b, o])
         return self._rule_block(self, op, op.shapein, op.partitionin,
                                 op.axisin, op.new_axisin, func_op)
+
+    @staticmethod
+    def _rule_right_block(self, op, cls):
+        func_op = lambda o, b: cls([o, b])
+        return self._rule_block(self, op, op.shapeout, op.partitionout,
+                                op.axisout, op.new_axisout, func_op)
 
     def _as_strided(self, shape):
         if shape is None:
@@ -3744,7 +3737,7 @@ class BroadcastingOperator(Operator):
 
 @symmetric
 @inplace
-class DiagonalOperator(BroadcastingOperator):
+class DiagonalOperator(BroadcastingBase):
     """
     Diagonal operator.
 
@@ -3777,7 +3770,7 @@ class DiagonalOperator(BroadcastingOperator):
            [0, 0, 0, 2]])
 
     """
-    def __init__(self, data, broadcast=None, **keywords):
+    def __init__(self, data, broadcast=None, dtype=None, **keywords):
         data = np.asarray(data)
         if broadcast is None:
             broadcast = 'scalar' if data.ndim == 0 else 'disabled'
@@ -3786,19 +3779,19 @@ class DiagonalOperator(BroadcastingOperator):
             keywords['shapeout'] = data.shape
         n = data.size
         nmones, nzeros, nones, other, same = inspect_special_values(data)
-        if 'dtype' not in keywords and nzeros + nones == n:
-            keywords['dtype'] = None
         if nzeros == n and not isinstance(self, ZeroOperator):
+            keywords['flags'] = Operator.validate_flags(
+                keywords.get('flags', {}), square=True)
             self.__class__ = ZeroOperator
-            self.__init__(**keywords)
+            self.__init__(dtype=dtype, **keywords)
             return
         if nones == n and not isinstance(self, IdentityOperator):
             self.__class__ = IdentityOperator
-            self.__init__(**keywords)
+            self.__init__(dtype=dtype, **keywords)
             return
         if same and not isinstance(self, (HomothetyOperator, ZeroOperator)):
             self.__class__ = HomothetyOperator
-            self.__init__(data.flat[0], **keywords)
+            self.__init__(data.flat[0], dtype=dtype, **keywords)
             return
         if nones + nzeros == n and not isinstance(self, (HomothetyOperator,
                                                          MaskOperator)):
@@ -3809,7 +3802,10 @@ class DiagonalOperator(BroadcastingOperator):
         if nmones + nones == n:
             keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
                                                     involutary=True)
-        BroadcastingOperator.__init__(self, data, broadcast, **keywords)
+        if dtype is None and (data.ndim > 0 or data not in (0, 1)):
+            dtype = data.dtype
+        BroadcastingBase.__init__(self, data, broadcast, dtype=dtype,
+                                  **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -3837,18 +3833,18 @@ class DiagonalOperator(BroadcastingOperator):
 
     def __pow__(self, n):
         if n in (-1, 0, 1):
-            return BroadcastingOperator.__pow__(self, n)
+            return BroadcastingBase.__pow__(self, n)
         return DiagonalOperator(self.get_data()**n, broadcast=self.broadcast)
 
     def validatein(self, shape):
-        n = len(self.data_shape)
+        n = self.data.ndim
         if len(shape) < n:
             raise ValueError("Invalid number of dimensions.")
 
         if self.broadcast == 'rightward':
-            it = zip(shape[:n], self.data_shape[:n])
+            it = zip(shape[:n], self.data.shape[:n])
         else:
-            it = zip(shape[-n:], self.data_shape[-n:])
+            it = zip(shape[-n:], self.data.shape[-n:])
         for si, sd in it:
             if sd != 1 and sd != si:
                 raise ValueError("The data array cannot be broadcast across th"
@@ -3857,10 +3853,10 @@ class DiagonalOperator(BroadcastingOperator):
     def toshapein(self, v):
         if self.shapein is not None:
             return v.reshape(self.shapein)
-        if len(self.data_shape) < 1:
+        if self.data.ndim < 1:
             return v
 
-        sd = list(self.data_shape)
+        sd = list(self.data.shape)
         n = sd.count(1)
         if n > 1:
             raise ValueError('Ambiguous broadcasting.')
@@ -3899,23 +3895,25 @@ class MaskOperator(DiagonalOperator):
     We follow the convention of MaskedArray, where True means masked.
 
     """
-    def __init__(self, mask, broadcast=None, **keywords):
-        mask = np.array(mask, dtype=bool, copy=False)
+    def __init__(self, data, broadcast=None, **keywords):
+        data = np.array(data, dtype=bool, copy=False)
         if broadcast is None:
-            broadcast = 'scalar' if mask.ndim == 0 else 'disabled'
+            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
         if broadcast == 'disabled':
-            keywords['shapein'] = mask.shape
-        nmones, nzeros, nones, other, same = inspect_special_values(mask)
-        if mask.size in (nzeros, nones):
-            if nzeros == mask.size:
+            keywords['shapein'] = data.shape
+        nmones, nzeros, nones, other, same = inspect_special_values(data)
+        if data.size in (nzeros, nones):
+            if nzeros == data.size:
                 self.__class__ = IdentityOperator
                 self.__init__(**keywords)
                 return
-            if nones == mask.size:
+            if nones == data.size:
+                keywords['flags'] = Operator.validate_flags(
+                    keywords.get('flags', {}), square=True)
                 self.__class__ = ZeroOperator
                 self.__init__(**keywords)
                 return
-        BroadcastingOperator.__init__(self, mask, broadcast, **keywords)
+        BroadcastingBase.__init__(self, data, broadcast, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -3934,19 +3932,16 @@ class HomothetyOperator(DiagonalOperator):
 
     """
     def __init__(self, data, **keywords):
-        if 'broadcast' in keywords:
-            if keywords['broadcast'] != 'scalar':
-                raise ValueError("Invalid broadcast value '{0}'.".format(
-                                 keywords['broadcast']))
-            del keywords['broadcast']
         data = np.asarray(data)
         if data.ndim > 0:
             if any(s != 0 for s in data.strides) and \
                np.any(data.flat[0] != data):
-                raise ValueError("The input is not a scalar..")
+                raise ValueError("The input is not a scalar.")
             data = np.asarray(data.flat[0])
 
-        DiagonalOperator.__init__(self, data, 'scalar', **keywords)
+        DiagonalOperator.__init__(self, data, **keywords)
+        if type(self) is not HomothetyOperator:
+            return
         self.set_rule('C', lambda s: HomothetyOperator(np.conjugate(s.data)))
         self.set_rule('I', lambda s: HomothetyOperator(
             1/s.data if s.data != 0 else np.nan))
@@ -4007,25 +4002,29 @@ class IdentityOperator(HomothetyOperator):
 
 @idempotent
 @inplace
-class ConstantOperator(BroadcastingOperator):
+class ConstantOperator(BroadcastingBase):
     """
     Non-linear constant operator.
 
     """
-    def __init__(self, data, broadcast=None, **keywords):
+    def __init__(self, data, broadcast=None, dtype=None, **keywords):
         data = np.asarray(data)
         if broadcast is None:
             broadcast = 'scalar' if data.ndim == 0 else 'disabled'
         if broadcast == 'disabled':
             keywords['shapeout'] = data.shape
         if data.ndim > 0 and np.all(data == data.flat[0]):
-            self.__init__(data.flat[0], **keywords)
+            self.__init__(data.flat[0], dtype=dtype, **keywords)
             return
         if not isinstance(self, ZeroOperator) and data.ndim == 0 and data == 0:
             self.__class__ = ZeroOperator
-            self.__init__(**keywords)
+            self.__init__(dtype=dtype, **keywords)
             return
-        BroadcastingOperator.__init__(self, data, broadcast, **keywords)
+
+        if dtype is None and not isinstance(self, ZeroOperator):
+            dtype = data.dtype
+        BroadcastingBase.__init__(self, data, broadcast, dtype=dtype,
+                                  **keywords)
         self.set_rule('C', lambda s: ConstantOperator(
             s.data.conjugate(), broadcast=s.broadcast))
 #        if self.flags.shape_input == 'unconstrained' and \
@@ -4037,10 +4036,6 @@ class ConstantOperator(BroadcastingOperator):
                       MultiplicationOperator)
         self.set_rule(('.', DiagonalOperator), self._rule_mul,
                       MultiplicationOperator)
-        self.set_rule(('.', BlockOperator), lambda s, o: self.
-                      _rule_left_block_composition(s, o), CompositionOperator)
-        self.set_rule((BlockOperator, '.'), lambda o, s: self.
-                      _rule_right_block_composition(o, s), CompositionOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'rightward':
@@ -4070,22 +4065,19 @@ class ConstantOperator(BroadcastingOperator):
 
     @staticmethod
     def _rule_mul(self, op):
-        return CompositionOperator([DiagonalOperator(self.data, broadcast=
-            self.broadcast, shapein=self.shapeout), op])
+        return CompositionOperator(
+            [DiagonalOperator(self.data, broadcast=self.broadcast,
+                              shapein=self.shapeout), op])
 
     @staticmethod
-    def _rule_left_block_composition(self, op):
-        if self.flags.shape_output != 'explicit':
-            return
-        if self.shapeout != op.shapeout:
-            return
-        func_op = lambda c, b: CompositionOperator([c, b])
-        return self._rule_block(self, op, op.shapeout, op.partitionout,
-                                op.axisout, op.new_axisout, func_op)
-
-    @staticmethod
-    def _rule_right_block_composition(op, self):
+    def _rule_left_block(op, self):
         return
+
+    @staticmethod
+    def _rule_right_block(self, op, cls):
+        if cls is CompositionOperator:
+            return
+        return BroadcastingBase._rule_right_block(self, op, cls)
 
     def __str__(self):
         return str(self.data)
