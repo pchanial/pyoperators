@@ -2003,8 +2003,7 @@ def test_broadcasting_as_strided():
               'rightward': (3, 2, 2, 3, 1, 2)}
 
     def func(b):
-        o = BroadcastingOperator(np.arange(6).reshape((3, 1, 2, 1)),
-                                 broadcast=b)
+        o = BroadcastingOperator(np.arange(6).reshape((3, 1, 2, 1)), b)
         s = shapes[b]
         if b == 'leftward':
             v = o.data*np.ones(s)
