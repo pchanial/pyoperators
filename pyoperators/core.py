@@ -668,10 +668,11 @@ class Operator(object):
             raise ValueError("The operator's output shape is not explicit. Spe"
                              "cify it with the 'shapeout' keyword.")
         m, n = product(shapeout), product(shapein)
-        d = np.empty((n, m), self.dtype)
+        dtype = int if self.dtype is None else self.dtype
+        d = np.empty((n, m), dtype)
 
         if not inplace or not self.flags.inplace:
-            v = zeros(n, self.dtype)
+            v = zeros(n, dtype)
             if not self.flags.aligned_output:
                 for i in xrange(n):
                     v[i] = 1
@@ -679,7 +680,7 @@ class Operator(object):
                     self.direct(v.reshape(shapein), o)
                     v[i] = 0
             else:
-                o = empty(shapeout, self.dtype)
+                o = empty(shapeout, dtype)
                 for i in xrange(n):
                     v[i] = 1
                     self.direct(v.reshape(shapein), o)
@@ -688,7 +689,7 @@ class Operator(object):
             return d.T
 
         # test in-place mechanism
-        u = empty(max(m, n), self.dtype)
+        u = empty(max(m, n), dtype)
         v = u[:n]
         w = u[:m]
         for i in xrange(n):
@@ -3373,15 +3374,14 @@ class BlockColumnOperator(BlockOperator):
     Example
     -------
     >>> I = IdentityOperator(shapein=3)
-    >>> op = BlockColumnOperator([I,2*I])
+    >>> op = BlockColumnOperator([I,2*I], axisout=0)
     >>> op.todense()
-
-    array([[ 1.,  0.,  0.],
-           [ 0.,  1.,  0.],
-           [ 0.,  0.,  1.],
-           [ 2.,  0.,  0.],
-           [ 0.,  2.,  0.],
-           [ 0.,  0.,  2.]])
+    array([[1, 0, 0],
+           [0, 1, 0],
+           [0, 0, 1],
+           [2, 0, 0],
+           [0, 2, 0],
+           [0, 0, 2]])
 
     """
     def __init__(self, operands, partitionout=None, axisout=None,
@@ -3438,12 +3438,11 @@ class BlockRowOperator(BlockOperator):
     Example
     -------
     >>> I = IdentityOperator(shapein=3)
-    >>> op = BlockRowOperator([I,2*I])
+    >>> op = BlockRowOperator([I,2*I], axisin=0)
     >>> op.todense()
-
-    array([[ 1.,  0.,  0., 2., 0., 0.],
-           [ 0.,  1.,  0., 0., 2., 0.],
-           [ 0.,  0.,  1., 0., 0., 2.]])
+    array([[1, 0, 0, 2, 0, 0],
+           [0, 1, 0, 0, 2, 0],
+           [0, 0, 1, 0, 0, 2]])
 
     """
     def __init__(self, operands, partitionin=None, axisin=None,
@@ -3743,7 +3742,6 @@ class DiagonalOperator(BroadcastingBase):
 
     Arguments
     ---------
-
     data : ndarray
       The diagonal coefficients
 
@@ -3755,15 +3753,12 @@ class DiagonalOperator(BroadcastingBase):
     -------
     >>> A = DiagonalOperator(np.arange(1, 6, 2))
     >>> A.todense()
-
     array([[1, 0, 0],
            [0, 3, 0],
            [0, 0, 5]])
 
-    >>> A = DiagonalOperator(arange(1, 3), broadcast='rightward',
-    ...                      shapein=(2, 2))
+    >>> A = DiagonalOperator([1, 2], broadcast='rightward', shapein=(2, 2))
     >>> A.todense()
-
     array([[1, 0, 0, 0],
            [0, 1, 0, 0],
            [0, 0, 2, 0],
@@ -3886,9 +3881,8 @@ class MaskOperator(DiagonalOperator):
     -------
     >>> M = MaskOperator([True, False])
     >>> M.todense()
-
-    array([[False, False],
-           [False,  True]], dtype=bool)
+    array([[0, 0],
+           [0, 1]])
 
     Notes
     -----
@@ -3967,18 +3961,17 @@ class IdentityOperator(HomothetyOperator):
     """
     A subclass of HomothetyOperator with data = 1.
 
-    Exemple
-    -------
+    Examples
+    --------
     >>> I = IdentityOperator()
-    >>> I.todense(3)
-
-    array([[ 1.,  0.,  0.],
-           [ 0.,  1.,  0.],
-           [ 0.,  0.,  1.]])
+    >>> I.todense(shapein=3)
+    array([[1, 0, 0],
+           [0, 1, 0],
+           [0, 0, 1]])
 
     >>> I = IdentityOperator(shapein=2)
     >>> I * np.arange(2)
-    ndarraywrap([ 0.,  1.])
+    array([0, 1])
 
     """
     def __init__(self, shapein=None, **keywords):
