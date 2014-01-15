@@ -1720,19 +1720,12 @@ class CompositeOperator(Operator):
 
     Notes
     -----
-    Composites can morph into their single operand during the call to
-    CompositeOperator.__init__, As a consequence, one should make sure to return
-    right after the call in the parent __init__ method.
-
-    class MyCompositeOperator(CompositeOperator):
-        def __init__(self, operands, **keywords):
-            ...
-            CompositeOperator.__init__(self, operands)
-            if not isinstance()
+    Composites can morph into their single operand if the attribute
+    'morph_single_operand' is set to True. As a consequence, one should make
+    sure to return right after the call in the parent __init__ method.
 
     """
     def __init__(self, operands, dtype=None, **keywords):
-        operands = self._validate_operands(operands)
         self._validate_comm(operands)
         if dtype is None:
             dtype = self._find_common_type(o.dtype for o in operands)
@@ -1740,6 +1733,8 @@ class CompositeOperator(Operator):
         Operator.__init__(self, dtype=dtype, **keywords)
         self.propagate_commin(self.commin)
         self.propagate_commout(self.commout)
+
+    morph_single_operand = True
 
     def propagate_attributes(self, cls, attr):
         return self.operands[0].propagate_attributes(cls, attr)
@@ -1821,9 +1816,13 @@ class CommutativeCompositeOperator(CompositeOperator):
     """
     def __init__(self, operands, operation=None, **keywords):
         keywords = self._get_attributes(operands, **keywords)
-        CompositeOperator.__init__(self, operands, **keywords)
-        if not isinstance(self, CommutativeCompositeOperator):
+        operands = self._apply_rules(operands)
+        if len(operands) == 1 and self.morph_single_operand:
+            self.__class__ = operands[0].__class__
+            self.__dict__ = operands[0].__dict__.copy()
+            self._reset(**keywords)
             return
+        CompositeOperator.__init__(self, operands, **keywords)
         self.set_rule(('.', Operator), lambda s, o: type(s)(s.operands + [o]),
                       type(self))
         self.set_rule(('.', type(self)), lambda s, o:
@@ -2000,17 +1999,14 @@ class AdditionOperator(CommutativeCompositeOperator):
 
     """
     def __init__(self, operands, **keywords):
-        operands = self._validate_operands(operands, constant=True)
-        operands = self._apply_rules(operands)
-        if len(operands) == 1:
-            self.__class__ = operands[0].__class__
-            self.__dict__ = operands[0].__dict__.copy()
-            return
+        operands = self._validate_operands(operands)
         CommutativeCompositeOperator.__init__(self, operands, operator.iadd,
                                               **keywords)
+        if not isinstance(self, CommutativeCompositeOperator):
+            return
+        self.set_rule('C', lambda s: type(s)([m.C for m in s.operands]))
         self.set_rule('T', lambda s: type(s)([m.T for m in s.operands]))
         self.set_rule('H', lambda s: type(s)([m.H for m in s.operands]))
-        self.set_rule('C', lambda s: type(s)([m.C for m in s.operands]))
 
     @staticmethod
     def _merge_flags(operands):
@@ -2035,13 +2031,10 @@ class MultiplicationOperator(CommutativeCompositeOperator):
     """
     def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands, constant=True)
-        operands = self._apply_rules(operands)
-        if len(operands) == 1:
-            self.__class__ = operands[0].__class__
-            self.__dict__ = operands[0].__dict__.copy()
-            return
         CommutativeCompositeOperator.__init__(self, operands, operator.imul,
                                               **keywords)
+        if not isinstance(self, CommutativeCompositeOperator):
+            return
         self.set_rule('C', lambda s: type(s)([m.C for m in s.operands]))
 
     @staticmethod
@@ -2082,9 +2075,7 @@ class BlockSliceOperator(CommutativeCompositeOperator):
 
     """
     def __init__(self, operands, slices, **keywords):
-
         operands = self._validate_operands(operands)
-
         if any(not op.flags.square and op.flags.shape_output != 'unconstrained'
                for op in operands):
             raise ValueError('Input operands must be square.')
@@ -2097,7 +2088,6 @@ class BlockSliceOperator(CommutativeCompositeOperator):
                 "The number of slices '{0}' is not equal to the number of oper"
                 "ands '{1}'.".format(len(slices), len(operands)))
 
-        keywords = self._get_attributes(operands, **keywords)
         CommutativeCompositeOperator.__init__(self, operands, **keywords)
         self.slices = tuple(slices)
         self.set_rule('C', lambda s: BlockSliceOperator(
@@ -2106,9 +2096,12 @@ class BlockSliceOperator(CommutativeCompositeOperator):
                       [op.T for op in s.operands], s.slices))
         self.set_rule('H', lambda s: BlockSliceOperator(
                       [op.H for op in s.operands], s.slices))
-        self.set_rule(('.', HomothetyOperator), lambda s, o: BlockSliceOperator(
-                      [o.data * op for op in s.operands], s.slices),
+        self.set_rule(('.', HomothetyOperator),
+                      lambda s, o: BlockSliceOperator(
+                          [o.data * op for op in s.operands], s.slices),
                       CompositionOperator)
+
+    morph_single_operand = False
 
     def direct(self, input, output):
         if not isalias(input, output):
@@ -2259,16 +2252,15 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         operands = self._validate_operands(operands)
         operands = self._apply_rule_homothety(operands)
         operands = self._apply_rules(operands)
-        if len(operands) == 1 and not isinstance(self, GroupOperator):
+        if len(operands) == 1 and self.morph_single_operand:
             self.__class__ = operands[0].__class__
             self.__dict__ = operands[0].__dict__.copy()
             return
         keywords = self._get_attributes(operands, **keywords)
         self._disable_inplace_reduction = \
             not operands[0].flags.inplace_reduction
-
-        NonCommutativeCompositeOperator.__init__(self, operands, **keywords)
         self._info = {}
+        NonCommutativeCompositeOperator.__init__(self, operands, **keywords)
         self.set_rule('C', lambda s: CompositionOperator(
                       [m.C for m in s.operands]))
         self.set_rule('T', lambda s: CompositionOperator(
@@ -2747,6 +2739,8 @@ class GroupOperator(CompositionOperator):
         self.del_rule(('.', CompositionOperator), CompositionOperator)
         self.del_rule(('.', Operator), CompositionOperator)
         self.del_rule((Operator, '.'), CompositionOperator)
+
+    morph_single_operand = False
 
 
 class BlockOperator(NonCommutativeCompositeOperator):
