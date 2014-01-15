@@ -1625,6 +1625,19 @@ class Operator(object):
         a = []
         init = getattr(self, '__init_original__', self.__init__)
         vars, args, keywords, defaults = inspect.getargspec(init)
+        if defaults is None:
+            defaults = []
+        else:
+            defaults = list(defaults)
+
+        #XXX it would be better to walk the Operator's hirarchy
+        # to grab all keywords.
+        if 'shapein' not in vars:
+            vars.append('shapein')
+            defaults.append(None)
+        if 'shapeout' not in vars:
+            vars.append('shapeout')
+            defaults.append(None)
 
         for ivar, var in enumerate(vars):
             if var in ('flags', 'self'):
@@ -1640,7 +1653,7 @@ class Operator(object):
             val = getattr(self, var, None)
             if isinstance(val, types.MethodType):
                 continue
-            nargs = len(vars) - (len(defaults) if defaults is not None else 0)
+            nargs = len(vars) - len(defaults)
             if ivar >= nargs:
                 try:
                     if val == defaults[ivar - nargs]:
