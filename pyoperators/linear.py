@@ -23,7 +23,6 @@ __all__ = [
     'BandOperator',
     'DegreesOperator',
     'DiagonalNumexprOperator',
-    'DiagonalNumexprNonSeparableOperator',
     'DifferenceOperator',
     'EigendecompositionOperator',
     'IntegrationTrapezeOperator',
@@ -119,68 +118,6 @@ class DiagonalNumexprOperator(DiagonalOperator):
         return DiagonalOperator._rule_block(
             self, op, shape, partition, axis, new_axis, func_operation,
             self.expr, global_dict=self.global_dict, var=self.var)
-
-
-class DiagonalNumexprNonSeparableOperator(DiagonalOperator):
-    """
-    DiagonalOperator whose diagonal elements are calculated on the fly using
-    the numexpr package.
-
-    Notes
-    -----
-    - When such an instance is added or multiplied to another DiagonalOperator
-    (or subclass, such as an instance of this class), an algebraic
-    simplification takes place, which results in a regular (dense) diagonal
-    operator.
-    - This operator can not be separated so that each part handles a block
-    of a block operator. Also, rightward broadcasting cannot be used. If one of
-    these properties is desired, use the class DiagonalNumexprOperator.
-    - If the operator's input shape is not specified, its inference costs
-    an evaluation of the expression.
-
-    Example
-    -------
-    >>> alpha = np.arange(100.)
-    >>> d = DiagonalNumexprNonSeparableOperator(
-    ...     '(x/x0)**alpha', {'alpha': alpha, 'x': 1.2,'x0': 1})
-
-    """
-    def __init__(self, expr, global_dict=None, broadcast=None, dtype=float,
-                 **keywords):
-        if not isinstance(expr, str):
-            raise TypeError('The first argument is not a string expression.')
-        if broadcast is None:
-            broadcast = 'disabled'
-        if broadcast.lower() == 'rightward':
-            raise ValueError(
-                'The class DiagonalNumexprNonSeparableOperator does not handle'
-                ' rightward broadcasting. Use the class DiagonalNumexprOperato'
-                'r for this purpose.')
-        self.expr = expr
-        self.global_dict = global_dict
-        if 'shapein' not in keywords and 'shapeout' not in keywords and \
-           broadcast == 'disabled':
-            keywords['shapein'] = self.get_data().shape
-        if numexpr.__version__ < '2.0.2':
-            keywords['flags'] = self.validate_flags(keywords.get('flags', {}),
-                                                    inplace=False)
-        BroadcastingOperator.__init__(self, None, broadcast, dtype=dtype,
-                                      **keywords)
-
-    def direct(self, input, output):
-        numexpr.evaluate('(' + self.expr + ') * input',
-                         global_dict=self.global_dict, out=output)
-
-    def get_data(self):
-        return numexpr.evaluate(self.expr, global_dict=self.global_dict)
-
-    @staticmethod
-    def _rule_left_block(self, op):
-        return None
-
-    @staticmethod
-    def _rule_right_block(self, op, cls):
-        return None
 
 
 @real
