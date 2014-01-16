@@ -4361,7 +4361,7 @@ class SparseOperator(SparseBase):
     """
     Operator handling sparse matrix storages.
 
-    The sparse storage can be any of the scipy.sparse packages (except
+    The sparse storage can be anyone from the scipy.sparse package (except
     the LIL format, which is not suited for matrix-vector multiplication):
         - bsr_matrix: Block Sparse Row matrix
         - coo_matrix: A sparse matrix in COOrdinate format
