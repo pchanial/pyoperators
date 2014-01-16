@@ -15,6 +15,8 @@ from pyoperators import (
     IdentityOperator,
     MaskOperator,
     MultiplicationOperator,
+    PackOperator,
+    UnpackOperator,
     ZeroOperator,
 )
 from pyoperators.core import BroadcastingBase
@@ -121,6 +123,8 @@ def test_partition():
         HomothetyOperator,
         IdentityOperator,
         MaskOperator,
+        PackOperator,
+        UnpackOperator,
     )
     valids = (
         (True, False, False),
@@ -129,11 +133,15 @@ def test_partition():
         (True, True, True),
         (True, True, True),
         (True, True, True),
+        (True, False, True),
+        (True, True, False),
     )
 
     def func(a, b, operation, apply_rule):
         p = operation([a, b])
         if not apply_rule:
+            if isinstance(a, IdentityOperator) or isinstance(b, IdentityOperator):
+                return
             assert not isinstance(p, BlockDiagonalOperator)
             return
         assert_is_instance(p, BlockDiagonalOperator)
