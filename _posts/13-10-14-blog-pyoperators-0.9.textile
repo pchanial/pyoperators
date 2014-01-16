@@ -14,6 +14,7 @@ What's new ?
 * Implement __ne__ for Operators
 * Add helper function float_dtype. Rename complex_dtype_for->complex_dtype
 * Add helper functions one, pi and zero, which return a value of the specified dtype.
+* Change binary rule priorities to favour specialized rules and subclasses.
 * API change in Operator's rule:
     - in unary rules, use 'C', 'T', 'H' or 'I' instead of '.C', '.T', '.H' or '.I'
     - binary rule subjects are now specified by a 2-tuple
