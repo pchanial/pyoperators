@@ -17,6 +17,7 @@ from .core import (
     BlockRowOperator,
     BroadcastingBase,
     CompositionOperator,
+    DenseBase,
     DenseOperator,
     DiagonalOperator,
     HomothetyOperator,
@@ -30,6 +31,7 @@ from .utils import (
     float_dtype,
     izip_broadcast,
     pi,
+    product,
     strshape,
     tointtuple,
 )
@@ -37,6 +39,8 @@ from .utils import (
 __all__ = [
     'BandOperator',
     'DegreesOperator',
+    'DenseBlockColumnOperator',
+    'DenseBlockDiagonalOperator',
     'DiagonalNumexprOperator',
     'DifferenceOperator',
     'EigendecompositionOperator',
@@ -68,6 +72,334 @@ class DegreesOperator(HomothetyOperator):
     def __init__(self, dtype=float, **keywords):
         HomothetyOperator.__init__(self, 180 / pi(dtype), **keywords)
         self.set_rule('I', lambda s: RadiansOperator(s.dtype))
+
+
+class DenseBlockColumnOperator(DenseBase):
+    """
+    Block column operator with dense blocks.
+
+    Multiplication can be broadcast over inputs of larger dimensions.
+    Two broadcasting schemes are handled: 'outer' and 'inner'.
+
+    In the 'outer' scheme, the block column operator is replicated to provide
+    the blocks of a block diagonal operator. If the dense array is a tensor of
+    shape (L, M, N), the product of this operator by an input of shape (P, N)
+    will have a shape (P, L, M) and for each p:
+        output[p, :, :] = np.dot(data, input[p, :])
+    The matrix representation is the following: given the matrices A_l of size
+    M x N (1 <= l <= L) and the vectors V_p of size N (1 <= p <= P),
+    the product of the DenseBlockColumnOperator obtained by stacking the A_l
+    as a (L, M, N) array times the stacking of the V_p vectors as a (P, N) array
+    is given by
+     /              \     /   \     /       \
+    | A_1        _   |   | V_1 |   | A_1 V_1 |
+    | A_2       / \  |   |     |   | A_2 V_1 |
+    |  :        \_/  |   | V_2 |   |    :    |
+    | A_L            |   |     |   | A_L V_1 |
+    |     A_1        |   |  :  |   | A_1 V_2 |
+    |     A_2        |   |  :  |   | A_2 V_2 |
+    |      :         | x |  :  | = |    :    |
+    |     A_L        |   |  :  |   | A_L V_2 |
+    |         \      |   |  :  |   |    :    |
+    |  _       A_1   |   |  :  |   | A_1 V_P |
+    | / \      A_2   |   |  :  |   | A_2 V_P |
+    | \_/       :    |   |     |   |    :    |
+    |          A_L   |   | V_P |   | A_L V_P |
+     \              /     \   /     \       /
+
+    In the 'inner' scheme, each block of the block column operator is re-
+    plicated to form a block diagonal block. If the dense array is a tensor of
+    shape (L, M, N), the product of this operator by an input of shape (P, N)
+    will have a shape (L, P, M) and for each p:
+        output[:, p, :] = np.dot(data, input[p, :])
+    The matrix representation is the following, using the previous notations:
+     /              \     /   \     /       \
+    | A_1        _   |   | V_1 |   | A_1 V_1 |
+    |  _  A_1   / \  |   |     |   | A_1 V_2 |
+    | / \     \ \_/  |   | V_2 |   |    :    |
+    | \_/       A_1  |   |     |   | A_1 V_P |
+    | A_2        _   |   |  :  |   | A_2 V_1 |
+    |  _  A_2   / \  |   |  :  |   | A_2 V_2 |
+    | / \     \ \_/  |   |  :  |   |    :    |
+    | \_/       A_2  | x |  :  | = | A_2 V_P |
+    |      :         |   |  :  |   |    :    |
+    |      :         |   |  :  |   |    :    |
+    |      :         |   |  :  |   |    :    |
+    | A_L        _   |   |  :  |   | A_L V_1 |
+    |  _  A_L   / \  |   |  :  |   | A_L V_2 |
+    | / \     \ \_/  |   |     |   |    :    |
+    | \_/       A_L  |   | V_P |   | A_L V_P |
+     \              /     \   /     \       /
+
+    """
+
+    def __init__(
+        self,
+        data,
+        broadcast='outer',
+        naxes=None,
+        naxesin=None,
+        naxesout=None,
+        dtype=None,
+        **keywords,
+    ):
+        DenseBase.__init__(
+            self,
+            data,
+            broadcast,
+            naxes=naxes,
+            naxesin=naxesin,
+            naxesout=naxesout,
+            dtype=dtype,
+            **keywords,
+        )
+        if not isinstance(self, DenseBlockColumnOperator):
+            return
+        if self.broadcast == 'outer':
+            self._data = data.reshape((self._l * self._m, self._n))
+        else:
+            self._data = data.reshape((self._l, self._m, self._n))
+        if self.broadcast == 'inner':
+            self.del_rule('T')
+        self.set_rule(('.', DenseOperator), self._rule_mul_dense, CompositionOperator)
+        self.set_rule((DenseOperator, '.'), self._rule_rmul_dense, CompositionOperator)
+
+    def direct(self, input, output):
+        input = np.atleast_1d(input)
+        p = product(input.shape[: -self.naxesin])
+        input_ = input.reshape((p, self._n))
+        if self.broadcast == 'outer':
+            output_ = output.reshape((p, self._l * self._m))
+            np.einsum('mn,pn->pm', self._data, input_, out=output_)
+        else:
+            output_ = output.reshape((self._l, p, self._m))
+            np.einsum('lmn,pn->lpm', self._data, input_, out=output_)
+
+    def transpose(self, input, output):
+        # this code is only used ifprint roll_input is false and L>1
+        input_ = input.reshape((self._l, -1, self._m))
+        p = input_.shape[1]
+        output_ = output.reshape((p, self._n))
+        np.einsum('lmn,lpm->pn', self._data, input_, out=output_)
+
+    def reshapein(self, shape):
+        if self.broadcast == 'outer':
+            # P, N -> P, L, M
+            return shape[: -self.naxesin] + self._sl + self._sm
+        else:
+            # P, N -> L, P, M
+            return self._sl + shape[: -self.naxesin] + self._sm
+
+    def reshapeout(self, shape):
+        if self.broadcast == 'outer':
+            lm = self.data.ndim - self.naxesin
+            # P, L, M -> P, N
+            return shape[:-lm] + self._sn
+        else:
+            l = self.data.ndim - self.naxesout - self.naxesin
+            p = len(shape) - l - self.naxesout
+            # L, P, M -> P, N
+            return shape[l : l + p] + self._sn
+
+    @staticmethod
+    def _rule_transpose(self):
+        data = self.data
+        for i in range(self.naxesin):
+            data = np.rollaxis(data, -1)
+        return DenseBlockColumnOperator(
+            data, broadcast='outer', naxesin=data.ndim - self.naxesin, naxesout=1
+        )
+
+    @staticmethod
+    def _rule_mul_dense(self, other):
+        if self.naxesin != other.naxesout:
+            return
+        if (
+            self.naxesin != 1
+            or self.naxesout != 1
+            or other.naxesin != 1
+            or other.naxesout != 1
+        ):
+            return  # not implemented
+        data = np.dot(self.data, other.data)
+        return DenseBlockColumnOperator(
+            data,
+            broadcast=self.broadcast,
+            naxesin=other.naxesin,
+            naxesout=self.naxesout,
+        )
+
+    @staticmethod
+    def _rule_rmul_dense(other, self):
+        if other.naxesin != self.naxesout:
+            return
+        if (
+            self.naxesin != 1
+            or self.naxesout != 1
+            or other.naxesin != 1
+            or other.naxesout != 1
+        ):
+            return  # not implemented
+        data = np.einsum('ij,ljk->lik', other.data, self.data)
+        return DenseBlockColumnOperator(
+            data,
+            broadcast=self.broadcast,
+            naxesin=other.naxesin,
+            naxesout=self.naxesout,
+        )
+
+
+class DenseBlockDiagonalOperator(DenseBase):
+    def __init__(
+        self,
+        data,
+        broadcast='outer',
+        naxes=None,
+        naxesin=None,
+        naxesout=None,
+        dtype=None,
+        **keywords,
+    ):
+        if broadcast != 'outer':
+            raise NotImplementedError()
+        DenseBase.__init__(
+            self,
+            data,
+            broadcast,
+            naxes=naxes,
+            naxesin=naxesin,
+            naxesout=naxesout,
+            dtype=dtype,
+            **keywords,
+        )
+        if not isinstance(self, DenseBlockDiagonalOperator):
+            return
+        self._data = self.data.reshape(self._l, self._m, self._n)
+        self.set_rule(('.', DenseOperator), self._rule_mul_dense, CompositionOperator)
+        self.set_rule((DenseOperator, '.'), self._rule_rmul_dense, CompositionOperator)
+        self.set_rule(
+            ('.', DenseBlockColumnOperator), self._rule_mul_bc, CompositionOperator
+        )
+        self.set_rule(
+            ('.', DenseBlockDiagonalOperator), self._rule_mul_bd, CompositionOperator
+        )
+
+    def direct(self, input, output):
+        input = input.reshape((-1, self._l, self._n))
+        output = output.reshape((-1, self._l, self._m))
+        # L, M, N * P, L, N -> P, L, M
+        np.einsum('...mn,p...n->p...m', self._data, input, out=output)
+
+    def reshapein(self, shape):
+        # P, L, N -> P, L, M
+        return shape[: -self.naxesextra - self.naxesin] + self._sl + self._sm
+
+    def reshapeout(self, shape):
+        # P, L, M -> P, L, N
+        return shape[: -self.naxesout] + self._sn
+
+    def validatein(self, shape):
+        # P, L, N
+        ln = self._sl + self._sn
+        if len(shape) < len(ln) or shape[-len(ln) :] != ln:
+            raise ValueError(
+                "The last dimensions of the input shape '{0}' do not match '{1"
+                "}'".format(shape, ln)
+            )
+
+    def validateout(self, shape):
+        # P, L, M
+        lm = self._sl + self._sm
+        if len(shape) < len(lm) or shape[-len(lm) :] != lm:
+            raise ValueError(
+                "The last dimensions of the input shape '{0}' do not match '{1"
+                "}'".format(shape, lm)
+            )
+
+    @staticmethod
+    def _rule_transpose(self):
+        data = self.data
+        for i in range(self.naxesin):
+            data = np.rollaxis(data, -1, self.naxesextra)
+        return DenseBlockDiagonalOperator(
+            data, broadcast=self.broadcast, naxesin=self.naxesout, naxesout=self.naxesin
+        )
+
+    @staticmethod
+    def _rule_mul_dense(self, other):
+        if self.naxesin != other.naxesout:
+            return
+        if (
+            self.naxesin != 1
+            or self.naxesout != 1
+            or other.naxesin != 1
+            or other.naxesout != 1
+        ):
+            return  # not implemented
+        data = np.dot(self.data, other.data)
+        return DenseBlockDiagonalOperator(
+            data,
+            broadcast=self.broadcast,
+            naxesin=other.naxesin,
+            naxesout=self.naxesout,
+        )
+
+    @staticmethod
+    def _rule_rmul_dense(other, self):
+        if self.naxesout != other.naxesin:
+            return
+        if (
+            self.naxesin != 1
+            or self.naxesout != 1
+            or other.naxesin != 1
+            or other.naxesout != 1
+        ):
+            return  # not implemented
+
+        # the following is wrong
+        return
+        data = np.dot(other.data.T, self.data.T).T
+        return DenseBlockDiagonalOperator(
+            data,
+            broadcast=self.broadcast,
+            naxesin=other.naxesin,
+            naxesout=self.naxesout,
+        )
+
+    @staticmethod
+    def _rule_mul_bc(self, other):
+        if other.naxesout != self.naxesin:
+            return None
+        if (
+            self.naxesin != 1
+            or self.naxesout != 1
+            or other.naxesin != 1
+            or other.naxesout != 1
+        ):
+            return None
+        # not tested
+        return
+        data = np.einsum('...ij,...jk->...ik', self.data, other.data)
+        return DenseBlockColumnOperator(
+            data, naxesin=other.naxesin, naxesout=self.naxesout
+        )
+
+    @staticmethod
+    def _rule_mul_bd(self, other):
+        if other.naxesout != self.naxesin:
+            return None
+        if (
+            self.naxesin != 1
+            or self.naxesout != 1
+            or other.naxesin != 1
+            or other.naxesout != 1
+        ):
+            return None
+        # not tested
+        data = np.einsum('...ij,...jk->...ik', self.data, other.data)
+        return DenseBlockDiagonalOperator(
+            data, naxesin=other.naxesin, naxesout=self.naxesout
+        )
 
 
 class DiagonalNumexprOperator(DiagonalOperator):
@@ -355,7 +687,7 @@ class RadiansOperator(HomothetyOperator):
 
 
 @real
-class Rotation2dOperator(DenseOperator):
+class Rotation2dOperator(DenseBase):
     """
     2-d rotation operator.
 
@@ -376,7 +708,9 @@ class Rotation2dOperator(DenseOperator):
 
     """
 
-    def __init__(self, angle, degrees=False, roll_input=False, dtype=None, **keywords):
+    def __init__(
+        self, angle, degrees=False, block_diagonal=False, dtype=None, **keywords
+    ):
         angle = np.asarray(angle)
         if dtype is None:
             dtype = float_dtype(angle.dtype)
@@ -388,13 +722,16 @@ class Rotation2dOperator(DenseOperator):
         for i in range(angle.ndim):
             m = np.rollaxis(m, -1)
         keywords['flags'] = self.validate_flags(
-            keywords.get('flags', {}), orthogonal=m.ndim == 2
+            keywords.get('flags', {}), orthogonal=m.ndim == 2 or block_diagonal
         )
-        DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
+        self.__class__ = (
+            DenseBlockDiagonalOperator if block_diagonal else DenseBlockColumnOperator
+        )
+        self.__init__(m, **keywords)
 
 
 @real
-class Rotation3dOperator(DenseOperator):
+class Rotation3dOperator(DenseBase):
     """
     Operator for 3-d active rotations about 1, 2 or 3 axes.
 
@@ -450,7 +787,7 @@ class Rotation3dOperator(DenseOperator):
         a2=0,
         a3=0,
         degrees=False,
-        roll_input=False,
+        block_column=False,
         dtype=None,
         **keywords,
     ):
@@ -656,12 +993,13 @@ class Rotation3dOperator(DenseOperator):
         else:
             raise ValueError("Invalid rotation convention {0}.".format(convention))
 
-        for i in range(a1.ndim):
-            m = np.rollaxis(m, -1)
         keywords['flags'] = self.validate_flags(
-            keywords.get('flags', {}), orthogonal=m.ndim == 2
+            keywords.get('flags', {}), orthogonal=m.ndim == 2 or not block_column
         )
-        DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
+        self.__class__ = (
+            DenseBlockColumnOperator if block_column else DenseBlockDiagonalOperator
+        )
+        self.__init__(m, **keywords)
 
     @staticmethod
     def _get_matrix(a11, a12, a13, a21, a22, a23, a31, a32, a33, dtype):
