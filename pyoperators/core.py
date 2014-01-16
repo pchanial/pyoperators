@@ -4094,11 +4094,18 @@ class ConstantOperator(BroadcastingBase):
 class ZeroOperator(ConstantOperator):
     """
     A subclass of ConstantOperator with data = 0.
+
     """
     def __init__(self, *args, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
+        self.del_rule(('.', BlockOperator), MultiplicationOperator)
+        self.del_rule(('.', BroadcastingBase), MultiplicationOperator)
+        self.del_rule(('.', CompositionOperator), MultiplicationOperator)
+        self.del_rule(('.', DiagonalOperator), MultiplicationOperator)
         self.set_rule('T', lambda s: ZeroOperator())
-        self.set_rule(('.', Operator), lambda s, o: o, AdditionOperator)
+        self.set_rule(('.', Operator), lambda s, o: o.copy(), AdditionOperator)
+        self.set_rule(('.', Operator), lambda s, o: s.copy(),
+                      MultiplicationOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         operation(output, 0)
