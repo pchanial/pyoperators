@@ -2,7 +2,7 @@
 PyOperators
 ===========
 
-The Pyoperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
+The PyOperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
 
 Getting started
 ===============
@@ -30,10 +30,8 @@ An alternative way to define an operator is to define a subclass:
 This operator does not have an explicit shape, it can handle inputs of any shape:
 
 >>> A(ones(5))
-Info: Allocating (5,) float64 = 40 bytes in Operator.
 array([ 2.,  2.,  2.,  2.,  2.])
 >>> A(ones((2,3)))
-Info: Allocating (2,3) float64 = 48 bytes in Operator.
 array([[ 2.,  2.,  2.],
        [ 2.,  2.,  2.]])
 
