@@ -1219,6 +1219,8 @@ class Operator(object):
             self.set_rule('H,.', '1', CompositionOperator)
         if self.flags.idempotent:
             self.set_rule('.,.', '.', CompositionOperator)
+        if self.flags.involutary:
+            self.set_rule('.,.', '1', CompositionOperator)
 
     def _init_inout(self, attrin, attrout, classin, classout, commin, commout,
                     reshapein, reshapeout, shapein, shapeout, toshapein,
