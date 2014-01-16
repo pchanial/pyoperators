@@ -1,8 +1,8 @@
-=========
-Pyoperators
-=========
+===========
+PyOperators
+===========
 
-The pyoperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
+The Pyoperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
 
 Getting started
 ===============
@@ -45,8 +45,8 @@ True
 To output a corresponding dense matrix, one needs to specify the input shape:
 
 >>> A.todense(shapein=2)
-array([[ 2.,  0.],
-       [ 0.,  2.]])
+array([[2, 0],
+       [0, 2]])
 
 Operators do not have to be linear, but if they are not, they cannot be seen
 as matrices. Some operators are already predefined, such as the
@@ -61,16 +61,16 @@ where ``I`` is the identity operator with no explicit shape.
 
 Operators can be combined together by addition, element-wise multiplication or composition (note that the ``*`` sign stands for composition):
 
->>> B = 2 * pyoperators.I + pyoperators.DiagonalOperator(arange(3))
+>>> B = 2 * pyoperators.I + pyoperators.DiagonalOperator(range(3))
 >>> B.todense()
-array([[ 2.,  0.,  0.],
-       [ 0.,  3.,  0.],
-       [ 0.,  0.,  4.]])
+array([[2, 0, 0],
+       [0, 3, 0],
+       [0, 0, 4]])
 
 Algebraic rules are used to simplify an expression involving operators, so to speed up its execution:
 
 >>> B
-DiagonalOperator(array([ 2.,  3.,  4.]))
+DiagonalOperator(array([2, ..., 4], dtype=int64), broadcast='disabled', dtype=int64, shapein=3, shapeout=3)
 >>> C = pyoperators.Operator(flags='idempotent')
 >>> C * C is C
 True
