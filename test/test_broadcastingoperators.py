@@ -7,7 +7,7 @@ from pyoperators import (
     AdditionOperator, BlockDiagonalOperator, CompositionOperator,
     ConstantOperator, DiagonalOperator, DiagonalNumexprOperator, GroupOperator,
     HomothetyOperator, IdentityOperator, MaskOperator, MultiplicationOperator,
-    ZeroOperator)
+    PackOperator, UnpackOperator, ZeroOperator)
 from pyoperators.core import BroadcastingBase
 from pyoperators.utils import float_dtype, product
 from pyoperators.utils.testing import assert_is_instance, assert_is_none
@@ -88,13 +88,18 @@ def test_shape():
 
 def test_partition():
     clss = (ConstantOperator, DiagonalOperator, DiagonalNumexprOperator,
-            HomothetyOperator, IdentityOperator, MaskOperator)
+            HomothetyOperator, IdentityOperator, MaskOperator, PackOperator,
+            UnpackOperator)
     valids = ((True, False, False), (True, True, True), (True, True, True),
-              (True, True, True), (True, True, True), (True, True, True))
+              (True, True, True), (True, True, True), (True, True, True),
+              (True, False, True), (True, True, False))
 
     def func(a, b, operation, apply_rule):
         p = operation([a, b])
         if not apply_rule:
+            if isinstance(a, IdentityOperator) or \
+               isinstance(b, IdentityOperator):
+                return
             assert not isinstance(p, BlockDiagonalOperator)
             return
         assert_is_instance(p, BlockDiagonalOperator)

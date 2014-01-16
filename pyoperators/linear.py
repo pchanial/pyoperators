@@ -17,7 +17,7 @@ from .core import (
     _pool)
 from .memory import empty
 from .utils import (
-    cast, complex_dtype, float_dtype, izip_broadcast, pi, tointtuple)
+    cast, complex_dtype, float_dtype, izip_broadcast, pi, strshape, tointtuple)
 
 __all__ = [
     'BandOperator',
@@ -174,41 +174,118 @@ class IntegrationTrapezeOperator(BlockRowOperator):
 
 @real
 @linear
-@inplace
-class PackOperator(Operator):
-    """
-    Convert an ndarray into a vector, under the control of a mask.
-    """
+class PackBase(BroadcastingBase):
+    def __init__(self, data, broadcast, **keywords):
+        self.n = np.sum(data)
+        BroadcastingBase.__init__(self, data, broadcast, **keywords)
 
-    def __init__(self, mask, **keywords):
-        self.mask = ~np.array(mask, np.bool8, copy=False)
-        Operator.__init__(self, shapein=self.mask.shape,
-                          shapeout=np.sum(self.mask), **keywords)
-        #XXX .T does not share the same mask...
-        self.set_rule('T', lambda s: UnpackOperator(~s.mask, dtype=s.dtype))
+    def _reshape_packed(self, shape):
+        if self.broadcast == 'rightward':
+            return self.data.shape + shape[1:]
+        return shape[:-1] + self.data.shape
+
+    def _reshape_unpacked(self, shape):
+        if self.broadcast == 'rightward':
+            return (self.n,) + shape[self.data.ndim:]
+        return shape[:-self.data.ndim] + (self.n,)
+
+    @staticmethod
+    def _rule_broadcast(b1, b2, operation):
+        return
+
+    def _validate_packed(self, shape):
+        actual = shape[0 if self.broadcast == 'rightward' else -1]
+        if actual != self.n:
+            raise ValueError(
+                "The shape '{0}' is incompatible with that expected '{1}'.".
+                format(strshape(shape),
+                       strshape((self.n,), broadcast=self.broadcast)))
+
+    def _validate_unpacked(self, shape):
+        if self.broadcast == 'rightward':
+            actual = shape[:self.data.ndim]
+        else:
+            actual = shape[-self.data.ndim:]
+        if actual != self.data.shape:
+            raise ValueError(
+                "The shape '{0}' is incompatible with that expected '{1}'.".
+                format(strshape(shape),
+                       strshape(self.data.shape, broadcast=self.broadcast)))
+
+
+class PackOperator(PackBase):
+    """
+    Pack an ndarray into a vector under the control of a boolean mask.
+    The value True means that the element is kept.
+
+    """
+    def __init__(self, data, broadcast='disabled', **keywords):
+        data = np.array(data, bool, copy=False)
+        if np.all(data == data.flat[0]):
+            if data.flat[0]:
+                self.__class__ = DiagonalOperator
+                self.__init__(data, broadcast=broadcast, **keywords)
+                return
+        if broadcast.lower() == 'disabled':
+            keywords['shapein'] = data.shape
+            keywords['shapeout'] = np.sum(data)
+        PackBase.__init__(self, data, broadcast,
+                          reshapein=self._reshape_unpacked,
+                          reshapeout=self._reshape_packed,
+                          validatein=self._validate_unpacked,
+                          validateout=self._validate_packed, **keywords)
+        self.set_rule('T', lambda s: UnpackOperator(s.data,
+                                                    broadcast=s.broadcast))
         self.set_rule('T,.', '1', CompositionOperator)
 
     def direct(self, input, output):
-        output[...] = input[self.mask]
+        if self.broadcast == 'rightward':
+            output[...] = input[self.data, ...]
+        else:
+            output[...] = input[..., self.data]
+
+    @staticmethod
+    def _rule_left_block(op, self):
+        return
 
 
-@real
-@linear
-class UnpackOperator(Operator):
+class UnpackOperator(PackBase):
     """
-    Convert a vector into an ndarray, under the control of a mask.
-    """
+    Unpack a vector into an ndarray under the control of a mask.
+    The value True means that the element is kept.
 
-    def __init__(self, mask, **keywords):
-        self.mask = ~np.array(mask, np.bool8, copy=False)
-        Operator.__init__(self, shapein=np.sum(self.mask),
-                          shapeout=self.mask.shape, **keywords)
-        self.set_rule('T', lambda s: PackOperator(~s.mask, dtype=s.dtype))
+    """
+    def __init__(self, data, broadcast='disabled', **keywords):
+        data = np.array(data, bool, copy=False)
+        if np.all(data == data.flat[0]):
+            if data.flat[0]:
+                self.__class__ = DiagonalOperator
+                self.__init__(data, broadcast=broadcast, **keywords)
+                return
+        if broadcast.lower() == 'disabled':
+            keywords['shapein'] = np.sum(data)
+            keywords['shapeout'] = data.shape
+        PackBase.__init__(self, data, broadcast,
+                          reshapein=self._reshape_packed,
+                          reshapeout=self._reshape_unpacked,
+                          validatein=self._validate_packed,
+                          validateout=self._validate_unpacked, **keywords)
+        self.set_rule('T', lambda s: PackOperator(s.data,
+                                                  broadcast=s.broadcast))
         self.set_rule('T,.', '1', CompositionOperator)
 
     def direct(self, input, output):
         output[...] = 0
-        output[self.mask] = input
+        if self.broadcast == 'rightward':
+            output[self.data, ...] = input
+        else:
+            output[..., self.data] = input
+
+    @staticmethod
+    def _rule_right_block(self, op, cls):
+        if cls is CompositionOperator:
+            return
+        return BroadcastingBase._rule_right_block(self, op, cls)
 
 
 class RadiansOperator(HomothetyOperator):
