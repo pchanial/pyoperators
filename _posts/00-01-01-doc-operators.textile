@@ -844,6 +844,7 @@ h3. Linear operators
 * ReshapeOperator
 * Rotation2dOperator
 * Rotation3dOperator
+* SparseOperator
 * SumOperator
 * SymmetricBandOperator
 * SymmetricBandToeplitzOperator

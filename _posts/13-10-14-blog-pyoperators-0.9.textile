@@ -17,7 +17,7 @@ What's new ?
 * API change in Operator's rule:
     - in unary rules, use 'C', 'T', 'H' or 'I' instead of '.C', '.T', '.H' or '.I'
     - binary rule subjects are now specified by a 2-tuple
-    - use Operator subclass type instead of the the string '{MyOperator}'
+    - use Operator subclass type instead of the string '{MyOperator}'
 * API change: IntegrationTrapezeWeightOperator -> IntegrationTrapezeOperator
 
 Under the hood:
