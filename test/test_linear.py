@@ -13,7 +13,6 @@ from pyoperators import (
 )
 from pyoperators.linear import (
     DegreesOperator,
-    DiagonalNumexprNonSeparableOperator,
     DiagonalNumexprOperator,
     DifferenceOperator,
     IntegrationTrapezeOperator,
@@ -32,7 +31,6 @@ from pyoperators.utils.testing import (
     assert_is_instance,
     assert_is_none,
     assert_is_type,
-    assert_raises,
     assert_same,
 )
 from .common import IdentityOutplaceOperator, assert_inplace_outplace
@@ -73,40 +71,17 @@ def test_diagonal_numexpr():
             assert_eq(op.shapeout, diag.shape)
         assert_inplace_outplace(op, values, expected)
 
-    for cls, args in zip(
-        (DiagonalNumexprNonSeparableOperator, DiagonalNumexprOperator),
-        ((expr, {'data': diag}), (diag, expr)),
-    ):
-        for broadcast in (None, 'rightward', 'leftward', 'disabled'):
-            if cls is DiagonalNumexprNonSeparableOperator and broadcast == 'rightward':
-                yield func1, cls, args, broadcast
+    for broadcast in (None, 'rightward', 'leftward', 'disabled'):
+        for values in (
+            np.array([3, 2, 1.0]),
+            np.array([[1, 2, 3], [2, 3, 4], [3, 4, 5.0]]),
+        ):
+            if values.ndim > 1 and broadcast in (None, 'disabled'):
                 continue
-            for values in (
-                np.array([3, 2, 1.0]),
-                np.array([[1, 2, 3], [2, 3, 4], [3, 4, 5.0]]),
-            ):
-                if values.ndim > 1 and broadcast in (None, 'disabled'):
-                    continue
-                yield func2, cls, args, broadcast, values
+            yield func, broadcast, values
 
 
 def test_diagonal_numexpr2():
-    diag = np.array([1, 2, 3])
-    d1 = DiagonalNumexprNonSeparableOperator('(data+1)*3', {'data': diag})
-    d2 = DiagonalNumexprNonSeparableOperator(
-        '(data+2)*2', {'data': np.array([3, 2, 1])}
-    )
-    d = d1 * d2
-    assert_is_instance(d, DiagonalOperator)
-    assert_eq(d.broadcast, 'disabled')
-    assert_eq(d.shapein, (3,))
-    assert_eq(d.data, [60, 72, 72])
-    c = BlockColumnOperator(3 * [IdentityOutplaceOperator()], new_axisout=0)
-    v = 2
-    assert_inplace_outplace(d1 * c, v, d1(c(v)))
-
-
-def test_diagonal_numexpr3():
     d1 = DiagonalNumexprOperator([1, 2, 3], '(data+1)*3', broadcast='rightward')
     d2 = DiagonalNumexprOperator([3, 2, 1], '(data+2)*2')
     d = d1 * d2
