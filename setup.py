@@ -9,7 +9,7 @@ from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.misc_util import get_info
 from subprocess import Popen, PIPE
 
-VERSION = '0.9'
+VERSION = '0.10'
 
 
 def version_sdist():
