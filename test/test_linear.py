@@ -10,6 +10,7 @@ from pyoperators import (
     BlockDiagonalOperator,
     DenseOperator,
     DiagonalOperator,
+    IdentityOperator,
     MaskOperator,
 )
 from pyoperators.linear import (
@@ -162,11 +163,23 @@ def test_packing():
         assert_equal(p.T.broadcast, p.broadcast)
         assert_equal(p.T(expected_), masking(x_))
 
+        up = p.T * p
+        assert_is_instance(up, MaskOperator)
+        assert_equal(up(x_), p.T(p(x_)))
+        pu = p * p.T
+        assert_is_instance(pu, IdentityOperator)
+
         u = UnpackOperator(valid, broadcast=broadcast)
         assert_is_type(u.T, PackOperator)
         assert_equal(u.T.broadcast, u.broadcast)
         assert_equal(u(expected_), masking(x_))
         assert_equal(u.T(x_), expected_)
+
+        up = u * u.T
+        assert_is_instance(up, MaskOperator)
+        assert_equal(up(x_), u(u.T(x_)))
+        pu = u.T * u
+        assert_is_instance(pu, IdentityOperator)
 
     for valid, x in zip(valids, xs):
         for shape in shapes:

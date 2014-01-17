@@ -20,6 +20,7 @@ from .core import (
     DenseOperator,
     DiagonalOperator,
     HomothetyOperator,
+    MaskOperator,
     ReductionOperator,
     _pool,
 )
@@ -280,7 +281,7 @@ class PackOperator(PackBase):
             **keywords,
         )
         self.set_rule('T', lambda s: UnpackOperator(s.data, broadcast=s.broadcast))
-        self.set_rule('T,.', '1', CompositionOperator)
+        self.set_rule('.,T', '1', CompositionOperator)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -321,7 +322,11 @@ class UnpackOperator(PackBase):
             **keywords,
         )
         self.set_rule('T', lambda s: PackOperator(s.data, broadcast=s.broadcast))
-        self.set_rule('T,.', '1', CompositionOperator)
+        self.set_rule(
+            '.,T',
+            lambda s, o: MaskOperator(~s.data, broadcast=s.broadcast),
+            CompositionOperator,
+        )
 
     def direct(self, input, output):
         output[...] = 0
