@@ -1,8 +1,24 @@
 import itertools
 import numpy as np
-from pyoperators.utils.testing import assert_eq
-from pyoperators.utils.ufuncs import masking, multiply_conjugate
+from pyoperators.utils import pi
+from pyoperators.utils.testing import assert_eq, assert_same
+from pyoperators.utils.ufuncs import abs2, masking, multiply_conjugate
 from .common import DTYPES, COMPLEX_DTYPES
+
+
+def test_abs2():
+    x = np.array([pi(np.float128) + 1j, pi(np.float128) * 1j, 3])
+
+    def func(d):
+        x_ = np.array(x if d.kind == 'c' else x.real, dtype=d)
+        actual = abs2(x_)
+        expected = np.abs(x_**2)
+        assert_same(actual, expected)
+        abs2(x_, actual)
+        assert_same(actual, expected)
+
+    for dtype in DTYPES:
+        yield func, dtype
 
 
 def test_masking():
