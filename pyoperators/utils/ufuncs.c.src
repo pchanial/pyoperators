@@ -1,15 +1,8 @@
 /*-*-c-*-*/
-
-/*
- * masking
- * hard_thresholding
- * soft_thresholding
- *
- */
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <Python.h>
 #include <math.h>
-
 #include "numpy/npy_math.h"
 #include "numpy/ndarraytypes.h"
 #include "numpy/ufuncobject.h"
@@ -20,6 +13,60 @@
     npy_intp n = dimensions[0];\
     npy_intp i;\
     for(i = 0; i < n; i++, ip1 += is1, ip2 += is2, op1 += os1)
+
+static char float2_types[9] = {NPY_FLOAT, NPY_FLOAT, NPY_FLOAT,
+                               NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,
+                               NPY_LONGDOUBLE, NPY_LONGDOUBLE, NPY_LONGDOUBLE};
+static char complex2_types[18] =
+    {NPY_CFLOAT, NPY_CFLOAT, NPY_CFLOAT,
+     NPY_CDOUBLE, NPY_CDOUBLE, NPY_CDOUBLE,
+     NPY_CLONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE,
+     NPY_FLOAT, NPY_CFLOAT, NPY_CFLOAT,
+     NPY_DOUBLE, NPY_CDOUBLE, NPY_CDOUBLE,
+     NPY_LONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE};
+
+static void *null_data3[3] = {NULL, NULL, NULL};
+static void *null_data17[17] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                                NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                                NULL};
+
+
+/*********************
+ * Hard thresholding *
+ *********************/
+
+/**begin repeat
+ * #type = npy_float, npy_double, npy_longdouble#
+ * #c = f,,l#
+ */
+NPY_NO_EXPORT void
+hard_thresholding@c@(char **args, npy_intp *dimensions, npy_intp* steps,
+                     void* data)
+{
+    npy_intp i;
+    npy_intp n = dimensions[0];
+    char *in = args[0], *threshold = args[1], *out = args[2];
+    npy_intp in_step = steps[0], threshold_step = steps[1], out_step = steps[2];
+
+    @type@ tmp;
+
+    for (i = 0; i < n; i++) {
+        tmp = *(@type@ *)in;
+        tmp = (fabs@c@(tmp) > *(@type@ *)threshold) ? tmp : 0;
+        *((@type@ *)out) = tmp;
+
+        in += in_step;
+        threshold += threshold_step;
+        out += out_step;
+    }
+}
+/**end repeat**/
+
+static PyUFuncGenericFunction hard_thresholding_funcs[3] =
+           {&hard_thresholdingf,
+            &hard_thresholding,
+            &hard_thresholdingl};
+
 
 /***********
  * Masking *
@@ -33,9 +80,8 @@
  *         npy_long, npy_ulong, npy_longlong, npy_ulonglong,
  *         npy_half, npy_float, npy_double, npy_longdouble#
  */
-
-static void
-@TYPE@_masking_loop(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
+NPY_NO_EXPORT void
+@TYPE@_masking(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
 {
     npy_intp i;
     npy_intp n = dimensions[0];
@@ -61,7 +107,6 @@ static void
         }
     }
 }
-
 /**end repeat**/
 
 /**begin repeat
@@ -69,9 +114,8 @@ static void
  * #type = npy_cfloat, npy_cdouble, npy_clongdouble#
  * #ftype = npy_float, npy_double, npy_longdouble#
  */
-
-static void
-@TYPE@_masking_loop(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
+NPY_NO_EXPORT void
+@TYPE@_masking(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
 {
     npy_intp i;
     npy_intp n = dimensions[0];
@@ -100,19 +144,18 @@ static void
         }
     }
 }
-
 /**end repeat**/
 
 static PyUFuncGenericFunction masking_funcs[17] = 
-           {&BYTE_masking_loop, &UBYTE_masking_loop,
-            &SHORT_masking_loop, &USHORT_masking_loop,
-            &INT_masking_loop, &UINT_masking_loop,
-            &LONG_masking_loop, &ULONG_masking_loop,
-            &LONGLONG_masking_loop, &ULONGLONG_masking_loop,
-            &HALF_masking_loop, &FLOAT_masking_loop,
-            &DOUBLE_masking_loop, &LONGDOUBLE_masking_loop,
-            &CFLOAT_masking_loop, &CDOUBLE_masking_loop,
-            &CLONGDOUBLE_masking_loop};
+           {&BYTE_masking, &UBYTE_masking,
+            &SHORT_masking, &USHORT_masking,
+            &INT_masking, &UINT_masking,
+            &LONG_masking, &ULONG_masking,
+            &LONGLONG_masking, &ULONGLONG_masking,
+            &HALF_masking, &FLOAT_masking,
+            &DOUBLE_masking, &LONGDOUBLE_masking,
+            &CFLOAT_masking, &CDOUBLE_masking,
+            &CLONGDOUBLE_masking};
 
 static char masking_types[17*3] = {NPY_BYTE, NPY_BOOL, NPY_BYTE,
                                    NPY_UBYTE, NPY_BOOL, NPY_UBYTE,
@@ -132,45 +175,64 @@ static char masking_types[17*3] = {NPY_BYTE, NPY_BOOL, NPY_BYTE,
                                    NPY_CDOUBLE, NPY_BOOL, NPY_CDOUBLE,
                                    NPY_CLONGDOUBLE, NPY_BOOL, NPY_CLONGDOUBLE};
 
-static void *masking_null_data[17] = {NULL, NULL, NULL, NULL, NULL, NULL,
-                                      NULL, NULL, NULL, NULL, NULL, NULL,
-                                      NULL, NULL, NULL, NULL, NULL};
+
+/****************************
+ * Conjugate multiplication *
+ ****************************/
+
+/**begin repeat
+ * complex types
+ * #ftype = npy_float, npy_double, npy_longdouble#
+ * #c = f, , l#
+ */
+NPY_NO_EXPORT void
+multiply_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps,
+                      void *data)
+{
+    BINARY_LOOP {
+        const @ftype@ in1r = *(@ftype@ *)ip1;
+        const @ftype@ in1i = ((@ftype@ *)ip1)[1];
+        const @ftype@ in2r = ((@ftype@ *)ip2)[0];
+        const @ftype@ in2i = ((@ftype@ *)ip2)[1];
+        ((@ftype@ *)op1)[0] =  in1r*in2r + in1i*in2i;
+        ((@ftype@ *)op1)[1] = -in1r*in2i + in1i*in2r;
+    }
+}
+
+NPY_NO_EXPORT void
+multiply_real_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps,
+                           void *data)
+{
+    BINARY_LOOP {
+        const @ftype@ in1r = ((@ftype@ *)ip1)[0];
+        const @ftype@ in2r = ((@ftype@ *)ip2)[0];
+        const @ftype@ in2i = ((@ftype@ *)ip2)[1];
+        ((@ftype@ *)op1)[0] =  in1r*in2r;
+        ((@ftype@ *)op1)[1] = -in1r*in2i;
+    }
+}
+/**end repeat**/
+
+static PyUFuncGenericFunction multiply_conjugate_funcs[6] = 
+           {&multiply_conjugatef,
+            &multiply_conjugate,
+            &multiply_conjugatel,
+            &multiply_real_conjugatef,
+            &multiply_real_conjugate,
+            &multiply_real_conjugatel};
 
 
-/*******************************************
- * Hard_thresholding and soft_thresholding *
- *******************************************/
+/*********************
+ * Soft thresholding *
+ *********************/
 
 /**begin repeat
  * #type = npy_float, npy_double, npy_longdouble#
  * #c = f,,l#
  */
-
-static void
-hard_thresholding_loop@c@(char **args, npy_intp *dimensions,
-                          npy_intp* steps, void* data)
-{
-    npy_intp i;
-    npy_intp n = dimensions[0];
-    char *in = args[0], *threshold = args[1], *out = args[2];
-    npy_intp in_step = steps[0], threshold_step = steps[1], out_step = steps[2];
-
-    @type@ tmp;
-
-    for (i = 0; i < n; i++) {
-        tmp = *(@type@ *)in;
-        tmp = (fabs@c@(tmp) > *(@type@ *)threshold) ? tmp : 0;
-        *((@type@ *)out) = tmp;
-
-        in += in_step;
-        threshold += threshold_step;
-        out += out_step;
-    }
-}
-
-static void
-soft_thresholding_loop@c@(char **args, npy_intp *dimensions,
-                          npy_intp* steps, void* data)
+NPY_NO_EXPORT void
+soft_thresholding@c@(char **args, npy_intp *dimensions, npy_intp* steps,
+                     void* data)
 {
     npy_intp i;
     npy_intp n = dimensions[0];
@@ -189,83 +251,12 @@ soft_thresholding_loop@c@(char **args, npy_intp *dimensions,
         out += out_step;
     }
 }
-
 /**end repeat**/
-
-/*
- * Definitions for the ufuncs.
- */
 
 static PyUFuncGenericFunction soft_thresholding_funcs[3] = 
-           {&soft_thresholding_loopf,
-            &soft_thresholding_loop,
-            &soft_thresholding_loopl};
-
-static PyUFuncGenericFunction hard_thresholding_funcs[3] =
-           {&hard_thresholding_loopf,
-            &hard_thresholding_loop,
-            &hard_thresholding_loopl};
-
-static char float2_types[9] = {NPY_FLOAT, NPY_FLOAT, NPY_FLOAT,
-                               NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,
-                               NPY_LONGDOUBLE, NPY_LONGDOUBLE, NPY_LONGDOUBLE};
-
-static void *float_null_data[3] = {NULL, NULL, NULL};
-
-
-
-/****************************
- * Conjugate multiplication *
- ****************************/
-
-/**begin repeat
- * complex types
- * #ftype = npy_float, npy_double, npy_longdouble#
- * #c = f, , l#
- */
-
-static void
-multiply_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *NPY_UNUSED(func))
-{
-    BINARY_LOOP {
-        const @ftype@ in1r = *(@ftype@ *)ip1;
-        const @ftype@ in1i = ((@ftype@ *)ip1)[1];
-        const @ftype@ in2r = ((@ftype@ *)ip2)[0];
-        const @ftype@ in2i = ((@ftype@ *)ip2)[1];
-        ((@ftype@ *)op1)[0] =  in1r*in2r + in1i*in2i;
-        ((@ftype@ *)op1)[1] = -in1r*in2i + in1i*in2r;
-    }
-}
-
-static void
-multiply_real_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *NPY_UNUSED(func))
-{
-    BINARY_LOOP {
-        const @ftype@ in1r = ((@ftype@ *)ip1)[0];
-        const @ftype@ in2r = ((@ftype@ *)ip2)[0];
-        const @ftype@ in2i = ((@ftype@ *)ip2)[1];
-        ((@ftype@ *)op1)[0] =  in1r*in2r;
-        ((@ftype@ *)op1)[1] = -in1r*in2i;
-    }
-}
-
-/**end repeat**/
-
-static PyUFuncGenericFunction multiply_conjugate_funcs[6] = 
-           {&multiply_conjugatef,
-            &multiply_conjugate,
-            &multiply_conjugatel,
-            &multiply_real_conjugatef,
-            &multiply_real_conjugate,
-            &multiply_real_conjugatel};
-
-static char complex2_types[18] =
-    {NPY_CFLOAT, NPY_CFLOAT, NPY_CFLOAT,
-     NPY_CDOUBLE, NPY_CDOUBLE, NPY_CDOUBLE,
-     NPY_CLONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE,
-     NPY_FLOAT, NPY_CFLOAT, NPY_CFLOAT,
-     NPY_DOUBLE, NPY_CDOUBLE, NPY_CDOUBLE,
-     NPY_LONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE};
+           {&soft_thresholdingf,
+            &soft_thresholding,
+            &soft_thresholdingl};
 
 
 /* Module definition */
@@ -274,8 +265,7 @@ static PyMethodDef module_methods[] = {
     { NULL, NULL, 0, NULL }
 };
 
-#if PY_VERSION_HEX >= 0x03000000
-
+#if defined(NPY_PY3K)
 static PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
     "ufuncs",
@@ -290,85 +280,54 @@ static PyModuleDef moduledef = {
 
 PyMODINIT_FUNC
 PyInit_ufuncs()
+#else
+PyMODINIT_FUNC
+initufuncs()
+#endif
 {
     PyObject *m, *f, *d;
+#if defined(NPY_PY3K)
     m = PyModule_Create(&moduledef);
     if (!m) {
         return NULL;
     }
-
-    import_array();
-    import_umath();
-
-    d = PyModule_GetDict(m);
-
-    f = PyUFunc_FromFuncAndData(masking_funcs, masking_null_data,
-            masking_types, 17, 2, 1, PyUFunc_None, "masking",
-            "Set y = 0 where x2,\n        x1  otherwise." , 0);
-    PyDict_SetItemString(d , "masking", f);
-    Py_DECREF(f);
-
-    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, float_null_data,
-            float2_types, 3, 2, 1, PyUFunc_None, "hard_thresholding",
-            "Compute y = x1 if |x1| > x2,\n            0  otherwise." , 0);
-    PyDict_SetItemString(d , "hard_thresholding", f);
-    Py_DECREF(f);
-
-    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs, float_null_data,
-            float2_types, 3, 2, 1, PyUFunc_None, "soft_thresholding",
-            "Compute y = sign(x1) * [|x1| - x2]+" , 0);
-    PyDict_SetItemString(d , "soft_thresholding", f);
-    Py_DECREF(f);
-
-    f = PyUFunc_FromFuncAndData(multiply_conjugate_funcs, float_null_data,
-            complex2_types, 3, 2, 1, PyUFunc_None, "multiply_conjugate",
-            "Compute y = x1 * conjugate(x2)", 0);
-    PyDict_SetItemString(d, "multiply_conjugate", f);
-    Py_DECREF(f);
-
-    return m;
-}
-
 #else
-
-PyMODINIT_FUNC
-initufuncs()
-{
-    PyObject *m, *f,  *d;
-
     m  = Py_InitModule("ufuncs", module_methods);
     if (m == NULL) {
         return;
     }
-
-    d = PyModule_GetDict(m);
+#endif
 
     import_array();
     import_umath();
 
-    f = PyUFunc_FromFuncAndData(masking_funcs, masking_null_data,
-            masking_types, 17, 2, 1, PyUFunc_None, "masking",
-            "Set y = 0 where x2,\n        x1  otherwise." , 0);
-    PyDict_SetItemString(d , "masking", f);
-    Py_DECREF(f);
+    d = PyModule_GetDict(m);
 
-    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, float_null_data,
+    f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, null_data3,
             float2_types, 3, 2, 1, PyUFunc_None, "hard_thresholding",
             "Compute y = x1 if |x1| > x2,\n            0  otherwise." , 0);
     PyDict_SetItemString(d , "hard_thresholding", f);
     Py_DECREF(f);
 
-    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs, float_null_data,
+    f = PyUFunc_FromFuncAndData(masking_funcs, null_data17,
+            masking_types, 17, 2, 1, PyUFunc_None, "masking",
+            "Set y = 0 where x2,\n        x1  otherwise." , 0);
+    PyDict_SetItemString(d , "masking", f);
+    Py_DECREF(f);
+
+    f = PyUFunc_FromFuncAndData(multiply_conjugate_funcs, null_data3,
+            complex2_types, 3, 2, 1, PyUFunc_None, "multiply_conjugate",
+            "Compute y = x1 * conjugate(x2)", 0);
+    PyDict_SetItemString(d, "multiply_conjugate", f);
+    Py_DECREF(f);
+
+    f = PyUFunc_FromFuncAndData(soft_thresholding_funcs, null_data3,
             float2_types, 3, 2, 1, PyUFunc_None, "soft_thresholding",
             "Compute y = sign(x1) * [|x1| - x2]+" , 0);
     PyDict_SetItemString(d , "soft_thresholding", f);
     Py_DECREF(f);
 
-    f = PyUFunc_FromFuncAndData(multiply_conjugate_funcs, float_null_data,
-            complex2_types, 3, 2, 1, PyUFunc_None, "multiply_conjugate",
-            "Compute y = x1 * conjugate(x2)", 0);
-    PyDict_SetItemString(d, "multiply_conjugate", f);
-    Py_DECREF(f);
-}
-
+#if defined(NPY_PY3K)
+    return m;
 #endif
+}
