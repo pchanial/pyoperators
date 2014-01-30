@@ -40,7 +40,7 @@ def assert_same(actual, desired, rtol=5, broadcasting=False):
             "The actual array shape '{0}' is different from the desired one '{"
             "1}'.".format(actual.shape, desired.shape))
     dtype = sorted(arg.dtype for arg in [actual, desired])[0]
-    if dtype.kind in ('b', 'i'):
+    if dtype.kind in ('b', 'i', 'u'):
         if not broadcasting:
             assert_equal(actual, desired)
         else:
