@@ -7,6 +7,13 @@
 #include "numpy/ndarraytypes.h"
 #include "numpy/ufuncobject.h"
 
+#define UNARY_LOOP\
+    char *ip = args[0], *op = args[1];\
+    npy_intp is = steps[0], os = steps[1];\
+    npy_intp n = dimensions[0];\
+    npy_intp i;\
+    for(i = 0; i < n; i++, ip += is, op += os)
+
 #define BINARY_LOOP\
     char *ip1 = args[0], *ip2 = args[1], *op1 = args[2];\
     npy_intp is1 = steps[0], is2 = steps[1], os1 = steps[2];\
@@ -14,6 +21,12 @@
     npy_intp i;\
     for(i = 0; i < n; i++, ip1 += is1, ip2 += is2, op1 += os1)
 
+static char complex1_float1_types[12] = {NPY_CFLOAT, NPY_FLOAT,
+                                         NPY_CDOUBLE, NPY_DOUBLE,
+                                         NPY_CLONGDOUBLE, NPY_LONGDOUBLE,
+                                         NPY_FLOAT, NPY_FLOAT,
+                                         NPY_DOUBLE, NPY_DOUBLE,
+                                         NPY_LONGDOUBLE, NPY_LONGDOUBLE};
 static char float2_types[9] = {NPY_FLOAT, NPY_FLOAT, NPY_FLOAT,
                                NPY_DOUBLE, NPY_DOUBLE, NPY_DOUBLE,
                                NPY_LONGDOUBLE, NPY_LONGDOUBLE, NPY_LONGDOUBLE};
@@ -26,9 +39,44 @@ static char complex2_types[18] =
      NPY_LONGDOUBLE, NPY_CLONGDOUBLE, NPY_CLONGDOUBLE};
 
 static void *null_data3[3] = {NULL, NULL, NULL};
+static void *null_data6[6] = {NULL, NULL, NULL, NULL, NULL, NULL};
 static void *null_data17[17] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                                 NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                                 NULL};
+
+
+/*********************
+ * Complex abs(x)**2 *
+ *********************/
+
+/**begin repeat
+ * complex types
+ * #ftype = npy_float, npy_double, npy_longdouble#
+ * #c = f, , l#
+ */
+NPY_NO_EXPORT void
+abs2@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *data)
+{
+    UNARY_LOOP {
+        const @ftype@ inr = *(@ftype@ *)ip;
+        const @ftype@ ini = ((@ftype@ *)ip)[1];
+        *((@ftype@ *)op) = inr*inr + ini*ini;
+    }
+}
+
+NPY_NO_EXPORT void
+abs2@c@_real(char **args, npy_intp *dimensions, npy_intp *steps, void *data)
+{
+    UNARY_LOOP {
+        const @ftype@ in = *(@ftype@ *)ip;
+        *((@ftype@ *)op) = in * in;
+    }
+}
+/**end repeat**/
+
+static PyUFuncGenericFunction abs2_funcs[6] = 
+    {&abs2f, &abs2, &abs2l,
+     &abs2f_real, &abs2_real, &abs2l_real};
 
 
 /*********************
@@ -302,6 +350,12 @@ initufuncs()
     import_umath();
 
     d = PyModule_GetDict(m);
+
+    f = PyUFunc_FromFuncAndData(abs2_funcs, null_data6,
+            complex1_float1_types, 6, 1, 1, PyUFunc_None, "abs2",
+            "Compute y = x.real**2 + x.imag**2", 0);
+    PyDict_SetItemString(d, "abs2", f);
+    Py_DECREF(f);
 
     f = PyUFunc_FromFuncAndData(hard_thresholding_funcs, null_data3,
             float2_types, 3, 2, 1, PyUFunc_None, "hard_thresholding",
