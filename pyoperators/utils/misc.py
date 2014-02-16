@@ -40,6 +40,7 @@ __all__ = [
     'pi',
     'product',
     'renumerate',
+    'reshape_broadcast',
     'strelapsed',
     'strenum',
     'strinfo',
@@ -496,6 +497,50 @@ def product(a):
 def renumerate(l):
     """Reversed enumerate."""
     return izip(xrange(len(l) - 1, -1, -1), reversed(l))
+
+
+def reshape_broadcast(x, shape):
+    """
+    Reshape an array by setting broadcastable dimensions' strides to zero.
+
+    Parameters
+    ----------
+    x : array-like
+        The array to be reshaped.
+    shape : tuple of int
+        New shape of array. It can be any positive number along the axes of x
+        of length 1.
+
+    Example
+    -------
+    >>> a = np.arange(3).reshape((3, 1))
+    >>> b = reshape_broadcast(a, (2, 3, 2))
+    >>> print(b)
+    [[[0 0]
+      [1 1]
+      [2 2]]
+
+     [[0 0]
+      [1 1]
+      [2 2]]]
+    >>> b.shape
+    (2, 3, 2)
+    >>> b.strides
+    (0, 8, 0)
+
+    """
+    x = np.asanyarray(x)
+    if len(shape) < x.ndim or any(
+        os != 1 and os != ns for os, ns in zip(x.shape, shape[-x.ndim :])
+    ):
+        raise ValueError(
+            "The requested shape '{0}' is incompatible with that "
+            "of the array '{1}'.".format(shape, x.shape)
+        )
+    strides = (len(shape) - x.ndim) * (0,) + tuple(
+        (0 if sh == 1 else st for sh, st in zip(x.shape, x.strides))
+    )
+    return np.lib.stride_tricks.as_strided(x, shape, strides)
 
 
 def strelapsed(t0, msg='Elapsed time'):

@@ -19,6 +19,7 @@ from pyoperators.utils import (
     one,
     pi,
     product,
+    reshape_broadcast,
     strenum,
     strplural,
     strshape,
@@ -343,6 +344,28 @@ def test_product():
 
     for o in ([], (), (1,), [1], [2, 0.5], (2, 0.5), np.array(1), np.array([2, 0.5])):
         yield func, product(o)
+
+
+def test_reshape_broadcast():
+    data = np.arange(20)
+    shapes = (4, 5), (1, 4, 5), (4, 1, 5), (4, 5, 1)
+    new_shapess = (
+        ((4, 5), (1, 4, 5), (2, 4, 5), (2, 3, 4, 5)),
+        ((1, 4, 5), (2, 4, 5), (1, 2, 4, 5), (2, 2, 4, 5), (2, 3, 2, 4, 5)),
+        ((4, 1, 5), (4, 2, 5), (1, 4, 2, 5), (2, 4, 2, 5), (2, 3, 4, 2, 5)),
+        ((4, 5, 1), (4, 5, 2), (1, 4, 5, 2), (2, 4, 5, 2), (2, 3, 4, 5, 2)),
+    )
+
+    def func(shape, new_shape):
+        data_ = data.reshape(shape)
+        expected = np.empty(new_shape)
+        expected[...] = data_
+        actual = reshape_broadcast(data_, new_shape)
+        assert_equal(actual, expected)
+
+    for shape, new_shapes in zip(shapes, new_shapess):
+        for new_shape in new_shapes:
+            yield func, shape, new_shape
 
 
 def test_strenum():
