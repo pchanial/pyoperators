@@ -4,6 +4,7 @@ import numpy as np
 from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
+    broadcast_shapes,
     cast,
     complex_dtype,
     first,
@@ -62,6 +63,69 @@ def assert_is_scalar(o):
 
 def assert_is_not_scalar(o):
     assert not isscalar(o)
+
+
+def test_broadcast_shapes():
+    shapes = [
+        ((),),
+        ((), ()),
+        ((), (), ()),
+        ((1,),),
+        ((), (1,)),
+        ((), (1,), (1,)),
+        ((2,),),
+        ((), (2,)),
+        ((1,), (2,)),
+        ((), (2,), (2,)),
+        ((), (2,), (1,)),
+        ((2,), (1,), ()),
+        ((1,), (2, 1)),
+        ((), (2, 1)),
+        ((1,), (2, 1), ()),
+        ((1,), (1, 2)),
+        ((), (1, 2)),
+        ((1,), (1, 2), ()),
+        ((2,), (2, 1)),
+        ((), (2,), (2, 1)),
+        ((2,), (2, 1), ()),
+        ((1, 2), (2, 1)),
+        ((), (1, 2), (2, 1)),
+        ((1, 2), (2, 1), ()),
+        ((1, 1, 4), (1, 3, 1), (2, 1, 1), (), (1, 1, 1)),
+    ]
+    expecteds = [
+        (),
+        (),
+        (),
+        (1,),
+        (1,),
+        (1,),
+        (2,),
+        (2,),
+        (2,),
+        (2,),
+        (2,),
+        (2,),
+        (2, 1),
+        (2, 1),
+        (2, 1),
+        (1, 2),
+        (1, 2),
+        (1, 2),
+        (2, 2),
+        (2, 2),
+        (2, 2),
+        (2, 2),
+        (2, 2),
+        (2, 2),
+        (2, 3, 4),
+    ]
+
+    def func(shape, expected):
+        assert_equal(broadcast_shapes(*shape), expected)
+
+    for shape, expected in zip(shapes, expecteds):
+        yield func, shape, expected
 
 
 def test_cast():

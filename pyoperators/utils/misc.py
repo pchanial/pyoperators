@@ -16,6 +16,7 @@ from . import cythonutils as cu
 
 __all__ = [
     'all_eq',
+    'broadcast_shapes',
     'cast',
     'complex_dtype',
     'first',
@@ -95,6 +96,42 @@ def all_eq(a, b):
             return False
         return a.func_code is b.func_code
     return a == b
+
+
+def broadcast_shapes(*shapes):
+    """
+    Broadcast any number of shapes against each other.
+
+    Parameters
+    ----------
+    *shapes : tuples
+        The shapes to broadcast
+
+    Example
+    -------
+    >>> broadcast_shapes((1,5), (3, 2, 1))
+    (3, 2, 5)
+
+    """
+    if any(not isinstance(s, tuple) for s in shapes):
+        raise TypeError('The input shapes are not tuples.')
+    ndim = max(len(s) for s in shapes)
+    shapes_ = [(ndim - len(s)) * [1] + list(s) for s in shapes]
+    outshape = []
+    for idim, dims in enumerate(zip(*shapes_)):
+        dims = [dim for dim in dims if dim != 1]
+        if len(dims) == 0:
+            d = 1
+        elif any(dim != dims[0] for dim in dims):
+            raise ValueError(
+                'The shapes could not be broadcast together {}'.format(
+                    ' '.join(str(s) for s in shapes)
+                )
+            )
+        else:
+            d = dims[0]
+        outshape.append(d)
+    return tuple(outshape)
 
 
 def cast(arrays, dtype=None, order='c'):
