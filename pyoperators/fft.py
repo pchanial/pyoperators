@@ -13,6 +13,7 @@ from .memory import empty
 from .utils import (complex_dtype, isalias, openmp_num_threads, product,
                     tointtuple)
 from .utils.ufuncs import multiply_conjugate
+from .warnings import warn, PyOperatorsWarning
 
 __all__ = ['ConvolutionOperator', 'FFTOperator']
 
@@ -24,7 +25,7 @@ try:
     FFTW_WISDOM_MIN_DELAY = 0.1
     _is_fftw_wisdom_loaded = False
 except:
-    print('Warning: The pyFFTW library is not installed.')
+    warn('The pyFFTW library is not installed.', PyOperatorsWarning)
 
 # FFTW out-of-place transforms:
 # PRESERVE_INPUT: default except c2r and hc2r

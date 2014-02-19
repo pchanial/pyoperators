@@ -1,5 +1,6 @@
 import os
 import site
+from .warnings import warn, PyOperatorsWarning
 
 LOCAL_PATH = os.getenv('PYOPERATORSPATH')
 if LOCAL_PATH is None:
@@ -8,8 +9,10 @@ if not os.path.exists(LOCAL_PATH):
     try:
         os.makedirs(LOCAL_PATH)
     except IOError:
-        print "Warning: user path '{0}' cannot be created.".format(LOCAL_PATH)
+        warn("User path '{0}' cannot be created.".format(LOCAL_PATH),
+             PyOperatorsWarning)
 elif not os.access(LOCAL_PATH, os.W_OK):
-    print "Warning: the user path '{0}' is not writable.".format(LOCAL_PATH)
+    warn("User path '{0}' is not writable.".format(LOCAL_PATH),
+         PyOperatorsWarning)
 
-del os, site
+del os, site, PyOperatorsWarning, warn
