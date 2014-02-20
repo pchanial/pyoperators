@@ -9,15 +9,16 @@ from pyoperators import (
     Operator,
     AdditionOperator,
     CompositionOperator,
-    MultiplicationOperator,
     ConstantOperator,
-    IdentityOperator,
+    DiagonalOperator,
     HomothetyOperator,
+    IdentityOperator,
+    MultiplicationOperator,
     ZeroOperator,
     PyOperatorsWarning,
 )
-from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
 from pyoperators.flags import linear
+from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
     assert_eq,
@@ -528,3 +529,20 @@ def test_manager_errors():
     assert_raises(KeyError, rule_manager.__setitem__, 'non_existent', True)
     assert_raises(TypeError, rule_manager.register, 32, 0, '')
     assert_raises(TypeError, rule_manager.register, 'new_rule', 0, 0)
+
+
+def test_rule_manager_none():
+    op1 = DiagonalOperator([1, 2, 3])
+    op2 = 2
+
+    def func(cls, none):
+        with rule_manager(none=none):
+            op = cls([op1, op2])
+            if none:
+                assert_is_instance(op, cls)
+            else:
+                assert_is_instance(op, DiagonalOperator)
+
+    for cls in AdditionOperator, CompositionOperator, MultiplicationOperator:
+        for none in False, True:
+            yield func, cls, none
