@@ -4,7 +4,7 @@ from numpy.testing import assert_equal
 from pyoperators import (
     Operator, AdditionOperator, CompositionOperator, MultiplicationOperator,
     ConstantOperator, IdentityOperator, HomothetyOperator, ZeroOperator)
-from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
+from pyoperators.rules import BinaryRule, UnaryRule
 from pyoperators.flags import linear
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
@@ -57,7 +57,7 @@ def p2(o1, o2):
 
 def test_unaryrule1():
     def func(s, p):
-        r = OperatorUnaryRule(s, p)
+        r = UnaryRule(s, p)
         if p == '.':
             assert_is(r(op1), op1)
         else:
@@ -68,19 +68,19 @@ def test_unaryrule1():
 
 
 def test_unaryrule2():
-    assert_raises(ValueError, OperatorUnaryRule, '.', '.')
-    assert_raises(ValueError, OperatorUnaryRule, '.T', '.')
-    assert_raises(ValueError, OperatorUnaryRule, 'T', 'C')
-    assert_raises(ValueError, OperatorUnaryRule, 'T', 'T')
-    assert_raises(ValueError, OperatorUnaryRule, 'T', 'H')
-    assert_raises(ValueError, OperatorUnaryRule, 'T', 'I')
+    assert_raises(ValueError, UnaryRule, '.', '.')
+    assert_raises(ValueError, UnaryRule, '.T', '.')
+    assert_raises(ValueError, UnaryRule, 'T', 'C')
+    assert_raises(ValueError, UnaryRule, 'T', 'T')
+    assert_raises(ValueError, UnaryRule, 'T', 'H')
+    assert_raises(ValueError, UnaryRule, 'T', 'I')
 
 
 def test_binaryrule1():
     op.T  # generate associated operators
 
     def func(s1, s2, s3, o1, o2, ref):
-            rule = OperatorBinaryRule(s1 + ',' + s2, s3)
+            rule = BinaryRule(s1 + ',' + s2, s3)
             result = rule(o1, o2)
             assert_is_not_none(result)
             assert_is_instance(result, Operator)
@@ -101,26 +101,26 @@ def test_binaryrule1():
 
 
 def test_binaryrule2():
-    rule = OperatorBinaryRule('.,T', p1)
+    rule = BinaryRule('.,T', p1)
     yield assert_is_none, rule(op1, op2)
     yield assert_equal, rule(op1, op1.T), (op1.T, op1)
 
 
 def test_binaryrule3():
-    rule = OperatorBinaryRule('.,T', p2)
+    rule = BinaryRule('.,T', p2)
     yield assert_is_none, rule(op1, op2)
     yield assert_is_instance, rule(op1, op1.T), Operator3
 
 
 def test_binaryrule4():
-    rule = OperatorBinaryRule(('.', HomothetyOperator), p1)
+    rule = BinaryRule(('.', HomothetyOperator), p1)
     yield assert_is_none, rule(op1, op2)
     s = HomothetyOperator(2)
     yield assert_equal, rule(op1, s), (s, op1)
 
 
 def test_binaryrule5():
-    rule = OperatorBinaryRule((type(op1), '.'), p2)
+    rule = BinaryRule((type(op1), '.'), p2)
     yield assert_equal, rule(op1, op1), op3
     yield assert_is_none, rule(op2, op1)
     yield assert_equal, rule(op4, op1), op3
