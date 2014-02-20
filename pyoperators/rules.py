@@ -1,8 +1,19 @@
-from __future__ import division
+from __future__ import division, print_function
 
 import inspect
 import types
+import os
 import core
+from . import config
+from .warnings import warn, PyOperatorsWarning
+
+__all__ = ['rule_manager']
+_triggers = {}
+_default_triggers = {'inplace': False, 'none': False}
+_description_triggers = {
+    'inplace': 'Allow inplace simplifications',
+    'none': 'Inhibit all rule simplifications',
+}
 
 
 class Rule(object):
@@ -242,3 +253,186 @@ class BinaryRule(Rule):
         ):
             raise TypeError("The predicate '{0}' is not an operator.".format(predicate))
         return predicate
+
+
+class RuleManager(object):
+    """
+    Manage a set of rule prescriptions.
+
+    It is a proxy for the global dictionary that contains the rule names
+    and values. It also provides a context manager to change the rules inside
+    a with statement.
+    Rule defaults can be stored in a file 'rules.txt' in the user directory
+    pyoperators.config.LOCAL_PATH.
+
+    Examples
+    --------
+    To prevent rule simplifications:
+    >>> from pyoperators.rules import rules
+    >>> rules['none'] = True
+    or:
+    >>> with rules(none=True):
+    ...     print(rules['none'])
+    ...     # in this context, operator simplification rules are inhibited
+    >>> print(rules['none'])
+    True
+    False
+
+    It is possible to nest contexts:
+    >>> print(rule_manager['none'])
+    >>> with rule_manager(none=True) as new_rule_manager:
+    ...     print(rule_manager['none'])
+    ...     with new_rule_manager(none=False):
+    ...         print(rule_manager['none'])
+    ...     print(rule_manager['none'])
+    >>> print(rule_manager['none'])
+    False
+    True
+    False
+    True
+    False
+
+    """
+
+    def __init__(self):
+        self._deferred_triggers = {}
+        if len(self) == 0:
+            self.update(_default_triggers)
+            self._update_user_default_triggers()
+
+    def __call__(self, **keywords):
+        for key in keywords:
+            if key not in self:
+                raise KeyError('Unknown rule: {!r}'.format(key))
+        self._deferred_triggers = keywords
+        return self
+
+    def __enter__(self):
+        self._old_triggers = self.copy()
+        self.update(self._deferred_triggers)
+        return RuleManager()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        global _triggers
+        _triggers = self._old_triggers
+        return False
+
+    def __getitem__(self, key):
+        return _triggers[key]
+
+    def __setitem__(self, key, value):
+        if key not in self:
+            raise KeyError('Unknown rule: {!r}'.format(key))
+        _triggers[key] = value
+
+    def __contains__(self, key):
+        return key in _triggers
+
+    def __iter__(self):
+        return iter(sorted(_triggers.keys()))
+
+    def __len__(self):
+        return len(_triggers)
+
+    def __str__(self):
+        nk = max(len(k) for k in self)
+        nv = max(len(repr(v)) for v in self.values())
+        s = '{0:' + str(nk) + '} = {1!r:' + str(nv) + '}  # {2}'
+        return '\n'.join(
+            s.format(k, self[k], _description_triggers.get(k, '')) for k in self
+        )
+
+    def clear(self):
+        """Clear the global rule dictionary."""
+        _triggers.clear()
+
+    def copy(self):
+        """Copy the global rule dictionary."""
+        return _triggers.copy()
+
+    def get(self, k, *args):
+        """Get a rule value in the global rule dictionary."""
+        return _triggers.get(k, *args)
+
+    def items(self):
+        """Return the global rule items."""
+        return _triggers.items()
+
+    def keys(self):
+        """Return the global rule names."""
+        return _triggers.keys()
+
+    def pop(self, k, *args):
+        """Pop a given item from the global rule dictionary."""
+        return _triggers.pop(k, *args)
+
+    def popitem(self):
+        """Pop any item from the global rule dictionary."""
+        return _triggers.popitem()
+
+    def register(self, rule, default, description):
+        """Add a new rule."""
+        # should not be called in a managed context
+        if not isinstance(rule, str):
+            raise TypeError('The rule is not a string.')
+        if not isinstance(description, str):
+            raise TypeError('The rule description is not a string.')
+        rule = rule.lower()
+        _triggers[rule] = default
+        _description_triggers[rule] = description
+
+    def update(self, *args, **keywords):
+        """Update the global rule dictionary."""
+        _triggers.update(*args, **keywords)
+
+    def values(self):
+        """Return the global rule values."""
+        return _triggers.values()
+
+    def _update_user_default_triggers(self):
+        # read user 'rules.txt' to update defaults
+        path = os.path.join(config.LOCAL_PATH, 'rules.txt')
+        if not os.path.exists(path):
+            return
+        if not os.access(path, os.R_OK):
+            warn('The file {0!r} cannot be read.'.format(path), PyOperatorsWarning)
+            return
+        with open(path) as f:
+            for iline, line in enumerate(f.readlines()):
+                line = line.strip()
+                line_orig = line
+                try:
+                    index = line.index('#')
+                except ValueError:
+                    pass
+                else:
+                    line = line[:index].rstrip()
+                try:
+                    index = line.index('=')
+                except ValueError:
+                    if len(line) == 0:
+                        continue
+                    warn(
+                        'In file {0!r}, line {1} does not define a rule: {2!r'
+                        '}.'.format(path, iline + 1, line_orig),
+                        PyOperatorsWarning,
+                    )
+                    continue
+                key = line[:index].rstrip().lower()
+                value = line[index + 1 :].lstrip()
+                try:
+                    value = eval(value, {})
+                except Exception:
+                    warn(
+                        'In file {0!r}, line {1}: {2!r} cannot be evaluated'.format(
+                            path, iline + 1, value
+                        ),
+                        PyOperatorsWarning,
+                    )
+                    continue
+                _triggers[key] = value
+
+    __repr__ = __str__
+
+
+rule_manager = RuleManager()

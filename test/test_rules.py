@@ -1,6 +1,10 @@
 import numpy as np
-
-from numpy.testing import assert_equal
+import os
+import pyoperators
+import tempfile
+import warnings
+from nose import with_setup
+from numpy.testing import assert_equal, assert_raises, assert_warns
 from pyoperators import (
     Operator,
     AdditionOperator,
@@ -10,8 +14,9 @@ from pyoperators import (
     IdentityOperator,
     HomothetyOperator,
     ZeroOperator,
+    PyOperatorsWarning,
 )
-from pyoperators.rules import BinaryRule, UnaryRule
+from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
 from pyoperators.flags import linear
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
@@ -20,7 +25,6 @@ from pyoperators.utils.testing import (
     assert_is_none,
     assert_is_not_none,
     assert_is_instance,
-    assert_raises,
 )
 
 from .common import OPS, ndarray2, attr2
@@ -425,3 +429,102 @@ def test_absorb_scalar():
 
     for op, expected_type, expected_value in zip(ops, expected_types, expected_values):
         yield func, op, expected_type, expected_value
+
+
+_old_local_path = None
+_old_triggers = None
+
+
+def setup_user_rules():
+    global _old_local_path, _old_triggers
+    _old_local_path = pyoperators.config.LOCAL_PATH
+    _old_triggers = pyoperators.rules._triggers.copy()
+    pyoperators.rules.rule_manager.clear()
+    new_local_path = tempfile.gettempdir()
+    pyoperators.config.LOCAL_PATH = new_local_path
+    with open(os.path.join(new_local_path, 'rules.txt'), 'w') as f:
+        f.write(
+            """
+d1 = 3
+d2 = 'value2' # comment
+incorrect1
+
+# comment
+ # comment
+d3 = incorrect2
+d4 = 'value4' = incorrect3
+d1 = 4"""
+        )
+
+
+def teardown_user_rules():
+    pyoperators.config.LOCAL_PATH = _old_local_path
+    pyoperators.rules._triggers = _old_triggers
+    os.remove(os.path.join(tempfile.gettempdir(), 'rules.txt'))
+
+
+@with_setup(setup_user_rules, teardown_user_rules)
+def test_manager():
+    path = os.path.join(pyoperators.config.LOCAL_PATH, 'rules.txt')
+    oldmod = os.stat(path)[0]
+    try:
+        os.chmod(path, 0)
+        assert_warns(PyOperatorsWarning, RuleManager)
+    finally:
+        os.chmod(path, oldmod)
+    pyoperators.rules.rule_manager.clear()
+
+    with warnings.catch_warnings(record=True) as w:
+        rule_manager = RuleManager()
+        assert_equal(sum(_.category is PyOperatorsWarning for _ in w), 3)
+    assert_equal(len(rule_manager), 4)
+    for key, default in pyoperators.rules._default_triggers.items():
+        assert_equal(rule_manager[key], default)
+    assert 'd1' in rule_manager
+    assert_equal(rule_manager['d1'], 4)
+    assert 'd2' in rule_manager
+    assert_equal(rule_manager['d2'], 'value2')
+    assert_equal(
+        str(rule_manager),
+        'd1      = 4         # \n'
+        "d2      = 'value2'  # \n"
+        'inplace = False     # Allow inplace simplifications\n'
+        'none    = False     # Inhibit all rule simplifications',
+    )
+    rule_manager.register('new_rule', 20, 'my new rule')
+    assert 'new_rule' in rule_manager
+    assert_equal(rule_manager['new_rule'], 20)
+    assert_equal(pyoperators.rules._description_triggers['new_rule'], 'my new rule')
+
+    _triggers = pyoperators.rules._triggers
+    assert_equal(rule_manager.get('d1'), _triggers.get('d1'))
+    assert_equal(rule_manager.items(), _triggers.items())
+    assert_equal(rule_manager.keys(), _triggers.keys())
+    assert_equal(rule_manager.pop('d1'), 4)
+    assert 'd1' not in _triggers
+    item = rule_manager.popitem()
+    assert item[0] not in _triggers
+
+
+def test_manager2():
+    rule_manager['none'] = False
+    assert not rule_manager['none']
+    with rule_manager(none=True) as new_rule_manager:
+        assert rule_manager['none']
+        with new_rule_manager(none=False) as new_rule_manager2:
+            assert not rule_manager['none']
+            rule_manager['none'] = True
+            assert rule_manager['none']
+            with new_rule_manager2():
+                assert rule_manager['none']
+            rule_manager['none'] = False
+        assert rule_manager['none']
+    assert not rule_manager['none']
+
+
+def test_manager_errors():
+    assert_raises(KeyError, rule_manager, non_existent_rule=True)
+    assert_raises(KeyError, rule_manager.__getitem__, 'non_existent')
+    assert_raises(KeyError, rule_manager.__setitem__, 'non_existent', True)
+    assert_raises(TypeError, rule_manager.register, 32, 0, '')
+    assert_raises(TypeError, rule_manager.register, 'new_rule', 0, 0)
