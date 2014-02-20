@@ -654,7 +654,7 @@ def strenum(choices, last='or'):
 
     Examples
     --------
-    >>> strenum(['blue', 'red', 'yellow'], 'or')
+    >>> strenum(['blue', 'red', 'yellow'])
     "'blue', 'red' or 'yellow'"
 
     """
