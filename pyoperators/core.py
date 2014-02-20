@@ -20,7 +20,7 @@ from .flags import (
     Flags, contiguous, linear, real, idempotent, involutary, square,
     symmetric, inplace)
 from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
-from .rules import Rule
+from .rules import Rule, rule_manager
 from .utils import (
     all_eq, first_is_not, float_dtype, inspect_special_values, isalias,
     isclassattr, isscalar, merge_none, ndarraywrap, operation_assignment,
@@ -1584,6 +1584,9 @@ class CommutativeCompositeOperator(CompositeOperator):
         return Operator.propagate_attributes(self, cls, attr)
 
     def _apply_rules(self, ops):
+        if rule_manager['none']:
+            return ops
+
         if DEBUG:
             strcls = type(self).__name__.upper()[:-8]
 
@@ -1872,6 +1875,9 @@ class NonCommutativeCompositeOperator(CompositeOperator):
 
     """
     def _apply_rules(self, ops):
+        if rule_manager['none']:
+            return ops
+
         if DEBUG:
             def print_rules(i, rules):
                 print 'Rules for ({0}, {1}):'.format(i, i+1)
@@ -1976,7 +1982,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     """
     def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands)
-        operands = self._apply_rule_homothety(operands)
         operands = self._apply_rules(operands)
         if len(operands) == 1 and self.morph_single_operand:
             self.__class__ = operands[0].__class__
@@ -2106,6 +2111,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 self.operands[i] = op
                 commout = op.commin or commout
         return self
+
+    def _apply_rules(self, ops):
+        if rule_manager['none']:
+            return ops
+        ops = self._apply_rule_homothety(ops)
+        return NonCommutativeCompositeOperator._apply_rules(self, ops)
 
     def _apply_rule_homothety(self, operands):
         """

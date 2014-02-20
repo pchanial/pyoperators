@@ -9,6 +9,7 @@ from pyoperators import (
     HomothetyOperator, IdentityOperator, MaskOperator, MultiplicationOperator,
     PackOperator, UnpackOperator, ZeroOperator)
 from pyoperators.core import BroadcastingBase
+from pyoperators.rules import rule_manager
 from pyoperators.utils import float_dtype, product
 from pyoperators.utils.testing import assert_is_instance, assert_is_none
 from .common import HomothetyOutplaceOperator
@@ -103,7 +104,8 @@ def test_partition():
             assert not isinstance(p, BlockDiagonalOperator)
             return
         assert_is_instance(p, BlockDiagonalOperator)
-        q = operation([a, GroupOperator(b)])
+        with rule_manager(none=True):
+            q = operation([a, b])
         assert_equal(p.todense(), q.todense())
 
     for cls, (commutative, left, right) in zip(clss, valids):

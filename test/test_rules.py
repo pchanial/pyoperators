@@ -6,11 +6,11 @@ import warnings
 from nose import with_setup
 from numpy.testing import assert_equal, assert_raises, assert_warns
 from pyoperators import (
-    Operator, AdditionOperator, CompositionOperator, MultiplicationOperator,
-    ConstantOperator, IdentityOperator, HomothetyOperator, ZeroOperator,
-    PyOperatorsWarning)
-from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
+    Operator, AdditionOperator, CompositionOperator, ConstantOperator,
+    DiagonalOperator, HomothetyOperator, IdentityOperator,
+    MultiplicationOperator, ZeroOperator, PyOperatorsWarning)
 from pyoperators.flags import linear
+from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
     assert_eq, assert_is, assert_is_none, assert_is_not_none,
@@ -456,3 +456,19 @@ def test_manager_errors():
     assert_raises(KeyError, rule_manager.__setitem__, 'non_existent', True)
     assert_raises(TypeError, rule_manager.register, 32, 0, '')
     assert_raises(TypeError, rule_manager.register, 'new_rule', 0, 0)
+
+
+def test_rule_manager_none():
+    op1 = DiagonalOperator([1, 2, 3])
+    op2 = 2
+
+    def func(cls, none):
+        with rule_manager(none=none):
+            op = cls([op1, op2])
+            if none:
+                assert_is_instance(op, cls)
+            else:
+                assert_is_instance(op, DiagonalOperator)
+    for cls in AdditionOperator, CompositionOperator, MultiplicationOperator:
+        for none in False, True:
+            yield func, cls, none
