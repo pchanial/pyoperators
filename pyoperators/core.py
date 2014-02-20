@@ -4258,6 +4258,8 @@ class ReductionOperator(Operator):
                              'mensions.')
 
 
+@linear
+@square
 class Variable(Operator):
     """
     Fake operator to represent a variable.
@@ -4266,14 +4268,13 @@ class Variable(Operator):
     def __init__(self, name, shape=None):
         self.name = name
         Operator.__init__(self, shapein=shape)
-        self.set_rule('T', lambda s: VariableTranspose(self.name,
-                                                        self.shapein))
-        self.set_rule(('.', Operator), self._rule_left, CompositionOperator)
+        self.set_rule('T',
+                      lambda s: VariableTranspose(self.name, self.shapein))
+        self.set_rule(('.', Operator), self._rule_rcomp, CompositionOperator)
 
     @staticmethod
-    def _rule_left(self, other):
-        raise ValueError('A variable cannot be composed with an right-hand sid'
-                         'e operator.')
+    def _rule_rcomp(self, other):
+        raise ValueError('A variable cannot be composed with an operator.')
 
     def __str__(self):
         return self.name
@@ -4281,6 +4282,8 @@ class Variable(Operator):
     __repr__ = __str__
 
 
+@linear
+@square
 class VariableTranspose(Operator):
     """
     Fake operator to represent a transposed variable.
@@ -4290,6 +4293,12 @@ class VariableTranspose(Operator):
         self.name = name
         Operator.__init__(self, shapein=shape)
         self.set_rule('T', lambda s: Variable(self.name, self.shapein))
+        self.set_rule((Operator, '.'), self._rule_lcomp, CompositionOperator)
+
+    @staticmethod
+    def _rule_lcomp(self, other):
+        raise ValueError('An operator cannot be composed with a transposed var'
+                         'iable.')
 
     def __str__(self):
         return self.name + '.T'
