@@ -1,7 +1,7 @@
 import numpy as np
 
 from .core import Operator
-from .decorators import (real, linear, square, inplace)
+from .flags import real, linear, square, inplace
 from .utils import isalias
 from .utils.mpi import MPI, as_mpi, distribute_shape, distribute_slice
 

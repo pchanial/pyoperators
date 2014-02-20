@@ -1,7 +1,7 @@
 import numpy as np
 
 from pyoperators import (
-    decorators, Operator, AdditionOperator, BlockColumnOperator,
+    flags, Operator, AdditionOperator, BlockColumnOperator,
     BlockDiagonalOperator, BlockRowOperator,  DiagonalOperator,
     HomothetyOperator, IdentityOperator, MultiplicationOperator, I, asoperator)
 from pyoperators.core import BlockOperator
@@ -53,7 +53,7 @@ def test_partition4():
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=3)
 
-    @decorators.separable
+    @flags.separable
     class Op(Operator):
         pass
     op = Op()
@@ -101,7 +101,7 @@ def test_block4():
     o2 = HomothetyOperator(2, shapein=2)
     o3 = HomothetyOperator(3, shapein=2)
 
-    @decorators.separable
+    @flags.separable
     class Op(Operator):
         pass
     op = Op()

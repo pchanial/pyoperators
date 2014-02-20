@@ -3,9 +3,10 @@ if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
-from .decorators import idempotent, inplace, real, separable, square
-from .core import (Operator, BlockColumnOperator, CompositionOperator,
-                   IdentityOperator, ReductionOperator)
+from .core import (
+    Operator, BlockColumnOperator, CompositionOperator, IdentityOperator,
+    ReductionOperator)
+from .flags import idempotent, inplace, real, separable, square
 from .linear import DegreesOperator, RadiansOperator
 from .utils import (
     operation_assignment, operation_symbol, pi, strenum, tointtuple)

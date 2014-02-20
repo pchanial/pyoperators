@@ -6,7 +6,7 @@ import sys
 from nose import with_setup
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
-from pyoperators import memory, decorators
+from pyoperators import memory, flags
 from pyoperators.core import (
     Operator, AdditionOperator, BlockColumnOperator, BlockDiagonalOperator,
     BlockRowOperator, BlockSliceOperator, CompositionOperator, GroupOperator,
@@ -74,14 +74,14 @@ class ndarray4(np.ndarray):
     pass
 
 
-@decorators.square
+@flags.square
 class SquareOp(Operator):
 
     def __init__(self, **keywords):
         Operator.__init__(self, **keywords)
 
 
-@decorators.square
+@flags.square
 class Op2(Operator):
     attrout = {'newattr': True}
 
@@ -92,7 +92,7 @@ class Op2(Operator):
         pass
 
 
-@decorators.square
+@flags.square
 class Op3(Operator):
     classout = ndarray3
     classin = ndarray4
@@ -153,7 +153,7 @@ def test_flags():
 def test_symmetric():
     mat = np.matrix([[2, 1], [1, 2]])
 
-    @decorators.symmetric
+    @flags.symmetric
     class Op(Operator):
 
         def __init__(self):
@@ -219,7 +219,7 @@ def test_autoflags():
 #==================
 
 def test_conjugation():
-    @decorators.square
+    @flags.square
     class OpBase(Operator):
         def __init__(self, data_=None):
             Operator.__init__(self, shapein=2, dtype=complex)
@@ -434,11 +434,11 @@ def test_shapein_unconstrained2():
 
 
 def test_shapein_unconstrained3():
-    @decorators.square
+    @flags.square
     class Op1(Operator):
         pass
 
-    @decorators.square
+    @flags.square
     class Op2(Operator):
         def reshapein(self, shape):
             return shape
@@ -446,7 +446,7 @@ def test_shapein_unconstrained3():
         def toshapein(self, v):
             return v
 
-    @decorators.square
+    @flags.square
     class Op3(Operator):
         def reshapeout(self, shape):
             return shape
@@ -454,7 +454,7 @@ def test_shapein_unconstrained3():
         def toshapeout(self, v):
             return v
 
-    @decorators.square
+    @flags.square
     class Op4(Operator):
         def reshapein(self, shape):
             return shape
@@ -524,7 +524,7 @@ def test_validation():
 def test_dtype1():
     value = 2.5
 
-    @decorators.square
+    @flags.square
     class Op(Operator):
 
         def __init__(self, dtype):
@@ -548,7 +548,7 @@ def test_dtype1():
             yield func, dop, di
 
 def test_dtype2():
-    @decorators.square
+    @flags.square
     class Op(Operator):
 
         def direct(self, input, output):
@@ -589,7 +589,7 @@ def test_name():
 
 
 def test_merge_name():
-    @decorators.linear
+    @flags.linear
     class AbsorbOperator(Operator):
 
         def __init__(self, **keywords):
@@ -649,7 +649,7 @@ def test_iadd_imul():
 #===========================
 
 def test_propagation_attribute1():
-    @decorators.square
+    @flags.square
     class AddAttribute(Operator):
         attrout = {'newattr_direct': True}
         attrin = {'newattr_transpose': True}
@@ -660,7 +660,7 @@ def test_propagation_attribute1():
         def transpose(self, input, output):
             pass
 
-    @decorators.square
+    @flags.square
     class AddAttribute2(Operator):
         attrout = {'newattr_direct': False}
         attrin = {'newattr_transpose': False}
@@ -671,7 +671,7 @@ def test_propagation_attribute1():
         def transpose(self, input, output):
             pass
 
-    @decorators.square
+    @flags.square
     class AddAttribute3(Operator):
         attrout = {'newattr3_direct': True}
         attrin = {'newattr3_transpose': True}
@@ -745,7 +745,7 @@ def test_propagation_attribute1():
 
 
 def test_propagation_attribute2():
-    @decorators.square
+    @flags.square
     class Op(Operator):
         attrin = {'attr_class': 1, 'attr_instance': 2, 'attr_other': 3}
         attrout = {'attr_class': 4, 'attr_instance': 5, 'attr_other': 6}
@@ -807,7 +807,7 @@ def test_propagation_attribute3():
             self.attr_class2 = 2
             self.attr_instance2 = 12
 
-    @decorators.square
+    @flags.square
     class Op(Operator):
         classin = ndarray1
         classout = ndarray2
@@ -957,14 +957,14 @@ def test_propagation_classT_inplace():
 
 
 def test_propagation_class_nested():
-    @decorators.square
+    @flags.square
     class O1(Operator):
         classout = ndarray2
 
         def direct(self, input, output):
             output[...] = input
 
-    @decorators.square
+    @flags.square
     class O2(Operator):
 
         def direct(self, input, output):
@@ -1173,7 +1173,7 @@ def test_comm_propagation():
 #===========================
 
 def test_inplace1():
-    @decorators.square
+    @flags.square
     class NotInplace(Operator):
 
         def direct(self, input, output):
@@ -1563,7 +1563,7 @@ def test_associativity():
 #==================
 
 def test_addition():
-    @decorators.square
+    @flags.square
     class Op(Operator):
 
         def __init__(self, v, **keywords):
@@ -1611,7 +1611,7 @@ def test_addition_flags():
 
 
 def test_multiplication():
-    @decorators.square
+    @flags.square
     class Op(Operator):
 
         def __init__(self, v, **keywords):
@@ -1775,8 +1775,8 @@ def test_composition2():
 
 
 def test_composition3():
-    @decorators.square
-    @decorators.inplace
+    @flags.square
+    @flags.inplace
     class Op(Operator):
 
         def __init__(self, v, **keywords):
@@ -1900,30 +1900,30 @@ def test_composition_shapes():
 
 
 def test_composition_get_requirements():
-    @decorators.inplace
+    @flags.inplace
     class I__(Operator):
         pass
 
-    @decorators.aligned
-    @decorators.contiguous
+    @flags.aligned
+    @flags.contiguous
     class IAC(I__):
         pass
 
     class O____(Operator):
         pass
 
-    @decorators.aligned_input
-    @decorators.contiguous_input
+    @flags.aligned_input
+    @flags.contiguous_input
     class O__AC(O____):
         pass
 
-    @decorators.aligned_output
-    @decorators.contiguous_output
+    @flags.aligned_output
+    @flags.contiguous_output
     class OAC__(O____):
         pass
 
-    @decorators.aligned
-    @decorators.contiguous
+    @flags.aligned
+    @flags.contiguous
     class OACAC(O____):
         pass
 
@@ -2178,7 +2178,7 @@ def test_homothety_reduction2():
 
 
 def test_homothety_reduction3():
-    @decorators.linear
+    @flags.linear
     class Op(Operator):
         pass
 
@@ -2255,7 +2255,7 @@ def test_constant_reduction2():
 
 
 def _test_constant_reduction3():
-    @decorators.square
+    @flags.square
     class Op(Operator):
 
         def direct(self, input, output):
@@ -2325,7 +2325,7 @@ def test_zero5():
 def test_zero6():
     z = ZeroOperator(flags='square')
 
-    @decorators.linear
+    @flags.linear
     class Op(Operator):
         def direct(self, input, output):
             output[:] = np.concatenate([input, 2*input])

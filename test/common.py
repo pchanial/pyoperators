@@ -1,7 +1,7 @@
 import numpy as np
 import pyoperators
 
-from pyoperators import Operator, decorators
+from pyoperators import Operator, flags
 from pyoperators.utils.testing import assert_eq
 
 DTYPES = [np.dtype(t) for t in (np.uint8, np.int8, np.uint16, np.int16,
@@ -106,14 +106,14 @@ ALL_OPS = [eval('pyoperators.' + op) for op in dir(pyoperators) if op.endswith(
            'Operator')]
 
 
-@decorators.square
+@flags.square
 class IdentityOutplaceOperator(Operator):
     def direct(self, input, output):
         output[...] = input
 
 
-@decorators.real
-@decorators.symmetric
+@flags.real
+@flags.symmetric
 class HomothetyOutplaceOperator(Operator):
     def __init__(self, value, **keywords):
         Operator.__init__(self, **keywords)

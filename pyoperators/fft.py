@@ -7,8 +7,7 @@ import time
 from .config import LOCAL_PATH
 from .core import (AdditionOperator, CompositionOperator, DiagonalOperator,
                    HomothetyOperator, Operator, _pool)
-from .decorators import (aligned, contiguous, inplace, linear, real, square,
-                         unitary)
+from .flags import aligned, contiguous, inplace, linear, real, square, unitary
 from .memory import empty
 from .utils import (complex_dtype, isalias, openmp_num_threads, product,
                     tointtuple)

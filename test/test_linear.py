@@ -89,7 +89,7 @@ def test_diff_non_optimised():
 
 
 def test_integration_trapeze():
-    @pyoperators.decorators.square
+    @pyoperators.flags.square
     class Op(Operator):
         """ output[i] = value ** (i + input[i]) """
         def __init__(self, x):
