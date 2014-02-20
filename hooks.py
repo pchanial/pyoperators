@@ -180,15 +180,24 @@ class SDistCommand(sdist):
 
 class CoverageCommand(Command):
     description = "run the package coverage"
-    user_options = [('file=', 'f', 'restrict coverage to a specific file')]
+    user_options = [('file=', 'f', 'restrict coverage to a specific file'),
+                    ('erase', None,
+                     'erase previously collected coverage before run'),
+                    ('html-dir=', None,
+                     'Produce HTML coverage information in dir')]
 
     def run(self):
-        call(['nosetests', '--with-coverage', '--cover-package',
-              'pyoperators', self.file])
-        call(['coverage', 'html'])
+        cmd = ['nosetests', '--with-coverage', '--cover-html',
+               '--cover-package=' + self.distribution.get_name(),
+               '--cover-html-dir=' + self.html_dir]
+        if self.erase:
+            cmd.append('--cover-erase')
+        call(cmd + [self.file])
 
     def initialize_options(self):
         self.file = 'test'
+        self.erase = 0
+        self.html_dir = 'htmlcov'
 
     def finalize_options(self):
         pass
