@@ -12,7 +12,7 @@ from pyoperators import (
     ZeroOperator,
 )
 from pyoperators.core import OperatorBinaryRule, OperatorUnaryRule
-from pyoperators.decorators import linear
+from pyoperators.flags import linear
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
     assert_eq,

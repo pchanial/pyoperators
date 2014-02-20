@@ -11,7 +11,6 @@ except:
 from itertools import izip
 from scipy.sparse.linalg import eigsh
 
-from .decorators import inplace, linear, real, square, symmetric
 from .core import (
     Operator,
     BlockRowOperator,
@@ -23,6 +22,7 @@ from .core import (
     ReductionOperator,
     _pool,
 )
+from .flags import inplace, linear, real, square, symmetric
 from .memory import empty
 from .utils import (
     cast,

@@ -14,7 +14,7 @@ import operator
 import scipy.sparse as sp
 import types
 
-from collections import MutableMapping, MutableSequence, MutableSet, namedtuple
+from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
 from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
 from .utils import (
@@ -22,13 +22,12 @@ from .utils import (
     isclassattr, isscalar, merge_none, ndarraywrap, operation_assignment,
     product, renumerate, strenum, strplural, strshape, tointtuple, ufuncs)
 from .utils.mpi import MPI
-from .decorators import (
-    contiguous, linear, real, idempotent, involutary, square, symmetric,
-    inplace)
+from .flags import (
+    Flags, contiguous, linear, real, idempotent, involutary, square,
+    symmetric, inplace)
 
 __all__ = [
     'Operator',
-    'OperatorFlags',
     'AdditionOperator',
     'BlockColumnOperator',
     'BlockDiagonalOperator',
@@ -59,43 +58,6 @@ OPERATOR_ATTRIBUTES = ['attrin', 'attrout', 'classin', 'classout', 'commin',
                        'commout', 'reshapein', 'reshapeout', 'shapein',
                        'shapeout', 'toshapein', 'toshapeout', 'validatein',
                        'validateout', 'dtype', 'flags']
-
-
-class OperatorFlags(namedtuple(
-        'OperatorFlags',
-        ['linear',
-         'square',      # shapein == shapeout
-         'real',        # o.C = o
-         'symmetric',   # o.T = o
-         'hermitian',   # o.H = o
-         'idempotent',  # o * o = o
-         'involutary',  # o * o = I
-         'orthogonal',  # o * o.T = I
-         'unitary',     # o * o.H = I
-         'separable',   # o*[B1...Bn] = [o*B1...o*Bn]
-         'inplace',
-         'inplace_reduction',
-         'aligned_input',      # aligned input requirement
-         'aligned_output',     # aligned output requirement
-         'contiguous_input',   # contiguous input requirement
-         'contiguous_output',  # contiguous output requirement
-         'shape_input',
-         'shape_output'])):
-    """ Informative flags about the operator. """
-    def __new__(cls):
-        t = 16*(False,) + ('', '')
-        return super(OperatorFlags, cls).__new__(cls, *t)
-
-    def __str__(self):
-        n = max(len(f) for f in self._fields)
-        fields = ['  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
-        return '\n'.join([f + str(v) for f, v in zip(fields, self)])
-
-    def __repr__(self):
-        n = max(len(f) for f in self._fields)
-        fields = [f.ljust(n) + '= ' for f in self._fields]
-        return type(self).__name__ + '(\n  ' + ',\n  '.join(
-            f + repr(v) for f, v in zip(fields, self)) + ')'
 
 
 class OperatorRule(object):
@@ -366,7 +328,7 @@ class Operator(object):
         The validatein function raises a ValueError exception if the input
         shape is not valid. The validateout function is used in the reversed
         direction
-    flags : OperatorFlags
+    flags : Flags
         The flags describe properties of the operator.
     dtype : dtype
         The operator's dtype is used to determine the dtype of its output.
@@ -412,7 +374,7 @@ class Operator(object):
 
     __name__ = None
     dtype = None
-    flags = OperatorFlags()
+    flags = Flags()
     rules = None
 
     _disable_inplace_reduction = False
@@ -1372,7 +1334,7 @@ class Operator(object):
         """ Set flags to an Operator. """
         if flags is None:
             flags = keywords
-        if isinstance(flags, OperatorFlags):
+        if isinstance(flags, Flags):
             self.flags = flags
             return
         flags = self.validate_flags(flags)
@@ -1457,8 +1419,8 @@ class Operator(object):
             return keywords
         if isinstance(flags, dict):
             flags = flags.copy()
-        elif isinstance(flags, OperatorFlags):
-            flags = dict((k, v) for k, v in zip(OperatorFlags._fields, flags))
+        elif isinstance(flags, Flags):
+            flags = dict((k, v) for k, v in zip(Flags._fields, flags))
         elif isinstance(flags, (list, tuple, str)):
             if isinstance(flags, str):
                 flags = [f.strip() for f in flags.split(',')]
@@ -1470,11 +1432,11 @@ class Operator(object):
         if any(not isinstance(f, str) for f in flags):
             raise TypeError("Invalid type for the operator flags: {0}."
                             .format(flags))
-        if any(f not in OperatorFlags._fields for f in flags):
+        if any(f not in Flags._fields for f in flags):
             raise ValueError(
                 "Invalid operator flags '{0}'. The properties must be one of t"
                 "he following: ".format(flags.keys()) + strenum(
-                OperatorFlags._fields) + '.')
+                Flags._fields) + '.')
         return flags
 
     def _validate_shapes(self, shapein, shapeout):

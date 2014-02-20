@@ -5,8 +5,8 @@ For now only 1D and 2D wavelets are available.
 """
 import numpy as np
 import pywt
-from .decorators import linear, real
 from .core import Operator, CompositionOperator
+from .flags import linear, real
 
 __all__ = ['WaveletOperator', 'Wavelet2dOperator']
 
