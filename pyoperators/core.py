@@ -2142,6 +2142,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         if scalar == 1:
             return operands
 
+        # can the factor be absorbed by one of the operators?
         h = HomothetyOperator(scalar)
         try:
             for iop, op in enumerate(operands):
@@ -2150,11 +2151,17 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 if CompositionOperator not in op.rules:
                     continue
                 for rule in op.rules[CompositionOperator]['left']:
-                    new_op = rule(op, h)
+                    try:
+                        new_op = rule(op, h)
+                    except:
+                        continue
                     if new_op is not None:
                         raise StopIteration()
                 for rule in op.rules[CompositionOperator]['right']:
-                    new_op = rule(h, op)
+                    try:
+                        new_op = rule(h, op)
+                    except:
+                        continue
                     if new_op is not None:
                         raise StopIteration()
         except StopIteration:
