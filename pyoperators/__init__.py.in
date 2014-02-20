@@ -20,6 +20,7 @@ from .nonlinear import *
 from .operators_mpi import *
 from . import iterative
 from .iterative import pcg
+from .rules import rule_manager
 from .warnings import PyOperatorsWarning
 
 try:
