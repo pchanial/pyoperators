@@ -4,9 +4,11 @@ import itertools
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_raises
 from pyoperators import (
-    Cartesian2SphericalOperator, CompositionOperator, HardThresholdingOperator,
-    IdentityOperator, NormalizeOperator, NumexprOperator, RoundOperator,
-    SoftThresholdingOperator, Spherical2CartesianOperator)
+    Cartesian2SphericalOperator, CompositionOperator, ConstantOperator,
+    HardThresholdingOperator, IdentityOperator, MultiplicationOperator,
+    NormalizeOperator, NumexprOperator, PowerOperator, ReciprocalOperator,
+    RoundOperator, SqrtOperator, SquareOperator, SoftThresholdingOperator,
+    Spherical2CartesianOperator)
 from pyoperators.utils import product
 from pyoperators.utils.testing import (
     assert_is_instance, assert_is_type, assert_same)
@@ -183,6 +185,36 @@ def test_numexpr1():
 def test_numexpr2():
     op = NumexprOperator('3*input') + NumexprOperator('2*input')
     assert_equal(op(np.arange(10)), 5*np.arange(10))
+
+
+def test_power():
+    values = -1, 0, 0.5, 1, 2, 3
+    cls = (ReciprocalOperator, ConstantOperator, SqrtOperator,
+           IdentityOperator, SquareOperator, PowerOperator)
+
+    def func(n, c):
+        op = PowerOperator(n)
+        assert_is_type(op, c)
+        if isinstance(op, PowerOperator):
+            assert_equal(op.n, n)
+    for v, c in zip(values, cls):
+        yield func, v, c
+
+
+def test_power_rule_comp():
+    ops = (ReciprocalOperator(), SqrtOperator(), SquareOperator(),
+           PowerOperator(2.5))
+    op = CompositionOperator(ops)
+    assert_is_type(op, PowerOperator)
+    assert_equal(op.n, -2.5)
+
+
+def test_power_rule_mul():
+    ops = (ReciprocalOperator(), SqrtOperator(), SquareOperator(),
+           PowerOperator(2.5))
+    op = MultiplicationOperator(ops)
+    assert_is_type(op, PowerOperator)
+    assert_equal(op.n, 4)
 
 
 def test_hard_thresholding():

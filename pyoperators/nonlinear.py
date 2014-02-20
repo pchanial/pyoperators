@@ -1,11 +1,13 @@
+from __future__ import division
+
 import numexpr
 if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
 from .core import (
-    Operator, BlockColumnOperator, CompositionOperator, IdentityOperator,
-    ReductionOperator)
+    Operator, BlockColumnOperator, CompositionOperator, ConstantOperator,
+    IdentityOperator, MultiplicationOperator, ReductionOperator)
 from .flags import idempotent, inplace, real, separable, square
 from .linear import DegreesOperator, RadiansOperator
 from .utils import (
@@ -22,10 +24,14 @@ __all__ = ['Cartesian2SphericalOperator',
            'MinimumOperator',
            'NormalizeOperator',
            'NumexprOperator',
+           'PowerOperator',
            'ProductOperator',
+           'ReciprocalOperator',
            'RoundOperator',
            'SoftThresholdingOperator',
            'Spherical2CartesianOperator',
+           'SqrtOperator',
+           'SquareOperator',
            'To1dOperator',
            'ToNdOperator']
 
@@ -240,6 +246,73 @@ class ClipOperator(Operator):
     def __init__(self, vmin, vmax, **keywords):
         Operator.__init__(self, lambda i, o: np.clip(i, vmin, vmax, out=o),
                           **keywords)
+
+
+@square
+@inplace
+@separable
+class PowerOperator(Operator):
+    'X -> X**n'
+    def __init__(self, n, dtype=float, **keywords):
+        if np.allclose(n, -1) and not isinstance(self, ReciprocalOperator):
+            self.__class__ = ReciprocalOperator
+            self.__init__(dtype=dtype, **keywords)
+            return
+        if n == 0:
+            self.__class__ = ConstantOperator
+            self.__init__(1, dtype=dtype, **keywords)
+            return
+        if np.allclose(n, 0.5) and not isinstance(self, SqrtOperator):
+            self.__class__ = SqrtOperator
+            self.__init__(dtype=dtype, **keywords)
+            return
+        if np.allclose(n, 1):
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+        if np.allclose(n, 2) and not isinstance(self, SquareOperator):
+            self.__class__ = SquareOperator
+            self.__init__(dtype=dtype, **keywords)
+            return
+        self.n = n
+        Operator.__init__(self, dtype=dtype, **keywords)
+        self.set_rule('I', lambda s: PowerOperator(1/s.n))
+        self.set_rule(('.', PowerOperator),
+                      lambda s, o: PowerOperator(s.n * o.n),
+                      CompositionOperator)
+        self.set_rule(('.', PowerOperator),
+                      lambda s, o: PowerOperator(s.n + o.n),
+                      MultiplicationOperator)
+
+    def direct(self, input, output):
+        np.power(input, self.n, output)
+
+
+class ReciprocalOperator(PowerOperator):
+    'X -> 1 / X'
+    def __init__(self, **keywords):
+        PowerOperator.__init__(self, -1, **keywords)
+
+    def direct(self, input, output):
+        np.reciprocal(input, output)
+
+
+class SqrtOperator(PowerOperator):
+    'X -> sqrt(X)'
+    def __init__(self, **keywords):
+        PowerOperator.__init__(self, 0.5, **keywords)
+
+    def direct(self, input, output):
+        np.sqrt(input, output)
+
+
+class SquareOperator(PowerOperator):
+    'X -> X**2'
+    def __init__(self, **keywords):
+        PowerOperator.__init__(self, 2, **keywords)
+
+    def direct(self, input, output):
+        np.square(input, output)
 
 
 class ProductOperator(ReductionOperator):
