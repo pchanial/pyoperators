@@ -15,7 +15,7 @@ from pyoperators.utils import (
     groupbykey,
     inspect_special_values,
     interruptible,
-    isscalar,
+    isscalarlike,
     izip_broadcast,
     least_greater_multiple,
     one,
@@ -56,14 +56,6 @@ def assert_dtype(a, d):
     if a is None:
         return
     assert_eq(a.dtype, d)
-
-
-def assert_is_scalar(o):
-    assert isscalar(o)
-
-
-def assert_is_not_scalar(o):
-    assert not isscalar(o)
 
 
 def test_broadcast_shapes():
@@ -338,13 +330,29 @@ def test_interruptible():
 
 
 def test_is_scalar():
-    for o in (object, True, 1, 1.0, np.array(1), np.int8, slice, Operator()):
-        yield assert_is_scalar, o
+    def func(x):
+        assert isscalarlike(x)
+
+    for x in (True, 1, 1.0, 'lkj', u'jj', np.array(1)):
+        yield func, x
 
 
 def test_is_not_scalar():
-    for o in ([], (), np.ones(1), np.ones(2)):
-        yield assert_is_not_scalar, o
+    def func(x):
+        assert not isscalarlike(x)
+
+    for x in (
+        [],
+        (),
+        np.ones((0, 1)),
+        np.ones(1),
+        np.ones(2),
+        object,
+        np.int8,
+        slice,
+        Operator(),
+    ):
+        yield func, x
 
 
 def test_izip_broadcast1():

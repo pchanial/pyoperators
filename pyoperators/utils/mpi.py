@@ -6,7 +6,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     from . import fake_MPI as MPI
-from .misc import isscalar, tointtuple
+from .misc import isscalarlike, tointtuple
 
 __all__ = [
     'MPI',
@@ -70,7 +70,7 @@ def distribute(n, comm=MPI.COMM_WORLD):
     """
     Distribute work across processors.
     """
-    if isscalar(n):
+    if isscalarlike(n):
         return n // comm.size + ((n % comm.size) > comm.rank)
     n = np.asanyarray(n)
     s = distribute_slice(n.shape[0], comm=comm)

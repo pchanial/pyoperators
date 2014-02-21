@@ -6,13 +6,13 @@ import multiprocessing
 import numpy as np
 import operator
 import os
-import scipy.sparse
 import signal
 import types
 
 from contextlib import contextmanager
 from itertools import izip
 from . import cythonutils as cu
+from ..warnings import warn, PyOperatorsDeprecationWarning
 
 __all__ = [
     'all_eq',
@@ -31,6 +31,7 @@ __all__ = [
     'isalias',
     'isclassattr',
     'isscalar',
+    'isscalarlike',
     'izip_broadcast',
     'least_greater_multiple',
     'merge_none',
@@ -446,15 +447,15 @@ def isclassattr(cls, a):
     return False
 
 
-def isscalar(data):
-    """Hack around np.isscalar oddity"""
-    if isinstance(data, np.ndarray):
-        return data.ndim == 0
-    if isinstance(data, (str, unicode)):
-        return True
-    if isinstance(data, (collections.Container, scipy.sparse.base.spmatrix)):
-        return False
-    return True
+def isscalar(x):
+    """Deprecated."""
+    warn('Use isscalarlike instead of isscalar.', PyOperatorsDeprecationWarning)
+    return isscalarlike(x)
+
+
+def isscalarlike(x):
+    """Return True for scalars and 0-ranked arrays."""
+    return np.isscalar(x) or isinstance(x, np.ndarray) and x.ndim == 0
 
 
 def izip_broadcast(*args):
