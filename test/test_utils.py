@@ -6,9 +6,9 @@ from pyoperators import Operator
 from pyoperators.utils import (
     broadcast_shapes, cast, complex_dtype, first, float_dtype, ifirst,
     first_is_not, ifirst_is_not, groupbykey, inspect_special_values,
-    interruptible, isscalar, izip_broadcast, least_greater_multiple, one, pi,
-    product, reshape_broadcast, strenum, strplural, strshape, uninterruptible,
-    zero)
+    interruptible, isscalarlike, izip_broadcast, least_greater_multiple, one,
+    pi, product, reshape_broadcast, strenum, strplural, strshape,
+    uninterruptible, zero)
 from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
@@ -20,14 +20,6 @@ def assert_dtype(a, d):
     if a is None:
         return
     assert_eq(a.dtype, d)
-
-
-def assert_is_scalar(o):
-    assert isscalar(o)
-
-
-def assert_is_not_scalar(o):
-    assert not isscalar(o)
 
 
 def test_broadcast_shapes():
@@ -221,13 +213,18 @@ def test_interruptible():
 
 
 def test_is_scalar():
-    for o in (object, True, 1, 1., np.array(1), np.int8, slice, Operator()):
-        yield assert_is_scalar, o
+    def func(x):
+        assert isscalarlike(x)
+    for x in (True, 1, 1., 'lkj', u'jj', np.array(1)):
+        yield func, x
 
 
 def test_is_not_scalar():
-    for o in ([], (), np.ones(1), np.ones(2)):
-        yield assert_is_not_scalar, o
+    def func(x):
+        assert not isscalarlike(x)
+    for x in ([], (), np.ones((0, 1)), np.ones(1), np.ones(2), object, np.int8,
+              slice, Operator()):
+        yield func, x
 
 
 def test_izip_broadcast1():
