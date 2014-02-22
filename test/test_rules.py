@@ -6,9 +6,9 @@ import warnings
 from nose import with_setup
 from numpy.testing import assert_equal, assert_raises, assert_warns
 from pyoperators import (
-    Operator, AdditionOperator, CompositionOperator, ConstantOperator,
-    DiagonalOperator, HomothetyOperator, IdentityOperator,
-    MultiplicationOperator, ZeroOperator, PyOperatorsWarning)
+    Operator, AdditionOperator, CompositionOperator, DiagonalOperator,
+    HomothetyOperator, IdentityOperator, MultiplicationOperator,
+    PyOperatorsWarning)
 from pyoperators.flags import linear
 from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
 from pyoperators.utils import ndarraywrap
@@ -25,17 +25,22 @@ ids_left = (IdentityOperator(classout=ndarray2, attrout=attr2),
             IdentityOperator(shapein=4, classout=ndarray2, attrout=attr2))
 ids_right = (IdentityOperator(classout=ndarray2, attrout=attr2),
              IdentityOperator(shapein=3, classout=ndarray2, attrout=attr2))
-zeros_left = (ZeroOperator(classout=ndarray2, attrout=attr2),
-              ZeroOperator(shapein=4, classout=ndarray2, attrout=attr2))
-zeros_right = (ZeroOperator(classout=ndarray2, attrout=attr2),
-               ZeroOperator(classout=ndarray2, attrout=attr2, flags='square'),
-               ZeroOperator(shapein=3, classout=ndarray2, attrout=attr2))
 
 
-class Operator1(Operator): pass
-class Operator2(Operator): pass
-class Operator3(Operator): pass
-class Operator4(Operator1): pass
+class Operator1(Operator):
+    pass
+
+
+class Operator2(Operator):
+    pass
+
+
+class Operator3(Operator):
+    pass
+
+
+class Operator4(Operator1):
+    pass
 
 op1 = Operator1()
 op2 = Operator2()
@@ -199,55 +204,6 @@ def test_merge_identity():
         for op2 in ids_left:
             op = op2 * op1
             yield func, op, op2, op1, op1
-
-
-def test_merge_zero_left():
-    def func(op1, op2):
-        op = op1 * op2
-        assert_is_instance(op, ZeroOperator)
-        attr = {}
-        attr.update(op2.attrout)
-        attr.update(op1.attrout)
-        assert_equal(op.attrout, attr)
-        x = np.ones(3)
-        y = ndarraywrap(4)
-        op(x, y)
-        y2_tmp = np.empty(4)
-        y2 = np.empty(4)
-        op2(x, y2_tmp)
-        op1(y2_tmp, y2)
-        assert_equal(y, y2)
-        assert_is_instance(y, op1.classout)
-    for op1 in zeros_left:
-        for op2 in ops:
-            yield func, op1, op2
-
-
-def test_merge_zero_right():
-    def func(op1, op2):
-        op = op1 * op2
-        if op1.flags.shape_output == 'unconstrained' or \
-           op1.flags.shape_input != 'explicit' and \
-           op2.flags.shape_output != 'explicit':
-            assert_is_instance(op, CompositionOperator)
-            return
-        assert_is_instance(op, ConstantOperator)
-        attr = {}
-        attr.update(op2.attrout)
-        attr.update(op1.attrout)
-        assert_equal(op.attrout, attr)
-        x = np.ones(3)
-        y = ndarraywrap(4)
-        op(x, y)
-        y2_tmp = np.empty(3)
-        y2 = np.empty(4)
-        op2(x, y2_tmp)
-        op1(y2_tmp, y2)
-        assert_equal(y, y2)
-        assert_is_instance(y, op1.classout)
-    for op1 in ops:
-        for op2 in zeros_right:
-            yield func, op1, op2
 
 
 def test_del_rule():

@@ -51,7 +51,7 @@ def test_cartesian_spherical_rules():
     def func(c1, c2):
         op1 = Cartesian2SphericalOperator(c1)
         op2 = Spherical2CartesianOperator(c2)
-        op = op1 * op2
+        op = op1(op2)
         if c1 == c2:
             assert_is_type(op, IdentityOperator)
         else:
@@ -122,7 +122,7 @@ def test_spherical_cartesian_rules():
     def func(c1, c2):
         op1 = Spherical2CartesianOperator(c1)
         op2 = Cartesian2SphericalOperator(c2)
-        op = op1 * op2
+        op = op1(op2)
         if c1 == c2:
             assert_is_type(op, IdentityOperator)
         else:
@@ -230,11 +230,11 @@ def test_hard_thresholding():
     shape = np.asarray(lbda2).shape
     G = HardThresholdingOperator(lbda2)
     assert_equal(G.shapein, shape)
-    K = G * H
+    K = G(H)
     assert_is_instance(K, HardThresholdingOperator)
     assert_equal(K.a, np.maximum(lbda, lbda2))
     assert_equal(K.shapein, shape)
-    K = H * G
+    K = H(G)
     assert_is_instance(K, HardThresholdingOperator)
     assert_equal(K.a, np.maximum(lbda, lbda2))
     assert_equal(K.shapein, shape)

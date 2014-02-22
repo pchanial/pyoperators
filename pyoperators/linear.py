@@ -12,8 +12,8 @@ from scipy.sparse.linalg import eigsh
 
 from .core import (
     Operator, BlockRowOperator, BroadcastingBase, CompositionOperator,
-    DenseOperator, DiagonalOperator, HomothetyOperator, ReductionOperator,
-    _pool)
+    ConstantOperator, DenseOperator, DiagonalOperator, HomothetyOperator,
+    ReductionOperator, _pool)
 from .flags import inplace, linear, real, square, symmetric
 from .memory import empty
 from .utils import (
@@ -168,8 +168,8 @@ class IntegrationTrapezeOperator(BlockRowOperator):
         w[0] = 0.5 * (x[1] - x[0])
         w[1:-1] = 0.5 * (x[2:]-x[:-2])
         w[-1] = 0.5 * (x[-1] - x[-2])
-        BlockRowOperator.__init__(self, list(w), new_axisin=new_axisin,
-                                  **keywords)
+        ops = [ConstantOperator(_) for _ in w]
+        BlockRowOperator.__init__(self, ops, new_axisin=new_axisin, **keywords)
 
 
 @real

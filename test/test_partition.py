@@ -2,12 +2,13 @@ import numpy as np
 
 from pyoperators import (
     flags, Operator, AdditionOperator, BlockColumnOperator,
-    BlockDiagonalOperator, BlockRowOperator,  DiagonalOperator,
-    HomothetyOperator, IdentityOperator, MultiplicationOperator, I, asoperator)
+    BlockDiagonalOperator, BlockRowOperator,  CompositionOperator,
+    DiagonalOperator, HomothetyOperator, IdentityOperator,
+    MultiplicationOperator, I, asoperator)
 from pyoperators.core import BlockOperator
 from pyoperators.utils import merge_none
 from pyoperators.utils.testing import (
-    assert_eq, assert_is_instance, assert_raises)
+    assert_eq, assert_is_instance, assert_raises, assert_is_type)
 from .common import Stretch
 
 
@@ -210,3 +211,24 @@ def test_partition_implicit_composition():
                 op2 = BlockOperator(ops, partitionout=pout2, partitionin=pin2,
                                     axisout=aout2, axisin=ain2)
                 yield func, op1, op2, pin1, pout2, cls
+
+
+def test_mul():
+    opnl = Operator(shapein=10, flags='square')
+    oplin = Operator(flags='linear,square', shapein=10)
+    clss = ((BlockRowOperator, BlockDiagonalOperator, BlockRowOperator),
+            3 * (BlockDiagonalOperator,),
+            (BlockDiagonalOperator, BlockColumnOperator, BlockColumnOperator),
+            (BlockRowOperator, BlockColumnOperator, AdditionOperator))
+
+    def func(op, cls1, cls2, cls3):
+        operation = CompositionOperator \
+                    if op.flags.linear else MultiplicationOperator
+        op1 = cls1(3*[op], axisin=0)
+        op2 = cls2(3*[op], axisout=0)
+        result = op1 * op2
+        assert_is_type(result, cls3)
+        assert_is_type(result.operands[0], operation)
+    for op in opnl, oplin:
+        for cls1, cls2, cls3 in clss:
+            yield func, op, cls1, cls2, cls3
