@@ -127,7 +127,7 @@ def test_integration_trapeze():
     eval_ = func_op(value)
     expected = np.trapz(eval_, x=x, axis=0)
     integ = IntegrationTrapezeOperator(x) * func_op
-    assert_eq(integ(value), expected)
+    assert_same(integ(value), expected)
 
 
 def test_packing():

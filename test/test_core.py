@@ -1,25 +1,31 @@
 import itertools
 import numpy as np
 import operator
+import scipy
 import sys
 
 from nose import with_setup
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
 from pyoperators import memory, flags
-from pyoperators.core import (
+from pyoperators import (
     Operator, AdditionOperator, BlockColumnOperator, BlockDiagonalOperator,
-    BlockRowOperator, BlockSliceOperator, CompositionOperator, CopyOperator,
-    GroupOperator, ConstantOperator, DenseOperator, DiagonalOperator,
-    IdentityOperator, MaskOperator, MultiplicationOperator, HomothetyOperator,
-    ReductionOperator, ZeroOperator, asoperator, _pool as pool, I, O)
+    BlockRowOperator, BlockSliceOperator, CompositionOperator,  GroupOperator,
+    ConstantOperator, DenseOperator, DiagonalOperator, HomothetyOperator,
+    IdentityOperator, MaskOperator, MultiplicationOperator, PowerOperator,
+    ReciprocalOperator, ReductionOperator, SparseOperator, SquareOperator,
+    ZeroOperator, asoperator, I, O, X)
+from pyoperators.core import CopyOperator, _pool as pool
 from pyoperators.memory import zeros
+from pyoperators.rules import rule_manager
 from pyoperators.utils import (
-    ndarraywrap, first_is_not, isalias, operation_assignment, product)
+    ndarraywrap, first_is_not, isalias, isscalarlike, operation_assignment,
+    product)
 from pyoperators.utils.mpi import MPI, distribute_slice
 from pyoperators.utils.testing import (
     assert_eq, assert_is, assert_is_not, assert_is_none, assert_not_in,
-    assert_is_instance, assert_raises, assert_same, skiptest)
+    assert_is_instance, assert_raises, assert_is_type, assert_same, skiptest)
+from scipy.sparse import csc_matrix
 from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
 
 PYTHON_26 = sys.version_info < (2, 7)
@@ -74,13 +80,7 @@ class ndarray4(np.ndarray):
     pass
 
 
-@flags.square
-class SquareOp(Operator):
-
-    def __init__(self, **keywords):
-        Operator.__init__(self, **keywords)
-
-
+@flags.linear
 @flags.square
 class Op2(Operator):
     attrout = {'newattr': True}
@@ -92,6 +92,7 @@ class Op2(Operator):
         pass
 
 
+@flags.linear
 @flags.square
 class Op3(Operator):
     classout = ndarray3
@@ -133,7 +134,8 @@ def test_flags():
             print 'Cannot test: ' + op.__name__
             return
         if o.flags.idempotent:
-            assert_is(o, o * o)
+            raise SkipTest
+            assert_is(o, o(o))
         if o.flags.real:
             assert_is(o, o.C)
         if o.flags.symmetric:
@@ -155,7 +157,6 @@ def test_symmetric():
 
     @flags.symmetric
     class Op(Operator):
-
         def __init__(self):
             Operator.__init__(self, shapein=2, dtype=mat.dtype)
 
@@ -292,6 +293,144 @@ def test_conjugation():
         yield func, opT, opH, opIT, opIH
 
 
+#==================
+# Test *, / and **
+#==================
+
+def test_times_mul_or_comp():
+    mat = [[1, 1, 1],
+           [0, 1, 1],
+           [0, 0, 1]]
+    ops = (2, [1, 2, 3], np.array(3), np.ones(3), np.negative, np.sqrt,
+           np.matrix(mat), csc_matrix(mat), DenseOperator(mat),
+           HomothetyOperator(3), SquareOperator(), X, X.T)
+
+    def islinear(_):
+        if isinstance(_, (np.matrix, csc_matrix)):
+            return True
+        if _ is np.sqrt:
+            return False
+        if _ is np.negative:
+            return True
+        if isscalarlike(_):
+            return True
+        return _.flags.linear
+
+    def func(x, y):
+        if np.__version__ < '1.9' and isinstance(x, np.ndarray):
+            if isinstance(x, np.matrix):
+                x = DenseOperator(x)
+            elif x.ndim > 0:
+                x = DiagonalOperator(x)
+        if scipy.__version__ < '0.14' and isinstance(x, csc_matrix):
+            x = SparseOperator(x)
+        if x is X.T and (y is np.sqrt or isinstance(y, SquareOperator)) or \
+           y is X.T and not isscalarlike(x) and \
+           not isinstance(x, HomothetyOperator):
+            assert_raises(TypeError, eval, 'x * y', {'x': x, 'y': y})
+            return
+
+        with rule_manager(none=True):
+            z = x * y
+
+        if x is X and y is X:
+            assert_is_type(z, MultiplicationOperator)
+        elif x is X.T and y is X or x is X and y is X.T:
+            assert_is_type(z, CompositionOperator)
+        elif x is X:
+            if np.isscalar(y) or \
+               isinstance(y, (list, np.ndarray, HomothetyOperator)) and \
+               not isinstance(y, np.matrix):
+                assert_is_type(z, CompositionOperator)
+            else:
+                assert_is_type(z, MultiplicationOperator)
+        elif type(x) is list or type(x) is np.ndarray and x.ndim > 0:
+            if y is X:
+                assert_is_type(z, CompositionOperator)
+            elif islinear(y):
+                assert_equal(z, asoperator(y).T(x))
+            else:
+                assert_is_type(z, MultiplicationOperator)
+        elif type(y) is list or type(y) is np.ndarray and y.ndim > 0:
+            if x is X.T:
+                assert_is_type(z, CompositionOperator)
+            elif islinear(x):
+                assert_equal(z, asoperator(x)(y))
+            else:
+                assert_is_type(z, MultiplicationOperator)
+        elif islinear(x) and islinear(y):
+            assert_is_type(z, CompositionOperator)
+        else:
+            assert_is_type(z, MultiplicationOperator)
+
+    for x in ops:
+        for y in ops:
+            if not isinstance(x, Operator) and not isinstance(y, Operator):
+                continue
+            yield func, x, y
+
+
+def test_div():
+    def func(flag):
+        op = 1 / Operator(flags={'linear': flag})
+        assert_is_type(op, CompositionOperator)
+        assert_is_type(op.operands[0], ReciprocalOperator)
+        assert_is_type(op.operands[1], Operator)
+    for flag in False, True:
+        yield func, flag
+
+
+def test_div_fail():
+    raise SkipTest
+    assert_is_type(1 / SquareOperator(), PowerOperator)
+
+
+def test_pow():
+    data = [[1, 1], [0, 1]]
+    op_lin = DenseOperator(data)
+    assert_equal((op_lin**3).data, np.dot(np.dot(data, data), data))
+    op_nl = ConstantOperator(data)
+    assert_equal((op_nl**3).data, data)
+
+
+def test_pow2():
+
+    @flags.linear
+    @flags.square
+    class SquareOp(Operator):
+        pass
+
+    def func(op, n):
+        p = op ** n
+        if n < -1:
+            assert_is_instance(p, CompositionOperator)
+            for o in p.operands:
+                assert_is(o, op.I)
+        elif n == -1:
+            assert_is(p, op.I)
+        elif n == 0:
+            assert_is_instance(p, IdentityOperator)
+        elif n == 1:
+            assert_is(p, op)
+        else:
+            assert_is_instance(p, CompositionOperator)
+            for o in p.operands:
+                assert_is(o, op)
+    for op in [SquareOp(), SquareOp(shapein=3)]:
+        for n in range(-3, 4):
+            yield func, op, n
+
+
+def test_pow3():
+    diag = np.array([1., 2, 3])
+    d = DiagonalOperator(diag)
+
+    def func(n):
+        assert_eq((d**n).todense(), DiagonalOperator(diag**n).todense())
+    for n in (-1.2, -1, -0.5, 0, 0.5, 1, 2.4):
+        yield func, n
+
+
 #========================
 # Test input/output shape
 #========================
@@ -310,9 +449,9 @@ def test_shape_is_inttuple():
 
 def test_shape_explicit():
     o1, o2, o3 = (
-        Operator(shapeout=(13, 2), shapein=(2, 2)),
-        Operator(shapeout=(2, 2), shapein=(1, 3)),
-        Operator(shapeout=(1, 3), shapein=4))
+        Operator(shapeout=(13, 2), shapein=(2, 2), flags='linear'),
+        Operator(shapeout=(2, 2), shapein=(1, 3), flags='linear'),
+        Operator(shapeout=(1, 3), shapein=4, flags='linear'))
 
     def func(o, eout, ein):
         assert_eq(o.shapeout, eout)
@@ -338,8 +477,8 @@ def test_shape_explicit():
 
 
 def test_shape_implicit():
+    @flags.linear
     class Op(Operator):
-
         def __init__(self, factor):
             self.factor = factor
             Operator.__init__(self)
@@ -373,8 +512,8 @@ def test_shapeout_unconstrained1():
 
 
 def test_shapeout_unconstrained2():
+    @flags.linear
     class Op(Operator):
-
         def direct(self, input, output):
             output[...] = 4
 
@@ -391,7 +530,6 @@ def test_shapeout_unconstrained2():
 
 def test_shapeout_implicit():
     class Op(Operator):
-
         def reshapein(self, shape):
             return shape + (2,)
 
@@ -419,7 +557,6 @@ def test_shapein_unconstrained1():
 
 def test_shapein_unconstrained2():
     class Op(Operator):
-
         def reshapeout(self, shape):
             return shape + (2,)
 
@@ -526,7 +663,6 @@ def test_dtype1():
 
     @flags.square
     class Op(Operator):
-
         def __init__(self, dtype):
             Operator.__init__(self, dtype=dtype)
 
@@ -547,10 +683,11 @@ def test_dtype1():
         for di in DTYPES:
             yield func, dop, di
 
+
 def test_dtype2():
+    @flags.linear
     @flags.square
     class Op(Operator):
-
         def direct(self, input, output):
             np.multiply(input, input, output)
     op = Op()
@@ -609,8 +746,8 @@ def test_merge_name():
         assert op.__name__ == name
     for (op, name), h in itertools.product(zip(ops, names),
                                            (I, HomothetyOperator(2))):
-        yield func, op * h, name
-        yield func, h * op, name
+        yield func, op(h), name
+        yield func, h(op), name
 
 
 #=========================
@@ -649,6 +786,7 @@ def test_iadd_imul():
 #===========================
 
 def test_propagation_attribute1():
+    @flags.linear
     @flags.square
     class AddAttribute(Operator):
         attrout = {'newattr_direct': True}
@@ -660,6 +798,7 @@ def test_propagation_attribute1():
         def transpose(self, input, output):
             pass
 
+    @flags.linear
     @flags.square
     class AddAttribute2(Operator):
         attrout = {'newattr_direct': False}
@@ -671,6 +810,7 @@ def test_propagation_attribute1():
         def transpose(self, input, output):
             pass
 
+    @flags.linear
     @flags.square
     class AddAttribute3(Operator):
         attrout = {'newattr3_direct': True}
@@ -807,6 +947,7 @@ def test_propagation_attribute3():
             self.attr_class2 = 2
             self.attr_instance2 = 12
 
+    @flags.linear
     @flags.square
     class Op(Operator):
         classin = ndarray1
@@ -957,6 +1098,7 @@ def test_propagation_classT_inplace():
 
 
 def test_propagation_class_nested():
+    @flags.linear
     @flags.square
     class O1(Operator):
         classout = ndarray2
@@ -964,9 +1106,9 @@ def test_propagation_class_nested():
         def direct(self, input, output):
             output[...] = input
 
+    @flags.linear
     @flags.square
     class O2(Operator):
-
         def direct(self, input, output):
             output[...] = input
 
@@ -1114,8 +1256,8 @@ def test_comm_propagation():
         assert_is(opget.commin, commin)
         assert_is(opget.commout, commin)
     for cls in composite:
-        for i, ops in enumerate([(opgetcomm*Operator(), opsetcomm2),
-                                 (opsetcomm2, Operator()*opgetcomm)]):
+        for i, ops in enumerate([(opgetcomm(Operator()), opsetcomm2),
+                                 (opsetcomm2, Operator()(opgetcomm))]):
             keywords = {}
             if cls in (BlockDiagonalOperator, BlockRowOperator):
                 keywords = {'axisin': 0}
@@ -1141,7 +1283,7 @@ def test_comm_propagation():
             keywords = {'axisout': 0}
         for ops_in in [(opsetcomm2, Operator()), (Operator(), opsetcomm2)]:
             op_in = cls(ops_in, **keywords)
-            for i, op in enumerate([opgetcomm*op_in, op_in*opgetcomm]):
+            for i, op in enumerate([opgetcomm(op_in), op_in(opgetcomm)]):
                 yield func4, i, op
 
     # composite(get) + set in composition
@@ -1164,7 +1306,7 @@ def test_comm_propagation():
         for i, ops_in in enumerate([(opgetcomm, Operator()),
                                     (Operator(), opgetcomm)]):
             op_in = cls(ops_in, **keywords)
-            for j, op in enumerate([op_in*opsetcomm2, opsetcomm2*op_in]):
+            for j, op in enumerate([op_in(opsetcomm2), opsetcomm2(op_in)]):
                 yield func5, i, j, op
 
 
@@ -1175,7 +1317,6 @@ def test_comm_propagation():
 def test_inplace1():
     @flags.square
     class NotInplace(Operator):
-
         def direct(self, input, output):
             output[...] = 0
             output[0] = input[0]
@@ -1549,7 +1690,7 @@ def test_associativity():
     b = GroupOperator([Op3(), Op4()])
 
     def func3(o1, o2):
-        op = o1 * o2
+        op = o1(o2)
         assert_is_instance(op, CompositionOperator)
         assert_eq(len(op.operands), 2)
         assert_is(op.operands[0], o1)
@@ -1565,7 +1706,6 @@ def test_associativity():
 def test_addition():
     @flags.square
     class Op(Operator):
-
         def __init__(self, v, **keywords):
             self.v = v
             Operator.__init__(self, **keywords)
@@ -1613,7 +1753,6 @@ def test_addition_flags():
 def test_multiplication():
     @flags.square
     class Op(Operator):
-
         def __init__(self, v, **keywords):
             self.v = v
             Operator.__init__(self, **keywords)
@@ -1751,7 +1890,7 @@ def test_composition1():
                 if shapeout is None and shapemid is not None:
                     continue
                 op2 = Operator(shapein=shapemid, shapeout=shapeout)
-                op = op2 * op1
+                op = op2(op1)
                 yield func, op, shapein, shapeout
 
 
@@ -1765,20 +1904,20 @@ def test_composition2():
         assert op.shapeout == (2*shape if shape is not None else None)
         assert_flags_false(op, 'square')
     for shape in SHAPES:
-        op = Op() * Operator(shapeout=shape)
+        op = Op()(Operator(shapeout=shape))
         yield func, op, shape
 
-    op = Op() * Op()
+    op = Op()(Op())
     assert op.shapein is None
     assert op.shapeout is None
     assert_flags_false(op, 'square')
 
 
 def test_composition3():
+    @flags.linear
     @flags.square
     @flags.inplace
     class Op(Operator):
-
         def __init__(self, v, **keywords):
             self.v = v
             Operator.__init__(self, **keywords)
@@ -1974,43 +2113,6 @@ def test_composition_get_requirements():
             rn1, ra1, rc1 = c._get_requirements()
             rn2, ra2, rc2 = get_requirements(ops, t, g)
             yield func, t, rn1, rn2, ra1, ra2, rc1, rc2
-
-
-#=============
-# Test powers
-#=============
-
-def test_powers():
-
-    def func(op, n):
-        p = op ** n
-        if n < -1:
-            assert_is_instance(p, CompositionOperator)
-            for o in p.operands:
-                assert_is(o, op.I)
-        elif n == -1:
-            assert_is(p, op.I)
-        elif n == 0:
-            assert_is_instance(p, IdentityOperator)
-        elif n == 1:
-            assert_is(p, op)
-        else:
-            assert_is_instance(p, CompositionOperator)
-            for o in p.operands:
-                assert_is(o, op)
-    for op in [SquareOp(), SquareOp(shapein=3)]:
-        for n in range(-3, 4):
-            yield func, op, n
-
-
-def test_powers_diagonal():
-    diag = np.array([1., 2, 3])
-    d = DiagonalOperator(diag)
-
-    def func(n):
-        assert_eq((d**n).todense(), DiagonalOperator(diag**n).todense())
-    for n in (-1.2, -1, -0.5, 0, 0.5, 1, 2.4):
-        yield func, n
 
 
 #====================
@@ -2247,7 +2349,7 @@ def test_constant_reduction2():
           ConstantOperator([1, 2, 3], broadcast='leftward'),
           ConstantOperator(np.ones((2, 3))))
     os = (I, H(2, shapein=(2, 3)) * Operator(direct=np.square, shapein=(2, 3),
-                                             flags='square'), H(5))
+                                             flags='linear,square'), H(5))
     results = (((H, 3), (C, (H, 6)), (H, 15)),
                ((D, [1, 2, 3]), (C, (D, [2, 4, 6])), (D, [5, 10, 15])),
                ((IdentityOperator, 1), (C, (H, 2)), (H, 5)))
@@ -2270,9 +2372,9 @@ def test_constant_reduction2():
 def _test_constant_reduction3():
     @flags.square
     class Op(Operator):
-
         def direct(self, input, output):
             output[...] = input + np.arange(input.size).reshape(input.shape)
+
     os = (Op(shapein=()), Op(shapein=4), Op(shapein=(2, 3, 4)))
     cs = (ConstantOperator(2), ConstantOperator([2], broadcast='leftward'),
           ConstantOperator(2*np.arange(8).reshape((2, 1, 4)),
@@ -2286,89 +2388,6 @@ def _test_constant_reduction3():
         assert_eq(op(v), o(y_tmp))
     for o, c in zip(os, cs):
         yield func, o, c
-
-
-def test_zero1():
-    z = ZeroOperator()
-    o = Operator(shapein=3, shapeout=6)
-    zo = z*o
-    assert_is_instance(zo, ZeroOperator)
-    assert_eq(zo.shapein, o.shapein)
-    assert_is_none(zo.shapeout)
-
-
-def test_zero2():
-    z = ZeroOperator(shapein=3, shapeout=6)
-    o = Operator()
-    zo = z*o
-    assert_is_instance(zo, ZeroOperator)
-    assert_is_none(zo.shapein, 'in')
-    assert_eq(zo.shapeout, z.shapeout, 'out')
-
-
-def test_zero3():
-    z = ZeroOperator(shapein=3, shapeout=6)
-    o = Operator(flags='square')
-    zo = z*o
-    assert_is_instance(zo, ZeroOperator)
-    assert_eq(zo.shapein, z.shapein, 'in')
-    assert_eq(zo.shapeout, z.shapeout, 'out')
-
-
-def test_zero4():
-    z = ZeroOperator()
-    o = Operator(flags='linear')
-    assert_is_instance(z*o, ZeroOperator)
-    assert_is_instance(o*z, ZeroOperator)
-
-
-def test_zero5():
-    z = ZeroOperator()
-    o = Operator(shapein=3, shapeout=6, flags='linear')
-    zo = z*o
-    oz = o*z
-    assert_is_instance(zo, ZeroOperator, 'zo')
-    assert_eq(zo.shapein, o.shapein, 'zo in')
-    assert_is_none(zo.shapeout, 'zo out')
-    assert_is_instance(oz, ZeroOperator, 'oz')
-    assert_is_none(oz.shapein, 'oz, in')
-    assert_eq(oz.shapeout, o.shapeout, 'oz, out')
-
-
-def test_zero6():
-    z = ZeroOperator(flags='square')
-
-    @flags.linear
-    class Op(Operator):
-        def direct(self, input, output):
-            output[:] = np.concatenate([input, 2*input])
-
-        def transpose(self, input, output):
-            output[:] = input[0:output.size]
-
-        def reshapein(self, shapein):
-            return (2 * shapein[0],)
-
-        def reshapeout(self, shapeout):
-            return (shapeout[0] // 2,)
-    o = Op()
-    zo = z*o
-    oz = o*z
-    v = np.ones(4)
-    assert_eq(zo.T(v), o.T(z.T(v)))
-    assert_eq(oz.T(v), z.T(o.T(v)))
-
-
-def test_zero7():
-    z = ZeroOperator()
-    assert_eq(z*z, z)
-
-
-def test_zero8():
-    class Op(Operator):
-        pass
-    o = Op()
-    assert type(o + O) is Op
 
 
 def test_dense():
@@ -2526,24 +2545,39 @@ def test_asoperator_scalar():
 
 
 def test_asoperator_ndarray():
-    values = ([[1]], [[1, 2], [2, 3]], np.matrix([[3, 2.], [0, 1]]))
+    values = ([1], [2], [1, 2], [[1]], [[1, 2]], [[1, 2], [2, 3]],
+              [[[1, 2], [2, 3]]],
+              [[[1, 2], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]]])
+    cls = (IdentityOperator, HomothetyOperator, DiagonalOperator,
+           DenseOperator, DenseOperator)
 
-    def func1(v):
+    def totuple(seq):
+        if isinstance(seq, list):
+            return tuple(totuple(_) for _ in seq)
+        return seq
+
+    def func1(v, c, s):
         o = asoperator(v)
-        assert_is_instance(o, DenseOperator)
-        assert_eq(np.array(v).shape, o.shape)
+        assert_is_instance(o, c)
+        if len(s) > 1:
+            s = s[:-2] + (s[-1],)
+        assert_equal(o.shapein, s)
 
-    def func2(v):
+    def func2(v, s):
         o = asoperator(v, constant=True)
         if isinstance(v, np.matrix):
             assert_is_instance(o, DenseOperator)
-            assert_eq(np.array(v).shape, o.shape)
+            assert_equal(np.array(v).shape, o.shape)
         else:
             assert_is_instance(o, ConstantOperator)
-            assert_eq(np.array(v).shape, o.shapeout)
-    for v in values:
-        yield func1, v
-        yield func2, v
+            assert_equal(s, o.shapeout)
+    for v, c in zip(values, cls):
+        vt = totuple(v)
+        va = np.array(v)
+        s = va.shape
+        for data in v, vt, va:
+            yield func1, data, c, s
+            yield func2, data, s
 
 
 def test_asoperator_func():

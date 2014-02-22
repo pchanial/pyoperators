@@ -16,6 +16,7 @@ from .core import (
     BlockRowOperator,
     BroadcastingBase,
     CompositionOperator,
+    ConstantOperator,
     DenseOperator,
     DiagonalOperator,
     HomothetyOperator,
@@ -206,7 +207,8 @@ class IntegrationTrapezeOperator(BlockRowOperator):
         w[0] = 0.5 * (x[1] - x[0])
         w[1:-1] = 0.5 * (x[2:] - x[:-2])
         w[-1] = 0.5 * (x[-1] - x[-2])
-        BlockRowOperator.__init__(self, list(w), new_axisin=new_axisin, **keywords)
+        ops = [ConstantOperator(_) for _ in w]
+        BlockRowOperator.__init__(self, ops, new_axisin=new_axisin, **keywords)
 
 
 @real

@@ -39,6 +39,7 @@ attr1 = {'attr1': True, 'attr2': True}
 attr2 = {'attr1': False, 'attr3': False}
 
 
+@flags.linear
 class ExplExpl(Operator):
     def __init__(self, shapein=3, shapeout=4, **keywords):
         Operator.__init__(
@@ -55,6 +56,7 @@ class ExplExpl(Operator):
         output[3] = 10.0
 
 
+@flags.linear
 class UncoExpl(Operator):
     def __init__(self, shapein=3, **keywords):
         Operator.__init__(
@@ -66,6 +68,7 @@ class UncoExpl(Operator):
         output[3:] = 20
 
 
+@flags.linear
 class ImplImpl(Operator):
     def __init__(self, **keywords):
         Operator.__init__(self, classout=ndarray1, attrout=attr1, **keywords)
@@ -81,6 +84,7 @@ class ImplImpl(Operator):
         return (shapeout[0] - 1,)
 
 
+@flags.linear
 class UncoImpl(Operator):
     def __init__(self, **keywords):
         Operator.__init__(self, classout=ndarray1, attrout=attr1, **keywords)
@@ -93,6 +97,7 @@ class UncoImpl(Operator):
         return (shapeout[0] - 1,)
 
 
+@flags.linear
 class ExplUnco(Operator):
     def __init__(self, shapeout=4, **keywords):
         Operator.__init__(
@@ -104,6 +109,7 @@ class ExplUnco(Operator):
         output[3] = 50
 
 
+@flags.linear
 class ImplUnco(Operator):
     def __init__(self, **keywords):
         Operator.__init__(self, classout=ndarray1, attrout=attr1, **keywords)
@@ -116,6 +122,7 @@ class ImplUnco(Operator):
         return (shapein[0] + 1,)
 
 
+@flags.linear
 class UncoUnco(Operator):
     def __init__(self, **keywords):
         Operator.__init__(self, classout=ndarray1, attrout=attr1, **keywords)
@@ -132,12 +139,14 @@ ALL_OPS = [
 ]
 
 
+@flags.linear
 @flags.square
 class IdentityOutplaceOperator(Operator):
     def direct(self, input, output):
         output[...] = input
 
 
+@flags.linear
 @flags.real
 @flags.symmetric
 class HomothetyOutplaceOperator(Operator):
@@ -149,6 +158,7 @@ class HomothetyOutplaceOperator(Operator):
         output[...] = self.value * input
 
 
+@flags.linear
 class Stretch(Operator):
     """Stretch input array by replicating it by a factor of 2."""
 

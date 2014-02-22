@@ -23,7 +23,7 @@ from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
 from .rules import Rule, rule_manager
 from .utils import (
     all_eq, first_is_not, float_dtype, inspect_special_values, isalias,
-    isclassattr, isscalar, merge_none, ndarraywrap, operation_assignment,
+    isclassattr, isscalarlike, merge_none, ndarraywrap, operation_assignment,
     product, renumerate, strenum, strplural, strshape, tointtuple, ufuncs)
 from .utils.mpi import MPI
 
@@ -886,6 +886,8 @@ class Operator(object):
             self._set_flags('inplace')
             self._set_flags('square')
             self._set_flags('separable')
+            if self.direct is np.negative:
+                self._set_flags('linear')
         else:
             # Set inplace_reduction flag to true if the direct method handles
             # the operation keyword, unless _disable_inplace_reduction is true
@@ -1231,38 +1233,52 @@ class Operator(object):
                 first_is_not([shapeout, shapeout_], None))
 
     def __truediv__(self, other):
-        return CompositionOperator([self, asoperator(other).I])
+        from .nonlinear import PowerOperator
+        return MultiplicationOperator([self, PowerOperator(-1)(other)])
     __div__ = __truediv__
 
     def __rtruediv__(self, other):
-        return CompositionOperator([other, self.I])
+        from .nonlinear import PowerOperator
+        return MultiplicationOperator([other, PowerOperator(-1)(self)])
     __rdiv__ = __rtruediv__
 
     def __mul__(self, other):
-        if isinstance(other, np.ndarray):
-            return self(other)
+        if isinstance(other, (Variable, VariableTranspose)):
+            return other.__rmul__(self)
+        if (self.flags.linear and
+            not isscalarlike(other) and
+            isinstance(other, (np.ndarray, list, tuple)) and
+            not isinstance(other, np.matrix)):
+                return self(other)
+        try:
+            other = asoperator(other)
+        except TypeError:
+            return NotImplemented
+        if not self.flags.linear or not other.flags.linear:
+            return MultiplicationOperator([self, other])
         # ensure that A * A is A if A is idempotent
         if self.flags.idempotent and self is other:
             return self
         return CompositionOperator([self, other])
 
     def __rmul__(self, other):
-        if not isscalar(other):
-            raise NotImplementedError(
-                "It is not possible to multiply '" + str(type(other)) + "' wit"
-                "h an Operator.")
+        if (self.flags.linear and
+            not isscalarlike(other) and
+            isinstance(other, (np.ndarray, list, tuple)) and
+            not isinstance(other, np.matrix)):
+                return self.T(other)
+        try:
+            other = asoperator(other)
+        except TypeError:
+            return NotImplemented
+        if not self.flags.linear or not other.flags.linear:
+            return MultiplicationOperator([other, self])
         return CompositionOperator([other, self])
 
-    def __imul__(self, other):
-        # ensure that A * A is A if A is idempotent
-        if self.flags.idempotent and self is other:
-            return self
-        return CompositionOperator([self, other])
-
     def __pow__(self, n):
-        if not self.flags.square:
-            raise ValueError('A non-square operator cannot be raised to an exp'
-                             'onent.')
+        if not self.flags.linear:
+            from .nonlinear import PowerOperator
+            return PowerOperator(n)(self)
         if not np.allclose(n, np.round(n)):
             raise ValueError("The exponent '{0}' is not an integer.".format(n))
         if n == -1:
@@ -1281,17 +1297,11 @@ class Operator(object):
     def __radd__(self, other):
         return AdditionOperator([other, self])
 
-    def __iadd__(self, other):
-        return AdditionOperator([self, other])
-
     def __sub__(self, other):
         return AdditionOperator([self, -other])
 
     def __rsub__(self, other):
         return AdditionOperator([other, -self])
-
-    def __isub__(self, other):
-        return AdditionOperator([self, -other])
 
     def __neg__(self):
         return HomothetyOperator(-1) * self
@@ -2608,18 +2618,34 @@ class BlockOperator(NonCommutativeCompositeOperator):
                 [o.I.H for o in s.operands], s.partitionin, s.axisin,
                 s.axisout, s.new_axisin, s.new_axisout))
 
-        self.set_rule(('.', Operator), self._rule_add_operator,
+        self.set_rule(('.', Operator), self._rule_operator_add,
                       AdditionOperator)
-        self.set_rule(('.', Operator), self._rule_left_operator,
-                      CompositionOperator)
-        self.set_rule((Operator, '.'), self._rule_right_operator,
-                      CompositionOperator)
-        self.set_rule((type(self), '.'), self._rule_add_blockoperator,
-                      AdditionOperator)
-        self.set_rule((type(self), '.'), self._rule_mul_blockoperator,
+        self.set_rule(('.', Operator), self._rule_operator_mul,
                       MultiplicationOperator)
-        self.set_rule((BlockOperator, '.'), self._rule_comp_blockoperator,
+        self.set_rule(('.', Operator), self._rule_operator_rcomp,
                       CompositionOperator)
+        self.set_rule((Operator, '.'), self._rule_operator_lcomp,
+                      CompositionOperator)
+        self.set_rule(('.', type(self)), self._rule_blocksameoperator_add,
+                      AdditionOperator)
+        self.set_rule(('.', type(self)), self._rule_blocksameoperator_mul,
+                      MultiplicationOperator)
+        self.set_rule(('.', BlockOperator), self._rule_blockoperator_comp,
+                      CompositionOperator)
+
+    def __mul__(self, other):
+        if isinstance(other, BlockOperator) and not other.flags.linear:
+            if isinstance(self, BlockRowOperator) and \
+               isinstance(other, BlockDiagonalOperator) or \
+               isinstance(self, BlockDiagonalOperator) and \
+               isinstance(other, BlockColumnOperator) or \
+               isinstance(self, BlockRowOperator) and \
+               isinstance(other, BlockColumnOperator):
+                new_op = self._rule_blockoperator_noncommutative(
+                    self, other, MultiplicationOperator)
+                if new_op is not None:
+                    return new_op
+        return NonCommutativeCompositeOperator.__mul__(self, other)
 
     def toshapein(self, v):
         if self.shapein is not None:
@@ -2931,18 +2957,28 @@ class BlockOperator(NonCommutativeCompositeOperator):
                None if pin is None else merge_none(op2.partitionin, pin)
 
     @staticmethod
-    def _rule_add_operator(self, op):
-        """ Rule for BlockOperator + Operator. """
+    def _rule_operator_commutative(self, op, cls):
         if not op.flags.separable:
             return None
         return BlockOperator(
-            [o + op for o in self.operands], self.partitionin,
+            [cls([o, op]) for o in self.operands], self.partitionin,
             self.partitionout, self.axisin, self.axisout, self.new_axisin,
             self.new_axisout)
 
     @staticmethod
-    def _rule_right_operator(op, self):
-        """ Rule for Operator * BlockOperator. """
+    def _rule_operator_add(self, op):
+        """ Rule for BlockOperator + Operator. """
+        return self._rule_operator_commutative(self, op, AdditionOperator)
+
+    @staticmethod
+    def _rule_operator_mul(self, op):
+        """ Rule for BlockOperator x Operator. """
+        return self._rule_operator_commutative(self, op,
+                                               MultiplicationOperator)
+
+    @staticmethod
+    def _rule_operator_lcomp(op, self):
+        """ Rule for Operator(BlockOperator). """
         if self.partitionout is None:
             return None
         if isinstance(op, BlockOperator):
@@ -2954,12 +2990,12 @@ class BlockOperator(NonCommutativeCompositeOperator):
             n * [op], self.partitionout, self.axisout, self.axisout,
             self.new_axisout, self.new_axisout)
         return BlockOperator(
-            [op * o for o in self.operands], self.partitionin, partitionout,
+            [op(o) for o in self.operands], self.partitionin, partitionout,
             self.axisin, self.axisout, self.new_axisin, self.new_axisout)
 
     @staticmethod
-    def _rule_left_operator(self, op):
-        """ Rule for BlockOperator * Operator. """
+    def _rule_operator_rcomp(self, op):
+        """ Rule for BlockOperator(Operator). """
         if self.partitionin is None:
             return None
         if not op.flags.separable:
@@ -2969,12 +3005,11 @@ class BlockOperator(NonCommutativeCompositeOperator):
             n * [op], self.partitionin, self.axisin, self.axisin,
             self.new_axisin, self.new_axisin)
         return BlockOperator(
-            [o * op for o in self.operands], partitionin, self.partitionout,
+            [o(op) for o in self.operands], partitionin, self.partitionout,
             self.axisin, self.axisout, self.new_axisin, self.new_axisout)
 
     @staticmethod
-    def _rule_commutative_blockoperator(p1, p2, operation):
-        """ Rule for BlockOperator + BlockOperator. """
+    def _rule_blocksameoperator_commutative(p1, p2, operation):
         partitions = p1._validate_partition_commutative(p1, p2)
         if partitions is None:
             return None
@@ -2986,22 +3021,23 @@ class BlockOperator(NonCommutativeCompositeOperator):
             p1.new_axisin, p1.new_axisout)
 
     @staticmethod
-    def _rule_add_blockoperator(p1, p2):
-        return p1._rule_commutative_blockoperator(p1, p2, AdditionOperator)
+    def _rule_blocksameoperator_add(p1, p2):
+        """ Rule for same type BlockOperator + BlockOperator. """
+        return p1._rule_blocksameoperator_commutative(p1, p2, AdditionOperator)
 
     @staticmethod
-    def _rule_mul_blockoperator(p1, p2):
-        return p1._rule_commutative_blockoperator(
-            p1, p2, MultiplicationOperator)
+    def _rule_blocksameoperator_mul(p1, p2):
+        """ Rule for same type BlockOperator x BlockOperator. """
+        return p1._rule_blocksameoperator_commutative(p1, p2,
+                                                      MultiplicationOperator)
 
     @staticmethod
-    def _rule_comp_blockoperator(p1, p2):
-        """ Rule for BlockOperator * BlockOperator. """
+    def _rule_blockoperator_noncommutative(p1, p2, cls):
         partitions = p1._validate_partition_composition(p1, p2)
         if partitions is None:
             return None
         partitionout, partitionin = partitions
-        operands = [o1 * o2 for o1, o2 in zip(p1.operands, p2.operands)]
+        operands = [cls([o1, o2]) for o1, o2 in zip(p1.operands, p2.operands)]
         if partitionin is partitionout is None:
             return AdditionOperator(operands)
         axisin, axisout = p2.axisin, p1.axisout
@@ -3009,6 +3045,11 @@ class BlockOperator(NonCommutativeCompositeOperator):
         return BlockOperator(
             operands, partitionin, partitionout, axisin, axisout, new_axisin,
             new_axisout)
+
+    @staticmethod
+    def _rule_blockoperator_comp(p, q):
+        """ Rule for BlockOperator(BlockOperator). """
+        return p._rule_blockoperator_noncommutative(p, q, CompositionOperator)
 
 
 class BlockDiagonalOperator(BlockOperator):
@@ -3780,10 +3821,7 @@ class ConstantOperator(BroadcastingBase):
 #            self.set_rule('T', '.')
         self.set_rule(('.', Operator), self._rule_left, CompositionOperator)
         self.set_rule((Operator, '.'), self._rule_right, CompositionOperator)
-        self.set_rule(('.', CompositionOperator), self._rule_mul,
-                      MultiplicationOperator)
-        self.set_rule(('.', DiagonalOperator), self._rule_mul,
-                      MultiplicationOperator)
+        self.set_rule(('.', Operator), self._rule_mul, MultiplicationOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'rightward':
@@ -3813,9 +3851,11 @@ class ConstantOperator(BroadcastingBase):
 
     @staticmethod
     def _rule_mul(self, op):
-        return CompositionOperator(
-            [DiagonalOperator(self.data, broadcast=self.broadcast,
-                              shapein=self.shapeout), op])
+        if not isinstance(op, CompositionOperator) and not op.flags.linear:
+            return
+        s = DiagonalOperator(self.data, broadcast=self.broadcast)
+        _copy_direct(self, s)
+        return CompositionOperator([s, op])
 
     @staticmethod
     def _rule_left_block(op, self):
@@ -3827,14 +3867,14 @@ class ConstantOperator(BroadcastingBase):
             return
         return BroadcastingBase._rule_right_block(self, op, cls)
 
-    def __str__(self):
-        return str(self.data)
-
     def __neg__(self):
         return ConstantOperator(
             -self.data, broadcast=self.broadcast, shapein=self.shapein,
             shapeout=self.shapeout, reshapein=self.reshapein,
             reshapeout=self.reshapeout, dtype=self.dtype)
+
+    def __str__(self):
+        return str(self.data)
 
 
 @real
@@ -3848,8 +3888,7 @@ class ZeroOperator(ConstantOperator):
         ConstantOperator.__init__(self, 0, **keywords)
         self.del_rule(('.', BlockOperator), MultiplicationOperator)
         self.del_rule(('.', BroadcastingBase), MultiplicationOperator)
-        self.del_rule(('.', CompositionOperator), MultiplicationOperator)
-        self.del_rule(('.', DiagonalOperator), MultiplicationOperator)
+        self.del_rule(('.', Operator), MultiplicationOperator)
         self.set_rule('T', lambda s: ZeroOperator())
         self.set_rule(('.', Operator), lambda s, o: o.copy(), AdditionOperator)
         self.set_rule(('.', Operator), lambda s, o: s.copy(),
@@ -4278,7 +4317,35 @@ class Variable(Operator):
 
     @staticmethod
     def _rule_rcomp(self, other):
-        raise ValueError('A variable cannot be composed with an operator.')
+        raise TypeError('A variable cannot be composed with an operator.')
+
+    def __mul__(self, other):
+        if isinstance(other, Variable):
+            return MultiplicationOperator([self, other])
+        if isinstance(other, VariableTranspose):
+            return CompositionOperator([self, other])
+        if np.isscalar(other) or isinstance(other, HomothetyOperator) or \
+           isinstance(other, (list, tuple, np.ndarray)) and \
+           not isinstance(other, np.matrix):
+            return CompositionOperator([other, self])
+        try:
+            other = asoperator(other)
+        except TypeError:
+            return NotImplemented
+        return MultiplicationOperator([other, self])
+
+    def __rmul__(self, other):
+        try:
+            other = asoperator(other)
+        except TypeError:
+            return NotImplemented
+        if other.flags.linear:
+            return CompositionOperator([other, self])
+        return MultiplicationOperator([other, self])
+
+    def __pow__(self, n):
+        from .nonlinear import PowerOperator
+        return PowerOperator(n)(self)
 
     def __str__(self):
         return self.name
@@ -4303,6 +4370,30 @@ class VariableTranspose(Operator):
     def _rule_lcomp(self, other):
         raise ValueError('An operator cannot be composed with a transposed var'
                          'iable.')
+
+    def __mul__(self, other):
+        if isinstance(other, VariableTranspose):
+            raise TypeError('Transposed variables cannot be multiplied.')
+        if isinstance(other, Variable):
+            return CompositionOperator([self, other])
+        if isscalarlike(other) or isinstance(other, HomothetyOperator):
+            return CompositionOperator([other, self])
+        if isinstance(other, np.ndarray) and not isinstance(other, np.matrix):
+            return CompositionOperator([self, DiagonalOperator(other)])
+        try:
+            other = asoperator(other)
+        except TypeError:
+            return NotImplemented
+        if not other.flags.linear:
+            raise TypeError('Multiplying a transposed variable by a non-linear'
+                            ' operator does not make sense.')
+        return CompositionOperator([self, other])
+
+    def __rmul__(self, other):
+        if np.isscalar(other) or isinstance(other, HomothetyOperator):
+            return CompositionOperator([self, other])
+        raise TypeError('An operator cannot be composed with a transposed vari'
+                        'able.')
 
     def __str__(self):
         return self.name + '.T'
@@ -4368,6 +4459,26 @@ def asoperator(x, constant=False, **keywords):
     if isinstance(x, Operator):
         return x
 
+    if isinstance(x, np.ufunc):
+        return Operator(x, **keywords)
+
+    if np.isscalar(x) or isinstance(x, (list, tuple)):
+        x = np.array(x)
+
+    if isinstance(x, np.ndarray):
+        if constant and not isinstance(x, np.matrix):
+            return ConstantOperator(x, **keywords)
+        if x.ndim == 0:
+            return HomothetyOperator(x, **keywords)
+        if x.ndim == 1:
+            return DiagonalOperator(x, shapein=x.shape[-1], **keywords)
+        from .linear import DenseBlockDiagonalOperator
+        return DenseBlockDiagonalOperator(
+            x, shapein=x.shape[:-2] + (x.shape[-1],), **keywords)
+
+    if sp.issparse(x):
+        return SparseOperator(x, **keywords)
+
     if hasattr(x, 'matvec') and hasattr(x, 'rmatvec') and \
        hasattr(x, 'shape'):
         def direct(input, output):
@@ -4381,9 +4492,6 @@ def asoperator(x, constant=False, **keywords):
                         shapein=x.shape[1], shapeout=x.shape[0],
                         dtype=x.dtype, **keywords)
 
-    if isinstance(x, np.ufunc):
-        return Operator(x, **keywords)
-
     if callable(x):
         def direct(input, output):
             output[...] = x(input)
@@ -4391,35 +4499,11 @@ def asoperator(x, constant=False, **keywords):
                                                     inplace=True)
         return Operator(direct, **keywords)
 
-    if isinstance(x, (list, tuple)) and len(x) > 0 and \
-       isinstance(x[0], (list, tuple)):
-        x = np.array(x)
-
-    if constant and isinstance(x, (int, float, complex, np.bool_, np.number,
-                               np.ndarray)) and not isinstance(x, np.matrix):
-        return ConstantOperator(x, **keywords)
-
-    if sp.issparse(x):
-        return SparseOperator(x, **keywords)
-
-    if isinstance(x, (np.matrix, np.ndarray)):
-        if x.ndim > 2:
-            raise ValueError(
-                'Casting an array of dimensions greater than 2 into an Operato'
-                'r is ambiguous. Use DenseBlockColumnOperator or DenseBlockDia'
-                'gonalOperator.')
-        if x.ndim == 1:
-            x = x[None, :]
-        if x.ndim == 2:
-            keywords['shapein'] = x.shape[1]
-            keywords['shapeout'] = x.shape[0]
-            return DenseOperator(x, **keywords)
-        x = x[()]
-
-    if isinstance(x, (int, float, complex, np.bool_, np.number)):
-        return HomothetyOperator(x, **keywords)
-
-    return asoperator(sp.linalg.aslinearoperator(x), **keywords)
+    try:
+        op = sp.linalg.aslinearoperator(x)
+    except Exception as e:
+        raise TypeError(e)
+    return asoperator(op, **keywords)
 
 
 def asoperator1d(x):
