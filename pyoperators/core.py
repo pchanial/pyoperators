@@ -13,7 +13,6 @@ import numpy as np
 import operator
 import scipy.sparse as sp
 import types
-
 from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
 from .flags import (
@@ -22,9 +21,9 @@ from .flags import (
 from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
 from .rules import Rule, rule_manager
 from .utils import (
-    all_eq, first_is_not, float_dtype, inspect_special_values, isalias,
-    isclassattr, isscalarlike, merge_none, ndarraywrap, operation_assignment,
-    product, renumerate, strenum, strplural, strshape, tointtuple, ufuncs)
+    all_eq, first_is_not, inspect_special_values, isalias, isclassattr,
+    isscalarlike, merge_none, ndarraywrap, operation_assignment, product,
+    renumerate, strenum, strplural, strshape, tointtuple, ufuncs)
 from .utils.mpi import MPI
 
 __all__ = [
@@ -36,7 +35,6 @@ __all__ = [
     'BlockSliceOperator',
     'CompositionOperator',
     'ConstantOperator',
-    'DenseOperator',
     'DiagonalOperator',
     'GroupOperator',
     'HomothetyOperator',
@@ -3945,215 +3943,6 @@ class ZeroOperator(ConstantOperator):
 
     def __neg__(self):
         return self
-
-
-@linear
-@contiguous
-class DenseOperator(Operator):
-    """
-    Dense operator. Multiplication can be broadcast over inputs of larger
-    dimensions.
-
-    If the dense array is a matrix of shape (M, N), the application of
-    the operator over an input of shape (P, N) will result in an output
-    of shape (P, M).
-
-    If the dense array has a larger number of dimensions, and is a tensor of
-    shape (L, M, N), the product of this operator by an input of shape (P, N)
-    will have a shape (L, P, M) by default or (P, L, M) if the keyword
-    'roll_input' is set to True.
-    In the default case, for each p:
-        output[:, p, :] = np.dot(data, input[p, :])
-    and when the 'roll_input' keyword is set:
-        output[p, :, :] = np.dot(data, input[p, :])
-
-    The block matrix representation is the following. Given the matrices A_l
-    of size M x N (1 <= l <= L) and the vectors V_p of size N (1 <= p <= P),
-    the product of the DenseOperator obtained by stacking the A_l as
-    an (L, M, N) array times the stacking of the V_p vectors as a (P, N) array
-    is given by
-
-     /              \     /   \     /       \
-    | A_1        _   |   | V_1 |   | A_1 V_1 |
-    |  _  A_1   / \  |   |     |   | A_1 V_2 |
-    | / \     \ \_/  |   | V_2 |   |    :    |
-    | \_/       A_1  |   |     |   | A_1 V_P |
-    | A_2        _   |   |  :  |   | A_2 V_1 |
-    |  _  A_2   / \  |   |  :  |   | A_2 V_2 |
-    | / \     \ \_/  |   |  :  |   |    :    |
-    | \_/       A_2  | x |  :  | = | A_2 V_P |  if roll_input is false, and by
-    |      :         |   |  :  |   |    :    |
-    |      :         |   |  :  |   |    :    |
-    |      :         |   |  :  |   |    :    |
-    | A_L        _   |   |  :  |   | A_L V_1 |
-    |  _  A_L   / \  |   |  :  |   | A_L V_2 |
-    | / \     \ \_/  |   |     |   |    :    |
-    | \_/       A_L  |   | V_P |   | A_L V_P |
-     \              /     \   /     \       /
-
-     /              \     /   \     /       \
-    | A_1        _   |   | V_1 |   | A_1 V_1 |
-    | A_2       / \  |   |     |   | A_2 V_1 |
-    |  :        \_/  |   | V_2 |   |    :    |
-    | A_L            |   |     |   | A_L V_1 |
-    |     A_1        |   |  :  |   | A_1 V_2 |
-    |     A_2        |   |  :  |   | A_2 V_2 |
-    |      :         | x |  :  | = |    :    |  if roll_input is true.
-    |     A_L        |   |  :  |   | A_L V_2 |
-    |         \      |   |  :  |   |    :    |
-    |  _       A_1   |   |  :  |   | A_1 V_P |
-    | / \      A_2   |   |  :  |   | A_2 V_P |
-    | \_/       :    |   |     |   |    :    |
-    |          A_L   |   | V_P |   | A_L V_P |
-     \              /     \   /     \       /
-
-
-    Example
-    -------
-    >>> m = np.array([[1., 2., 3.], [2., 3., 4.]])
-    >>> d = DenseOperator(m)
-    >>> d([1, 0, 0])
-    array([ 1.,  2.])
-
-    >>> theta = np.pi / 4
-    >>> m = [[np.cos(theta), -np.sin(theta)],
-    ...      [np.sin(theta),  np.cos(theta)]]
-    >>> input = [[1, 0], [0, 1], [-1, 0], [0, -1]]
-    >>> op = DenseOperator(m)
-    >>> print op(input)
-    [[ 0.70710678  0.70710678]
-     [-0.70710678  0.70710678]
-     [-0.70710678 -0.70710678]
-     [ 0.70710678 -0.70710678]]
-    >>> print op.T(op(input))
-    [[ 1.  0.]
-     [ 0.  1.]
-     [-1.  0.]
-     [ 0. -1.]]
-
-    """
-    def __init__(self, data, roll_input=False, naxes=None, naxesin=None,
-                 naxesout=None, dtype=None, **keywords):
-        data = np.atleast_2d(data)
-        if naxes is not None and (naxes < 1 or 2 * naxes > data.ndim):
-            raise ValueError('Invalid naxes keyword.')
-        if naxesin is None and naxesout is not None or \
-           naxesout is None and naxesin is not None:
-            raise ValueError('The keywords naxesin and naxesout must be both sp'
-                             'ecified.')
-        if naxesin is None and naxesout is None:
-            if naxes is None:
-                naxes = 1
-            naxesin = naxes
-            naxesout = naxes
-        if naxesin < 1 or naxesin >= data.ndim:
-            raise ValueError('Invalid naxesin keyword.')
-        if naxesout < 1 or naxesout >= data.ndim:
-            raise ValueError('Invalid naxesout keyword.')
-        if naxesin + naxesout > data.ndim:
-            raise ValueError(
-                "The sum of the keywords naxesin '{0}' and naxesout '{1}' exce"
-                'ed the number of dimensions of the input array.').format(
-                naxesin, naxesout)
-        if data.ndim == 0:
-            self.__class__ = HomothetyOperator
-            self.__init__(data, dtype=dtype, **keywords)
-            return
-        if dtype is None:
-            dtype = float_dtype(data.dtype)
-        self.naxesin = int(naxesin)
-        self.naxesout = int(naxesout)
-        self.data = data.astype(dtype)
-        self.roll_input = bool(roll_input)
-        self._roll_input = self.roll_input or naxesin + naxesout == data.ndim
-        self._l = product(data.shape[:-naxesin-naxesout])
-        self._m = product(data.shape[-naxesin-naxesout:-naxesin])
-        self._n = product(data.shape[-naxesin:])
-        if self._roll_input:
-            self._data = data.reshape((self._l * self._m, self._n))
-        else:
-            self._data = data.reshape((self._l, self._m, self._n))
-        keywords['flags'] = self.validate_flags(
-            keywords.get('flags', {}), real=dtype.kind != 'c')
-        Operator.__init__(self, dtype=dtype, **keywords)
-        if self._roll_input:
-            self.set_rule('T', self._rule_transpose)
-        self.set_rule(('.', HomothetyOperator), lambda s, o: DenseOperator(
-            o.data * s.data, roll_input=s.roll_input, naxesin=s.naxesin,
-            naxesout=naxesout),
-            CompositionOperator)
-        self.set_rule(('.', DenseOperator), self._rule_dense,
-                      CompositionOperator)
-
-    def direct(self, input, output):
-        input = np.atleast_1d(input)
-        p = product(input.shape[:-self.naxesin])
-        input_ = input.reshape((p, self._n))
-        if self._roll_input:
-            output_ = output.reshape((p, self._l * self._m))
-            np.einsum('mn,pn->pm', self._data, input_, out=output_)
-        else:
-            output_ = output.reshape((self._l, p, self._m))
-            np.einsum('lmn,pn->lpm', self._data, input_, out=output_)
-
-    def transpose(self, input, output):
-        # this code is only used ifprint roll_input is false and L>1
-        input_ = input.reshape((self._l, -1, self._m))
-        p = input_.shape[1]
-        output_ = output.reshape((p, self._n))
-        np.einsum('lmn,lpm->pn', self._data, input_, out=output_)
-
-    def reshapein(self, shape):
-        if self._roll_input:
-            # P, N -> P, L, M
-            return shape[:-self.naxesin] + self.data.shape[:-self.naxesin]
-        else:
-            # P, N -> L, P, M
-            return self.data.shape[:-self.naxesout-self.naxesin] + \
-                   shape[:-self.naxesin] + \
-                   self.data.shape[-self.naxesout-self.naxesin:-self.naxesin]
-
-    def reshapeout(self, shape):
-        if self._roll_input:
-            lm = self.data.ndim - self.naxesin
-            # P, L, M -> P, N
-            return shape[:-lm] + self.data.shape[-self.naxesin:]
-        else:
-            l = self.data.ndim - self.naxesout - self.naxesin
-            p = len(shape) - l - self.naxesout
-            # L, P, M -> P, N
-            return shape[l:l+p] + self.data.shape[-self.naxesin:]
-
-    def validatein(self, shape):
-        expected = self.data.shape[-self.naxesin:]
-        if shape[-self.naxesin:] != expected:
-            return ValueError(
-                "The input shape '{0}' is invalid. The last dimension(s) shoul"
-                "d be '{1}'.".format(shape, expected))
-
-    def validateout(self, shape):
-        expected = self.data.shape[-self.naxesout-self.naxesin:-self.naxesin]
-        if shape[-self.naxesout:] != expected:
-            return ValueError(
-                "The output shape '{0}' is invalid. The last dimension(s) shou"
-                "ld be '{1}'.".format(shape, expected))
-
-    @staticmethod
-    def _rule_transpose(self):
-        data = self.data
-        for i in range(self.naxesin):
-            data = np.rollaxis(data, -1)
-        return DenseOperator(data, roll_input=True,
-                             naxesin=data.ndim-self.naxesin, naxesout=1)
-
-    @staticmethod
-    def _rule_dense(self, other):
-        if other.naxesin != 1:
-            return None
-        # prevent increasing the size of the operators
-        if self.data.ndim > 2 and self.data.ndim > 2:
-            return None
-        return DenseOperator(np.dot(self.data, other.data))
 
 
 @linear

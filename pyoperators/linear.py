@@ -10,14 +10,12 @@ except:
     pass
 from itertools import izip
 from scipy.sparse.linalg import eigsh
-
 from .core import (
     Operator,
     BlockRowOperator,
     BroadcastingBase,
     CompositionOperator,
     ConstantOperator,
-    DenseOperator,
     DiagonalOperator,
     HomothetyOperator,
     ReductionOperator,
@@ -26,18 +24,24 @@ from .core import (
 from .flags import inplace, linear, real, square, symmetric
 from .memory import empty
 from .utils import (
+    broadcast_shapes,
     cast,
     complex_dtype,
     float_dtype,
+    isalias,
     izip_broadcast,
     pi,
+    product,
     strshape,
     tointtuple,
 )
+from .warnings import warn, PyOperatorsWarning
 
 __all__ = [
     'BandOperator',
     'DegreesOperator',
+    'DenseOperator',
+    'DenseBlockDiagonalOperator',
     'DiagonalNumexprOperator',
     'DifferenceOperator',
     'EigendecompositionOperator',
@@ -69,6 +73,289 @@ class DegreesOperator(HomothetyOperator):
     def __init__(self, dtype=float, **keywords):
         HomothetyOperator.__init__(self, 180 / pi(dtype), **keywords)
         self.set_rule('I', lambda s: RadiansOperator(s.dtype))
+
+
+@linear
+class DenseBase(Operator):
+    def __init__(
+        self,
+        data,
+        naxes=None,
+        naxesin=None,
+        naxesout=None,
+        naxesextra=None,
+        dtype=None,
+        issquare=None,
+        **keywords,
+    ):
+        data = np.asarray(data)
+        if data.ndim == 0:
+            self.__class__ = HomothetyOperator
+            self.__init__(data, dtype=dtype, **keywords)
+            return
+        data = np.atleast_2d(data)
+        if naxes is not None and (naxes < 1 or 2 * naxes > data.ndim):
+            raise ValueError('Invalid naxes keyword.')
+        if naxesin is None and naxesout is None:
+            if naxes is None:
+                naxes = 1
+            naxesin = naxes
+            naxesout = naxes
+        elif naxesin is None:
+            if naxesout < 1 or naxesout >= data.ndim:
+                raise ValueError('Invalid naxesout keyword.')
+            if naxesextra is not None:
+                naxesin = data.ndim - naxesextra - naxesout
+        elif naxesout is None:
+            if naxesin < 1 or naxesin >= data.ndim:
+                raise ValueError('Invalid naxesin keyword.')
+            if naxesextra is not None:
+                naxesout = data.ndim - naxesextra - naxesin
+        if naxesin is None or naxesout is None:
+            raise ValueError(
+                'The keywords naxesin and naxesout must be both s' 'pecified.'
+            )
+        if naxesextra is None:
+            naxesextra = data.ndim - naxesin - naxesout
+            if naxesextra == 0 and not isinstance(self, DenseOperator):
+                self.__class__ = DenseOperator
+                self.__init__(data, naxesin=naxesin, dtype=None, **keywords)
+                return
+            if naxesextra < 0:
+                raise ValueError(
+                    "The number of input and output dimensions ('{0}' and '{1}"
+                    "')exceeds the number of dimensions of the input array {2}"
+                    ".".format(naxesin, naxesout, data.ndim)
+                )
+            naxesextra = data.ndim - naxesin - naxesout
+        if naxesin + naxesout + naxesextra != data.ndim:
+            raise ValueError(
+                "The number of dimensions of the input array '{0}' is too larg"
+                "e. The expected number is '{1}'. To disambiguate the handling"
+                " of the extra dimension(s), use the operators DenseBlockColum"
+                "nOperator, DenseBlockDiagonalOperator or DenseBlockRowOperato"
+                "r.".format(data.ndim, naxesin + naxesout + naxesextra)
+            )
+        if dtype is None:
+            dtype = float_dtype(data.dtype)
+        else:
+            dtype = np.dtype(dtype)
+        data = np.array(data, dtype=dtype, copy=False)
+
+        self.data = data
+        self.naxesin = int(naxesin)
+        self.naxesout = int(naxesout)
+        self.naxesextra = int(naxesextra)
+        self._sl = data.shape[:naxesextra]
+        self._sm = data.shape[-naxesin - naxesout : -naxesin]
+        self._sn = data.shape[-naxesin:]
+        self._l = product(self._sl)
+        self._m = product(self._sm)
+        self._n = product(self._sn)
+        _data = data.reshape(self._sl + (self._m, self._n))
+        if not isalias(_data, data):
+            # this warning only happens if naxesin or naxesout > 1
+            warn(
+                'The input array could not be reshaped without making a copy.'
+                ' To avoid potential duplication of the data in memory, consi'
+                'der giving a contiguous data argument.',
+                PyOperatorsWarning,
+            )
+            data = _data.reshape(data.shape)
+        self._data = _data
+        keywords['flags'] = self.validate_flags(
+            keywords.get('flags', {}),
+            real=dtype.kind != 'c',
+            #            square=self._sm == self._sm if issquare is None else issquare,
+            contiguous_input=self.naxesin > 1,
+            contiguous_output=self.naxesout > 1,
+        )
+        Operator.__init__(self, dtype=dtype, **keywords)
+        self.set_rule('T', self._rule_transpose)
+        self.set_rule(
+            ('.', HomothetyOperator), self._rule_homothety, CompositionOperator
+        )
+
+    def validatein(self, shape):
+        if len(shape) < self.naxesin or shape[-self.naxesin :] != self._sn:
+            return ValueError(
+                "The input shape '{0}' is invalid. The last dimension(s) shoul"
+                "d be '{1}'.".format(shape, self._sn)
+            )
+
+    def validateout(self, shape):
+        if len(shape) < self.naxesout or shape[-self.naxesout :] != self._sm:
+            return ValueError(
+                "The output shape '{0}' is invalid. The last dimension(s) shou"
+                "ld be '{1}'.".format(shape, self._sm)
+            )
+
+    @staticmethod
+    def _rule_homothety(self, other):
+        return type(self)(
+            other.data * self.data, naxesin=self.naxesin, naxesout=self.naxesout
+        )
+
+
+class DenseBlockDiagonalOperator(DenseBase):
+    """
+    Operator with broadcastable same dimension diagonal dense blocks.
+
+    If the array used to store the diagonal blocks has a shape (L, M, N),
+    the shape of the output of the operator applied over an input of shape:
+        - (N,) will be (L, M)
+        - (L, N) will be (L, M)
+        - (P, 1, N) will be (P, L, M)
+    Broadcasting the input along an axis (when 1 are prepended to the input or
+    when the input axis length is 1) stacks as columns the operator blocks
+    along this axis.
+
+    Example
+    -------
+    >>> data = [[[1, 1, 1]], [[1, -1, 1]]]
+    >>> np.shape(data)
+    (2, 1, 3)
+    >>> d = DenseBlockDiagonalOperator(data, dtype=int)
+    >>> print(d(np.ones(3))).shape  # the input is broadcast
+    (2, 1)
+    >>> print(d.todense(shapein=3))
+    [[ 1  1  1]
+     [ 1 -1  1]]
+    >>> print(d(np.ones([2, 3]))).shape
+    (2, 1)
+    >>> print(d.todense(shapein=(2, 3)))
+    [[ 1  1  1  0  0  0]
+     [ 0  0  0  1 -1  1]]
+    >>> print(d(np.ones([3, 2, 3]))).shape
+    (3, 2, 1)
+    >>> print(d.todense(shapein=(3, 2, 3)))
+    [[ 1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0]
+     [ 0  0  0  1 -1  1  0  0  0  0  0  0  0  0  0  0  0  0]
+     [ 0  0  0  0  0  0  1  1  1  0  0  0  0  0  0  0  0  0]
+     [ 0  0  0  0  0  0  0  0  0  1 -1  1  0  0  0  0  0  0]
+     [ 0  0  0  0  0  0  0  0  0  0  0  0  1  1  1  0  0  0]
+     [ 0  0  0  0  0  0  0  0  0  0  0  0  0  0  0  1 -1  1]]
+
+    """
+
+    def __init__(self, data, naxes=None, naxesin=None, naxesout=None, **keywords):
+        DenseBase.__init__(
+            self, data, naxes=naxes, naxesin=naxesin, naxesout=naxesout, **keywords
+        )
+        if not isinstance(self, DenseBase):
+            return
+        if self.shapein is not None:
+            extrashapein = self.shapein[: -self.naxesin]
+            if broadcast_shapes(extrashapein, self._sl) != extrashapein:
+                raise NotImplementedError(
+                    'With this input shape, the operator is not diagonal block'
+                    ' anymore. Its transpose would not be incorrect.'
+                )
+        self.set_rule(
+            ('.', DenseBlockDiagonalOperator), self._rule_mul, CompositionOperator
+        )
+
+    def direct(self, input, output):
+        # L, M, N * L', N -> L", M
+        if self.naxesin > 1:
+            input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
+        if self.naxesout > 1:
+            output = output.reshape(output.shape[: -self.naxesout] + (self._m,))
+        np.einsum('...mn,...n->...m', self._data, input, out=output)
+
+    def reshapein(self, shape):
+        # L', N -> L", M
+        return broadcast_shapes(self._sl, shape[: -self.naxesin]) + self._sm
+
+    def validatein(self, shape):
+        # L', N
+        DenseBase.validatein(self, shape)
+        broadcast_shapes(shape[: -self.naxesin], self._sl)
+
+    def validateout(self, shape):
+        # L", M
+        DenseBase.validateout(self, shape)
+        broadcast_shapes(shape[: -self.naxesout], self._sl)
+
+    @staticmethod
+    def _rule_transpose(self):
+        data = self.data
+        for i in range(self.naxesin):
+            data = np.rollaxis(data, -1, self.naxesextra)
+        return DenseBlockDiagonalOperator(
+            data, naxesin=self.naxesout, naxesout=self.naxesin
+        )
+
+    @staticmethod
+    def _rule_mul(self, other):
+        if self._sn != other._sm:
+            raise ValueError('Incompatible shape in composition.')
+        if other.naxesextra == 0:
+            _data = np.dot(self._data, other._data)
+        else:
+            _data = np.einsum('...ij,...jk->...ik', self._data, other._data)
+        data = _data.reshape(_data.shape[:-2] + self._sm + other._sn)
+        return DenseBlockDiagonalOperator(
+            data, naxesin=other.naxesin, naxesout=self.naxesout
+        )
+
+
+class DenseOperator(DenseBlockDiagonalOperator):
+    """
+    Dense operator. The operator can be broadcast over the inputs.
+
+    If the dense array is a matrix of shape (M, N), the application of
+    the operator over an input of shape (P, N) will result in an output
+    of shape (P, M).
+
+    Example
+    -------
+    >>> m = np.array([[1., 2., 3.],
+    ...               [2., 3., 4.]])
+    >>> d = DenseOperator(m)
+    >>> d([1, 0, 0])
+    array([ 1.,  2.])
+
+    >>> theta = np.pi / 4
+    >>> m = [[np.cos(theta), -np.sin(theta)],
+    ...      [np.sin(theta),  np.cos(theta)]]
+    >>> input = [[1, 0], [0, 1], [-1, 0], [0, -1]]
+    >>> op = DenseOperator(m)
+    >>> print op(input)
+    [[ 0.70710678  0.70710678]
+     [-0.70710678  0.70710678]
+     [-0.70710678 -0.70710678]
+     [ 0.70710678 -0.70710678]]
+    >>> print op.T(op(input))
+    [[ 1.  0.]
+     [ 0.  1.]
+     [-1.  0.]
+     [ 0. -1.]]
+
+    """
+
+    def __init__(self, data, naxes=None, naxesin=None, naxesout=None, **keywords):
+        DenseBlockDiagonalOperator.__init__(
+            self,
+            data,
+            naxes=naxes,
+            naxesin=naxesin,
+            naxesout=naxesout,
+            naxesextra=0,
+            **keywords,
+        )
+
+    def direct(self, input, output):
+        # M, N * P, N -> P, M
+        if self.naxesin > 1:
+            input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
+        if self.naxesout > 1:
+            output = output.reshape(output.shape[: -self.naxesout] + (self._m,))
+        np.dot(input, self._data.T, output)
+
+    def reshapeout(self, shape):
+        # P, M -> P, N
+        return shape[: -self.naxesout] + self._sn
 
 
 class DiagonalNumexprOperator(DiagonalOperator):
@@ -357,7 +644,7 @@ class RadiansOperator(HomothetyOperator):
 
 
 @real
-class Rotation2dOperator(DenseOperator):
+class Rotation2dOperator(DenseBlockDiagonalOperator):
     """
     2-d rotation operator.
 
@@ -378,7 +665,7 @@ class Rotation2dOperator(DenseOperator):
 
     """
 
-    def __init__(self, angle, degrees=False, roll_input=False, dtype=None, **keywords):
+    def __init__(self, angle, degrees=False, dtype=None, **keywords):
         angle = np.asarray(angle)
         if dtype is None:
             dtype = float_dtype(angle.dtype)
@@ -390,13 +677,14 @@ class Rotation2dOperator(DenseOperator):
         for i in range(angle.ndim):
             m = np.rollaxis(m, -1)
         keywords['flags'] = self.validate_flags(
-            keywords.get('flags', {}), orthogonal=m.ndim == 2
+            keywords.get('flags', {}), orthogonal=True
         )
-        DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
+
+        DenseBlockDiagonalOperator.__init__(self, m, **keywords)
 
 
 @real
-class Rotation3dOperator(DenseOperator):
+class Rotation3dOperator(DenseBlockDiagonalOperator):
     """
     Operator for 3-d active rotations about 1, 2 or 3 axes.
 
@@ -446,15 +734,7 @@ class Rotation3dOperator(DenseOperator):
     """
 
     def __init__(
-        self,
-        convention,
-        a1,
-        a2=0,
-        a3=0,
-        degrees=False,
-        roll_input=False,
-        dtype=None,
-        **keywords,
+        self, convention, a1, a2=0, a3=0, degrees=False, dtype=None, **keywords
     ):
         if not isinstance(convention, str):
             raise TypeError('Invalid type for the input convention.')
@@ -658,12 +938,10 @@ class Rotation3dOperator(DenseOperator):
         else:
             raise ValueError("Invalid rotation convention {0}.".format(convention))
 
-        for i in range(a1.ndim):
-            m = np.rollaxis(m, -1)
         keywords['flags'] = self.validate_flags(
-            keywords.get('flags', {}), orthogonal=m.ndim == 2
+            keywords.get('flags', {}), orthogonal=True
         )
-        DenseOperator.__init__(self, m, roll_input=roll_input, **keywords)
+        DenseBlockDiagonalOperator.__init__(self, m, **keywords)
 
     @staticmethod
     def _get_matrix(a11, a12, a13, a21, a22, a23, a31, a32, a33, dtype):
