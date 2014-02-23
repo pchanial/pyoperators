@@ -1,3 +1,4 @@
+#coding: utf-8
 from __future__ import division
 
 import numexpr
@@ -224,9 +225,9 @@ class ClipOperator(Operator):
 
     Arguments
     ---------
-    vmin: scalar or array_like
+    minvalue: scalar or array_like
         The minimum limit below which all input values are set to vmin.
-    vmax: scalar or array_like
+    maxvalue: scalar or array_like
         The maximum limit above which all input values are set to vmax.
 
     Exemples
@@ -243,9 +244,16 @@ class ClipOperator(Operator):
     MaximumOperator, MinimumOperator, np.clip
 
     """
-    def __init__(self, vmin, vmax, **keywords):
-        Operator.__init__(self, lambda i, o: np.clip(i, vmin, vmax, out=o),
-                          **keywords)
+    def __init__(self, minvalue, maxvalue, **keywords):
+        self.minvalue = np.asarray(minvalue)
+        self.maxvalue = np.asarray(maxvalue)
+        Operator.__init__(self, **keywords)
+
+    def direct(self, input, output):
+        np.clip(input, self.minvalue, self.maxvalue, out=output)
+
+    def __str__(self):
+        return 'clip(..., {0}, {1})'.format(self.minvalue, self.maxvalue)
 
 
 @square
@@ -287,6 +295,9 @@ class PowerOperator(Operator):
     def direct(self, input, output):
         np.power(input, self.n, output)
 
+    def __str__(self):
+        return '...**{0}'.format(self.n)
+
 
 class ReciprocalOperator(PowerOperator):
     'X -> 1 / X'
@@ -295,6 +306,9 @@ class ReciprocalOperator(PowerOperator):
 
     def direct(self, input, output):
         np.reciprocal(input, output)
+
+    def __str__(self):
+        return '1/...'
 
 
 class SqrtOperator(PowerOperator):
@@ -313,6 +327,9 @@ class SquareOperator(PowerOperator):
 
     def direct(self, input, output):
         np.square(input, output)
+
+    def __str__(self):
+        return u'...²'.encode('utf-8')
 
 
 class ProductOperator(ReductionOperator):
@@ -342,6 +359,10 @@ class ProductOperator(ReductionOperator):
     def __init__(self, axis=None, dtype=None, skipna=True, **keywords):
         ReductionOperator.__init__(self, np.multiply, axis=axis, dtype=dtype,
                                    skipna=skipna, **keywords)
+
+    def __str__(self):
+        return 'product' if self.axis is None \
+                         else 'product(..., axis={0})'.format(self.axis)
 
 
 class MaxOperator(ReductionOperator):
@@ -376,6 +397,10 @@ class MaxOperator(ReductionOperator):
         ReductionOperator.__init__(self, func, axis=axis, dtype=dtype,
                                    skipna=skipna, **keywords)
 
+    def __str__(self):
+        return 'max' if self.axis is None \
+                     else 'max(..., axis={0})'.format(self.axis)
+
 
 class MinOperator(ReductionOperator):
     """
@@ -408,6 +433,10 @@ class MinOperator(ReductionOperator):
             func = np.min
         ReductionOperator.__init__(self, func, axis=axis, dtype=dtype,
                                    skipna=skipna, **keywords)
+
+    def __str__(self):
+        return 'min' if self.axis is None \
+                     else 'min(..., axis={0})'.format(self.axis)
 
 
 class MinMaxOperator(BlockColumnOperator):
@@ -447,6 +476,10 @@ class MinMaxOperator(BlockColumnOperator):
         BlockColumnOperator.__init__(self, operands, new_axisout=new_axisout,
                                      **keywords)
 
+    def __str__(self):
+        return 'minmax' if self.axis is None \
+                        else 'minmax(..., axis={0})'.format(self.axis)
+
 
 @square
 @inplace
@@ -475,8 +508,14 @@ class MaximumOperator(Operator):
 
     """
     def __init__(self, value, **keywords):
-        Operator.__init__(self, lambda i, o: np.maximum(i, value, o),
-                          **keywords)
+        self.value = np.asarray(value)
+        Operator.__init__(self, **keywords)
+
+    def direct(self, input, output):
+        np.maximum(input, self.value, output)
+
+    def __str__(self):
+        return 'maximum(..., {0})'.format(self.value)
 
 
 @square
@@ -506,8 +545,14 @@ class MinimumOperator(Operator):
 
     """
     def __init__(self, value, **keywords):
-        Operator.__init__(self, lambda i, o: np.minimum(i, value, o),
-                          **keywords)
+        self.value = np.asarray(value)
+        Operator.__init__(self, **keywords)
+
+    def direct(self, input, output):
+        np.minimum(input, self.value, output)
+
+    def __str__(self):
+        return 'minimum(..., {0})'.format(self.value)
 
 
 @square
@@ -568,6 +613,9 @@ class NumexprOperator(Operator):
             expr = 'output' + op + '(' + self.expr + ')'
         numexpr.evaluate(expr, global_dict=self.global_dict, out=output)
 
+    def __str__(self):
+        return 'numexpr({0}, ...)'.format(self.expr)
+
 
 @square
 @idempotent
@@ -625,6 +673,16 @@ class RoundOperator(Operator):
         np.floor(output, output)
         np.add(output, 1, output)
 
+    def __str__(self):
+        method = self.method[1:]
+        if method == 'rmi':
+            method = 'floor'
+        elif method == 'tpi':
+            method = 'ceil'
+        elif method == 'tz':
+            method = 'trunc'
+        return 'round_{0}'.format(method)
+
 
 @square
 @idempotent
@@ -664,6 +722,9 @@ class HardThresholdingOperator(Operator):
     def direct(self, input, output):
         hard_thresholding(input, self.a, output)
 
+    def __str__(self):
+        return 'hardthreshold(..., {0})'.format(self.a)
+
 
 @square
 @inplace
@@ -697,6 +758,9 @@ class SoftThresholdingOperator(Operator):
 
     def direct(self, input, output):
         soft_thresholding(input, self.a, output)
+
+    def __str__(self):
+        return 'softthreshold(..., {0})'.format(self.a)
 
 
 @separable
@@ -815,3 +879,6 @@ class ToNdOperator(_1dNdOperator):
     def direct(self, input, output):
         np.floor_divide(input[..., None], self.coefs, out=output)
         np.mod(output, self.shape_, out=output)
+
+    def __str__(self):
+        return 'toNd'

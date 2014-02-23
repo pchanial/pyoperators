@@ -1324,7 +1324,8 @@ class Operator(object):
         return not self == other
 
     def __str__(self):
-        if self.shapein is not None or self.shapeout is not None:
+        if self.flags.linear and (self.shapein is not None or
+                                  self.shapeout is not None):
             shapein = '?' if self.shapein is None else strshape(self.shapein)
             shapeout = '?' if self.shapeout is None else \
                 strshape(self.shapeout)
@@ -1336,10 +1337,11 @@ class Operator(object):
             s += ' '
         else:
             s = ''
-        if hasattr(self, '__name__'):
-            s += self.__name__
-        else:
-            s += type(self).__name__ + '[not initialized]'
+        name = getattr(self, '__name__', type(self).__name__ +
+                       '[not initialized]')
+        if name != 'Operator':
+            name = name.replace('Operator', '')
+        s += name.lower()
         return s
 
     def __repr__(self):
@@ -1511,8 +1513,10 @@ class CompositeOperator(Operator):
     def __str__(self):
         if isinstance(self, AdditionOperator):
             op = ' + '
+        elif isinstance(self, MultiplicationOperator):
+            op = u' {0} '.format(u'\u00d7').encode('utf-8')
         elif isinstance(self, (BlockDiagonalOperator, BlockSliceOperator)):
-            op = ' ⊕ '
+            op = u' {0} '.format(u'\u2295').encode('utf-8')
         else:
             op = ' * '
 
@@ -2453,6 +2457,41 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             if None not in (commin, commout) and commin is not commout:
                 raise ValueError('The MPI communicators are incompatible.')
         return operands
+
+    def __str__(self):
+        if len(self.operands) == 0:
+            return str(self.operands[0])
+
+        s = ''
+        for linear, group in groupby(reversed(self.operands),
+                                     lambda _: _.flags.linear):
+            group = tuple(group)
+            if linear:
+                s_group = ' * '.join(str(_) for _ in reversed(group))
+                if len(s) == 0:
+                    s = s_group
+                    continue
+                need_protection = len(group) > 1 or ' ' in s_group
+                if need_protection:
+                    s = '({0})({1})'.format(s_group, s)
+                else:
+                    s = s_group + '({0})'.format(s)
+                continue
+            for op in group:
+                s_op = str(op)
+                if len(s) == 0:
+                    s = s_op
+                    continue
+                if '...' not in s_op:
+                    s = '{0}({1})'.format(s_op, s)
+                    continue
+                protected = '...,' in s_op or ', ...' in s_op
+                need_protection = ' ' in s #XXX fail for f(..., z=1)
+                if not protected and need_protection:
+                    s = s_op.replace('...', '({0})'.format(s))
+                else:
+                    s = s_op.replace('...', s)
+        return s
 
 
 class GroupOperator(CompositionOperator):
