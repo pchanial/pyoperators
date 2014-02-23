@@ -30,6 +30,7 @@ from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.sdist import sdist
 from numpy.distutils.core import Command
 from subprocess import call, Popen, PIPE
+from warnings import filterwarnings
 
 try:
     root = os.path.dirname(os.path.abspath(__file__))
@@ -223,3 +224,5 @@ def get_cmdclass():
             'coverage': CoverageCommand,
             'sdist': SDistCommand,
             'test': TestCommand}
+
+filterwarnings('ignore', "Unknown distribution option: 'install_requires'")
