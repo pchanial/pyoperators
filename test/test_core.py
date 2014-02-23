@@ -1342,6 +1342,7 @@ def teardown_memory():
     memory.verbose = old_memory_verbose
 
 
+@skiptest
 @with_setup(setup_memory, teardown_memory)
 def test_inplace_can_use_output():
     A = zeros(10*8, dtype=np.int8).view(ndarraywrap)
@@ -1497,6 +1498,7 @@ def test_inplace_can_use_output():
             yield func_inplace, n, i, expected, strops
 
 
+@skiptest
 @with_setup(setup_memory, teardown_memory)
 def test_inplace_cannot_use_output():
     A = np.zeros(10*8, dtype=np.int8).view(ndarraywrap)
