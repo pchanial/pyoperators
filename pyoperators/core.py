@@ -3057,13 +3057,17 @@ class BlockDiagonalOperator(BlockOperator):
 
         operands = self._validate_operands(operands)
 
-        if axisin is None and new_axisin is None:
-            raise NotImplementedError('Free partitioning not implemented yet.')
-
         if axisout is None:
             axisout = axisin
         if new_axisout is None:
             new_axisout = new_axisin
+        if axisin is None:
+            axisin = axisout
+        if new_axisin is None:
+            new_axisin = new_axisout
+
+        if axisin is None and new_axisin is None:
+            raise NotImplementedError('Free partitioning not implemented yet.')
 
         if partitionin is None:
             partitionin = self._get_partition(
