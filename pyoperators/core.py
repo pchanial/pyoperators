@@ -1974,7 +1974,11 @@ class NonCommutativeCompositeOperator(CompositeOperator):
             i -= 1
 
         if DEBUG:
-            print 'OUT (because of rule exhaustion)'
+            print 'OUT',
+            if len(ops) == 1:
+                print '(only one operand)'
+            else:
+                print '(because of rule exhaustion)'
             print
             print
 
