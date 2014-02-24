@@ -1081,20 +1081,19 @@ class Operator(object):
 
     def _set_flags(self, flags=None, **keywords):
         """ Set flags to an Operator. """
-        if flags is None:
-            flags = keywords
-        if isinstance(flags, Flags):
+        if isinstance(flags, Flags) and len(keywords) == 0:
             self.flags = flags
             return
-        flags = self.validate_flags(flags)
-        f = [k for k, v in flags.items() if v]
-        if 'symmetric' in f or 'hermitian' in f or 'orthogonal' in f or \
-           'unitary' in f:
-            flags['linear'] = flags['square'] = True
-        if 'orthogonal' in f:
-            flags['real'] = True
-        if 'involutary' in f:
-            flags['square'] = True
+        flags = self.validate_flags(flags, **keywords)
+        true_flags = [k for k, v in flags.items() if v is True]
+        if any(_ in true_flags
+               for _ in ['hermitian', 'involutary', 'orthogonal', 'symmetric',
+                         'unitary']):
+            if true_flags != ('involutary',):
+                flags['linear'] = True
+            # custom reshapein override the square flag
+            if self.reshapein == Operator.reshapein.__get__(self, type(self)):
+                flags['square'] = True
         self.flags = self.flags._replace(**flags)
 
     def _validate_arguments(self, input, output):
