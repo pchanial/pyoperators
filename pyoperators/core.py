@@ -2166,6 +2166,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 if CompositionOperator not in op.rules:
                     continue
                 for rule in op.rules[CompositionOperator]['left']:
+                    if rule.subjects != ('.', HomothetyOperator):
+                        continue
                     try:
                         new_op = rule(op, h)
                     except:
@@ -2173,6 +2175,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                     if new_op is not None:
                         raise StopIteration()
                 for rule in op.rules[CompositionOperator]['right']:
+                    if rule.subjects != (HomothetyOperator, '.'):
+                        continue
                     try:
                         new_op = rule(h, op)
                     except:
