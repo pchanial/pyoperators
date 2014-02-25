@@ -188,8 +188,8 @@ def test_binaryrule_priority():
     op = Op3()
     act = [r.subjects for r in op.rules[CompositionOperator]['left']]
     exp = [
-        ('.', '.H'),
-        ('.', '.T'),
+        ('.', 'H'),
+        ('.', 'T'),
         ('.', OpB),
         ('.', Op4),
         ('.', Op3),
