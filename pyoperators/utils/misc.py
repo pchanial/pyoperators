@@ -85,7 +85,7 @@ def all_eq(a, b):
         for a_, b_ in izip(a, b):
             if not all_eq(a_, b_):
                 return False
-            return True
+        return True
     if isinstance(a, types.MethodType):
         if type(a) is not type(b):
             return False

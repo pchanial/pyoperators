@@ -170,7 +170,7 @@ def test_binaryrule_priority():
 
     op = Op3()
     act = [r.subjects for r in op.rules[CompositionOperator]['left']]
-    exp = [('.', '.H'), ('.', '.T'), ('.', OpB), ('.', Op4), ('.', Op3),
+    exp = [('.', 'H'), ('.', 'T'), ('.', OpB), ('.', Op4), ('.', Op3),
            ('.', Op2), ('.', Op1), ('.', OpA)]
     for a, e in zip(act, exp):
         yield assert_eq, a, e
