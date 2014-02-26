@@ -303,6 +303,8 @@ class Operator(object):
                  preserve_input=True):
 
         if isinstance(x, Operator):
+            if self.flags.idempotent and self is x:
+                return self
             return CompositionOperator([self, x])
 
         if self.direct is None:
