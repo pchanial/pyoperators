@@ -831,7 +831,6 @@ h3. Linear operators
 * DenseOperator
 * DiagonalOperator
 * DiagonalNumexprOperator
-* DiagonalNumexprNonSeparableOperator
 * DifferenceOperator
 * EigendecompositionOperator
 * FFTOperator
@@ -858,6 +857,7 @@ h3. Linear operators
 h3. Non-linear operators
 
 * ClipOperator
+* Cartesian2SphericalOperator
 * ConstantOperator
 * HardThresholdingOperator
 * MaxOperator
@@ -871,6 +871,7 @@ h3. Non-linear operators
 * ReductionOperator
 * RoundOperator
 * SoftThresholdingOperator
+* Spherical2CartesianOperator
 * To1dOperator
 * ToNdOperator
 
@@ -893,5 +894,5 @@ h3. MPI operators
 * MPIDistributionIdentityOperator
 
 
-More operators can be found in the project "Tamasis/PACS":http://pchanial.github.com/tamasis-pacs, projection, discrete differences, compression, downsampling, MPI operators, etc.
+More operators can be found in the project "PySimulators":http://pchanial.github.com/pysimulators, projection, discrete differences, compression, downsampling, MPI operators, etc.
 There is an on-going work consisting in migrating the most generic ones into the pyoperators package.
