@@ -874,13 +874,13 @@ class Operator(object):
                 raise TypeError('A ufunc with several inputs or outputs cannot'
                                 ' be converted to an Operator.')
             real = True
-            for t in self.direct.types:
-                i, o = t[0], t[3]
-                if o not in 'FDG':
-                    continue
-                if i not in 'FDG':
-                    real = False
-                    break
+            if all(_[3] in 'EFDGOSUV' for _ in self.direct.types):
+                real = False
+                if self.dtype is None:
+                    self.dtype = np.dtype(np.complex128)
+            elif all(_[3] in 'efdgEFDGOSUV' for _ in self.direct.types):
+                if self.dtype is None:
+                    self.dtype = np.dtype(np.float64)
             if real:
                 self._set_flags('real')
             self._set_flags('inplace')

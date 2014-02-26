@@ -214,6 +214,24 @@ def test_autoflags():
         yield func, f
 
 
+#=============
+# Test direct
+#=============
+
+def test_ufuncs():
+    assert_raises(TypeError, Operator, np.maximum)
+
+    def func(ufunc, dtype):
+        o = Operator(np.cos)
+        assert_flags(o, 'real,inplace,outplace,square,separable')
+        assert o.dtype == dtype
+
+    ufuncs = np.cos, np.invert, np.negative
+    dtypes = np.float64, None, None
+    for ufunc, dtype in zip(ufuncs, dtypes):
+        yield func, ufunc, dtype
+
+
 #==================
 # Test conjugation
 #==================
@@ -2495,9 +2513,3 @@ def test_asoperator_func():
         assert_eq(o(v), f(np.array(v)))
     for v in (2, [2], [2, 3]):
         yield func, v
-
-
-def test_asoperator_ufunc():
-    assert_raises(TypeError, asoperator, np.maximum)
-    o = asoperator(np.cos)
-    assert_flags(o, 'real,inplace,square,separable')
