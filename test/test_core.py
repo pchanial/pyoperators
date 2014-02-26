@@ -134,7 +134,6 @@ def test_flags():
             print 'Cannot test: ' + op.__name__
             return
         if o.flags.idempotent:
-            raise SkipTest
             assert_is(o, o(o))
         if o.flags.real:
             assert_is(o, o.C)
