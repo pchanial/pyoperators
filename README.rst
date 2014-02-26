@@ -19,8 +19,8 @@ Then, you can instantiate an ``Operator``:
 
 An alternative way to define an operator is to define a subclass:
 
->>> from pyoperators import decorators, Operator
-... @decorators.symmetric
+>>> from pyoperators import flags, Operator
+... @flags.symmetric
 ... class MyOperator(Operator):
 ...     def direct(x, out):
 ...         out[...] = 2 * x
@@ -29,51 +29,54 @@ An alternative way to define an operator is to define a subclass:
 
 This operator does not have an explicit shape, it can handle inputs of any shape:
 
->>> A(ones(5))
+>>> A(np.ones(5))
 array([ 2.,  2.,  2.,  2.,  2.])
->>> A(ones((2,3)))
+>>> A(np.ones((2,3)))
 array([[ 2.,  2.,  2.],
        [ 2.,  2.,  2.]])
 
-By setting the 'symmetric' flag, we ensure that A's transpose is A:
+By setting the ``symmetric`` flag, we ensure that A's transpose is A:
 
 >>> A.T is A
 True
 
-To output a corresponding dense matrix, one needs to specify the input shape:
+For non-explicit shape operators, we get the corresponding dense matrix by specifying the input shape:
 
 >>> A.todense(shapein=2)
 array([[2, 0],
        [0, 2]])
 
-Operators do not have to be linear, but if they are not, they cannot be seen
-as matrices. Some operators are already predefined, such as the
-``IdentityOperator``, the ``DiagonalOperator`` or the nonlinear
-``ClippingOperator``.
+Operators do not have to be linear. Many operators are already `predefined <http://pchanial.github.io/pyoperators/2000/doc-operators/#list>`_, such as the ``IdentityOperator``, the ``DiagonalOperator`` or the nonlinear ``ClipOperator``.
 
-The previous ``A`` matrix could be defined more easily like this :
+The previous ``A`` matrix could be defined more easily like this:
 
->>> A = 2 * pyoperators.I
+>>> from pyoperators import I
+>>> A = 2 * I
 
 where ``I`` is the identity operator with no explicit shape.
 
-Operators can be combined together by addition, element-wise multiplication or composition (note that the ``*`` sign stands for composition):
+Operators can be combined together by addition, element-wise multiplication or composition. Note that the operator ``*`` stands for matrix multiplication if the two operators are linear, or for element-wise multiplication otherwise:
 
->>> B = 2 * pyoperators.I + pyoperators.DiagonalOperator(range(3))
+>>> from pyoperators import I, DiagonalOperator
+>>> B = 2 * I + DiagonalOperator(range(3))
 >>> B.todense()
 array([[2, 0, 0],
        [0, 3, 0],
        [0, 0, 4]])
 
-Algebraic rules are used to simplify an expression involving operators, so to speed up its execution:
+Algebraic rules can easily be attached to operators. They are used to simplify expressions to speed up their execution. The ``B`` Operator has been reduced to:
 
 >>> B
 DiagonalOperator(array([2, ..., 4], dtype=int64), broadcast='disabled', dtype=int64, shapein=3, shapeout=3)
->>> C = pyoperators.Operator(flags='idempotent')
+
+Many simplifications are available. For instance:
+
+>>> from pyoperators import Operator
+>>> C = Operator(flags='idempotent,linear')
 >>> C * C is C
 True
->>> D = pyoperators.Operator(flags='involutary')
->>> D * D
+>>> D = Operator(flags='involutary')
+>>> D(D)
 IdentityOperator()
 
 
