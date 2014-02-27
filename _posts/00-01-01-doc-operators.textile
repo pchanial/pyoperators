@@ -867,10 +867,14 @@ h3. Non-linear operators
 * MinMaxOperator
 * NormalizeOperator
 * NumexprOperator
+* PowerOperator
 * ProductOperator
+* ReciprocalOperator
 * ReductionOperator
 * RoundOperator
 * SoftThresholdingOperator
+* SqrtOperator
+* SquareOperator
 * Spherical2CartesianOperator
 * To1dOperator
 * ToNdOperator
