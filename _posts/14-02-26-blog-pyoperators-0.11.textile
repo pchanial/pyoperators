@@ -20,10 +20,10 @@ What's new ?
     - add @reverse@ option for @first@, @first_is_not@, @ifirst@ and @ifirst_is_not@.
 * Improved @__str__@ for non-linear operators.
 * New ufunc @abs2@, which returns the square modulus of a complex input.
-* DEPRECATED: use isscalarlike instead of isscalar.
+* DEPRECATED: use @isscalarlike@ instead of @isscalar@.
 
 Under the hood:
-* Add PyOperatorsWarning and PyOperatorsDeprecationWarnings
+* Add @PyOperatorsWarning@ and @PyOperatorsDeprecationWarnings@
 * Rename the @decorators@ module -> @flags@
-* Move operator's rules into a @rules@ module
-* Add CopyOperator
+* Move operator's rules -> @rules@ module
+* Add @CopyOperator@
