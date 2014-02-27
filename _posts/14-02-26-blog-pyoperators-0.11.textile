@@ -23,7 +23,7 @@ What's new ?
 * DEPRECATED: use @isscalarlike@ instead of @isscalar@.
 
 Under the hood:
-* Add @PyOperatorsWarning@ and @PyOperatorsDeprecationWarnings@
-* Rename the @decorators@ module -> @flags@
-* Move operator's rules -> @rules@ module
-* Add @CopyOperator@
+* Add @PyOperatorsWarning@ and @PyOperatorsDeprecationWarnings@.
+* Rename the @decorators@ module -> @flags@.
+* Move operator's rules -> @rules@ module.
+* Add @CopyOperator@.
