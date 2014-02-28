@@ -124,8 +124,8 @@ class DenseBase(Operator):
             if naxesextra < 0:
                 raise ValueError(
                     "The number of input and output dimensions ('{0}' and '{1}"
-                    "')exceeds the number of dimensions of the input array {2}"
-                    ".".format(naxesin, naxesout, data.ndim)
+                    "') exceeds the number of dimensions of the input array {2"
+                    "}.".format(naxesin, naxesout, data.ndim)
                 )
             naxesextra = data.ndim - naxesin - naxesout
         if naxesin + naxesout + naxesextra != data.ndim:
@@ -248,8 +248,9 @@ class DenseBlockDiagonalOperator(DenseBase):
             extrashapein = self.shapein[: -self.naxesin]
             if broadcast_shapes(extrashapein, self._sl) != extrashapein:
                 raise NotImplementedError(
-                    'With this input shape, the operator is not diagonal block'
-                    ' anymore. Its transpose would not be incorrect.'
+                    'With this explicit input shape, the operator is not diago'
+                    'nal block anymore. Its transpose would not be incorrect a'
+                    'nd DenseBlockColumnOperator is not yet implemented.'
                 )
         self.set_rule(
             ('.', DenseBlockDiagonalOperator), self._rule_mul, CompositionOperator
