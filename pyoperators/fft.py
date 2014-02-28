@@ -271,6 +271,10 @@ class _FFTWRealConvolutionOperator(Operator):
             out[...] = self.kernel
         return self.kernel
 
+    @property
+    def nbytes(self):
+        return self.kernel.nbytes
+
     @staticmethod
     def _rule_homothety(self, scalar):
         kernel = empty(self.kernel.shape, self.kernel.dtype)

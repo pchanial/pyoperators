@@ -13,6 +13,7 @@ import numpy as np
 import operator
 import scipy.sparse as sp
 import types
+import sys
 from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
 from .flags import (
@@ -156,6 +157,14 @@ class Operator(object):
     commout = None
     shapein = None
     shapeout = None
+
+    @property
+    def nbytes(self):
+        """
+        Approximate memory footprint.
+
+        """
+        return 0
 
     def reshapein(self, shape):
         """
@@ -1472,6 +1481,12 @@ class CompositeOperator(Operator):
         self.propagate_commout(self.commout)
 
     morph_single_operand = True
+
+    @property
+    def nbytes(self):
+        d = dict((id(_), _) for _ in self.operands)
+        unique = set(d.keys())
+        return sum(d[_].nbytes for _ in unique)
 
     def propagate_attributes(self, cls, attr):
         return self.operands[0].propagate_attributes(cls, attr)
@@ -3439,6 +3454,10 @@ class BroadcastingBase(Operator):
                           s, o, MultiplicationOperator),
                       MultiplicationOperator)
 
+    @property
+    def nbytes(self):
+        return self.data.nbytes
+
     def get_data(self):
         return self.data
 
@@ -3974,9 +3993,31 @@ class SparseBase(Operator):
             raise ValueError(
                 "The output shape '{0}' is incompatible with the sparse matrix"
                 " shape {1}.".format(shapeout, matrix.shape))
+        if not hasattr(matrix, 'nbytes'):
+            self._set_nbytes(matrix)
+        self.matrix = matrix
         Operator.__init__(self, shapein=shapein, shapeout=shapeout,
                           dtype=dtype, **keywords)
-        self.matrix = matrix
+
+    @property
+    def nbytes(self):
+        return self.matrix.nbytes
+
+    @staticmethod
+    def _set_nbytes(m):
+        if isinstance(m, (sp.csc_matrix, sp.csr_matrix, sp.bsr_matrix)):
+            m.nbytes = m.data.nbytes + m.indices.nbytes + m.indptr.nbytes
+        elif isinstance(m, sp.coo_matrix):
+            m.nbytes = m.data.nbytes + 2 * m.row.nbytes
+        elif isinstance(m, sp.dia_matrix):
+            m.nbytes = m.data.nbytes + m.offsets.nbytes
+        elif isinstance(m, sp.dok_matrix):
+            sizeoftuple = sys.getsizeof(())
+            m.nbytes = (24 * m.ndim + m.dtype.itemsize +
+                        2 * sizeoftuple + 24) * len(m.viewitems())
+        else:
+            raise TypeError("The sparse format '{0}' is not handled."
+                            .format(type(m)))
 
 
 @linear
