@@ -252,6 +252,10 @@ class ClipOperator(Operator):
     def direct(self, input, output):
         np.clip(input, self.minvalue, self.maxvalue, out=output)
 
+    @property
+    def nbytes(self):
+        return self.minvalue.nbytes + self.maxvalue.nbytes
+
     def __str__(self):
         return 'clip(..., {0}, {1})'.format(self.minvalue, self.maxvalue)
 
@@ -294,6 +298,10 @@ class PowerOperator(Operator):
 
     def direct(self, input, output):
         np.power(input, self.n, output)
+
+    @property
+    def nbytes(self):
+        return self.n.nbytes
 
     def __str__(self):
         return '...**{0}'.format(self.n)
@@ -514,6 +522,10 @@ class MaximumOperator(Operator):
     def direct(self, input, output):
         np.maximum(input, self.value, output)
 
+    @property
+    def nbytes(self):
+        return self.value.nbytes
+
     def __str__(self):
         return 'maximum(..., {0})'.format(self.value)
 
@@ -550,6 +562,10 @@ class MinimumOperator(Operator):
 
     def direct(self, input, output):
         np.minimum(input, self.value, output)
+
+    @property
+    def nbytes(self):
+        return self.value.nbytes
 
     def __str__(self):
         return 'minimum(..., {0})'.format(self.value)
@@ -612,6 +628,13 @@ class NumexprOperator(Operator):
             op = operation_symbol[operation]
             expr = 'output' + op + '(' + self.expr + ')'
         numexpr.evaluate(expr, global_dict=self.global_dict, out=output)
+
+    @property
+    def nbytes(self):
+        if self.global_dict is None:
+            return 0
+        return np.sum(v.nbytes for v in self.global_dict.values()
+                               if hasattr(v, 'nbytes'))
 
     def __str__(self):
         return 'numexpr({0}, ...)'.format(self.expr)
@@ -722,6 +745,10 @@ class HardThresholdingOperator(Operator):
     def direct(self, input, output):
         hard_thresholding(input, self.a, output)
 
+    @property
+    def nbytes(self):
+        return self.a.nbytes
+
     def __str__(self):
         return 'hardthreshold(..., {0})'.format(self.a)
 
@@ -758,6 +785,10 @@ class SoftThresholdingOperator(Operator):
 
     def direct(self, input, output):
         soft_thresholding(input, self.a, output)
+
+    @property
+    def nbytes(self):
+        return self.a.nbytes
 
     def __str__(self):
         return 'softthreshold(..., {0})'.format(self.a)

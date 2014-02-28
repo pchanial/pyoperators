@@ -141,6 +141,10 @@ class DenseBase(Operator):
         self.set_rule(('.', HomothetyOperator), self._rule_homothety,
                       CompositionOperator)
 
+    @property
+    def nbytes(self):
+        return self.data.nbytes
+
     def validatein(self, shape):
         if len(shape) < self.naxesin or shape[-self.naxesin:] != self._sn:
             return ValueError(
@@ -929,6 +933,11 @@ class TridiagonalOperator(Operator):
         output[:-1] += self.subdiagonal * input[1:]
         output[1:] += self.superdiagonal * input[:-1]
 
+    @property
+    def nbytes(self):
+        return self.diagonal.nbytes + self.subdiagonal.nbytes + \
+               self.superdiagonal.nbytes
+
     def todense(self):
         #XXX optimize me
         out = np.zeros(self.shape, dtype=self.dtype)
@@ -1043,6 +1052,10 @@ class BandOperator(Operator):
             # lower part
             out[i:] += rab[i + 1, :-i] * x[:-i]
 
+    @property
+    def nbytes(self):
+        return self.ab.nbytes
+
     def diag(self, i=0):
         """
         Returns the i-th diagonal (subdiagonal if i < 0, superdiagonal
@@ -1124,6 +1137,10 @@ class SymmetricBandOperator(Operator):
             out[:-i] += self.ab[i, :-i] * x[i:]
             # lower part
             out[i:] += self.ab[i, :-i] * x[:-i]
+
+    @property
+    def nbytes(self):
+        return self.ab.nbytes
 
     @property
     def rab(self):
@@ -1251,6 +1268,10 @@ class SymmetricBandToeplitzOperator(Operator):
                     self.bplan.execute()
                     out_[...] = rbuffer[lpad:lpad+self.nsamples]
 
+    @property
+    def nbytes(self):
+        return self.kernel.nbytes
+
     def _get_kernel(self, firstrow, fplan, rbuffer, cbuffer, ncorr, fftsize,
                     dtype):
         firstrow = firstrow.reshape((-1, ncorr + 1))
@@ -1341,6 +1362,10 @@ class EigendecompositionOperator(CompositionOperator):
         self.eigenvectors = v
         CompositionOperator.__init__(self, [V, W, V.T], **kwargs)
         self.set_rule('I', lambda s: s ** -1)
+
+    @property
+    def nbytes(self):
+        return self.eigenvalues.nbytes + self.eigenvectors.nbytes
 
     def det(self):
         """
