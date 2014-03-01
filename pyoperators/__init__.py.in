@@ -18,6 +18,7 @@ from .fft import *
 from .linear import *
 from .nonlinear import *
 from .operators_mpi import *
+from .proxy import *
 from . import iterative
 from .iterative import pcg
 from .rules import rule_manager
