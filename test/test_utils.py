@@ -7,7 +7,7 @@ from pyoperators.utils import (
     broadcast_shapes, cast, complex_dtype, first, float_dtype, ifirst,
     first_is_not, ifirst_is_not, groupbykey, inspect_special_values,
     interruptible, isscalarlike, izip_broadcast, least_greater_multiple, one,
-    pi, product, reshape_broadcast, strenum, strplural, strshape,
+    pi, product, reshape_broadcast, setting, strenum, strplural, strshape,
     uninterruptible, zero)
 from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
@@ -318,6 +318,29 @@ def test_reshape_broadcast():
     for shape, new_shapes in zip(shapes, new_shapess):
         for new_shape in new_shapes:
             yield func, shape, new_shape
+
+
+def test_setting():
+    class Obj():
+        pass
+    obj = Obj()
+    obj.myattr = 'old'
+    with setting(obj, 'myattr', 'mid'):
+        assert obj.myattr == 'mid'
+        with setting(obj, 'myattr', 'new'):
+            assert obj.myattr == 'new'
+        assert obj.myattr == 'mid'
+    assert obj.myattr == 'old'
+
+    with setting(obj, 'otherattr', 'mid'):
+        assert obj.otherattr == 'mid'
+        with setting(obj, 'otherattr', 'new'):
+            assert obj.otherattr == 'new'
+            with setting(obj, 'anotherattr', 'value'):
+                assert obj.anotherattr == 'value'
+            assert not hasattr(obj, 'anotherattr')
+        assert obj.otherattr == 'mid'
+    assert not hasattr(obj, 'otherattr')
 
 
 def test_strenum():

@@ -43,6 +43,7 @@ __all__ = ['all_eq',
            'product',
            'renumerate',
            'reshape_broadcast',
+           'setting',
            'strelapsed',
            'strenum',
            'strinfo',
@@ -618,6 +619,21 @@ def reshape_broadcast(x, shape):
               (0 if sh == 1 else st for sh, st in zip(x.shape, x.strides)))
     return np.lib.stride_tricks.as_strided(x, shape, strides)
 
+
+@contextmanager
+def setting(obj, attr, value):
+    """ Contextually set an attribute to an object. """
+    if hasattr(obj, attr):
+        old_value = getattr(obj, attr)
+        do_delete = False
+    else:
+        do_delete = True
+    setattr(obj, attr, value)
+    yield
+    if do_delete:
+        delattr(obj, attr)
+    else:
+        setattr(obj, attr, old_value)
 
 def strelapsed(t0, msg='Elapsed time'):
     """
