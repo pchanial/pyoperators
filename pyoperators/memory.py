@@ -18,10 +18,17 @@ from .utils import ifirst, product, strshape, tointtuple
 
 __all__ = ['empty', 'ones', 'zeros']
 
-MEMORY_ALIGNMENT = 32
-MEMORY_TOLERANCE = 1.2  # We allow reuse of pool variables only if they do not
-# exceed 20% of the requested size
+# force garbage collection when deleted operators' nbytes exceed this
+# threshold.
+GC_NBYTES_THRESHOLD = 1e8
 
+MEMORY_ALIGNMENT = 32
+
+# We allow reuse of pool variables only if they do not exceed 20% of
+# the requested size
+MEMORY_TOLERANCE = 1.2
+
+_gc_nbytes_counter = 0
 verbose = False
 
 
@@ -342,3 +349,13 @@ class MemoryPool(object):
             res += '{1}\t({2} bytes)'.format(i, strid, s.nbytes)
             result.append(res)
         return '\n'.join(result)
+
+
+def garbage_collect(nbytes=None):
+    global _gc_nbytes_counter
+    if nbytes is None:
+        nbytes = GC_NBYTES_THRESHOLD
+    _gc_nbytes_counter += nbytes
+    if _gc_nbytes_counter >= GC_NBYTES_THRESHOLD:
+        gc.collect()
+        _gc_nbytes_counter = 0

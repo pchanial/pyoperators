@@ -19,7 +19,8 @@ from itertools import groupby, izip
 from .flags import (
     Flags, contiguous, linear, real, idempotent, involutary, square,
     symmetric, inplace)
-from .memory import empty, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT
+from .memory import (empty, garbage_collect, iscompatible, zeros, MemoryPool,
+                     MEMORY_ALIGNMENT)
 from .rules import Rule, rule_manager
 from .utils import (
     all_eq, first_is_not, inspect_special_values, isalias, isclassattr,
@@ -157,6 +158,26 @@ class Operator(object):
     commout = None
     shapein = None
     shapeout = None
+
+    def delete(self):
+        """
+        Delete an operator and its associated operators.
+
+        The operators are morphed into empty shell DeletedOperators and
+        a garbage collection may be triggered according the operator
+        memory footprints.
+
+        """
+        if self._C is None:
+            operators = (self,)
+        else:
+            operators = (self, self._C, self._T, self._H, self._I, self._I._C,
+                         self._I._T, self._I._H)
+        for operator in operators:
+            nbytes = operator.nbytes
+            operator.__class__ = DeletedOperator
+            del operator.__dict__
+            garbage_collect(nbytes)
 
     @property
     def nbytes(self):
@@ -1432,6 +1453,13 @@ class Operator(object):
             else:
                 a += [var + '=' + s]
         return self.__name__ + '(' + ', '.join(a) + ')'
+
+
+class DeletedOperator(Operator):
+    def __init__(self):
+        raise NotImplementedError('A DeletedOperator cannot be instantiated.')
+
+    __name__ = 'DeletedOperator'
 
 
 @real
