@@ -22,6 +22,7 @@ from pyoperators.utils import (
     pi,
     product,
     reshape_broadcast,
+    setting,
     strenum,
     strplural,
     strshape,
@@ -466,6 +467,30 @@ def test_reshape_broadcast():
     for shape, new_shapes in zip(shapes, new_shapess):
         for new_shape in new_shapes:
             yield func, shape, new_shape
+
+
+def test_setting():
+    class Obj:
+        pass
+
+    obj = Obj()
+    obj.myattr = 'old'
+    with setting(obj, 'myattr', 'mid'):
+        assert obj.myattr == 'mid'
+        with setting(obj, 'myattr', 'new'):
+            assert obj.myattr == 'new'
+        assert obj.myattr == 'mid'
+    assert obj.myattr == 'old'
+
+    with setting(obj, 'otherattr', 'mid'):
+        assert obj.otherattr == 'mid'
+        with setting(obj, 'otherattr', 'new'):
+            assert obj.otherattr == 'new'
+            with setting(obj, 'anotherattr', 'value'):
+                assert obj.anotherattr == 'value'
+            assert not hasattr(obj, 'anotherattr')
+        assert obj.otherattr == 'mid'
+    assert not hasattr(obj, 'otherattr')
 
 
 def test_strenum():
