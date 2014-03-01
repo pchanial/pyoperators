@@ -1332,6 +1332,8 @@ class Operator(object):
         return not self == other
 
     def __str__(self):
+        if self.__name__ is None:
+            return type(self).__name__ + ' [not initialized]'
         if self.flags.linear and (self.shapein is not None or
                                   self.shapeout is not None):
             shapein = '?' if self.shapein is None else strshape(self.shapein)
@@ -1345,14 +1347,16 @@ class Operator(object):
             s += ' '
         else:
             s = ''
-        name = getattr(self, '__name__', type(self).__name__ +
-                       '[not initialized]')
+        name = self.__name__
         if name != 'Operator':
             name = name.replace('Operator', '')
         s += name.lower()
         return s
 
     def __repr__(self):
+        if self.__name__ is None:
+            return type(self).__name__ + ' [not initialized]'
+
         a = []
         init = getattr(self, '__init_original__', self.__init__)
         vars, args, keywords, defaults = inspect.getargspec(init)
@@ -1427,9 +1431,7 @@ class Operator(object):
                 a += [s]
             else:
                 a += [var + '=' + s]
-        name = self.__name__ if hasattr(self, '__name__') else \
-            type(self).__name__ + '[not initialized]'
-        return name + '(' + ', '.join(a) + ')'
+        return self.__name__ + '(' + ', '.join(a) + ')'
 
 
 @real
