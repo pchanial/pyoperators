@@ -674,6 +674,7 @@ class Rotation2dOperator(DenseBlockDiagonalOperator):
         angle = np.asarray(angle)
         if dtype is None:
             dtype = float_dtype(angle.dtype)
+        angle = np.asarray(angle, dtype)
         if degrees:
             angle = np.radians(angle)
         cosa = np.cos(angle)
@@ -753,9 +754,9 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
             dtype = np.find_common_type(
                 [float_dtype(a.dtype) for a in (a1, a2, a3)], []
             )
-        a1 = a1.astype(dtype)
-        a2 = a2.astype(dtype)
-        a3 = a3.astype(dtype)
+        a1 = np.asarray(a1, dtype)
+        a2 = np.asarray(a2, dtype)
+        a3 = np.asarray(a3, dtype)
         if degrees:
             a1 = np.radians(a1)
             a2 = np.radians(a2)
