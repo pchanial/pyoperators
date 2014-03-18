@@ -3418,7 +3418,7 @@ class ReshapeOperator(Operator):
             self.__init__(shapein, **keywords)
             return
         Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
-        self.set_rule('T', lambda s: ReshapeOperator())
+        self.set_rule('T', lambda s: ReshapeOperator(s.shapeout, s.shapein))
         self.set_rule((type(self), '.'), self._rule_reshape,
                       CompositionOperator)
 
