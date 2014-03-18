@@ -1,3 +1,4 @@
 include .coveragerc
 include hooks.py
 include README.rst
+exclude pyoperators/__init__.py
