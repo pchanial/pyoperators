@@ -46,7 +46,7 @@ def test_shapes():
         yield func, format
 
 
-def test_inplace_reduction():
+def test_update_output():
     def func(format):
         cls = getattr(sp, format + '_matrix')
         so = SparseOperator(cls(A))
