@@ -17,10 +17,10 @@ import sys
 from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
 from .flags import (
-    Flags, contiguous, linear, real, idempotent, involutary, square,
-    symmetric, inplace)
-from .memory import (empty, garbage_collect, iscompatible, zeros, MemoryPool,
-                     MEMORY_ALIGNMENT)
+    Flags, contiguous, idempotent, inplace, involutary, linear, real,
+    square, symmetric, update_output)
+from .memory import (
+    empty, garbage_collect, iscompatible, zeros, MemoryPool, MEMORY_ALIGNMENT)
 from .rules import Rule, rule_manager
 from .utils import (
     all_eq, first_is_not, inspect_special_values, isalias, isclassattr,
@@ -144,7 +144,6 @@ class Operator(object):
     flags = Flags()
     rules = None
 
-    _disable_inplace_reduction = False
     _C = None
     _T = None
     _H = None
@@ -342,7 +341,7 @@ class Operator(object):
                                       'plemented.')
 
         if operation is not operation_assignment:
-            if not self.flags.inplace_reduction:
+            if not self.flags.update_output:
                 raise ValueError(
                     'This operator does not handle inplace reductions.')
             if out is None:
@@ -360,7 +359,7 @@ class Operator(object):
 
         with _pool.set_if(reuse_x, x):
             with _pool.set_if(reuse_out, out):
-                if self.flags.inplace_reduction:
+                if self.flags.update_output:
                     self.direct(i, o, operation=operation)
                 else:
                     self.direct(i, o)
@@ -891,7 +890,7 @@ class Operator(object):
                 self._set_flags('orthogonal, unitary, involutary')
 
         if isinstance(flags, (dict, str)):
-            auto_flags = ('inplace_reduction', 'shape_input', 'shape_output')
+            auto_flags = ('shape_input', 'shape_output')
             mask = [f in flags for f in auto_flags]
             if any(mask):
                 raise ValueError(
@@ -918,16 +917,6 @@ class Operator(object):
             self._set_flags('separable')
             if self.direct is np.negative:
                 self._set_flags('linear')
-        else:
-            # Set inplace_reduction flag to true if the direct method handles
-            # the operation keyword, unless _disable_inplace_reduction is true
-            if isinstance(self.direct, types.MethodType):
-                d = self.direct.im_func
-            else:
-                d = self.direct
-            if d and 'operation' in d.func_code.co_varnames:
-                self._set_flags(
-                    inplace_reduction=not self._disable_inplace_reduction)
 
         if self.flags.inplace:
             aligned = max(self.flags.aligned_input,
@@ -1466,6 +1455,7 @@ class DeletedOperator(Operator):
 @symmetric
 @idempotent
 @involutary
+@update_output
 class CopyOperator(Operator):
     """
     Copy operator.
@@ -1620,7 +1610,7 @@ class CommutativeCompositeOperator(CompositeOperator):
         # we need a temporary buffer if all operands can do inplace reductions
         # except no more than one, which is move as first operand
         try:
-            ir = [o.flags.inplace_reduction for o in operands]
+            ir = [o.flags.update_output for o in operands]
             index = ir.index(False)
             operands[0], operands[index] = operands[index], operands[0]
             need_temporary = ir.count(False) > 1
@@ -1631,7 +1621,7 @@ class CommutativeCompositeOperator(CompositeOperator):
         ii = 0
         with _pool.get_if(need_temporary, output.shape, output.dtype) as buf:
             for op in operands[1:]:
-                if op.flags.inplace_reduction:
+                if op.flags.update_output:
                     op.direct(input, output, operation=self.operation)
                 else:
                     op.direct(input, buf)
@@ -2050,8 +2040,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             self.__dict__ = operands[0].__dict__.copy()
             return
         keywords = self._get_attributes(operands, **keywords)
-        self._disable_inplace_reduction = \
-            not operands[0].flags.inplace_reduction
         self._info = {}
         NonCommutativeCompositeOperator.__init__(self, operands, **keywords)
         self.set_rule('C', lambda s: CompositionOperator(
@@ -2114,7 +2102,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 op = self.operands[iop]
 
                 # perform out-of place operation
-                if iop == 0 and self.flags.inplace_reduction:
+                if iop == 0 and self.flags.update_output:
                     op.direct(i, o, operation=operation)
                 else:
                     op.direct(i, o)
@@ -2471,6 +2459,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'real': all(op.flags.real for op in operands),
             'square': all(op.flags.square for op in operands),
             'separable': all(op.flags.separable for op in operands),
+            'update_output': operands[0].flags.update_output,
             'aligned_input': operands[-1].flags.aligned_input,
             'aligned_output': operands[0].flags.aligned_output,
             'contiguous_input': operands[-1].flags.contiguous_input,
@@ -3351,7 +3340,7 @@ class BlockRowOperator(BlockOperator):
                                axisin, new_axisin=new_axisin, **keywords)
 
         self.operation = operation
-        self._need_temporary = any(not o.flags.inplace_reduction for o in
+        self._need_temporary = any(not o.flags.update_output for o in
                                    self.operands[1:])
 
     def direct(self, input, output):
@@ -3378,7 +3367,7 @@ class BlockRowOperator(BlockOperator):
                 i = input[sin]
                 with _pool.copy_if(i, op.flags.aligned_input,
                                    op.flags.contiguous_input) as i:
-                    if op.flags.inplace_reduction:
+                    if op.flags.update_output:
                         op.direct(i, output, operation=self.operation)
                     else:
                         op.direct(i, buf)
@@ -3886,6 +3875,7 @@ class IdentityOperator(HomothetyOperator):
 
 @idempotent
 @inplace
+@update_output
 class ConstantOperator(BroadcastingBase):
     """
     Non-linear constant operator.
@@ -4006,6 +3996,7 @@ class ZeroOperator(ConstantOperator):
 
 @linear
 @contiguous
+@update_output
 class SparseBase(Operator):
     def __init__(self, matrix, dtype=None, shapein=None, shapeout=None,
                  **keywords):

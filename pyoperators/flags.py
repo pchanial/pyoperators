@@ -27,7 +27,7 @@ class Flags(
             'contiguous_output',  # contiguous output requirement
             'inplace',  # handle in-place operation
             'outplace',  # handle out-of-place operation
-            'inplace_reduction',  # handle operations on output
+            'update_output',  # handle operations on output
             'destroy_input',  # input modification in out-of-place operation
             'shape_input',
             'shape_output',
@@ -252,3 +252,12 @@ def separable(cls):
 
     """
     return flags(cls, 'separable')
+
+
+def update_output(cls):
+    """
+    Decorator for operators that can update the output.
+    It sets the 'update_output' flag.
+
+    """
+    return flags(cls, 'update_output')

@@ -16,7 +16,7 @@ from .core import (
     MultiplicationOperator,
     ReductionOperator,
 )
-from .flags import idempotent, inplace, real, separable, square
+from .flags import idempotent, inplace, real, separable, square, update_output
 from .linear import DegreesOperator, RadiansOperator
 from .utils import operation_assignment, operation_symbol, pi, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
@@ -635,6 +635,7 @@ class NormalizeOperator(Operator):
 
 @square
 @inplace
+@update_output
 class NumexprOperator(Operator):
     """
     Return an operator evaluating an expression using numexpr.
@@ -661,7 +662,9 @@ class NumexprOperator(Operator):
         self.expr = expr
         self.global_dict = global_dict
         if numexpr.__version__ < '2.1':
-            self._disable_inplace_reduction = True
+            keywords['flags'] = self.validate_flags(
+                keywords.get('flags', {}), update_output=False
+            )
         Operator.__init__(self, dtype=dtype, **keywords)
 
     def direct(self, input, output, operation=operation_assignment):

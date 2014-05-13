@@ -5,7 +5,7 @@ def test_flags():
     def func(flag):
         if flag not in pyoperators.flags.Flags._fields:
             return
-        if flag in ('shape_input', 'shape_output', 'inplace_reduction'):
+        if flag in ('shape_input', 'shape_output'):
             return
         if flag == 'outplace':
             flags = {'outplace': False}

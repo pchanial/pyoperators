@@ -105,11 +105,7 @@ class Op3(Operator):
         pass
 
 
-class OperatorNIR(Operator):
-    def direct(self, input, output):
-        output[...] = input
-
-
+@flags.update_output
 class OperatorIR(Operator):
     def direct(self, input, output, operation=operation_assignment):
         operation(output, input)
@@ -184,16 +180,29 @@ def test_shape_input_and_output():
         yield func, op.flags, type(op).__name__
 
 
-def test_inplace_reduction1():
-    out = np.zeros(3, dtype=int)
-    assert not OperatorNIR().flags.inplace_reduction
-    assert_raises(ValueError, OperatorNIR(), [1, 0, 0], out,
-                  operation=operator.iadd)
-    assert OperatorIR().flags.inplace_reduction
+def test_update_output1():
+    class OperatorNIR1(Operator):
+        def direct(self, input, output):
+            output[...] = input
+
+    class OperatorNIR2(Operator):
+        def direct(self, input, output, operation=operation_assignment):
+            operation(output, input)
+
+    def func(cls):
+        assert not cls().flags.update_output
+        out = np.zeros(3, dtype=int)
+        assert_raises(ValueError, cls(), [1, 0, 0], out,
+                      operation=operator.iadd)
+
+    for cls in (OperatorNIR1, OperatorNIR2):
+        yield func, cls
+
+
+def test_update_output2():
+    assert OperatorIR().flags.update_output
     assert_raises(ValueError, OperatorIR(), [1, 0, 0], operation=operator.iadd)
 
-
-def test_inplace_reduction2():
     op = OperatorIR()
     inputs = [1, 1, 0], [0, 2, 1], [0, 1, 1]
     expecteds = [0, 1, 1], [2, 5, 3], [0, 2, 0]
@@ -207,10 +216,11 @@ def test_inplace_reduction2():
                     expecteds):
         yield func, o, e
 
+
 def test_autoflags():
     def func(f):
         assert_raises(ValueError, Operator, flags=f)
-    for f in ['shape_input', 'shape_output', 'inplace_reduction']:
+    for f in ['shape_input', 'shape_output']:
         yield func, f
 
 
@@ -2017,7 +2027,7 @@ def test_composition_flags():
         assert not getattr(o.flags, f)
         o = CompositionOperator([OperatorIR(), Operator()])
         assert getattr(o.flags, f)
-    yield func4, 'inplace_reduction'
+    yield func4, 'update_output'
 
 
 def test_composition_shapes():
