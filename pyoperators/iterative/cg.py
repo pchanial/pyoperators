@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 import numpy as np
 import time
 
@@ -15,8 +15,19 @@ class PCGAlgorithm(IterativeAlgorithm):
     OpenMP/MPI Preconditioned conjugate gradient iteration to solve A x = b.
 
     """
-    def __init__(self, A, b, x0=None, tol=1.e-5, maxiter=300, M=None,
-                 disp=False, callback=None, reuse_initial_state=False):
+
+    def __init__(
+        self,
+        A,
+        b,
+        x0=None,
+        tol=1.0e-5,
+        maxiter=300,
+        M=None,
+        disp=False,
+        callback=None,
+        reuse_initial_state=False,
+    ):
         """
         Parameters
         ----------
@@ -69,13 +80,21 @@ class PCGAlgorithm(IterativeAlgorithm):
             x0 = zeros(b.shape, dtype)
 
         abnormal_stop_condition = MaxIterationStopCondition(
-            maxiter, 'Solver reached maximum number of iterations without reac'
-            'hing specified tolerance.')
+            maxiter,
+            'Solver reached maximum number of iterations without reac'
+            'hing specified tolerance.',
+        )
 
         IterativeAlgorithm.__init__(
-            self, x=x0, abnormal_stop_condition=abnormal_stop_condition,
-            disp=disp, dtype=dtype, reuse_initial_state=reuse_initial_state,
-            inplace_recursion=True, callback=callback)
+            self,
+            x=x0,
+            abnormal_stop_condition=abnormal_stop_condition,
+            disp=disp,
+            dtype=dtype,
+            reuse_initial_state=reuse_initial_state,
+            inplace_recursion=True,
+            callback=callback,
+        )
 
         A = asoperator(A)
         if A.shapein is None:
@@ -83,7 +102,8 @@ class PCGAlgorithm(IterativeAlgorithm):
         if A.shapein != b.shape:
             raise ValueError(
                 "The operator input shape '{0}' is incompatible with that of t"
-                "he RHS '{1}'.".format(A.shapein, b.shape))
+                "he RHS '{1}'.".format(A.shapein, b.shape)
+            )
         self.A = A
         self.b = b
         self.comm = A.commin
@@ -135,11 +155,20 @@ class PCGAlgorithm(IterativeAlgorithm):
     @staticmethod
     def callback(self):
         if self.disp:
-            print '{0:4}: {1}'.format(self.niterations, self.error)
+            print('{0:4}: {1}'.format(self.niterations, self.error))
 
 
-def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
-        callback=None, reuse_initial_state=False):
+def pcg(
+    A,
+    b,
+    x0=None,
+    tol=1.0e-5,
+    maxiter=300,
+    M=None,
+    disp=False,
+    callback=None,
+    reuse_initial_state=False,
+):
     """
     Parameters
     ----------
@@ -179,9 +208,17 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
 
     """
     time0 = time.time()
-    algo = PCGAlgorithm(A, b, x0=x0, tol=tol, maxiter=maxiter, disp=disp,
-                        M=M, callback=callback,
-                        reuse_initial_state=reuse_initial_state)
+    algo = PCGAlgorithm(
+        A,
+        b,
+        x0=x0,
+        tol=tol,
+        maxiter=maxiter,
+        disp=disp,
+        M=M,
+        callback=callback,
+        reuse_initial_state=reuse_initial_state,
+    )
     try:
         output = algo.run()
         success = True
@@ -190,12 +227,14 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         output = algo.finalize()
         success = False
         message = str(e)
-    return {'x': output,
-            'success': success,
-            'message': message,
-            'nit': algo.niterations,
-            'error': algo.error,
-            'time': time.time() - time0}
+    return {
+        'x': output,
+        'success': success,
+        'message': message,
+        'nit': algo.niterations,
+        'error': algo.error,
+        'time': time.time() - time0,
+    }
 
 
 def _norm2(x, comm):

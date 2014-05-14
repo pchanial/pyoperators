@@ -7,7 +7,7 @@ the stack may contain the array that will be the output of the operator.
 Care has been taken to ensure that the latter is released from the stack
 to avoid side effects.
 """
-from __future__ import division
+from __future__ import division, print_function
 
 import gc
 import inspect
