@@ -709,14 +709,14 @@ Let's first see the default behaviour, in which the operands do not update their
 
 The following steps are performed:
 
-* the variable @y@ is used as @o1@ 's output,
-* a temporary variable is allocated and used as @o2@ 's output,
-* which is then added in-place to the @y@ variable.
+* the buffer of variable @y@ is used as @o1@ 's output,
+* a temporary buffer is allocated and used as @o2@ 's output,
+* which is then added in-place to @y@ buffer.
 
 If we now assume that the operator @o2@ can update its output argument, the intermediate variable is not required anymore:
 
-* the variable @y@ is used as @o1@ 's output
-* y is passed as @o2@ 's output argument and is updated in-place.
+* the buffer @y@ is used as @o1@ 's output
+* and is passed as @o2@ 's output argument, and is is updated in-place.
 
 One can enable such property by adding the flag @update_output@ and the keyword @operation@ to the operator's direct method.
 
