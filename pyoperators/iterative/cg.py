@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 import numpy as np
 import time
 
@@ -135,7 +135,7 @@ class PCGAlgorithm(IterativeAlgorithm):
     @staticmethod
     def callback(self):
         if self.disp:
-            print '{0:4}: {1}'.format(self.niterations, self.error)
+            print('{0:4}: {1}'.format(self.niterations, self.error))
 
 
 def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
