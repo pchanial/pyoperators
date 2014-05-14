@@ -7,9 +7,7 @@ from pyoperators.utils.testing import assert_same
 from pyoperators.proxy import proxy_group
 
 
-mat = np.array([[1, 1, 1j],
-                [0, 1, 1],
-                [0, 0, 1]])
+mat = np.array([[1, 1, 1j], [0, 1, 1], [0, 0, 1]])
 matI = np.linalg.inv(mat)
 
 global counter
@@ -51,7 +49,6 @@ class MyOperator(Operator):
 def callback(i):
     global counter
     counter += 1
-    print 'calling callback', counter
     return MyOperator(i + 1, shapein=3)
 
 
@@ -69,7 +66,7 @@ def get_operator(list, attr):
 
 nproxy = 5
 ref_list = [callback(i) for i in range(nproxy)]
-proxy_list = proxy_group(nproxy, callback, shapein=3)
+proxy_list = proxy_group(nproxy, callback)
 
 
 def test_copy():
@@ -83,6 +80,7 @@ def test():
         rlist = get_operator(ref_list, attr)
         for o, r in zip(olist, rlist):
             assert_same(o.todense(), r.todense())
+
     for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH':
         yield func, attr
 
@@ -92,6 +90,7 @@ def test_addition():
         op = AdditionOperator(get_operator(proxy_list, attr))
         ref = AdditionOperator(get_operator(ref_list, attr))
         assert_same(op.todense(), ref.todense())
+
     for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH':
         yield func, attr
 
@@ -99,10 +98,14 @@ def test_addition():
 def test_composite():
     global counter
     counter = 0
-    proxy_lists = [get_operator(proxy_list, attr)
-                   for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH']
-    ref_lists = [get_operator(ref_list, attr)
-                 for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH']
+    proxy_lists = [
+        get_operator(proxy_list, attr)
+        for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH'
+    ]
+    ref_lists = [
+        get_operator(ref_list, attr)
+        for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH'
+    ]
 
     op = AdditionOperator(CompositionOperator(_) for _ in zip(*proxy_lists))
     ref = AdditionOperator(CompositionOperator(_) for _ in zip(*ref_lists))
