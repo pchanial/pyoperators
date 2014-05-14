@@ -1,3 +1,4 @@
+from __future__ import division, print_function
 import contextlib
 import numpy as np
 import operator
@@ -109,7 +110,7 @@ def distribute_shape(shape, rank=None, size=None, comm=None):
     shape = tointtuple(shape)
     if len(shape) == 0:
         if size > 1:
-            raise ValueError('It is ambiguous to split a scalar across processe' 's.')
+            raise ValueError('It is ambiguous to split a scalar across processes.')
         return ()
     nglobal = shape[0]
     nlocal = nglobal // size + ((nglobal % size) > rank)
@@ -118,8 +119,10 @@ def distribute_shape(shape, rank=None, size=None, comm=None):
 
 def distribute_shapes(shape, comm=None):
     """
-    Return the list of the local array shapes given the shape of a global array,
-    for all MPI processes. The load is distributed along the first dimension.
+    Return the list of the local array shapes given the shape of a global
+    array, for all MPI processes. The load is distributed along the first
+    dimension.
+
     """
     if comm is None:
         comm = MPI.COMM_WORLD
@@ -135,6 +138,7 @@ def distribute_slice(nglobal, rank=None, size=None, comm=None):
     """
     Given a number of ordered global work items, return the slice that brackets
     the items distributed to a local MPI job.
+
     """
     if rank is None or size is None:
         comm = comm or MPI.COMM_WORLD
@@ -188,6 +192,7 @@ def mprint(msg='', comm=MPI.COMM_WORLD):
 
     All messages are gathered and printed by rank 0 process, to make sure that
     messages are printed in rank order.
+
     """
     msgs = comm.gather(msg)
     if comm.rank == 0:
