@@ -694,13 +694,13 @@ Concerning the in-place composition:
 >>> (IN * OUT)(x, out=x)
 {% endhighlight %}
 
-it is not possible to avoid the use of a temporary variable, since a buffer different from the @x@ variable is required for the @OUT@ operator.  The application of the operator @IN@ is performed out-of-place because its output is the @x@ variable.
+it is not possible to avoid the use of a temporary variable, since a buffer different from the @x@ variable is required for the @OUT@ operator. The application of the operator @IN@ is performed out-of-place because its output is the @x@ variable.
 
 
 
 h2. <a name="update_output"></a> 2.13. The flag update_output
 
-Another possibility to avoid temporaries is to give an operator the possibility to directly update the output argument in the @direct@ method. This case frequently arises for sums of operators.
+Another possibility to avoid temporaries in the addition or element-wise multiplication of operators is to give an operator the possibility to directly update the output argument in the @direct@ method. It is particularly interesting for sums of matrices with few non-zero rows, since it gives a mechanism to skip the zero ones.
 Let's first see the default behaviour, in which the operands do not update their output argument:
 
 {% highlight python %}
@@ -745,7 +745,7 @@ array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
 {% endhighlight %}
 
 
-No intermediate variable is needed and all operations are performed in-place. The @AdditionOperator@ @Q@ calls the @direct@ method of its first operand @P@ with the @operation@ keyword set to the function @operation_assignment@, which means that @P@ 's output should be assigned to the output argument. In the subsequent calls, the @operation@ keyword is set to the @iadd@ function from Python's standard @operator@ module (If @Q@ were a @MultiplicationOperator@, it would be @imul@), which results in adding the operand's output to the output argument in-place. The flag @update_output@ is interesting especially when only few output elements are non-zero, as shown in this example, because the output should only be updated for these elements, which avoids thrashing the cache everytime an operand is called.
+No intermediate variable is needed and all operations are performed in-place. The @AdditionOperator@ @Q@ calls the @direct@ method of its first operand @P@ with the @operation@ keyword set to the function @operation_assignment@, which means that @P@ 's output should be assigned to the output argument. In the subsequent calls, the @operation@ keyword is set to the @iadd@ function from Python's standard @operator@ module (If @Q@ were a @MultiplicationOperator@, it would be @imul@), which results in adding the operand's output to the output argument in-place. This example shows the interest of the flag @update_output@ when only few rows are non-zero: the output only need to be updated for these rows, which avoids thrashing the cache with zeros everytime an operand is called.
 
 
 h2. <a name="partition"></a> 2.14. Operator partition
