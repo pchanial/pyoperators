@@ -51,7 +51,6 @@ class MyOperator(Operator):
 def callback(i):
     global counter
     counter += 1
-    print 'calling callback', counter
     return MyOperator(i + 1, shapein=3)
 
 
@@ -69,7 +68,7 @@ def get_operator(list, attr):
 
 nproxy = 5
 ref_list = [callback(i) for i in range(nproxy)]
-proxy_list = proxy_group(nproxy, callback, shapein=3)
+proxy_list = proxy_group(nproxy, callback)
 
 
 def test_copy():
