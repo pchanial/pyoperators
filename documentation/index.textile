@@ -20,7 +20,7 @@ h1. {{ page.title }}
 ## "Operator's unary rules":{{site.baseurl}}/2000/doc-operators/#unary_rules
 ## "Operator's binary rules":{{site.baseurl}}/2000/doc-operators/#binary_rules
 ## "In-place and out-of-place operators":{{site.baseurl}}/2000/doc-operators/#inplace_operators
-## "In-place reductions":{{site.baseurl}}/2000/doc-operators/#inplace_reductions
+## "The flag update_output":{{site.baseurl}}/2000/doc-operators/#update_output
 ## "Operator partition":{{site.baseurl}}/2000/doc-operators/#partition
 ## "List of available operators":{{site.baseurl}}/2000/doc-operators/#list
 # "Solvers":{{site.baseurl}}/2000/doc-solvers/
