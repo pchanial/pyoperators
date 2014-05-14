@@ -1,3 +1,4 @@
+from __future__ import division, print_function
 import itertools
 import numpy as np
 import operator
@@ -124,10 +125,10 @@ def test_flags():
                 v = np.arange(10.)
                 o = op(v)
             except:
-                print 'Cannot test: ' + op.__name__
+                print('Cannot test: ' + op.__name__)
                 return
         if type(o) is not op:
-            print 'Cannot test: ' + op.__name__
+            print('Cannot test: ' + op.__name__)
             return
         if o.flags.idempotent:
             assert_is(o, o(o))
@@ -875,9 +876,9 @@ def test_propagation_attribute1():
         yield func1, i
 
     def func2(i_):
-        print
-        print 'op'
-        print '=='
+        print()
+        print('op')
+        print('==')
         op = AddAttribute()
         i = i_.copy()
         assert op(i, i).newattr_direct
@@ -885,9 +886,9 @@ def test_propagation_attribute1():
         assert op.T(i, i).newattr_transpose
 
         pool.clear()
-        print
-        print 'op2 * op'
-        print '======='
+        print()
+        print('op2 * op')
+        print('=======')
         op = AddAttribute2() * AddAttribute()
         i = i_.copy()
         assert not op(i, i).newattr_direct
@@ -895,9 +896,9 @@ def test_propagation_attribute1():
         assert op.T(i, i).newattr_transpose
 
         pool.clear()
-        print
-        print 'op3 * op'
-        print '======='
+        print()
+        print('op3 * op')
+        print('=======')
         op = AddAttribute3() * AddAttribute()
         i = i_.copy()
         o = op(i, i)

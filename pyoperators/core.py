@@ -5,7 +5,7 @@ which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
 
-from __future__ import division
+from __future__ import division, print_function
 
 import copy
 import inspect
@@ -1930,28 +1930,29 @@ class NonCommutativeCompositeOperator(CompositeOperator):
 
         if DEBUG:
             def print_rules(i, rules):
-                print 'Rules for ({0}, {1}):'.format(i, i+1)
+                print('Rules for ({0}, {1}):'.format(i, i+1))
                 for i, r in enumerate(rules):
-                    print '    {0}: {1}'.format(i, r)
-                print
+                    print('    {0}: {1}'.format(i, r))
+                print()
+
             def print_operands():
-                print
-                print '===================='
-                print 'COMPOSITION OPERANDS'
-                print '===================='
+                print()
+                print('====================')
+                print('COMPOSITION OPERANDS')
+                print('====================')
                 for i, op in enumerate(ops):
-                    print '{0}: {1!r}'.format(i, op)
+                    print('{0}: {1!r}'.format(i, op))
             import pdb
-            print
-            print
-            print
+            print()
+            print()
+            print()
             pdb.traceback.print_stack()
             print_operands()
 
         if len(ops) <= 1:
             if DEBUG:
-                print 'OUT (only one operand)'
-                print
+                print('OUT (only one operand)')
+                print()
             return ops
 
         # Get the NonCommutativeCompositeOperator direct subclass
@@ -1984,22 +1985,22 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                     continue
                 consumed = True
                 if DEBUG:
-                    print 'Because of rule {0}:'.format(rule)
+                    print('Because of rule {0}:'.format(rule))
                 if isinstance(new_ops, tuple):
                     if len(new_ops) != 2:
                         raise NotImplementedError()
                     ops[i], ops[i+1] = new_ops
                     if DEBUG:
-                        print '    DOUBLE CHANGE: {0} into {1}'.format(
-                            i, new_ops[0])
-                        print '    DOUBLE CHANGE: {0} into {1}'.format(
-                            i+1, new_ops[1])
+                        print('    DOUBLE CHANGE: {0} into {1}'.format(
+                              i, new_ops[0]))
+                        print('    DOUBLE CHANGE: {0} into {1}'.format(
+                              i+1, new_ops[1]))
                         print_operands()
                     i += 1
                     break
                 if DEBUG:
-                    print '     MERGING ({0}, {1}) into {2!s} ~ {2!r}'.format(
-                        i, i+1, new_ops)
+                    print('     MERGING ({0}, {1}) into {2!s} ~ {2!r}'.format(
+                          i, i+1, new_ops))
                 cls._merge(new_ops, o1, o2)
                 del ops[i+1]
                 ops[i] = new_ops
@@ -2013,13 +2014,13 @@ class NonCommutativeCompositeOperator(CompositeOperator):
             i -= 1
 
         if DEBUG:
-            print 'OUT',
+            print('OUT', end=' ')
             if len(ops) == 1:
-                print '(only one operand)'
+                print('(only one operand)')
             else:
-                print '(because of rule exhaustion)'
-            print
-            print
+                print('(because of rule exhaustion)')
+            print()
+            print()
 
         return ops
 

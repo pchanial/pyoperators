@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 
 import multiprocessing
 import numexpr
@@ -182,17 +182,17 @@ class DenseBlockDiagonalOperator(DenseBase):
     >>> np.shape(data)
     (2, 1, 3)
     >>> d = DenseBlockDiagonalOperator(data, dtype=int)
-    >>> print(d(np.ones(3))).shape  # the input is broadcast
+    >>> print(d(np.ones(3)).shape)  # the input is broadcast
     (2, 1)
     >>> print(d.todense(shapein=3))
     [[ 1  1  1]
      [ 1 -1  1]]
-    >>> print(d(np.ones([2, 3]))).shape
+    >>> print(d(np.ones([2, 3])).shape)
     (2, 1)
     >>> print(d.todense(shapein=(2, 3)))
     [[ 1  1  1  0  0  0]
      [ 0  0  0  1 -1  1]]
-    >>> print(d(np.ones([3, 2, 3]))).shape
+    >>> print(d(np.ones([3, 2, 3])).shape)
     (3, 2, 1)
     >>> print(d.todense(shapein=(3, 2, 3)))
     [[ 1  1  1  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0]
@@ -283,12 +283,12 @@ class DenseOperator(DenseBlockDiagonalOperator):
     ...      [np.sin(theta),  np.cos(theta)]]
     >>> input = [[1, 0], [0, 1], [-1, 0], [0, -1]]
     >>> op = DenseOperator(m)
-    >>> print op(input)
+    >>> print(op(input))
     [[ 0.70710678  0.70710678]
      [-0.70710678  0.70710678]
      [-0.70710678 -0.70710678]
      [ 0.70710678 -0.70710678]]
-    >>> print op.T(op(input))
+    >>> print(op.T(op(input)))
     [[ 1.  0.]
      [ 0.  1.]
      [-1.  0.]
@@ -580,7 +580,7 @@ class Rotation2dOperator(DenseBlockDiagonalOperator):
     -------
     >>> r = Rotation2dOperator([45, 90], degrees=True)
     >>> r([1, 0])
-    >>> print r([1, 0])
+    >>> print(r([1, 0]))
     [[  7.07106781e-01   7.07106781e-01]
      [  6.12323400e-17   1.00000000e+00]]
 
@@ -642,13 +642,13 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
     Example
     -------
     >>> r1 = Rotation3dOperator("Y", 90, degrees=True)
-    >>> print r1([1, 0, 0])
+    >>> print(r1([1, 0, 0]))
     [  6.12323400e-17   0.00000000e+00  -1.00000000e+00]
     >>> r2 = Rotation3dOperator("XYZ", 30, 40, 50, degrees=True)
-    >>> print r2([1, 0, 0])
+    >>> print(r2([1, 0, 0]))
     [ 0.49240388  0.58682409 -0.64278761]d
     >>> r3 = Rotation3dOperator("ZY'X''", 50, 40, 30, degrees=True)
-    >>> print r3([1, 0, 0])
+    >>> print(r3([1, 0, 0]))
     [ 0.49240388  0.58682409 -0.64278761]
 
     """
@@ -1199,7 +1199,7 @@ class SymmetricBandToeplitzOperator(Operator):
     Example
     -------
     >>> N = SymmetricBandToeplitzOperator(5, [3, 2, 1, 1])
-    >>> print N.todense().astype(int)
+    >>> print(N.todense().astype(int))
     [[3 2 1 1 0]
      [2 3 2 1 1]
      [1 2 3 2 1]
