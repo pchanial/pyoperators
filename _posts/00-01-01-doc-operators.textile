@@ -38,37 +38,37 @@ In this documentation, the same term __operator__ will be used for the @Operator
 
 h2. 2.2. <a name="manipulating_operators"></a> Manipulating operators
 
-Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, multiplication, composition or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign currently stands for composition (and not multiplication), following the convention for linear operators.
+Operators are easy to manipulate: they can be multiplied by a scalar, combined by addition, element-wise multiplication, composition or "partition":#partition. The synthax uses the usual arithmetic signs, but be careful that the @*@ sign depends on the operands' @linear@ flag: if both operands are linear, it stands for composition otherwise it stands for element-wise multiplication.
 
 {% highlight python %}
 >>> A = DiagonalOperator([1., 2.])
 >>> B = DiagonalOperator([1., 1.])
->>> (3 * A)([2., 2.])
-array([  6.,  12.])
->>> (A + B)([2., 2.])
-array([ 4.,  6.])
->>> (A * B)([2., 2.])  # same as A(B)
-array([ 2.,  4.])
+>>> A.flags.linear, B.flags.linear
+(True, True)
+>>> x = [2, 2]
+>>> np.allclose((3 * A)(x), 3 * A(x))
+True
+>>> np.allclose((A + B)(x), A(x) + B(x))
+True
+>>> np.allclose(A(B)(x), A(B(x)))
+True
+>>> np.allclose((A * B)(x), A(B(x)))  # because A and B are linear
+True
+>>> np.allclose(MultiplicationOperator([A, B])(x), A(x) * B(x))
+True
 {% endhighlight %}
 
 Unless an algebraic simplification is possible, the resulting operator is a composite operator:
 
 <div class="definition">
 |  *addition*       | @AdditionOperator@       | <code>\( A(x) + B(x) \)</code> |
-|  *multiplication* | @MultiplicationOperator@ | <code>\( A(x) \times B(x) \)</code> |
+|  *element-wise multiplication* | @MultiplicationOperator@ | <code>\( A(x) \times B(x) \)</code> |
 |  *composition*    | @CompositionOperator@    | <code>\( A(B(x)) \)</code> |
 |/3.  *partition*   | @BlockColumnOperator@    | <code>\( \begin{bmatrix} A \\ B \end{bmatrix} \)</code> |
 |                     @BlockDiagonalOperator@  | <code>\( \begin{bmatrix} A & 0 \\ 0 & B \end{bmatrix} \)</code> |
 |                     @BlockRowOperator@       | <code>\( \begin{bmatrix} A & B \end{bmatrix} \)</code> |
 </div>
 <hr>
-
-The multiplication is an element-wise multiplication of the outputs of the operands (and not their Hadamard product). The @*@ sign may be confusing when multiplying non-linear operators and currently, the only way to perform element-wise multiplication is to call the composite operator:
-
-{% highlight python %}
->>> MultiplicationOperator([A, B])([2., 2.])
-array([ 4.,  8.])
-{% endhighlight %}
 
 The conjugate, transpose, adjoint and inverse operators, when defined, can be obtained by using the following attributes:
 
@@ -176,8 +176,8 @@ They can be set using the @flags@ keyword:
 or by using operator decorators:
 
 {% highlight python %}
->>> @pyoperators.decorators.symmetric
-... @pyoperators.decorators.involutary
+>>> @pyoperators.flags.symmetric
+... @pyoperators.flags.involutary
 ... class MyOperator(Operator):
 ...     def direct(self, x, out):
 ...         out[...] = -x
@@ -202,7 +202,7 @@ Other properties are described by the @flags@ attribute:
 |  *square*            | input and output have the same shape |
 |  *separable* | can be separated if applied by or applying on a block operator|
 |  *inplace*           | handle inplace operations ("more info":#inplace_operators)|
-|  *inplace_reduction* | handle inplace reductions ("more info":#inplace_reductions)|
+|  *update_output* | can update the operator output ("more info":#update_output)|
 |  *alignment_input* | only handle aligned input |
 |  *alignment_output* | only handle aligned output |
 |  *contiguous_input* | only handle contiguous input |
@@ -295,7 +295,7 @@ h3. Operator with implicit input and output shape
 This operator defines both @reshapein@ and @reshapeout@ methods. @Square@-decorated operators are examples of this kind of operators: their @reshapein@ and @reshapeout@ methods simply are @lambda x:x@ by default. The interest for an implicit output shape operator of also handling implicit input shapes arises when a reverse operator such as @.T@ or @.H@ is defined because in which the @reshapein@ and @reshapeout@ methods are swapped. The operator in the following example adds a zero to its input.
 
 {% highlight python %}
->>> @pyoperators.decorators.linear
+>>> @pyoperators.flags.linear
 ... class Op(Operator):
 ...     def direct(self, input, output):
 ...         output[:-1] = input
@@ -534,7 +534,7 @@ For instance, the rule @'C'@ &rarr; @'.'@ means that the operator's conjugate is
 Unary rules are attached to an operator by using the @set_rule@ method:
 
 {% highlight python %}
->>> @pyoperators.decorators.linear
+>>> @pyoperators.flags.linear
 ... class Op1(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
@@ -545,7 +545,7 @@ Unary rules are attached to an operator by using the @set_rule@ method:
 ...     def reshapein(self, shapein):
 ...         return (shapein[0]+1,)
 ...
->>> @pyoperators.decorators.linear
+>>> @pyoperators.flags.linear
 ... class Op2(Operator):
 ...     def __init__(self, **keywords):
 ...         Operator.__init__(self, **keywords)
@@ -610,7 +610,7 @@ Rules are added by using the @set_rule@ method, which has 3 arguments:
 The predicate can be a function, in which case it must be a static method with two arguments for the pair of operators that matches the subject. Rules, such as the ones set in the superclass, can be deleted with the @del_rule@ method. In the following example, we construct an operator @Power@ that raises its input to a specified power. We add a rule to reduce the composition of two instances of the @Power@ class.
 
 {% highlight python %}
->>> @pyoperators.decorators.square
+>>> @pyoperators.flags.square
 ... class Power(Operator):
 ...     def __init__(self, exponent):
 ...         Operator.__init__(self)
@@ -698,14 +698,10 @@ it is not possible to avoid the use of a temporary variable, since a buffer diff
 
 
 
+h2. <a name="update_output"></a> 2.13. The flag update_output
 
-h2. <a name="inplace_reductions"></a> 2.13. In-place reductions
-
-<div class="definition">
-An operator that can do in-place reductions is an operator that can add, multiply (or else) its output to its output argument.
-</div>
-
-Let see how this property can be used to further remove the use of intermediate variables. First, let's assume that the operator @o2@ cannot do in-place reductions:
+Another possibility to avoid temporaries is to give an operator the possibility to directly update the output argument in the @direct@ method. This case frequently arises for sums of operators.
+Let's first see the default behaviour, in which the operands do not update their output argument:
 
 {% highlight python %}
 >>> (o1 + o2)(x, out=y)
@@ -714,35 +710,24 @@ Let see how this property can be used to further remove the use of intermediate 
 The following steps are performed:
 
 * the variable @y@ is used as @o1@ 's output,
-* a temporary variable is allocated (or retrieved from the memory manager) and is used as @o2@ 's output,
-* that is then added in-place to the @y@ variable.
+* a temporary variable is allocated and used as @o2@ 's output,
+* which is then added in-place to the @y@ variable.
 
-If we now assume that the operator @o2@ can do in-place reductions, the intermediate variable is not required anymore:
+If we now assume that the operator @o2@ can update its output argument, the intermediate variable is not required anymore:
 
 * the variable @y@ is used as @o1@ 's output
-* @o2@ updates @y@ in-place.
+* y is passed as @o2@ 's output argument and is updated in-place.
 
-One can enable such property by adding the keyword @operation@ to the operator's direct method.
-
-{% highlight python %}
->>> from pyoperators import operation_assignment
->>> pyoperators.memory.verbose = True
-... class P(Operator):
-...     def direct(self, input, output, operation=operation_assignment):
-...         operation(output, input)
-...
->>> Q = sum(P() for k in range(0,3))
->>> y = np.empty(2)
->>> Q([ 1., 2.], out=y)
-array([ 3., 6.])
-{% endhighlight %}
-
-No intermediate variable is needed and all operations have been performed in-place. For the first operand, the @direct@ method of @Q@, which is an @AdditionOperator@, calls @P@ 's @direct@ method without the @operation@ keyword and consequently, the default function @operation_assignment@ is used, which simply assigns the input to the output argument. The subsequent calls to @P@ set the @operation@ keyword to the @iadd@ function from Python's @operator@ module (If @Q@ was a @MultiplicationOperator@, it would be the function @operator.imul@), which result in adding the input into the output argument in-place. This property is even more interesting for cache locality when an operator's output is zero, except for a few values. In such a case, the operator would only have to update the non-zero values:
+One can enable such property by adding the flag @update_output@ and the keyword @operation@ to the operator's direct method.
 
 {% highlight python %}
+>>> import operator
+>>> import pyoperators
+>>> from pyoperators import Operator, operation_assignment
 >>> pyoperators.memory.verbose=True
-... @pyoperators.decorators.linear
-... class Projection(Operator):
+>>> @pyoperators.flags.linear
+... @pyoperators.flags.update_output
+... class P(Operator):
 ...     def __init__(self, index):
 ...          self.index = index
 ...          Operator.__init__(self, shapein=1, shapeout=11)
@@ -753,11 +738,14 @@ No intermediate variable is needed and all operations have been performed in-pla
 ...             raise NotImplementedError()
 ...         output[self.index] += input
 ...
->>> Q = Projection(0) + Projection(5) + Projection(10)
+>>> Q = sum(P(i) for i in [0, 5, 10])
 >>> y = np.empty(11)
 >>> Q([2.], out=y)
 array([ 2.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.,  2.])
 {% endhighlight %}
+
+
+No intermediate variable is needed and all operations are performed in-place. The @AdditionOperator@ @Q@ calls the @direct@ method of its first operand @P@ with the @operation@ keyword set to the function @operation_assignment@, which means that @P@ 's output should be assigned to the output argument. In the subsequent calls, the @operation@ keyword is set to the @iadd@ function from Python's standard @operator@ module (If @Q@ were a @MultiplicationOperator@, it would be @imul@), which results in adding the operand's output to the output argument in-place. The flag @update_output@ is interesting especially when only few output elements are non-zero, as shown in this example, because the output should only be updated for these elements, which avoids thrashing the cache everytime an operand is called.
 
 
 h2. <a name="partition"></a> 2.14. Operator partition
