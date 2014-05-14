@@ -700,7 +700,7 @@ it is not possible to avoid the use of a temporary variable, since a buffer diff
 
 h2. <a name="update_output"></a> 2.13. The flag update_output
 
-Another possibility to avoid temporaries in the addition or element-wise multiplication of operators is to give an operator the possibility to directly update the output argument in the @direct@ method. It is particularly interesting for sums of matrices with few non-zero rows, since it gives a mechanism to skip the zero ones.
+Another possibility to avoid temporaries in the addition or element-wise multiplication of operators is to give an operator the possibility to directly update the running output argument in the @direct@ method. It is particularly interesting for sums of matrices with few non-zero rows, since it gives a mechanism to skip the zero ones.
 Let's first see the default behaviour, in which the operands do not update their output argument:
 
 {% highlight python %}
@@ -716,7 +716,7 @@ The following steps are performed:
 If we now assume that the operator @o2@ can update its output argument, the intermediate variable is not required anymore:
 
 * the buffer @y@ is used as @o1@ 's output
-* and is passed as @o2@ 's output argument, and is is updated in-place.
+* and is passed as @o2@ 's output argument to be updated in-place.
 
 One can enable such property by adding the flag @update_output@ and the keyword @operation@ to the operator's direct method.
 
