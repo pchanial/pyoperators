@@ -1728,6 +1728,34 @@ def test_associativity():
         yield func3, o1, o2
 
 
+#================
+# Test composite
+#================
+
+def test_composite():
+    operands = [Operator(shapein=2, flags='square'),
+                Operator(shapein=2, flags='square'),
+                Operator(shapein=2, flags='square')]
+
+    def func(cls, ops):
+        if cls is BlockColumnOperator:
+            op = cls(ops, axisout=0)
+        elif cls in (BlockDiagonalOperator, BlockRowOperator):
+            op = cls(ops, axisin=0)
+        elif cls is BlockSliceOperator:
+            op = cls(ops, (slice(i, i + 2) for i in (0, 2, 4)))
+        else:
+            op = cls(ops)
+        assert_is_type(op.operands, list)
+
+    for cls in (
+            AdditionOperator, BlockColumnOperator, BlockDiagonalOperator,
+            BlockRowOperator, BlockSliceOperator, CompositionOperator,
+            GroupOperator, MultiplicationOperator):
+        for ops in operands, tuple(operands), (_ for _ in operands):
+            yield func, cls, ops
+
+
 #==================
 # Test commutative
 #==================

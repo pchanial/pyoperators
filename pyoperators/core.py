@@ -1531,7 +1531,7 @@ class CompositeOperator(Operator):
         return ops
 
     def _validate_operands(self, operands, constant=False):
-        if not isinstance(operands, (list, tuple)):
+        if not isinstance(operands, (list, tuple, types.GeneratorType)):
             operands = [operands]
         return [asoperator(op, constant=constant) for op in operands]
 
@@ -1856,17 +1856,19 @@ class BlockSliceOperator(CommutativeCompositeOperator):
         if any(not op.flags.square and op.flags.shape_output != 'unconstrained'
                for op in operands):
             raise ValueError('Input operands must be square.')
-        if not isinstance(slices, (list, tuple, slice)):
+        if not isinstance(slices, (list, tuple, types.GeneratorType, slice)):
             raise TypeError('Invalid input slices.')
         if isinstance(slices, slice):
             slices = (slices,)
+        else:
+            slices = tuple(slices)
         if len(operands) != len(slices):
             raise ValueError(
                 "The number of slices '{0}' is not equal to the number of oper"
                 "ands '{1}'.".format(len(slices), len(operands)))
 
         CommutativeCompositeOperator.__init__(self, operands, **keywords)
-        self.slices = tuple(slices)
+        self.slices = slices
         self.set_rule('C', lambda s: BlockSliceOperator(
                       [op.C for op in s.operands], s.slices))
         self.set_rule('T', lambda s: BlockSliceOperator(
