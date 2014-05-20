@@ -3,7 +3,7 @@ Module defining stop conditions for iterative algorithms.
 
 """
 
-from __future__ import division
+from __future__ import absolute_import, division, print_function
 
 __all__ = ['StopCondition', 'MaxErrorStopCondition', 'MaxIterationStopCondition']
 
