@@ -314,7 +314,7 @@ class DenseOperator(DenseBlockDiagonalOperator):
         return shape[:-self.naxesout] + self._sn
 
 
-class DiagonalNumexprOperator(DiagonalOperator):
+class DiagonalNumexprOperator(DiagonalBase):
     """
     DiagonalOperator whose diagonal elements are calculated on the fly using
     the numexpr package and that can be separated when added or multiplied
@@ -355,8 +355,8 @@ class DiagonalNumexprOperator(DiagonalOperator):
         self._global_dict[var] = data.T \
             if broadcast is not None and broadcast.lower() == 'rightward' \
             else data
-        BroadcastingBase.__init__(self, data, broadcast, dtype=dtype,
-                                  **keywords)
+        DiagonalBase.__init__(self, data, broadcast, dtype=dtype,
+                              **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':

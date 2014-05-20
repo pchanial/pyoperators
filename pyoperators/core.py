@@ -3437,6 +3437,15 @@ class BroadcastingBase(Operator):
     dimensions, if the array is stored in C order. Rightward broadcasting is
     a broadcasting along the fast dimensions.
 
+    BroadcastingBase
+        > ConstantOperator
+        > DiagonalBase
+              > DiagonalOperator
+              > DiagonalNumexprOperator
+              > MaskOperator
+        > PackOperator
+        > UnpackOperator
+
     """
     def __init__(self, data, broadcast, **keywords):
         if broadcast is None:
@@ -3453,15 +3462,6 @@ class BroadcastingBase(Operator):
         self.broadcast = broadcast
         self.data = data
         Operator.__init__(self, **keywords)
-        self.set_rule(('.', BroadcastingBase),
-                      lambda s, b: s._rule_broadcast(s, b, np.add),
-                      AdditionOperator)
-        self.set_rule(('.', BroadcastingBase),
-                      lambda s, b: s._rule_broadcast(s, b, np.multiply),
-                      MultiplicationOperator)
-        self.set_rule(('.', BroadcastingBase),
-                      lambda s, b: s._rule_broadcast(s, b, np.multiply),
-                      CompositionOperator)
         self.set_rule(('.', BlockOperator),
                       lambda s, o: s._rule_right_block(
                           s, o, CompositionOperator), CompositionOperator)
@@ -3484,25 +3484,7 @@ class BroadcastingBase(Operator):
         return self.data
 
     @staticmethod
-    def _rule_broadcast(b1, b2, operation):
-        # this rule only returns direct subclasses of BroadcastingBase:
-        i1 = b1.__class__.__mro__.index(BroadcastingBase) - 1
-        try:
-            i2 = b2.__class__.__mro__.index(BroadcastingBase) - 1
-        except ValueError:
-            i2 = -1
-        if i1 == i2 == -1:
-            cls = BroadcastingBase
-        elif i1 == -1:
-            cls = b2.__class__.__mro__[i2]
-        elif i2 == -1:
-            cls = b1.__class__.__mro__[i1]
-        else:
-            cls = b1.__class__.__mro__[i1]
-            if cls is not b2.__class__.__mro__[i2]:
-                return None
-
-        # check broadcast
+    def _rule_broadcast(b1, b2, cls, operation):
         b = set([b1.broadcast, b2.broadcast])
         if 'leftward' in b and 'rightward' in b:
             return None
@@ -3618,8 +3600,53 @@ class BroadcastingBase(Operator):
 
 
 @symmetric
+class DiagonalBase(BroadcastingBase):
+    """
+    Base class for DiagonalOperator, DiagonalNumexprOperator, MaskOperator.
+
+    """
+    def __init__(self, data, broadcast, **keywords):
+        BroadcastingBase.__init__(self, data, broadcast, **keywords)
+        self.set_rule(('.', DiagonalBase),
+                      lambda s, o: s._rule_broadcast(
+                          s, o, DiagonalOperator, np.add),
+                      AdditionOperator)
+        self.set_rule(('.', ConstantOperator),
+                      lambda s, o: s._rule_broadcast(
+                          s, o, DiagonalOperator, np.multiply),
+                      MultiplicationOperator)
+        self.set_rule(('.', DiagonalBase),
+                      lambda s, o: s._rule_multiply(s, o),
+                      MultiplicationOperator)
+        self.set_rule(('.', DiagonalBase),
+                      lambda s, o: s._rule_broadcast(
+                          s, o, DiagonalOperator, np.multiply),
+                      CompositionOperator)
+
+    @staticmethod
+    def _rule_multiply(b1, b2):
+        b = set([b1.broadcast, b2.broadcast])
+        if 'leftward' in b and 'rightward' in b:
+            return
+        if 'disabled' in b:
+            b = 'disabled'
+        elif 'leftward' in b:
+            b = 'leftward'
+        elif 'rightward' in b:
+            b = 'rightward'
+        else:
+            b = 'scalar'
+        if 'rightward' in b:
+            data = (b1.get_data().T * b2.get_data().T).T
+        else:
+            data = b1.get_data() * b2.get_data()
+        return MultiplicationOperator(
+            [ConstantOperator(data, broadcast=b),
+             po.nonlinear.PowerOperator(2)])
+
+
 @inplace
-class DiagonalOperator(BroadcastingBase):
+class DiagonalOperator(DiagonalBase):
     """
     Diagonal operator.
 
@@ -3682,8 +3709,7 @@ class DiagonalOperator(BroadcastingBase):
                                                     involutary=True)
         if dtype is None and (data.ndim > 0 or data not in (0, 1)):
             dtype = data.dtype
-        BroadcastingBase.__init__(self, data, broadcast, dtype=dtype,
-                                  **keywords)
+        DiagonalBase.__init__(self, data, broadcast, dtype=dtype, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -3756,7 +3782,7 @@ class DiagonalOperator(BroadcastingBase):
 
 @real
 @idempotent
-class MaskOperator(DiagonalOperator):
+class MaskOperator(DiagonalBase):
     """
     A subclass of DiagonalOperator with 0 (True) and 1 (False) on the diagonal.
 
@@ -3790,7 +3816,7 @@ class MaskOperator(DiagonalOperator):
                 self.__class__ = ZeroOperator
                 self.__init__(**keywords)
                 return
-        BroadcastingBase.__init__(self, data, broadcast, **keywords)
+        DiagonalBase.__init__(self, data, broadcast, **keywords)
 
     def direct(self, input, output):
         if self.broadcast == 'rightward':
@@ -3839,7 +3865,6 @@ class HomothetyOperator(DiagonalOperator):
 @real
 @idempotent
 @involutary
-@inplace
 class IdentityOperator(HomothetyOperator):
     """
     A subclass of HomothetyOperator with data = 1.
@@ -3910,6 +3935,14 @@ class ConstantOperator(BroadcastingBase):
         self.set_rule(('.', Operator), self._rule_left, CompositionOperator)
         self.set_rule((Operator, '.'), self._rule_right, CompositionOperator)
         self.set_rule(('.', Operator), self._rule_mul, MultiplicationOperator)
+        self.set_rule(('.', ConstantOperator),
+                      lambda s, o: s._rule_broadcast(
+                          s, o, ConstantOperator, np.add),
+                      AdditionOperator)
+        self.set_rule(('.', ConstantOperator),
+                      lambda s, o: s._rule_broadcast(
+                          s, o, ConstantOperator, np.multiply),
+                      MultiplicationOperator)
 
     def direct(self, input, output, operation=operation_assignment):
         if self.broadcast == 'rightward':
@@ -3942,7 +3975,6 @@ class ConstantOperator(BroadcastingBase):
         if not isinstance(op, CompositionOperator) and not op.flags.linear:
             return
         s = DiagonalOperator(self.data, broadcast=self.broadcast)
-        _copy_direct(self, s)
         return CompositionOperator([s, op])
 
     @staticmethod
@@ -3975,7 +4007,7 @@ class ZeroOperator(ConstantOperator):
     def __init__(self, *args, **keywords):
         ConstantOperator.__init__(self, 0, **keywords)
         self.del_rule(('.', BlockOperator), MultiplicationOperator)
-        self.del_rule(('.', BroadcastingBase), MultiplicationOperator)
+        self.del_rule(('.', ConstantOperator), MultiplicationOperator)
         self.del_rule(('.', Operator), MultiplicationOperator)
         self.set_rule('T', lambda s: ZeroOperator())
         self.set_rule(('.', Operator), lambda s, o: o.copy(), AdditionOperator)
