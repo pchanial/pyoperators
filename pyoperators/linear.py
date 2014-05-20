@@ -340,31 +340,27 @@ class SparseBase(Operator):
             raise ValueError(
                 "The output shape '{0}' is incompatible with the sparse matrix"
                 " shape {1}.".format(shapeout, matrix.shape))
-        if not hasattr(matrix, 'nbytes'):
-            self._set_nbytes(matrix)
         self.matrix = matrix
         Operator.__init__(self, shapein=shapein, shapeout=shapeout,
                           dtype=dtype, **keywords)
 
     @property
     def nbytes(self):
-        return self.matrix.nbytes
-
-    @staticmethod
-    def _set_nbytes(m):
+        m = self.matrix
+        if hasattr(m, 'nbytes'):
+            return m.nbytes
         if isinstance(m, (sp.csc_matrix, sp.csr_matrix, sp.bsr_matrix)):
-            m.nbytes = m.data.nbytes + m.indices.nbytes + m.indptr.nbytes
-        elif isinstance(m, sp.coo_matrix):
-            m.nbytes = m.data.nbytes + 2 * m.row.nbytes
-        elif isinstance(m, sp.dia_matrix):
-            m.nbytes = m.data.nbytes + m.offsets.nbytes
-        elif isinstance(m, sp.dok_matrix):
+            return m.data.nbytes + m.indices.nbytes + m.indptr.nbytes
+        if isinstance(m, sp.coo_matrix):
+            return m.data.nbytes + 2 * m.row.nbytes
+        if isinstance(m, sp.dia_matrix):
+            return m.data.nbytes + m.offsets.nbytes
+        if isinstance(m, sp.dok_matrix):
             sizeoftuple = sys.getsizeof(())
-            m.nbytes = (24 * m.ndim + m.dtype.itemsize +
-                        2 * sizeoftuple + 24) * len(m.viewitems())
-        else:
-            raise TypeError("The sparse format '{0}' is not handled."
-                            .format(type(m)))
+            return (24 * m.ndim + m.dtype.itemsize +
+                    2 * sizeoftuple + 24) * len(m.viewitems())
+        raise TypeError("The sparse format '{0}' is not handled."
+                        .format(type(m)))
 
 
 @linear
