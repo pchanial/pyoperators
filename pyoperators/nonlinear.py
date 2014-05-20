@@ -1,23 +1,23 @@
 # coding: utf-8
-from __future__ import division
-
+from __future__ import absolute_import, division, print_function
 import numexpr
 
 if numexpr.__version__ < 2.0:
     raise ImportError('Please update numexpr to a newer version > 2.0.')
 
 import numpy as np
+import pyoperators as po
 from .core import (
-    Operator,
     BlockColumnOperator,
     CompositionOperator,
     ConstantOperator,
+    DiagonalBase,
     IdentityOperator,
     MultiplicationOperator,
+    Operator,
     ReductionOperator,
 )
 from .flags import idempotent, inplace, real, separable, square, update_output
-from .linear import DegreesOperator, RadiansOperator
 from .utils import operation_assignment, operation_symbol, pi, strenum, tointtuple
 from .utils.ufuncs import hard_thresholding, soft_thresholding
 
@@ -128,7 +128,10 @@ class Cartesian2SphericalOperator(_CartesianSpherical):
         if degrees:
             self.__class__ = CompositionOperator
             self.__init__(
-                [DegreesOperator(), Cartesian2SphericalOperator(convention, **keywords)]
+                [
+                    po.linear.DegreesOperator(),
+                    Cartesian2SphericalOperator(convention, **keywords),
+                ]
             )
             return
         self.degrees = False
@@ -198,7 +201,10 @@ class Spherical2CartesianOperator(_CartesianSpherical):
         if degrees:
             self.__class__ = CompositionOperator
             self.__init__(
-                [Spherical2CartesianOperator(convention, **keywords), RadiansOperator()]
+                [
+                    Spherical2CartesianOperator(convention, **keywords),
+                    po.linear.RadiansOperator(),
+                ]
             )
             return
         self.degrees = False
@@ -318,6 +324,16 @@ class PowerOperator(Operator):
         self.set_rule(
             ('.', PowerOperator),
             lambda s, o: PowerOperator(s.n + o.n),
+            MultiplicationOperator,
+        )
+        self.set_rule(
+            ('.', DiagonalBase),
+            lambda s, o: MultiplicationOperator(
+                [
+                    ConstantOperator(o.get_data(), broadcast=o.broadcast),
+                    PowerOperator(s.n + 1),
+                ]
+            ),
             MultiplicationOperator,
         )
 
@@ -494,7 +510,7 @@ class MinMaxOperator(BlockColumnOperator):
     new_axisout : integer, optional
         Axis in which the minimum and maximum values are set.
     dtype : dtype, optional
-        Reduction data type.
+        Operator data type.
     skipna : boolean, optional
         If this is set to True, the reduction is done as if any NA elements
         were not counted in the array. The default, False, causes the NA values

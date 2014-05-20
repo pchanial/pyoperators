@@ -1,10 +1,10 @@
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 
 import inspect
 import types
 import os
-import core
 from . import config
+from .core import HomothetyOperator, IdentityOperator, Operator, ZeroOperator
 from .warnings import warn, PyOperatorsWarning
 
 __all__ = ['rule_manager']
@@ -35,7 +35,7 @@ class Rule(object):
         subjects_ = self._split_subject(subjects)
         if any(
             not isinstance(s, str)
-            and (not isinstance(s, type) or not issubclass(s, core.Operator))
+            and (not isinstance(s, type) or not issubclass(s, Operator))
             for s in subjects_
         ):
             raise TypeError("The subjects {0} are invalid.".format(subjects))
@@ -80,7 +80,7 @@ class Rule(object):
         if not isinstance(symbol, str):
             return symbol
         if symbol == '1':
-            return core.IdentityOperator()
+            return IdentityOperator()
         if symbol == '.':
             return op
         try:
@@ -100,7 +100,7 @@ class Rule(object):
         valid = '.,C,T,H,I,IC,IT,IH'.split(',')
         if any(
             (not isinstance(s, str) or s not in valid)
-            and (not isinstance(s, type) or not issubclass(s, core.Operator))
+            and (not isinstance(s, type) or not issubclass(s, Operator))
             for s in subject
         ):
             raise ValueError('The rule subject is invalid.')
@@ -167,9 +167,9 @@ class UnaryRule(Rule):
         predicate = self._symbol2operator(reference, self.predicate)
         if predicate is None:
             return None
-        if not isinstance(predicate, core.Operator) and callable(predicate):
+        if not isinstance(predicate, Operator) and callable(predicate):
             predicate = predicate(reference)
-        if not isinstance(predicate, core.Operator):
+        if not isinstance(predicate, Operator):
             raise TypeError('The predicate is not an operator.')
         return predicate
 
@@ -230,8 +230,8 @@ class BinaryRule(Rule):
         subother = self._symbol2operator(reference, self.other)
 
         if isinstance(subother, (type, tuple)):
-            if subother is core.HomothetyOperator:
-                subother = (core.HomothetyOperator, core.ZeroOperator)
+            if subother is HomothetyOperator:
+                subother = (HomothetyOperator, ZeroOperator)
             if not isinstance(other, subother):
                 return None
         elif other != subother:
@@ -241,15 +241,15 @@ class BinaryRule(Rule):
         if predicate is None:
             return None
 
-        if not isinstance(predicate, core.Operator) and callable(predicate):
+        if not isinstance(predicate, Operator) and callable(predicate):
             predicate = predicate(o1, o2)
         if predicate is None:
             return None
         if isinstance(predicate, (list, tuple)) and len(predicate) == 1:
             predicate = predicate[0]
-        if not isinstance(predicate, core.Operator) and not (
+        if not isinstance(predicate, Operator) and not (
             isinstance(predicate, (list, tuple))
-            and all(isinstance(o, core.Operator) for o in predicate)
+            and all(isinstance(o, Operator) for o in predicate)
         ):
             raise TypeError("The predicate '{0}' is not an operator.".format(predicate))
         return predicate

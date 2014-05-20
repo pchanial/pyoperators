@@ -5,20 +5,18 @@ which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
 
-from __future__ import division, print_function
-
+from __future__ import absolute_import, division, print_function
 import copy
 import inspect
 import numpy as np
 import operator
+import pyoperators as po
 import scipy.sparse as sp
 import types
-import sys
 from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
 from .flags import (
     Flags,
-    contiguous,
     idempotent,
     inplace,
     involutary,
@@ -36,11 +34,9 @@ from .memory import (
     MemoryPool,
     MEMORY_ALIGNMENT,
 )
-from .rules import Rule, rule_manager
 from .utils import (
     all_eq,
     first_is_not,
-    inspect_special_values,
     isalias,
     isclassattr,
     isscalarlike,
@@ -53,7 +49,7 @@ from .utils import (
     strplural,
     strshape,
     tointtuple,
-    ufuncs,
+    inspect_special_values,
 )
 from .utils.mpi import MPI
 
@@ -70,16 +66,12 @@ __all__ = [
     'GroupOperator',
     'HomothetyOperator',
     'IdentityOperator',
-    'MaskOperator',
     'MultiplicationOperator',
     'ReshapeOperator',
     'ReductionOperator',
-    'SparseOperator',
+    'Variable',
     'ZeroOperator',
     'asoperator',
-    'I',
-    'O',
-    'X',
 ]
 
 DEBUG = 0
@@ -610,7 +602,7 @@ class Operator(object):
                     self.set_rule((subjects[0], s), predicate, operation=operation)
                 return
 
-        rule = Rule(subjects, predicate)
+        rule = po.rules.Rule(subjects, predicate)
 
         if len(rule.subjects) > 2:
             raise ValueError('Only unary and binary rules are allowed.')
@@ -690,7 +682,7 @@ class Operator(object):
             CompositionOperator, AdditionOperator and MultiplicationOperator.
             For unary rules, the value must be None.
         """
-        subjects = Rule._split_subject(subjects)
+        subjects = po.rules.Rule._split_subject(subjects)
         if len(subjects) > 2:
             raise ValueError('Only unary and binary rules are allowed.')
         if operation is None and len(subjects) == 2:
@@ -1480,16 +1472,12 @@ class Operator(object):
         )
 
     def __truediv__(self, other):
-        from .nonlinear import PowerOperator
-
-        return MultiplicationOperator([self, PowerOperator(-1)(other)])
+        return MultiplicationOperator([self, po.nonlinear.PowerOperator(-1)(other)])
 
     __div__ = __truediv__
 
     def __rtruediv__(self, other):
-        from .nonlinear import PowerOperator
-
-        return MultiplicationOperator([other, PowerOperator(-1)(self)])
+        return MultiplicationOperator([other, po.nonlinear.PowerOperator(-1)(self)])
 
     __rdiv__ = __rtruediv__
 
@@ -1532,9 +1520,7 @@ class Operator(object):
 
     def __pow__(self, n):
         if not self.flags.linear:
-            from .nonlinear import PowerOperator
-
-            return PowerOperator(n)(self)
+            return po.nonlinear.PowerOperator(n)(self)
         if not np.allclose(n, np.round(n)):
             raise ValueError("The exponent '{0}' is not an integer.".format(n))
         if n == -1:
@@ -1885,7 +1871,7 @@ class CommutativeCompositeOperator(CompositeOperator):
         return Operator.propagate_attributes(self, cls, attr)
 
     def _apply_rules(self, ops):
-        if rule_manager['none']:
+        if po.rules.rule_manager['none']:
             return ops
 
         if DEBUG:
@@ -2204,7 +2190,7 @@ class NonCommutativeCompositeOperator(CompositeOperator):
     """
 
     def _apply_rules(self, ops):
-        if rule_manager['none']:
+        if po.rules.rule_manager['none']:
             return ops
 
         if DEBUG:
@@ -2467,7 +2453,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return self
 
     def _apply_rules(self, ops):
-        if rule_manager['none']:
+        if po.rules.rule_manager['none']:
             return ops
         ops = self._apply_rule_homothety(ops)
         return NonCommutativeCompositeOperator._apply_rules(self, ops)
@@ -4015,6 +4001,8 @@ class BroadcastingBase(Operator):
     dimensions, if the array is stored in C order. Rightward broadcasting is
     a broadcasting along the fast dimensions.
 
+    The following classes subclass BroadcastingBase :
+
     BroadcastingBase
         > ConstantOperator
         > DiagonalBase
@@ -4313,9 +4301,9 @@ class DiagonalOperator(DiagonalBase):
             self.__init__(data.flat[0], dtype=dtype, **keywords)
             return
         if nones + nzeros == n and not isinstance(
-            self, (HomothetyOperator, MaskOperator)
+            self, (HomothetyOperator, po.linear.MaskOperator)
         ):
-            self.__class__ = MaskOperator
+            self.__class__ = po.linear.MaskOperator
             self.__init__(~data.astype(np.bool8), broadcast=broadcast, **keywords)
             return
         if nmones + nones == n:
@@ -4396,57 +4384,6 @@ class DiagonalOperator(DiagonalBase):
         return v
 
 
-@real
-@idempotent
-class MaskOperator(DiagonalBase):
-    """
-    A subclass of DiagonalOperator with 0 (True) and 1 (False) on the diagonal.
-
-    Exemple
-    -------
-    >>> M = MaskOperator([True, False])
-    >>> M.todense()
-    array([[0, 0],
-           [0, 1]])
-
-    Notes
-    -----
-    We follow the convention of MaskedArray, where True means masked.
-
-    """
-
-    def __init__(self, data, broadcast=None, **keywords):
-        data = np.array(data, dtype=bool, copy=False)
-        if broadcast is None:
-            broadcast = 'scalar' if data.ndim == 0 else 'disabled'
-        if broadcast == 'disabled':
-            keywords['shapein'] = data.shape
-        nmones, nzeros, nones, other, same = inspect_special_values(data)
-        if data.size in (nzeros, nones):
-            if nzeros == data.size:
-                self.__class__ = IdentityOperator
-                self.__init__(**keywords)
-                return
-            if nones == data.size:
-                keywords['flags'] = Operator.validate_flags(
-                    keywords.get('flags', {}), square=True
-                )
-                self.__class__ = ZeroOperator
-                self.__init__(**keywords)
-                return
-        DiagonalBase.__init__(self, data, broadcast, **keywords)
-
-    def direct(self, input, output):
-        if self.broadcast == 'rightward':
-            ufuncs.masking(input.T, self.data.T, output.T)
-        else:
-            ufuncs.masking(input, self.data, output)
-
-    def get_data(self):
-        return ~self.data
-
-
-@inplace
 class HomothetyOperator(DiagonalOperator):
     """
     Multiplication by a scalar.
@@ -4661,137 +4598,6 @@ class ZeroOperator(ConstantOperator):
         return self
 
 
-@linear
-@contiguous
-@update_output
-class SparseBase(Operator):
-    def __init__(self, matrix, dtype=None, shapein=None, shapeout=None, **keywords):
-        if dtype is None:
-            dtype = matrix.dtype
-        if shapein is None:
-            shapein = matrix.shape[1]
-        elif product(shapein) != matrix.shape[1]:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with the sparse matrix "
-                "shape {1}.".format(shapein, matrix.shape)
-            )
-        if shapeout is None:
-            shapeout = matrix.shape[0]
-        elif product(shapeout) != matrix.shape[0]:
-            raise ValueError(
-                "The output shape '{0}' is incompatible with the sparse matrix"
-                " shape {1}.".format(shapeout, matrix.shape)
-            )
-        if not hasattr(matrix, 'nbytes'):
-            self._set_nbytes(matrix)
-        self.matrix = matrix
-        Operator.__init__(
-            self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
-        )
-
-    @property
-    def nbytes(self):
-        return self.matrix.nbytes
-
-    @staticmethod
-    def _set_nbytes(m):
-        if isinstance(m, (sp.csc_matrix, sp.csr_matrix, sp.bsr_matrix)):
-            m.nbytes = m.data.nbytes + m.indices.nbytes + m.indptr.nbytes
-        elif isinstance(m, sp.coo_matrix):
-            m.nbytes = m.data.nbytes + 2 * m.row.nbytes
-        elif isinstance(m, sp.dia_matrix):
-            m.nbytes = m.data.nbytes + m.offsets.nbytes
-        elif isinstance(m, sp.dok_matrix):
-            sizeoftuple = sys.getsizeof(())
-            m.nbytes = (24 * m.ndim + m.dtype.itemsize + 2 * sizeoftuple + 24) * len(
-                m.viewitems()
-            )
-        else:
-            raise TypeError("The sparse format '{0}' is not handled.".format(type(m)))
-
-
-@linear
-@contiguous
-class SparseOperator(SparseBase):
-    """
-    Operator handling sparse matrix storages.
-
-    The sparse storage can be anyone from the scipy.sparse package (except
-    the LIL format, which is not suited for matrix-vector multiplication):
-        - bsr_matrix: Block Sparse Row matrix
-        - coo_matrix: A sparse matrix in COOrdinate format
-        - csc_matrix: Compressed Sparse Column matrix
-        - csr_matrix: Compressed Sparse Row matrix
-        - dia_matrix: Sparse matrix with DIAgonal storage
-        - dok_matrix: Dictionary Of Keys based sparse matrix
-
-    Example
-    -------
-    >>> from scipy.sparse import csr_matrix
-    >>> sm = csr_matrix([[1, 0, 2, 0],
-    ...                  [0, 0, 3, 0],
-    ...                  [4, 5, 6, 0],
-    ...                  [1, 0, 0, 1]])
-    >>> so = SparseOperator(sm)
-    >>> so([1, 0, 0, 0])
-    array([1, 0, 4, 1])
-    >>> so.T([1, 0, 0, 0])
-    array([1, 0, 2, 0])
-
-    """
-
-    def __init__(self, matrix, dtype=None, shapein=None, shapeout=None, **keywords):
-        """
-        matrix : sparse matrix from scipy.sparse
-           The sparse matrix to be wrapped into an Operator.
-
-        """
-        if not sp.issparse(matrix):
-            raise TypeError('The input sparse matrix type is not recognised.')
-        if isinstance(matrix, sp.lil_matrix):
-            raise TypeError(
-                'The LIL format is not suited for arithmetic opera' 'tions.'
-            )
-        SparseBase.__init__(
-            self, matrix, dtype=dtype, shapein=shapein, shapeout=shapeout, **keywords
-        )
-        self.set_rule('T', lambda s: SparseOperator(s.matrix.transpose()))
-        self.set_rule(
-            ('.', HomothetyOperator),
-            lambda s, o: SparseOperator(o * s.matrix),
-            CompositionOperator,
-        )
-
-    def direct(self, input, output, operation=operation_assignment):
-        input = input.ravel().astype(output.dtype)
-        output = output.ravel()
-        if operation is operation_assignment:
-            output[...] = 0
-        elif operation is not operator.iadd:
-            raise ValueError('Invalid reduction operation.')
-        m = self.matrix
-        if isinstance(m, sp.dok_matrix):
-            for (i, j), v in m.iteritems():
-                output[i] += v * input[j]
-            return
-        M, N = m.shape
-        fn = getattr(sp.sparsetools, m.format + '_matvec')
-        if isinstance(m, (sp.csr_matrix, sp.csc_matrix)):
-            fn(M, N, m.indptr, m.indices, m.data, input, output)
-        elif isinstance(m, sp.coo_matrix):
-            fn(m.nnz, m.row, m.col, m.data, input, output)
-        elif isinstance(m, sp.bsr_matrix):
-            R, C = m.blocksize
-            fn(M // R, N // C, R, C, m.indptr, m.indices, m.data.ravel(), input, output)
-        elif isinstance(m, sp.dia_matrix):
-            fn(M, N, len(m.offsets), m.data.shape[1], m.offsets, m.data, input, output)
-        else:
-            raise NotImplementedError()
-
-    def todense(self, shapein=None, shapeout=None, inplace=False):
-        return self.matrix.toarray()
-
-
 class ReductionOperator(Operator):
     """
     Reduction-along-axis operator.
@@ -4925,9 +4731,7 @@ class Variable(Operator):
         return MultiplicationOperator([other, self])
 
     def __pow__(self, n):
-        from .nonlinear import PowerOperator
-
-        return PowerOperator(n)(self)
+        return po.nonlinear.PowerOperator(n)(self)
 
     def __str__(self):
         return self.name
@@ -5069,14 +4873,12 @@ def asoperator(x, constant=False, **keywords):
             return HomothetyOperator(x, **keywords)
         if x.ndim == 1:
             return DiagonalOperator(x, shapein=x.shape[-1], **keywords)
-        from .linear import DenseBlockDiagonalOperator
-
-        return DenseBlockDiagonalOperator(
+        return po.linear.DenseBlockDiagonalOperator(
             x, shapein=x.shape[:-2] + (x.shape[-1],), **keywords
         )
 
     if sp.issparse(x):
-        return SparseOperator(x, **keywords)
+        return po.linear.SparseOperator(x, **keywords)
 
     if hasattr(x, 'matvec') and hasattr(x, 'rmatvec') and hasattr(x, 'shape'):
 
@@ -5121,9 +4923,5 @@ def asoperator1d(x):
     s = ReshapeOperator(x.shapeout, x.shape[0])
     return s * x * r
 
-
-I = IdentityOperator()
-O = ZeroOperator()
-X = Variable('X')
 
 _pool = MemoryPool()

@@ -3,27 +3,22 @@ from __future__ import division
 import numpy as np
 import pyoperators
 
-from numpy.testing import assert_allclose, assert_equal, assert_raises
+from numpy.testing import assert_allclose
 from pyoperators import (
-    Operator,
     BlockColumnOperator,
     BlockDiagonalOperator,
+    DegreesOperator,
     DenseOperator,
     DiagonalOperator,
-    MaskOperator,
-)
-from pyoperators.linear import (
-    DegreesOperator,
     DiagonalNumexprOperator,
     DifferenceOperator,
     IntegrationTrapezeOperator,
-    PackOperator,
+    Operator,
     RadiansOperator,
     Rotation2dOperator,
     Rotation3dOperator,
     TridiagonalOperator,
     SymmetricBandToeplitzOperator,
-    UnpackOperator,
     SumOperator,
 )
 from pyoperators.utils import product
@@ -128,50 +123,6 @@ def test_integration_trapeze():
     expected = np.trapz(eval_, x=x, axis=0)
     integ = IntegrationTrapezeOperator(x) * func_op
     assert_same(integ(value), expected)
-
-
-def test_packing():
-    valids = np.array([[False, True, True], [False, True, True]])
-    valids = valids.ravel(), valids
-    xs = np.array([[1, 2, 3], [4, 5, 6]])
-    xs = xs.ravel(), xs
-    shapes = (), (4,), (4, 5)
-    broadcasts = 'disabled', 'leftward', 'rightward'
-    expected = np.array([2, 3, 5, 6])
-
-    def func(valid, x, shape, broadcast):
-        p = PackOperator(valid, broadcast=broadcast)
-        masking = MaskOperator(~valid, broadcast=broadcast)
-        if broadcast == 'leftward':
-            x_ = np.empty(shape + x.shape)
-            x_[...] = x
-            expected_ = np.empty(shape + (expected.size,))
-            expected_[...] = expected
-        else:
-            x_ = np.empty(x.shape + shape)
-            x_.reshape((x.size, -1))[...] = x.ravel()[..., None]
-            expected_ = np.empty((expected.size,) + shape)
-            expected_.reshape((expected.size, -1))[...] = expected[..., None]
-
-        if broadcast == 'disabled' and shape != ():
-            assert_raises(ValueError, p, x_)
-            return
-        assert_equal(p(x_), expected_)
-
-        assert_is_type(p.T, UnpackOperator)
-        assert_equal(p.T.broadcast, p.broadcast)
-        assert_equal(p.T(expected_), masking(x_))
-
-        u = UnpackOperator(valid, broadcast=broadcast)
-        assert_is_type(u.T, PackOperator)
-        assert_equal(u.T.broadcast, u.broadcast)
-        assert_equal(u(expected_), masking(x_))
-        assert_equal(u.T(x_), expected_)
-
-    for valid, x in zip(valids, xs):
-        for shape in shapes:
-            for broadcast in broadcasts:
-                yield func, valid, x, shape, broadcast
 
 
 def test_radians():
