@@ -1,12 +1,13 @@
-from __future__ import division, print_function
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
 import os
 import time
 
 from .config import LOCAL_PATH
-from .core import (AdditionOperator, CompositionOperator, DiagonalOperator,
-                   HomothetyOperator, Operator, _pool)
+from .core import (
+    AdditionOperator, CompositionOperator, DiagonalOperator, HomothetyOperator,
+    Operator, _pool)
 from .flags import aligned, contiguous, inplace, linear, real, square, unitary
 from .memory import empty
 from .utils import (complex_dtype, isalias, openmp_num_threads, product,
