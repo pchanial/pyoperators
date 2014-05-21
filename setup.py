@@ -4,7 +4,7 @@ from distutils.extension import Extension
 from numpy.distutils.core import setup
 from hooks import get_cmdclass, get_version
 
-VERSION = '0.12'
+VERSION = '0.13'
 
 name = 'pyoperators'
 long_description = open('README.rst').read()
