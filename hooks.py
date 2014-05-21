@@ -16,7 +16,7 @@ It has been designed for the following workflow:
 - modify... and commit        -> 0.1.1.post01
 - git checkout master         -> 0.1.dev04
 - set version=0.2 in setup.py -> 0.2.dev01
-- modify, commit              -> 0.1.dev02
+- modify, commit              -> 0.2.dev02
 
 When working on the master branch, the dev number is the number of commits
 since the last branch of name "v[0-9.]+"
