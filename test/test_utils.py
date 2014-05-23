@@ -8,15 +8,19 @@ from pyoperators.utils import (
     cast,
     complex_dtype,
     first,
+    first_is_not,
     float_dtype,
     ifirst,
-    first_is_not,
     ifirst_is_not,
+    ilast,
+    ilast_is_not,
     groupbykey,
     inspect_special_values,
     interruptible,
     isscalarlike,
     izip_broadcast,
+    last,
+    last_is_not,
     least_greater_multiple,
     one,
     pi,
@@ -208,32 +212,32 @@ def test_float_dtype():
 
 def test_first1():
     assert first([1, 2, 3], lambda x: x > 1.5) == 2
-    assert first([1, 2, 3], lambda x: x > 1.5, reverse=True) == 3
+    assert last([1, 2, 3], lambda x: x > 1.5) == 3
 
 
 def test_first2():
     assert_raises(ValueError, first, [1, 2, 3], lambda x: x > 3)
-    assert_raises(ValueError, first, [1, 2, 3], lambda x: x > 3, reverse=True)
+    assert_raises(ValueError, last, [1, 2, 3], lambda x: x > 3)
 
 
 def test_ifirst1():
     assert ifirst([1, 2, 3], lambda x: x > 1.5) == 1
-    assert ifirst([1, 2, 3], lambda x: x > 1.5, reverse=True) == 2
+    assert ilast([1, 2, 3], lambda x: x > 1.5) == 2
 
 
 def test_ifirst2():
     assert_raises(ValueError, ifirst, [1, 2, 3], lambda x: x > 3)
-    assert_raises(ValueError, ifirst, [1, 2, 3], lambda x: x > 3, reverse=True)
+    assert_raises(ValueError, ilast, [1, 2, 3], lambda x: x > 3)
 
 
 def test_ifirst3():
     assert ifirst([1, 2, 2, 3], 2.0) == 1
-    assert ifirst([1, 2, 2, 3], 2.0, reverse=True) == 2
+    assert ilast([1, 2, 2, 3], 2.0) == 2
 
 
 def test_ifirst4():
     assert_raises(ValueError, ifirst, [1, 2, 3], 4)
-    assert_raises(ValueError, ifirst, [1, 2, 3], 4, reverse=True)
+    assert_raises(ValueError, ilast, [1, 2, 3], 4)
 
 
 def test_first_is_not():
@@ -242,17 +246,34 @@ def test_first_is_not():
     assert first_is_not([], None) is None
     assert first_is_not([None, None], None) is None
 
-    assert first_is_not([1, 2], 2, reverse=True) == 1
-    assert first_is_not([{}, None, None], None, reverse=True) == {}
-    assert first_is_not([], None, reverse=True) is None
-    assert first_is_not([None, None], None, reverse=True) is None
+    assert last_is_not([1, 2], 2) == 1
+    assert last_is_not([{}, None, None], None) == {}
+    assert last_is_not([], None) is None
+    assert last_is_not([None, None], None) is None
 
 
 def test_ifirst_is_not():
-    assert ifirst_is_not([1, 2], 2, reverse=True) == 0
-    assert ifirst_is_not([{}, None, None], None, reverse=True) == 0
-    assert_raises(ValueError, ifirst_is_not, [], None, reverse=True)
-    assert_raises(ValueError, ifirst_is_not, [None, None], None, reverse=True)
+    assert ifirst_is_not([1, 2, 2], 2) == 0
+    assert ifirst_is_not([2, 1, 1], 2) == 1
+    assert ifirst_is_not([{}, None, None], None) == 0
+    assert_raises(ValueError, ifirst_is_not, [], None)
+    assert_raises(
+        ValueError,
+        ifirst_is_not,
+        [None, None],
+        None,
+    )
+
+    assert ilast_is_not([1, 2, 2], 2) == 0
+    assert ilast_is_not([2, 1, 1], 2) == 2
+    assert ilast_is_not([{}, None, None], None) == 0
+    assert_raises(ValueError, ilast_is_not, [], None)
+    assert_raises(
+        ValueError,
+        ilast_is_not,
+        [None, None],
+        None,
+    )
 
 
 def test_groupbykey():
