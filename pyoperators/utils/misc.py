@@ -24,6 +24,8 @@ __all__ = ['all_eq',
            'groupbykey',
            'ifirst',
            'ifirst_is_not',
+           'ilast',
+           'ilast_is_not',
            'inspect_special_values',
            'interruptible',
            'interruptible_if',
@@ -32,6 +34,8 @@ __all__ = ['all_eq',
            'isscalar',
            'isscalarlike',
            'izip_broadcast',
+           'last',
+           'last_is_not',
            'least_greater_multiple',
            'merge_none',
            'ndarraywrap',
@@ -216,7 +220,7 @@ def float_dtype(dtype):
     return dtype
 
 
-def first(l, f, reverse=False):
+def first(l, f):
     """
     Return first item in list that verifies a certain condition, or raise
     a ValueError exception otherwise.
@@ -227,27 +231,20 @@ def first(l, f, reverse=False):
         List of elements to be searched for.
     f : function
         Function that evaluates to True to match an element.
-    reverse : boolean
-        True for reverse search.
 
     Example:
     --------
     >>> first([1.,2.,3.], lambda x: x > 1.5)
     2.0
-    >>> first([1.,2.,3.], lambda x: x > 1.5, reverse=True)
-    3.0
 
     """
-    if reverse:
-        return first(reversed(tuple(l)), f)
-
     try:
         return next((_ for _ in l if f(_)))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
 
-def first_is_not(l, v, reverse=False):
+def first_is_not(l, v):
     """
     Return first item in list which is not the specified value.
     If all items are the specified value, return it.
@@ -258,19 +255,13 @@ def first_is_not(l, v, reverse=False):
         The list of elements to be inspected.
     v : object
         The value not to be matched.
-    reverse : boolean
-        True for reverse search.
 
     Example:
     --------
     >>> first_is_not(['a', 'b', 'c'], 'a')
     'b'
-    >>> first_is_not(['a', 'b', 'c'], 'b', reverse=True)
-    'c'
 
     """
-    if reverse:
-        return first_is_not(reversed(tuple(l)), v)
     return next((_ for _ in l if _ is not v), v)
 
 
@@ -294,7 +285,7 @@ def groupbykey(iterable, key):
         yield value, l
 
 
-def ifirst(l, match, reverse=False):
+def ifirst(l, match):
     """
     Return the index of the first item in a list that verifies a certain
     condition or is equal to a certain value. Raise a ValueError exception
@@ -307,24 +298,15 @@ def ifirst(l, match, reverse=False):
     match : callable or object
         Function that evaluates to True to match an element or the element
         to be matched.
-    reverse : boolean
-        True for reverse search.
 
     Example:
     --------
     >>> ifirst([1.,2.,3.], lambda x: x > 1.5)
     1
-    >>> ifirst([1.,2.,3.], lambda x: x > 1.5, reverse=True)
-    2
     >>> ifirst([1., 2., 3.], 2)
     1
 
     """
-    if reverse:
-        l = tuple(l)
-        index = ifirst(reversed(l), match)
-        return len(l) - index - 1
-
     try:
         if not callable(match):
             return next((i for i, _ in enumerate(l) if _ == match))
@@ -333,7 +315,7 @@ def ifirst(l, match, reverse=False):
         raise ValueError('There is no matching item in the list.')
 
 
-def ifirst_is_not(l, v, reverse=False):
+def ifirst_is_not(l, v):
     """
     Return index of first item in list which is not the specified value.
     If the list is empty or if all items are the specified value, raise
@@ -345,25 +327,68 @@ def ifirst_is_not(l, v, reverse=False):
         The list of elements to be inspected.
     v : object
         The value not to be matched.
-    reverse : boolean
-        True for reverse search.
 
     Example:
     --------
     >>> ifirst_is_not(['a', 'b', 'c'], 'a')
     1
-    >>> ifirst_is_not(['a', 'b', 'c'], 'a', reverse=True)
-    2
 
     """
-    if reverse:
-        l = tuple(l)
-        index = ifirst_is_not(reversed(l), v)
-        return len(l) - index - 1
     try:
         return next((i for i, _ in enumerate(l) if _ is not v))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
+
+
+def ilast(l, match):
+    """
+    Return the index of the last item in a list that verifies a certain
+    condition or is equal to a certain value. Raise a ValueError exception
+    otherwise.
+
+    Parameters
+    ----------
+    l : iterator
+        List of elements to be searched for.
+    match : callable or object
+        Function that evaluates to True to match an element or the element
+        to be matched.
+
+    Example:
+    --------
+    >>> ilast([1.,2.,3.], lambda x: x > 1.5)
+    2
+    >>> ilast([3.,2.,0., 0.], 0)
+    3
+
+    """
+    l = tuple(l)
+    index = ifirst(reversed(l), match)
+    return len(l) - index - 1
+
+
+def ilast_is_not(l, v):
+    """
+    Return index of last item in list which is not the specified value.
+    If the list is empty or if all items are the specified value, raise
+    a ValueError exception.
+
+    Parameters
+    ----------
+    l : sequence
+        The list of elements to be inspected.
+    v : object
+        The value not to be matched.
+
+    Example:
+    --------
+    >>> ilast_is_not(['a', 'b', 'c'], 'a')
+    2
+
+    """
+    l = tuple(l)
+    index = ifirst_is_not(reversed(l), v)
+    return len(l) - index - 1
 
 
 def inspect_special_values(x):
@@ -465,6 +490,48 @@ def izip_broadcast(*args):
     if any(not hasattr(a, '__len__') or len(a) != 1 for a in args):
         args = [wrap(arg) for arg in args]
     return izip(*args)
+
+
+def last(l, f):
+    """
+    Return last item in list that verifies a certain condition, or raise
+    a ValueError exception otherwise.
+
+    Parameters
+    ----------
+    l : list
+        List of elements to be searched for.
+    f : function
+        Function that evaluates to True to match an element.
+
+    Example:
+    --------
+    >>> first([1.,2.,3.], lambda x: x > 1.5)
+    3.0
+
+    """
+    return first(reversed(tuple(l)), f)
+
+
+def last_is_not(l, v):
+    """
+    Return last item in list which is not the specified value.
+    If all items are the specified value, return it.
+
+    Parameters
+    ----------
+    l : sequence
+        The list of elements to be inspected.
+    v : object
+        The value not to be matched.
+
+    Example:
+    --------
+    >>> last_is_not(['a', 'b', 'c'], 'b')
+    'c'
+
+    """
+    return first_is_not(reversed(tuple(l)), v)
 
 
 def least_greater_multiple(a, l, out=None):
