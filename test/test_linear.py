@@ -256,7 +256,7 @@ def test_symmetric_band_toeplitz_operator():
         s = SymmetricBandToeplitzOperator(n, firstrow)
         if firstrow == [1] or firstrow == [[2], [1]]:
             assert_is_instance(s, DiagonalOperator)
-        assert_eq(s.todense(), totoeplitz(n, firstrow).todense())
+        assert_same(s.todense(), totoeplitz(n, firstrow).todense(), atol=1)
 
     for n in [2, 3, 4, 5]:
         for firstrow in ([1], [2, 1]):
