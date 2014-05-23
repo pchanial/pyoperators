@@ -1,9 +1,11 @@
+import collections
 import functools
 import numpy as np
+from itertools import izip
 from nose.plugins.skip import SkipTest
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_allclose
 
-from .misc import all_eq, strenum
+from .misc import strenum
 
 __all__ = [
     'assert_eq',
@@ -23,34 +25,53 @@ __all__ = [
 ]
 
 
-def assert_same(actual, desired, rtol=5, broadcasting=False):
+def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
     """
     Compare arrays of floats. The relative error depends on the data type.
 
     Parameters
     ----------
+    atol : float
+        Absolute tolerance to account for numerical error propagation, in
+        unit of eps.
     rtol : float
-        Relative tolerance to account for numerical error propagation.
+        Relative tolerance to account for numerical error propagation, in
+        unit of eps.
     broadcasting : bool, optional
         If true, allow broadcasting betwee, actual and desired array.
 
     """
     actual = np.asarray(actual)
     desired = np.asarray(desired)
+    if actual.dtype.kind not in ('b', 'i', 'u', 'f', 'c') or desired.dtype.kind not in (
+        'b',
+        'i',
+        'u',
+        'f',
+        'c',
+    ):
+        raise TypeError('Non numeric type.')
     if not broadcasting and actual.shape != desired.shape:
         raise AssertionError(
             "The actual array shape '{0}' is different from the desired one '{"
             "1}'.".format(actual.shape, desired.shape)
         )
-    dtype = sorted(arg.dtype for arg in [actual, desired])[0]
-    if dtype.kind in ('b', 'i', 'u'):
+    if actual.dtype.kind in ('b', 'i', 'u') and desired.dtype.kind in ('b', 'i', 'u'):
         if not broadcasting:
             assert_equal(actual, desired)
         else:
             assert np.all(actual == desired)
         return
-    eps = np.finfo(dtype).eps * rtol
-    same = abs(actual - desired) <= eps * np.minimum(abs(actual), abs(desired))
+    if actual.dtype.kind in ('b', 'i', 'u'):
+        dtype = desired.dtype
+    elif desired.dtype.kind in ('b', 'i', 'u'):
+        dtype = actual.dtype
+    else:
+        dtype = sorted(_.dtype for _ in (actual, desired))[0]
+
+    eps1 = np.finfo(dtype).eps * rtol
+    eps2 = np.finfo(dtype).eps * atol
+    same = abs(actual - desired) <= eps1 * np.minimum(abs(actual), abs(desired)) + eps2
     same |= np.isnan(actual) & np.isnan(desired)
     same |= actual == desired
     if not np.all(same):
@@ -68,9 +89,65 @@ def assert_same(actual, desired, rtol=5, broadcasting=False):
         )
 
 
-def assert_eq(a, b, msg=None):
-    """Assert that the two arguments are (almost) equal."""
-    assert all_eq(a, b), msg
+def assert_eq(a, b, msg=''):
+    """Assert that the two arguments are equal."""
+    if a is b:
+        return
+
+    if not msg:
+        msg = 'Items are not equal:\n ACTUAL: {0}\n DESIRED: {1}'.format(a, b)
+
+    # a or b is an ndarray sub-class
+    if (
+        isinstance(a, np.ndarray)
+        and type(a) not in (np.matrix, np.ndarray)
+        or isinstance(b, np.ndarray)
+        and type(b) not in (np.matrix, np.ndarray)
+    ):
+        assert_is(type(a), type(b))
+        assert_allclose(a.view(np.ndarray), b.view(np.ndarray), err_msg=msg)
+        assert_eq(a.__dict__, b.__dict__)
+        return
+
+    # a and b are ndarray or one of them is an ndarray and the other is a seq.
+    num_types = (bool, int, float, complex, np.ndarray, np.number)
+    if (
+        isinstance(a, num_types)
+        and isinstance(b, num_types)
+        or isinstance(a, np.ndarray)
+        and isinstance(b, (list, tuple))
+        or isinstance(b, np.ndarray)
+        and isinstance(a, (list, tuple))
+    ):
+        assert_allclose(a, b, err_msg=msg)
+        return
+
+    if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        raise AssertionError(msg)
+
+    if isinstance(a, collections.Mapping) and isinstance(b, collections.Mapping):
+        assert_equal(set(a.keys()), set(b.keys()))
+        for k in a:
+            assert_eq(a[k], b[k], msg)
+        return
+
+    if (
+        isinstance(a, collections.Container)
+        and not isinstance(a, set)
+        and isinstance(b, collections.Container)
+        and not isinstance(b, set)
+    ):
+        assert_equal(len(a), len(b), 'Containers do not have the same length.')
+        for a_, b_ in izip(a, b):
+            assert_eq(a_, b_, msg)
+        return
+
+    try:
+        equal = a == b
+    except:
+        equal = False
+    if not equal:
+        raise AssertionError(msg)
 
 
 def assert_in(a, b, msg=None):

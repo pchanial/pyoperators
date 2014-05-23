@@ -4,7 +4,7 @@ import numpy as np
 
 from pyoperators.iterative.core import IterativeAlgorithm
 from pyoperators.iterative.stopconditions import MaxIterationStopCondition
-from pyoperators.utils.testing import assert_eq, assert_raises
+from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
 
 def test_suffix():
@@ -145,13 +145,13 @@ def test_recursion():
         g = algo(reuse_initial_state=reuse_initial_state)
         pi = g.run()
         assert g.niterations == 10
-        assert_eq(pi, np.pi)
+        assert_same(pi, np.pi)
         if g.reuse_initial_state:
             assert_raises(RuntimeError, g.restart)
             return
         g.restart()
         assert g.niterations == 10
-        assert_eq(pi, np.pi)
+        assert_same(pi, np.pi)
 
     for algo in algos:
         for reuse_initial_state in (False, True):

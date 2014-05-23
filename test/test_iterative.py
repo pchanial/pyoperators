@@ -7,8 +7,9 @@ Testing of the iterative module
 
 import numpy as np
 import pyoperators
+from numpy.testing import assert_allclose
 from pyoperators import IdentityOperator, iterative
-from pyoperators.utils.testing import assert_eq, skiptest
+from pyoperators.utils.testing import assert_same, skiptest
 
 # collection of definite positive symmetric linear operators to test
 operator_list = [
@@ -32,7 +33,7 @@ def test_methods_inv():
     def func(m, A, x):
         y = A * x
         xe = m(A, y, maxiter=100, tol=1e-7)
-        assert_eq(x, xe)
+        assert_same(x, xe)
 
     for A in operator_list:
         for x in vector_list:
@@ -45,7 +46,7 @@ def test_classes_inv():
         y = A(x)
         algo = c(A, y, maxiter=100, tol=1e-7)
         xe = algo.run()
-        assert_eq(x, xe)
+        assert_allclose(x, xe, rtol=1e-6)
 
     for A in operator_list:
         for x in vector_list:
@@ -56,8 +57,8 @@ def test_classes_inv():
 def test_solution_as_x0():
     def func(s, v):
         solution = s(IdentityOperator(shapein=v.shape), v, x0=v)
-        assert_eq(solution['nit'], 0)
-        assert_eq(solution['x'], v)
+        assert_same(solution['nit'], 0)
+        assert_same(solution['x'], v)
 
     for s in solvers:
         for v in vector_list:

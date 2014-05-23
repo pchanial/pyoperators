@@ -6,7 +6,7 @@ import scipy.signal
 
 from pyoperators import CompositionOperator, ConvolutionOperator, HomothetyOperator
 from pyoperators.fft import _FFTWRealConvolutionOperator
-from pyoperators.utils.testing import assert_eq, assert_is_instance
+from pyoperators.utils.testing import assert_eq, assert_is_instance, assert_same
 
 
 def test_convolution_real():
@@ -128,7 +128,7 @@ def test_convolution_rules_add():
     def func(c1, c2):
         c = c1 + c2
         assert_is_instance(c, _FFTWRealConvolutionOperator)
-        assert_eq(c1.todense() + c2.todense(), c.todense())
+        assert_same(c1.todense() + c2.todense(), c.todense(), atol=5)
 
     for (a, b) in itertools.product((c1, c1.T), (c2, c2.T)):
         yield func, a, b
@@ -143,7 +143,7 @@ def test_convolution_rules_homothety():
 
     def func(ops, r):
         op = CompositionOperator(ops)
-        assert_eq(op.todense(), r)
+        assert_same(op.todense(), r, atol=5)
 
     for op, r in zip((c, c.T), (ref, ref.T)):
         for l in (lambda_id, lambda_sw):
