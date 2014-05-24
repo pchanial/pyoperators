@@ -7,7 +7,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     from . import fake_MPI as MPI
-from .misc import isscalarlike, tointtuple
+from .misc import deprecated, isscalarlike, tointtuple
 
 __all__ = [
     'MPI',
@@ -67,6 +67,7 @@ def combine(n, comm=MPI.COMM_WORLD):
     return int(n)
 
 
+@deprecated("use 'split' instead.")
 def distribute(n, comm=MPI.COMM_WORLD):
     """
     Distribute work across processors.
@@ -134,6 +135,7 @@ def distribute_shapes(shape, comm=None):
     return nfirst * (shape_first,) + (size - nfirst) * (shape_last,)
 
 
+@deprecated("use 'split' instead.")
 def distribute_slice(nglobal, rank=None, size=None, comm=None):
     """
     Given a number of ordered global work items, return the slice that brackets

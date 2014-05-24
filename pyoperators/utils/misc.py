@@ -51,6 +51,7 @@ __all__ = [
     'renumerate',
     'reshape_broadcast',
     'setting',
+    'split',
     'strelapsed',
     'strenum',
     'strinfo',
@@ -738,6 +739,37 @@ def setting(obj, attr, value):
         delattr(obj, attr)
     else:
         setattr(obj, attr, old_value)
+
+
+def split(n, m, rank=None):
+    """
+    Return an iterator through the slices that partition a list of n elements
+    in m almost same-size groups. If a rank is provided, only the slice
+    for the rank is returned.
+
+    Example
+    -------
+    >>> split(1000, 2)
+    (slice(0, 500, None), slice(500, 1000, None))
+    >>> split(1000, 2, 1)
+    slice(500, 1000, None)
+
+    """
+    if rank is not None:
+        work = n // m + ((n % m) > rank)
+        start = n // m * rank + min(rank, n % m)
+        return slice(start, start + work)
+
+    def generator():
+        rank = 0
+        start = 0
+        while rank < m:
+            work = n // m + ((n % m) > rank)
+            yield slice(start, start + work)
+            start += work
+            rank += 1
+
+    return tuple(generator())
 
 
 def strelapsed(t0, msg='Elapsed time'):

@@ -43,8 +43,9 @@ from pyoperators.utils import (
     isscalarlike,
     operation_assignment,
     product,
+    split,
 )
-from pyoperators.utils.mpi import MPI, distribute_slice
+from pyoperators.utils.mpi import MPI
 from pyoperators.utils.testing import (
     assert_eq,
     assert_is,
@@ -2105,8 +2106,8 @@ def test_block_slice():
         for nops in range(1, 5):
             for Op in [HomothetyOperator, HomothetyOutplaceOperator]:
                 slices_ = [
-                    [distribute_slice(size, i, nops) for i in range(nops)],
-                    [distribute_slice(size, i, size) for i in range(nops)],
+                    [split(size, nops, i) for i in range(nops)],
+                    [split(size, size, i) for i in range(nops)],
                     [ndim * [slice(i, None, nops)] for i in range(nops)],
                 ]
                 for slices in slices_:
