@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 
 import collections
+import functools
 import itertools
 import multiprocessing
 import numpy as np
@@ -19,6 +20,7 @@ __all__ = [
     'broadcast_shapes',
     'cast',
     'complex_dtype',
+    'deprecated',
     'first',
     'first_is_not',
     'float_dtype',
@@ -60,6 +62,29 @@ __all__ = [
     'uninterruptible_if',
     'zero',
 ]
+
+
+# decorators
+# ==========
+
+
+def deprecated(msg):
+    def decorator(func):
+        @functools.wraps(func)
+        def _(*args, **keywords):
+            warn(
+                '{!r} is deprecated: {}'.format(func.__name__, msg),
+                PyOperatorsDeprecationWarning,
+            )
+            return func(*args, **keywords)
+
+        return _
+
+    return decorator
+
+
+# other stuff
+# ===========
 
 
 def all_eq(a, b):
@@ -473,9 +498,8 @@ def isclassattr(cls, a):
     return False
 
 
+@deprecated("use 'isscalarlike' instead.")
 def isscalar(x):
-    """Deprecated."""
-    warn('Use isscalarlike instead of isscalar.', PyOperatorsDeprecationWarning)
     return isscalarlike(x)
 
 
