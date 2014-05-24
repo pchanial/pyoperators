@@ -1,9 +1,10 @@
 import numpy as np
 from pyoperators import (MPIDistributionGlobalOperator,
                          MPIDistributionIdentityOperator, MPI)
+from pyoperators.utils import split
 from pyoperators.utils.mpi import (
     DTYPE_MAP, OP_PY_MAP, OP_MPI_MAP, as_mpi, combine_shape, distribute_shape,
-    distribute_shapes, distribute_slice, filter_comm)
+    distribute_shapes, filter_comm)
 from pyoperators.utils.testing import assert_eq
 from numpy.testing import assert_equal
 
@@ -84,14 +85,14 @@ def test_distribute():
                     if len(s) > 0:
                         continue
                     sl = slice(start[r], stop[r])
-                    yield assert_eq, sl, distribute_slice(n, rank=r, size=sz)
+                    yield assert_eq, sl, split(n, sz, r)
 
 
 def test_dgo():
     def func(shape, dtype):
         d = MPIDistributionGlobalOperator(shape)
         x_global = np.ones(shape, dtype)
-        s = distribute_slice(shape[0])
+        s = split(shape[0], size, rank)
         x_local = d(x_global)
         assert_eq(x_local, x_global[s])
         assert_eq(d.T(x_local), x_global)

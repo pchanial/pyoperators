@@ -7,7 +7,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     from . import fake_MPI as MPI
-from .misc import isscalarlike, tointtuple
+from .misc import deprecated, isscalarlike, tointtuple
 
 __all__ = ['MPI',
            'as_mpi',
@@ -46,12 +46,15 @@ OP_MPI_MAP = {'sum':MPI.SUM,
               'prod':MPI.PROD,
               'min':MPI.MIN,
               'max':MPI.MAX}
+
+
 def as_mpi(x):
     try:
         return x, DTYPE_MAP[x.dtype]
     except KeyError:
         raise KeyError("The dtype '{0}' is not handled in MPI.".format(
                        x.dtype.name))
+
 
 def combine(n, comm=MPI.COMM_WORLD):
     """
@@ -62,6 +65,7 @@ def combine(n, comm=MPI.COMM_WORLD):
     return int(n)
 
 
+@deprecated("use 'split' instead.")
 def distribute(n, comm=MPI.COMM_WORLD):
     """
     Distribute work across processors.
@@ -130,6 +134,7 @@ def distribute_shapes(shape, comm=None):
     return nfirst * (shape_first,) + (size-nfirst) * (shape_last,)
 
 
+@deprecated("use 'split' instead.")
 def distribute_slice(nglobal, rank=None, size=None, comm=None):
     """
     Given a number of ordered global work items, return the slice that brackets

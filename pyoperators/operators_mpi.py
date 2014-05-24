@@ -2,8 +2,8 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from .core import Operator
 from .flags import real, linear, square, inplace
-from .utils import isalias
-from .utils.mpi import MPI, as_mpi, distribute_shape, distribute_slice
+from .utils import isalias, split
+from .utils.mpi import MPI, as_mpi, distribute_shape
 
 __all__ = ['MPIDistributionGlobalOperator',
            'MPIDistributionIdentityOperator']
@@ -53,12 +53,11 @@ class MPIDistributionGlobalOperator(Operator):
         commout = commout or MPI.COMM_WORLD
 
         shapeout = distribute_shape(shapein, comm=commout)
-        slice_ = distribute_slice(shapein[0], comm=commout)
+        slice_ = split(shapein[0], commout.size, commout.rank)
 
         counts = []
         offsets = [0]
-        for rank in range(commout.size):
-            s = distribute_slice(shapein[0], rank=rank, comm=commout)
+        for s in split(shapein[0], commout.size):
             n = (s.stop - s.start) * np.product(shapein[1:])
             counts.append(n)
             offsets.append(offsets[-1] + n)
