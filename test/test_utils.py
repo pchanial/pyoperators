@@ -27,6 +27,7 @@ from pyoperators.utils import (
     product,
     reshape_broadcast,
     setting,
+    split,
     strenum,
     strplural,
     strshape,
@@ -512,6 +513,21 @@ def test_setting():
             assert not hasattr(obj, 'anotherattr')
         assert obj.otherattr == 'mid'
     assert not hasattr(obj, 'otherattr')
+
+
+def test_split():
+    def func(n, m):
+        slices = split(n, m)
+        assert_eq(len(slices), m)
+        x = np.zeros(n, int)
+        for s in slices:
+            x[s] += 1
+        assert_same(x, 1, broadcasting=True)
+        assert_eq([split(n, m, i) for i in range(m)], slices)
+
+    for n in range(4):
+        for m in range(1, 6):
+            yield func, n, m
 
 
 def test_strenum():
