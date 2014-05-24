@@ -21,8 +21,8 @@ from pyoperators.memory import zeros
 from pyoperators.rules import rule_manager
 from pyoperators.utils import (
     ndarraywrap, first_is_not, isalias, isscalarlike, operation_assignment,
-    product)
-from pyoperators.utils.mpi import MPI, distribute_slice
+    product, split)
+from pyoperators.utils.mpi import MPI
 from pyoperators.utils.testing import (
     assert_eq, assert_is, assert_is_none, assert_is_instance, assert_raises,
     assert_is_type, assert_same, skiptest)
@@ -1903,8 +1903,8 @@ def test_block_slice():
         for nops in range(1, 5):
             for Op in [HomothetyOperator, HomothetyOutplaceOperator]:
                 slices_ = [
-                    [distribute_slice(size, i, nops) for i in range(nops)],
-                    [distribute_slice(size, i, size) for i in range(nops)],
+                    [split(size, nops, i) for i in range(nops)],
+                    [split(size, size, i) for i in range(nops)],
                     [ndim * [slice(i, None, nops)] for i in range(nops)]]
                 for slices in slices_:
                     input = np.zeros(ndim*(size,))

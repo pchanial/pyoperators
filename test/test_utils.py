@@ -4,11 +4,11 @@ import numpy as np
 from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
-    broadcast_shapes, cast, complex_dtype, first, first_is_not, float_dtype, 
+    broadcast_shapes, cast, complex_dtype, first, first_is_not, float_dtype,
     ifirst, ifirst_is_not, ilast, ilast_is_not, groupbykey,
     inspect_special_values, interruptible, isscalarlike, izip_broadcast, last,
-    last_is_not, least_greater_multiple, one,
-    pi, product, reshape_broadcast, setting, strenum, strplural, strshape,
+    last_is_not, least_greater_multiple, one, pi, product, reshape_broadcast,
+    setting, split, strenum, strplural, strshape,
     uninterruptible, zero)
 from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
@@ -349,6 +349,20 @@ def test_setting():
             assert not hasattr(obj, 'anotherattr')
         assert obj.otherattr == 'mid'
     assert not hasattr(obj, 'otherattr')
+
+
+def test_split():
+    def func(n, m):
+        slices = split(n, m)
+        assert_eq(len(slices), m)
+        x = np.zeros(n, int)
+        for s in slices:
+            x[s] += 1
+        assert_same(x, 1, broadcasting=True)
+        assert_eq([split(n, m, i) for i in range(m)], slices)
+    for n in range(4):
+        for m in range(1, 6):
+            yield func, n, m
 
 
 def test_strenum():
