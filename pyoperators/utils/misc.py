@@ -491,7 +491,7 @@ def isalias(array1, array2):
     )
 
 
-def isclassattr(cls, a):
+def isclassattr(a, cls):
     """Test if an attribute is a class attribute."""
     for c in cls.__mro__:
         if a in c.__dict__:
