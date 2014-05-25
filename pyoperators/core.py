@@ -247,7 +247,7 @@ class Operator(object):
         """
         if None not in (self.classout, cls) and self.classout is not cls:
             for a in attr.keys():
-                if isclassattr(cls, a) and not isclassattr(self.classout, a):
+                if isclassattr(a, cls) and not isclassattr(a, self.classout):
                     del attr[a]
         if 'shape_global' in attr:
             del attr['shape_global']
