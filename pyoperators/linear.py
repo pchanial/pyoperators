@@ -424,6 +424,10 @@ class SparseBase(Operator):
             return (24 * m.ndim + m.dtype.itemsize + 2 * sizeoftuple + 24) * len(
                 m.viewitems()
             )
+        try:
+            return m.data.nbytes
+        except AttributeError:
+            pass
         raise TypeError("The sparse format '{0}' is not handled.".format(type(m)))
 
 
