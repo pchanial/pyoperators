@@ -105,6 +105,7 @@ class PCGAlgorithm(IterativeAlgorithm):
         IterativeAlgorithm.initialize(self)
 
         if self.b_norm == 0:
+            self.error = 0
             self.x[...] = 0
             raise StopIteration('RHS is zero.')
 
