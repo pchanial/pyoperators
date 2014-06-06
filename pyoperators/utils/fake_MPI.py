@@ -189,12 +189,20 @@ class Comm(object):
             raise ValueError('Invalid keyval.')
         self._attr[keyval] = attrval
 
+    def Create_cart(self, dims, periods=None, reorder=False):
+        return Cartcomm(self.rank, self.size)
+
     @staticmethod
     def f2py(fcomm):
         return COMM_SELF
 
     def py2f(self):
         return 0
+
+
+class Cartcomm(Comm):
+    def Sub(self, remain_dims):
+        return Comm(self.rank, self.size)
 
 
 def Get_processor_name():
