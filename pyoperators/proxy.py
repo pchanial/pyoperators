@@ -166,6 +166,9 @@ class ProxyOperator(ProxyBase):
             ),
         )
 
+    def __getattr__(self, name):
+        return getattr(self.get_operator(), name)
+
 
 class ProxyConjugateOperator(ProxyBase):
     def get_operator(self):
