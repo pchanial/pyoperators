@@ -125,6 +125,9 @@ class ProxyOperator(ProxyBase):
         self.set_rule('IH', lambda s: ProxyInverseAdjointOperator(
             s.number, s.common, s.callback, s.flags_inverse_adjoint))
 
+    def __getattr__(self, name):
+        return getattr(self.get_operator(), name)
+
 
 class ProxyConjugateOperator(ProxyBase):
     def get_operator(self):

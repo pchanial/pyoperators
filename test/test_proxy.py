@@ -107,3 +107,8 @@ def test_composite():
     ref = AdditionOperator(CompositionOperator(_) for _ in zip(*ref_lists))
     assert_same(op.todense(), ref.todense())
     assert_equal(counter, nproxy * op.shapein[0])
+
+
+def test_getattr():
+    assert_equal(np.sum(_.i for _ in proxy_list),
+                 np.sum(_.i for _ in ref_list))
