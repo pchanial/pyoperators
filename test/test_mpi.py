@@ -1,11 +1,12 @@
 import numpy as np
-from pyoperators import (MPIDistributionGlobalOperator,
-                         MPIDistributionIdentityOperator, MPI)
+from pyoperators import (
+    IdentityOperator, MPIDistributionGlobalOperator,
+    MPIDistributionIdentityOperator, MPI)
 from pyoperators.utils import split
 from pyoperators.utils.mpi import (
     DTYPE_MAP, OP_PY_MAP, OP_MPI_MAP, as_mpi, combine_shape, distribute_shape,
     distribute_shapes, filter_comm)
-from pyoperators.utils.testing import assert_eq
+from pyoperators.utils.testing import assert_eq, assert_is_type
 from numpy.testing import assert_equal
 
 comm = MPI.COMM_WORLD
@@ -111,6 +112,11 @@ def test_dio():
     for shape in (2,), (2, 3):
         for dtype in dtypes:
             yield func, shape, dtype
+
+
+def test_dio_morph():
+    op = MPIDistributionIdentityOperator(MPI.COMM_SELF)
+    assert_is_type(op, IdentityOperator)
 
 
 def test_dio_inplace():
