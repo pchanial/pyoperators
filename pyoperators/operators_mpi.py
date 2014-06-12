@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, print_function
 import numpy as np
-from .core import Operator
+from .core import IdentityOperator, Operator
 from .flags import real, linear, square, inplace
 from .utils import isalias, split
 from .utils.mpi import MPI, as_mpi, distribute_shape
@@ -139,6 +139,13 @@ class MPIDistributionIdentityOperator(Operator):
     """
 
     def __init__(self, commout=None, **keywords):
+        if commout is None:
+            commout = MPI.COMM_WORLD
+        if commout.size == 1:
+            self.__class__ = IdentityOperator
+            self.__init__(**keywords)
+            return
+
         Operator.__init__(
             self, commin=MPI.COMM_SELF, commout=commout or MPI.COMM_WORLD, **keywords
         )
