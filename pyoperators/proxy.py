@@ -1,7 +1,7 @@
 from __future__ import absolute_import, division, print_function
 import inspect
 from . import core
-from .utils import operation_assignment
+from .utils import operation_assignment, strshape
 
 __all__ = ['proxy_group']
 
@@ -50,9 +50,38 @@ class ProxyBase(core.Operator):
         number = self.number
         cls = self.common[1].__name__
         source = '\n'.join(inspect.getsource(self.callback).split('\n')[:2])
-        return '{0}({1}, {2}, {3!r})'.format(type(self), number, cls, source)
+        if self.shapein is not None:
+            sin = ', shapein={0}'.format(strshape(self.shapein))
+        else:
+            sin = ''
+        if sin:
+            sout = ', shapeout={0}'.format(strshape(self.shapeout))
+        else:
+            sout = ''
+        return '{0}({1}, {2}, {3!r}{4}{5})'.format(
+            type(self).__name__, number, cls, source, sin, sout)
 
     __str__ = __repr__
+
+
+class ProxyReverseBase(ProxyBase):
+    def reshapein(self, shape):
+        return self.common[1].reshapeout(shape)
+
+    def reshapeout(self, shape):
+        return self.common[1].reshapein(shape)
+
+    def toshapein(self, x):
+        return self.common[1].toshapeout(x)
+
+    def toshapeout(self, x):
+        return self.common[1].toshapein(x)
+
+    def validatein(self, shape):
+        self.common[1].validateout(shape)
+
+    def validateout(self, shape):
+        self.common[1].validatein(shape)
 
 
 class ProxyOperator(ProxyBase):
@@ -102,22 +131,22 @@ class ProxyConjugateOperator(ProxyBase):
         return ProxyBase.get_operator(self).C
 
 
-class ProxyTransposeOperator(ProxyBase):
+class ProxyTransposeOperator(ProxyReverseBase):
     def get_operator(self):
         return ProxyBase.get_operator(self).T
 
 
-class ProxyAdjointOperator(ProxyBase):
+class ProxyAdjointOperator(ProxyReverseBase):
     def get_operator(self):
         return ProxyBase.get_operator(self).H
 
 
-class ProxyInverseOperator(ProxyBase):
+class ProxyInverseOperator(ProxyReverseBase):
     def get_operator(self):
         return ProxyBase.get_operator(self).I
 
 
-class ProxyInverseConjugateOperator(ProxyBase):
+class ProxyInverseConjugateOperator(ProxyReverseBase):
     def get_operator(self):
         return ProxyBase.get_operator(self).I.C
 
@@ -132,7 +161,7 @@ class ProxyInverseAdjointOperator(ProxyBase):
         return ProxyBase.get_operator(self).I.H
 
 
-def proxy_group(n, callback):
+def proxy_group(n, callback, shapeins=None, shapeouts=None):
     """
     Return a group of proxy operators, for on-the-fly computations.
 
@@ -145,6 +174,13 @@ def proxy_group(n, callback):
     members of the group. For example, given the group of proxy operators
     [o1, o2, o3], the sum o1.T * o1 + o2.T * o2 + o3.T * o3 only calls three
     times the callback function.
+
+    Note
+    ----
+    By default, it is assumed that the proxies have the same input and output
+    shape. If it is not the case, all the shapes should be specified with the
+    'shapeins' and 'shapeouts' keywords.
+    It is also assumed that all the proxies have the same flags.
 
     Parameters
     ----------
@@ -184,10 +220,14 @@ def proxy_group(n, callback):
     flags_ic = op.I.C.flags
     flags_it = op.I.T.flags
     flags_ih = op.I.H.flags
+    if shapeins is None:
+        shapeins = n * (op.shapein,)
+    if shapeouts is None:
+        shapeouts = n * (op.shapeout,)
 
     common = [0, op]
     ops = [ProxyOperator(i, common, callback, flags, dtype=op.dtype,
-                         shapein=op.shapein, shapeout=op.shapeout,
+                         shapein=si, shapeout=so,
                          flags_conjugate=flags_c,
                          flags_transpose=flags_t,
                          flags_adjoint=flags_h,
@@ -195,5 +235,5 @@ def proxy_group(n, callback):
                          flags_inverse_conjugate=flags_ic,
                          flags_inverse_transpose=flags_it,
                          flags_inverse_adjoint=flags_ih)
-           for i in range(n)]
+           for i, (si, so) in enumerate(zip(shapeins, shapeouts))]
     return ops
