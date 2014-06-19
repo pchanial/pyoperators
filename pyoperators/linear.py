@@ -367,8 +367,6 @@ class SparseBase(Operator):
                         .format(type(m)))
 
 
-@linear
-@contiguous
 class SparseOperator(SparseBase):
     """
     Operator handling sparse matrix storages.
