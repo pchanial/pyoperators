@@ -7,14 +7,21 @@ from pyoperators import (
     Operator,
     ZeroOperator,
     flags,
+    rule_manager,
     O,
 )
 from pyoperators.utils import ndarraywrap
-from pyoperators.utils.testing import assert_is_instance, assert_is_none, skiptest
+from pyoperators.utils.testing import (
+    assert_is,
+    assert_is_instance,
+    assert_is_none,
+    assert_same,
+    assert_is_type,
+)
 from .common import OPS, ndarray2, attr2
 
 op = Operator()
-ops = [OP() for OP in OPS]
+ops = [_() for _ in OPS] + [_(flags={'linear': False}) for _ in OPS]
 zeros_left = (
     ZeroOperator(classout=ndarray2, attrout=attr2),
     ZeroOperator(shapein=4, classout=ndarray2, attrout=attr2),
@@ -23,6 +30,7 @@ zeros_right = (
     ZeroOperator(classout=ndarray2, attrout=attr2),
     ZeroOperator(classout=ndarray2, attrout=attr2, flags='square'),
     ZeroOperator(shapein=3, classout=ndarray2, attrout=attr2),
+    ZeroOperator(shapein=3, shapeout=3, classout=ndarray2, attrout=attr2),
 )
 
 
@@ -74,8 +82,6 @@ def test_zero5():
 
 
 def test_zero6():
-    z = ZeroOperator(flags='square')
-
     @flags.linear
     class Op(Operator):
         def direct(self, input, output):
@@ -90,12 +96,17 @@ def test_zero6():
         def reshapeout(self, shapeout):
             return (shapeout[0] // 2,)
 
+    z = ZeroOperator(flags='square')
     o = Op()
+    od = o.todense(shapein=4)
     zo = z * o
+    zod_ref = np.dot(np.zeros((8, 8)), od)
+    assert_same((z * o).todense(shapein=4), zod_ref)
     oz = o * z
-    v = np.ones(4)
-    assert_equal(zo.T(v), o.T(z.T(v)))
-    assert_equal(oz.T(v), z.T(o.T(v)))
+    ozd_ref = np.dot(od, np.zeros((4, 4)))
+    assert_same((o * z).todense(shapein=4), ozd_ref)
+    assert_same(zo.T.todense(shapein=8), zod_ref.T)
+    assert_same(oz.T.todense(shapein=8), ozd_ref.T)
 
 
 def test_zero7():
@@ -108,13 +119,12 @@ def test_zero8():
         pass
 
     o = Op()
-    assert type(o + O) is Op
+    assert_is_type(o + O, Op)
 
 
-@skiptest
 def test_merge_zero_left():
     def func(op1, op2):
-        op = op1 * op2
+        op = op1(op2)
         assert_is_instance(op, ZeroOperator)
         attr = {}
         attr.update(op2.attrout)
@@ -135,31 +145,37 @@ def test_merge_zero_left():
             yield func, op1, op2
 
 
-@skiptest
 def test_merge_zero_right():
     def func(op1, op2):
-        op = op1 * op2
+        op = op1(op2)
+        attr = {}
+        attr.update(op2.attrout)
+        attr.update(op1.attrout)
+        assert_equal(op.attrout, attr)
+        assert_is(op.classout, op1.classout)
+        if op1.flags.linear:
+            assert_is_type(op, ZeroOperator)
+            assert_same(op.todense(shapein=3, shapeout=4), np.zeros((4, 3)))
+            return
         if (
             op1.flags.shape_output == 'unconstrained'
             or op1.flags.shape_input != 'explicit'
             and op2.flags.shape_output != 'explicit'
         ):
-            assert_is_instance(op, CompositionOperator)
+            assert_is_type(op, CompositionOperator)
+        else:
+            assert_is_type(op, ConstantOperator)
+
+        if (
+            op1.flags.shape_input == 'unconstrained'
+            and op2.flags.shape_output == 'unconstrained'
+        ):
             return
-        assert_is_instance(op, ConstantOperator)
-        attr = {}
-        attr.update(op2.attrout)
-        attr.update(op1.attrout)
-        assert_equal(op.attrout, attr)
-        x = np.ones(3)
-        y = ndarraywrap(4)
-        op(x, y)
-        y2_tmp = np.empty(3)
-        y2 = np.empty(4)
-        op2(x, y2_tmp)
-        op1(y2_tmp, y2)
-        assert_equal(y, y2)
-        assert_is_instance(y, op1.classout)
+        with rule_manager(none=True):
+            op_ref = op1(op2)
+        assert_same(
+            op.todense(shapein=3, shapeout=4), op_ref.todense(shapein=3, shapeout=4)
+        )
 
     for op1 in ops:
         for op2 in zeros_right:
