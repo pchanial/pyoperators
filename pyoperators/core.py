@@ -2411,11 +2411,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'validatein': operands[-1].validatein,
             'validateout': operands[0].validateout,
         }
-        for k, v in keywords.items():
-            if k is not 'flags':
-                attr[k] = v
-        attr['flags'].update(
-            Operator.validate_flags(keywords.get('flags', {})))
+        attr.update(keywords)
         return attr
 
     @classmethod
@@ -2427,7 +2423,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         # bail if the merging has already been done
         if any(isinstance(o, CompositionOperator) for o in [op1, op2]):
             return
-        keywords = cls._get_attributes([op1, op2])
+        keywords = cls._get_attributes([op1, op2], flags=op.flags)
         op._reset(**keywords)
 
     @staticmethod
