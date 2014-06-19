@@ -4584,12 +4584,18 @@ class ZeroOperator(ConstantOperator):
         operation(output, 0)
 
     @staticmethod
+    def _rule_left(self, op):
+        if op.commin is not None or op.commout is not None:
+            return None
+        return ZeroOperator()
+
+    @staticmethod
     def _rule_right(op, self):
         if op.commin is not None or op.commout is not None:
             return None
         if op.flags.linear:
-            return self.copy()
-        return super(ZeroOperator, self)._rule_right(op, self)
+            return ZeroOperator()
+        return ConstantOperator._rule_right(op, self)
 
     def __neg__(self):
         return self
