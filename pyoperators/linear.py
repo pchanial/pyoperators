@@ -431,8 +431,6 @@ class SparseBase(Operator):
         raise TypeError("The sparse format '{0}' is not handled.".format(type(m)))
 
 
-@linear
-@contiguous
 class SparseOperator(SparseBase):
     """
     Operator handling sparse matrix storages.
