@@ -1,11 +1,12 @@
 import collections
 import functools
 import numpy as np
+from collections import Container, Mapping
 from itertools import izip
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal, assert_allclose
 
-from .misc import strenum
+from .misc import settingerr, strenum
 
 __all__ = [
     'assert_eq',
@@ -71,10 +72,33 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
 
     eps1 = np.finfo(dtype).eps * rtol
     eps2 = np.finfo(dtype).eps * atol
-    same = abs(actual - desired) <= eps1 * np.minimum(abs(actual), abs(desired)) + eps2
-    same |= np.isnan(actual) & np.isnan(desired)
-    same |= actual == desired
-    if not np.all(same):
+
+    with settingerr('ignore'):
+        same_ = (
+            abs(actual - desired) <= eps1 * np.minimum(abs(actual), abs(desired)) + eps2
+        )
+        same = same_ | np.isnan(actual) & np.isnan(desired) | (actual == desired)
+        if np.all(same):
+            return
+
+        msg = 'Arrays are not equal (mismatch {0:.1%}'.format(1 - np.mean(same))
+        if np.any(~same_ & np.isfinite(actual) & np.isfinite(desired)):
+            rtolmin = np.nanmax(
+                abs(actual - desired) / np.minimum(abs(actual), abs(desired))
+            )
+            atolmin = np.nanmax(abs(actual - desired))
+            msg += ', min rtol: {0}, min atol: {1}'.format(
+                rtolmin / np.finfo(dtype).eps, atolmin / np.finfo(dtype).eps
+            )
+        check_nan = np.isnan(actual) & ~np.isnan(desired) | np.isnan(
+            desired
+        ) & ~np.isnan(actual)
+        if np.any(check_nan):
+            msg += ', check nan'
+        if np.any(
+            ~check_nan & (np.isinf(actual) | np.isinf(desired)) & (actual != desired)
+        ):
+            msg += ', check infinite'
 
         def trepr(x):
             r = repr(x).split('\n')
@@ -83,7 +107,8 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
             return '\n'.join(r)
 
         raise AssertionError(
-            "Arrays are not equal.\n\n(mismatch {0:.1%})\n x: {1}\n y: {2}".format(
+            msg
+            + ")\n x: {1}\n y: {2}".format(
                 1 - np.mean(same), trepr(actual), trepr(desired)
             )
         )
@@ -106,7 +131,7 @@ def assert_eq(a, b, msg=''):
     ):
         assert_is(type(a), type(b))
         assert_allclose(a.view(np.ndarray), b.view(np.ndarray), err_msg=msg)
-        assert_eq(a.__dict__, b.__dict__)
+        assert_eq(a.__dict__, b.__dict__, msg)
         return
 
     # a and b are ndarray or one of them is an ndarray and the other is a seq.
@@ -125,19 +150,19 @@ def assert_eq(a, b, msg=''):
     if isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
         raise AssertionError(msg)
 
-    if isinstance(a, collections.Mapping) and isinstance(b, collections.Mapping):
-        assert_equal(set(a.keys()), set(b.keys()))
+    if isinstance(a, Mapping) and isinstance(b, Mapping):
+        assert_equal(set(a.keys()), set(b.keys()), err_msg=msg)
         for k in a:
             assert_eq(a[k], b[k], msg)
         return
 
     if (
-        isinstance(a, collections.Container)
-        and not isinstance(a, set)
-        and isinstance(b, collections.Container)
-        and not isinstance(b, set)
+        isinstance(a, Container)
+        and not isinstance(a, (set, str))
+        and isinstance(b, Container)
+        and not isinstance(b, (set, str))
     ):
-        assert_equal(len(a), len(b), 'Containers do not have the same length.')
+        assert_equal(len(a), len(b), msg)
         for a_, b_ in izip(a, b):
             assert_eq(a_, b_, msg)
         return
@@ -146,8 +171,8 @@ def assert_eq(a, b, msg=''):
         equal = a == b
     except:
         equal = False
-    if not equal:
-        raise AssertionError(msg)
+
+    assert equal, msg
 
 
 def assert_in(a, b, msg=None):
