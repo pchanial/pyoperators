@@ -50,6 +50,7 @@ __all__ = ['all_eq',
            'renumerate',
            'reshape_broadcast',
            'setting',
+           'settingerr',
            'split',
            'strelapsed',
            'strenum',
@@ -721,6 +722,18 @@ def setting(obj, attr, value):
         delattr(obj, attr)
     else:
         setattr(obj, attr, old_value)
+
+
+@contextmanager
+def settingerr(*args, **keywords):
+    """ Contextually set an error handling. """
+    old = np.seterr(*args, **keywords)
+    try:
+        yield
+    except:
+        raise
+    finally:
+        np.seterr(**old)
 
 
 def split(n, m, rank=None):
