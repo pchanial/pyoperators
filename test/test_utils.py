@@ -27,6 +27,7 @@ from pyoperators.utils import (
     product,
     reshape_broadcast,
     setting,
+    settingerr,
     split,
     strenum,
     strplural,
@@ -513,6 +514,24 @@ def test_setting():
             assert not hasattr(obj, 'anotherattr')
         assert obj.otherattr == 'mid'
     assert not hasattr(obj, 'otherattr')
+
+
+def test_settingerr():
+    ref1 = np.seterr()
+    ref2 = {
+        'divide': 'ignore',
+        'invalid': 'ignore',
+        'over': 'ignore',
+        'under': 'ignore',
+    }
+    ref3 = {'divide': 'raise', 'invalid': 'ignore', 'over': 'warn', 'under': 'ignore'}
+
+    with settingerr(all='ignore'):
+        assert_eq(np.seterr(), ref2)
+        with settingerr(divide='raise', over='warn'):
+            assert_eq(np.seterr(), ref3)
+        assert_eq(np.seterr(), ref2)
+    assert_eq(np.seterr(), ref1)
 
 
 def test_split():
