@@ -116,7 +116,9 @@ def iscompatible(array, shape, dtype, aligned=False, contiguous=False,
             return False
         return array.shape == shape and array.itemsize == dtype.itemsize
     nbytes = product(shape) * dtype.itemsize
-    return array.nbytes >= nbytes and array.nbytes / nbytes <= tolerance
+    if nbytes == 0:
+        return False
+    return array.nbytes >= nbytes and array.nbytes <= tolerance * nbytes
 
 
 class MemoryPool(object):
