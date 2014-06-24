@@ -8,8 +8,8 @@ from pyoperators.utils import (
     ifirst, ifirst_is_not, ilast, ilast_is_not, groupbykey,
     inspect_special_values, interruptible, isscalarlike, izip_broadcast, last,
     last_is_not, least_greater_multiple, one, pi, product, reshape_broadcast,
-    setting, split, strenum, strplural, strshape,
-    uninterruptible, zero)
+    setting, settingerr, split, strenum, strplural, strshape, uninterruptible,
+    zero)
 from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
@@ -349,6 +349,21 @@ def test_setting():
             assert not hasattr(obj, 'anotherattr')
         assert obj.otherattr == 'mid'
     assert not hasattr(obj, 'otherattr')
+
+
+def test_settingerr():
+    ref1 = np.seterr()
+    ref2 = {'divide': 'ignore', 'invalid': 'ignore', 'over': 'ignore',
+            'under': 'ignore'}
+    ref3 = {'divide': 'raise', 'invalid': 'ignore', 'over': 'warn',
+            'under': 'ignore'}
+
+    with settingerr(all='ignore'):
+        assert_eq(np.seterr(), ref2)
+        with settingerr(divide='raise', over='warn'):
+            assert_eq(np.seterr(), ref3)
+        assert_eq(np.seterr(), ref2)
+    assert_eq(np.seterr(), ref1)
 
 
 def test_split():
