@@ -4,6 +4,7 @@ import time
 
 from ..core import IdentityOperator, asoperator
 from ..memory import empty, zeros
+from ..utils.mpi import MPI
 from .core import AbnormalStopIteration, IterativeAlgorithm
 from .stopconditions import MaxIterationStopCondition
 
@@ -242,12 +243,12 @@ def _norm2(x, comm):
     x = x.ravel()
     n = np.array(np.dot(x, x))
     if comm is not None:
-        comm.Allreduce(n, n)
+        comm.Allreduce(MPI.IN_PLACE, n)
     return n
 
 
 def _dot(x, y, comm):
     d = np.array(np.dot(x.ravel(), y.ravel()))
     if comm is not None:
-        comm.Allreduce(d, d)
+        comm.Allreduce(MPI.IN_PLACE, d)
     return d
