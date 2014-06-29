@@ -629,7 +629,7 @@ class IntegrationTrapezeOperator(BlockRowOperator):
     ...         [Operator(lambda i, o, v=v: f(v, i, o), flags='square')
     ...          for v in x], new_axisout=0)
     >>> W = IntegrationTrapezeOperator(x)
-    >>> int_f = W * F
+    >>> int_f = W(F)
     >>> int_f([0,1,2])
     array([  3.5   ,   7.875 ,  22.8125])
     >>> [np.trapz(f(x, a), x) for a in [0, 1, 2]]
@@ -648,7 +648,7 @@ class IntegrationTrapezeOperator(BlockRowOperator):
         w[0] = 0.5 * (x[1] - x[0])
         w[1:-1] = 0.5 * (x[2:] - x[:-2])
         w[-1] = 0.5 * (x[-1] - x[-2])
-        ops = [ConstantOperator(_) for _ in w]
+        ops = [HomothetyOperator(_) for _ in w]
         BlockRowOperator.__init__(self, ops, new_axisin=new_axisin, **keywords)
 
 
