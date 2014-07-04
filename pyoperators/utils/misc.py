@@ -8,6 +8,7 @@ import numpy as np
 import operator
 import os
 import signal
+import timeit
 import types
 
 from contextlib import contextmanager
@@ -58,6 +59,7 @@ __all__ = ['all_eq',
            'strnbytes',
            'strplural',
            'strshape',
+           'Timer',
            'tointtuple',
            'uninterruptible',
            'uninterruptible_if',
@@ -917,6 +919,81 @@ def strshape(shape, broadcast=None):
     if len(shape) == 1:
         return str(shape[0])
     return str(shape).replace(' ', '').replace("'", '')
+
+
+class Timer(object):
+    """
+    Context manager for timing purposes.
+
+    Examples
+    --------
+    >>> import time
+    >>> with Timer('Elapsed time: '):
+    ...     time.sleep(0.1)
+    Elapsed time: 0.100191831589s
+
+    >>> with Timer() as t:
+    ...     time.sleep(0.1)
+    ...     print(t.elapsed)
+    ...     time.sleep(0.1)
+    ... print(t.elapsed)
+    0.100234985352
+    0.200633049011
+
+    >>> t = Timer(cumulative=True)
+    >>> with t:
+    ...     time.sleep(0.1)
+    >>> print(t.elapsed)
+    >>> with t:
+    ...     time.sleep(0.1)
+    >>> print(t.elapsed)
+    0.100238084793
+    0.200490236282
+
+    """
+    def __init__(self, msg=None, cumulative=False, timer=timeit.default_timer):
+        """
+        Parameters
+        ----------
+        cumulative : boolean
+            If True, elapsed times are accumulated.
+        timer : callable
+            A platform specific timer function (time.time for Unix and
+            time.clock for Windows)
+        msg : string
+            If not None, print the elapsed time upon exiting the context.
+
+        """
+        self.cumulative = cumulative
+        self._elapsed = 0.
+        self._level = 0
+        self.timer = timer
+        self.msg = msg
+
+    def __enter__(self):
+        self._level += 1
+        if self._level == 1:
+            if not self.cumulative:
+                self._elapsed = 0.
+            self._start = self.timer()
+        return self
+
+    def __exit__(self, *args):
+        self._level -= 1
+        if self._level > 0:
+            return
+        self._elapsed += self.timer() - self._start
+        if self.msg is not None:
+            print('{}{}s'.format(self.msg, self.elapsed))
+
+    @property
+    def elapsed(self):
+        if self._level == 0:
+            return self._elapsed
+        return self._elapsed + self.timer() - self._start
+
+    def reset(self):
+        self._elapsed = 0
 
 
 def tointtuple(data):

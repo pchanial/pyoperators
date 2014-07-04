@@ -3,7 +3,7 @@ import numpy as np
 from .core import IdentityOperator, Operator
 from .flags import real, linear, square, inplace
 from .utils import isalias, split
-from .utils.mpi import MPI, as_mpi, distribute_shape
+from .utils.mpi import MPI, as_mpi, distribute_shape, timer_mpi
 
 __all__ = ['MPIDistributionGlobalOperator',
            'MPIDistributionIdentityOperator']
@@ -75,10 +75,11 @@ class MPIDistributionGlobalOperator(Operator):
         if input.itemsize != output.itemsize:
             input = input.astype(output.dtype)
         nbytes = output.itemsize
-        self.commout.Allgatherv(
-            input.view(np.byte), [output.view(np.byte),
-                                  ([c * nbytes for c in self.counts],
-                                   [o * nbytes for o in self.offsets])])
+        with timer_mpi:
+            self.commout.Allgatherv(
+                input.view(np.byte), [output.view(np.byte),
+                                      ([c * nbytes for c in self.counts],
+                                       [o * nbytes for o in self.offsets])])
 
 
 @real
@@ -149,4 +150,5 @@ class MPIDistributionIdentityOperator(Operator):
     def transpose(self, input, output):
         if not isalias(input, output):
             output[...] = input
-        self.commout.Allreduce(MPI.IN_PLACE, as_mpi(output), op=MPI.SUM)
+        with timer_mpi:
+            self.commout.Allreduce(MPI.IN_PLACE, as_mpi(output), op=MPI.SUM)

@@ -7,7 +7,7 @@ try:
     from mpi4py import MPI
 except ImportError:
     from . import fake_MPI as MPI
-from .misc import deprecated, isscalarlike, tointtuple
+from .misc import deprecated, isscalarlike, Timer, tointtuple
 
 __all__ = ['MPI',
            'as_mpi',
@@ -47,6 +47,8 @@ OP_MPI_MAP = {'sum':MPI.SUM,
               'min':MPI.MIN,
               'max':MPI.MAX}
 
+timer_mpi = Timer(cumulative=True)
+
 
 def as_mpi(x):
     try:
@@ -61,7 +63,8 @@ def combine(n, comm=MPI.COMM_WORLD):
     Return total number of work items.
     """
     n = np.array(n)
-    comm.Allreduce(MPI.IN_PLACE, n, op=MPI.SUM)
+    with timer_mpi:
+        comm.Allreduce(MPI.IN_PLACE, n, op=MPI.SUM)
     return int(n)
 
 
@@ -85,7 +88,8 @@ def combine_shape(shape, comm=None):
     """
     shape = tointtuple(shape)
     comm = comm or MPI.COMM_WORLD
-    shapes = comm.allgather(shape)
+    with timer_mpi:
+        shapes = comm.allgather(shape)
     if any(len(s) != len(shapes[0]) or s[1:] != shapes[0][1:] for s in shapes):
         raise ValueError("The shapes are incompatible: '{0}'.".format(shapes))
     return (sum(s[0] for s in shapes),) + shapes[0][1:]
@@ -178,12 +182,14 @@ def filter_comm(condition, comm):
             print(newcomm.allgather(newcomm.rank))
 
     """
-    newcomm = comm.Split(color=int(condition), key=comm.rank)
+    with timer_mpi:
+        newcomm = comm.Split(color=int(condition), key=comm.rank)
     if not condition:
         yield None
     else:
         yield newcomm
-    newcomm.Free()
+    with timer_mpi:
+        newcomm.Free()
 
 
 def mprint(msg='', comm=MPI.COMM_WORLD):
