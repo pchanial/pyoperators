@@ -37,6 +37,7 @@ from .memory import (
 from .utils import (
     all_eq,
     first_is_not,
+    inspect_special_values,
     isalias,
     isclassattr,
     isscalarlike,
@@ -48,8 +49,8 @@ from .utils import (
     strenum,
     strplural,
     strshape,
+    Timer,
     tointtuple,
-    inspect_special_values,
 )
 from .utils.mpi import MPI
 
@@ -72,6 +73,7 @@ __all__ = [
     'Variable',
     'ZeroOperator',
     'asoperator',
+    'timer_operator',
 ]
 
 DEBUG = 0
@@ -447,54 +449,59 @@ class Operator(object):
             if out is None:
                 raise ValueError('The output placeholder is not specified.')
 
-        # get valid input and output
-        i, i_, o, o_ = self._validate_arguments(x, out)
+        with timer_operator:
+            # get valid input and output
+            i, i_, o, o_ = self._validate_arguments(x, out)
 
-        # perform computation
-        reuse_x = isinstance(x, np.ndarray) and not isalias(x, i) and not preserve_input
-        reuse_out = (
-            isinstance(out, np.ndarray) and not isalias(out, i) and not isalias(out, o)
-        )
+            # perform computation
+            reuse_x = (
+                isinstance(x, np.ndarray) and not isalias(x, i) and not preserve_input
+            )
+            reuse_out = (
+                isinstance(out, np.ndarray)
+                and not isalias(out, i)
+                and not isalias(out, o)
+            )
 
-        with _pool.set_if(reuse_x, x):
-            with _pool.set_if(reuse_out, out):
-                if self.flags.update_output:
-                    self.direct(i, o, operation=operation)
-                else:
-                    self.direct(i, o)
+            with _pool.set_if(reuse_x, x):
+                with _pool.set_if(reuse_out, out):
+                    if self.flags.update_output:
+                        self.direct(i, o, operation=operation)
+                    else:
+                        self.direct(i, o)
 
-        # add back temporaries for input & output in the memory pool
-        if i_ is not None:
-            _pool.add(i_)
-        if out is None:
-            out = o
-        elif not isalias(out, o):
-            out[...] = o
-            _pool.add(o_)
+            # add back temporaries for input & output in the memory pool
+            if i_ is not None:
+                _pool.add(i_)
+            if out is None:
+                out = o
+            elif not isalias(out, o):
+                out[...] = o
+                _pool.add(o_)
 
-        # copy over class and attributes
-        cls = x.__class__ if isinstance(x, np.ndarray) else np.ndarray
-        attr = x.__dict__.copy() if hasattr(x, '__dict__') else {}
-        cls = self.propagate_attributes(cls, attr)
-        if cls is np.ndarray and len(attr) > 0:
-            cls = ndarraywrap
-        if out is None:
-            out = o
-        if type(out) is np.ndarray:
-            if cls is np.ndarray:
-                return out
-            out = out.view(cls)
-        elif type(out) is not cls:
-            out.__class__ = cls
-            if out.__array_finalize__ is not None:
-                out.__array_finalize__()
+            # copy over class and attributes
+            cls = x.__class__ if isinstance(x, np.ndarray) else np.ndarray
+            attr = x.__dict__.copy() if hasattr(x, '__dict__') else {}
+            cls = self.propagate_attributes(cls, attr)
+            if cls is np.ndarray and len(attr) > 0:
+                cls = ndarraywrap
+            if out is None:
+                out = o
+            if type(out) is np.ndarray:
+                if cls is np.ndarray:
+                    return out
+                out = out.view(cls)
+            elif type(out) is not cls:
+                out.__class__ = cls
+                if out.__array_finalize__ is not None:
+                    out.__array_finalize__()
 
-        # we cannot simply update __dict__, because of properties.
-        # the iteration is sorted by key, so that attributes beginning with an
-        # underscore are set first.
-        for k in sorted(attr.keys()):
-            setattr(out, k, attr[k])
-        return out
+            # we cannot simply update __dict__, because of properties.
+            # the iteration is sorted by key, so that attributes beginning with
+            # an underscore are set first.
+            for k in sorted(attr.keys()):
+                setattr(out, k, attr[k])
+            return out
 
     @property
     def shape(self):
@@ -4928,3 +4935,4 @@ def asoperator1d(x):
 
 
 _pool = MemoryPool()
+timer_operator = Timer(cumulative=True)

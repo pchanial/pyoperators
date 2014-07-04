@@ -1,5 +1,6 @@
 import itertools
 import numpy as np
+import time
 
 from numpy.testing import assert_equal
 from pyoperators import Operator
@@ -32,6 +33,7 @@ from pyoperators.utils import (
     strenum,
     strplural,
     strshape,
+    Timer,
     uninterruptible,
     zero,
 )
@@ -602,3 +604,65 @@ def test_strshape_error():
 
     for x in 1, object(), [1]:
         yield func, x
+
+
+def test_timer1():
+    t = Timer()
+    with t:
+        time.sleep(0.01)
+        delta1 = t.elapsed
+        time.sleep(0.01)
+        delta2 = t.elapsed
+    time.sleep(0.01)
+    delta3 = t.elapsed
+    assert abs(delta1 - 0.01) < 0.001
+    assert abs(delta2 - 0.02) < 0.001
+    assert abs(delta3 - 0.02) < 0.001
+    with t:
+        time.sleep(0.01)
+        delta1 = t.elapsed
+        time.sleep(0.01)
+        delta2 = t.elapsed
+    time.sleep(0.01)
+    delta3 = t.elapsed
+    assert abs(delta1 - 0.01) < 0.001
+    assert abs(delta2 - 0.02) < 0.001
+    assert abs(delta3 - 0.02) < 0.001
+
+
+def test_timer2():
+    t = Timer(cumulative=True)
+    with t:
+        time.sleep(0.01)
+        delta1 = t.elapsed
+        time.sleep(0.01)
+        delta2 = t.elapsed
+    time.sleep(0.01)
+    delta3 = t.elapsed
+
+    assert abs(delta1 - 0.01) < 0.001
+    assert abs(delta2 - 0.02) < 0.001
+    assert abs(delta3 - 0.02) < 0.001
+    with t:
+        time.sleep(0.01)
+        delta1 = t.elapsed
+        time.sleep(0.01)
+        delta2 = t.elapsed
+    time.sleep(0.01)
+    delta3 = t.elapsed
+    assert abs(delta1 - 0.03) < 0.001
+    assert abs(delta2 - 0.04) < 0.001
+    assert abs(delta3 - 0.04) < 0.001
+
+
+def test_timer3():
+    t = Timer()
+    try:
+        with t:
+            time.sleep(0.01)
+            raise RuntimeError()
+    except RuntimeError:
+        pass
+    time.sleep(0.01)
+    assert_equal(t._level, 0)
+    assert abs(t.elapsed - 0.01) < 0.001
