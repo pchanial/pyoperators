@@ -3,7 +3,8 @@ from __future__ import division
 import itertools
 import numpy as np
 from numpy.testing import assert_equal
-from pyoperators.memory import MemoryPool, empty, MEMORY_ALIGNMENT
+from pyoperators.config import MEMORY_ALIGNMENT
+from pyoperators.memory import MemoryPool, empty
 from pyoperators.utils import tointtuple
 
 buffers = [empty(10), empty((5, 2)), empty(20)[::2], empty(11)[1:],
