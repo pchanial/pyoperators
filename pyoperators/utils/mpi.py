@@ -2,8 +2,11 @@ from __future__ import absolute_import, division, print_function
 import contextlib
 import numpy as np
 import operator
+import os
 
 try:
+    if os.getenv('PYOPERATORS_NO_MPI'):
+        raise ImportError()
     from mpi4py import MPI
 except ImportError:
     from . import fake_MPI as MPI
