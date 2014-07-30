@@ -4,6 +4,7 @@ import collections
 import functools
 import itertools
 import multiprocessing
+import multiprocessing.dummy
 import numpy as np
 import operator
 import os
@@ -47,6 +48,7 @@ __all__ = ['all_eq',
            'operation_assignment',
            'operation_symbol',
            'pi',
+           'pool_threading',
            'product',
            'renumerate',
            'reshape_broadcast',
@@ -650,6 +652,34 @@ operation_symbol = {
 def pi(dtype):
     """ Return pi with a given dtype. """
     return 4 * np.arctan(one(dtype))
+
+
+@contextmanager
+def pool_threading(nthreads=None):
+    if nthreads is None:
+        nthreads = openmp_num_threads()
+    try:
+        import mkl
+        old_mkl_num_threads = mkl.get_max_threads()
+        mkl.set_num_threads(1)
+    except ImportError:
+        pass
+    old_omp_num_threads = os.getenv('OMP_NUM_THREADS')
+    os.environ['OMP_NUM_THREADS'] = '1'
+
+    pool = multiprocessing.dummy.Pool(nthreads)
+    yield pool
+
+    pool.close()
+    pool.join()
+    try:
+        mkl.set_num_threads(old_mkl_num_threads)
+    except NameError:
+        pass
+    if old_omp_num_threads is not None:
+        os.environ['OMP_NUM_THREADS'] = old_omp_num_threads
+    else:
+        del os.environ['OMP_NUM_THREADS']
 
 
 def product(a):

@@ -1,17 +1,20 @@
 import itertools
 import numpy as np
+import os
 import time
 
+from contextlib import contextmanager
 from numpy.testing import assert_equal
 from pyoperators import Operator
 from pyoperators.utils import (
     broadcast_shapes, cast, complex_dtype, first, first_is_not, float_dtype,
     ifirst, ifirst_is_not, ilast, ilast_is_not, groupbykey,
     inspect_special_values, interruptible, isscalarlike, izip_broadcast, last,
-    last_is_not, least_greater_multiple, one, pi, product, reshape_broadcast,
-    setting, settingerr, split, strenum, strplural, strshape, Timer,
-    uninterruptible, zero)
-from pyoperators.utils.testing import assert_eq, assert_raises, assert_same
+    last_is_not, least_greater_multiple, one, openmp_num_threads, pi,
+    pool_threading, product, reshape_broadcast, setting, settingerr, split,
+    strenum, strplural, strshape, Timer, uninterruptible, zero)
+from pyoperators.utils.testing import (
+    assert_eq, assert_not_in, assert_raises, assert_same)
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
@@ -299,6 +302,51 @@ def test_one_pi_zero():
         for dtype in (np.float16, np.float32, np.float64, np.float128,
                       np.complex64, np.complex128, np.complex256):
             yield func, f, dtype, exp
+
+
+def test_pool_threading():
+    try:
+        import mkl
+    except ImportError:
+        mkl = None
+    mkl_nthreads = mkl.get_max_threads()
+    counter = None
+
+    def func_thread(i):
+        global counter
+        counter += 1
+
+    @contextmanager
+    def get_env(value):
+        try:
+            del os.environ['OMP_NUM_THREADS']
+        except KeyError:
+            pass
+        if value is not None:
+            os.environ['OMP_NUM_THREADS'] = str(value)
+        yield
+        if value is not None:
+            del os.environ['OMP_NUM_THREADS']
+
+    def func(env):
+        global counter
+        with env:
+            omp_num_threads = os.getenv('OMP_NUM_THREADS')
+            expected = openmp_num_threads()
+            with pool_threading() as pool:
+                assert_equal(int(os.environ['OMP_NUM_THREADS']), 1)
+                if mkl is not None:
+                    assert_equal(mkl.get_max_threads(), 1)
+                counter = 0
+                pool.map(func_thread, xrange(pool._processes))
+            assert_equal(os.getenv('OMP_NUM_THREADS'), omp_num_threads)
+            if mkl is not None:
+                assert_equal(mkl.get_max_threads(), mkl_nthreads)
+            assert_equal(counter, expected)
+        assert_not_in('OMP_NUM_THREADS', os.environ)
+
+    for env in get_env(None), get_env(1), get_env(3):
+        yield func, env
 
 
 def test_product():
