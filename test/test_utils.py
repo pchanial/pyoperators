@@ -10,7 +10,7 @@ from pyoperators.utils import (
     broadcast_shapes, cast, complex_dtype, first, first_is_not, float_dtype,
     ifirst, ifirst_is_not, ilast, ilast_is_not, groupbykey,
     inspect_special_values, interruptible, isscalarlike, izip_broadcast, last,
-    last_is_not, least_greater_multiple, one, openmp_num_threads, pi,
+    last_is_not, least_greater_multiple, one, omp_num_threads, pi,
     pool_threading, product, reshape_broadcast, setting, settingerr, split,
     strenum, strplural, strshape, Timer, uninterruptible, zero)
 from pyoperators.utils.testing import (
@@ -332,7 +332,7 @@ def test_pool_threading():
         global counter
         with env:
             omp_num_threads = os.getenv('OMP_NUM_THREADS')
-            expected = openmp_num_threads()
+            expected = omp_num_threads()
             with pool_threading() as pool:
                 assert_equal(int(os.environ['OMP_NUM_THREADS']), 1)
                 if mkl is not None:
