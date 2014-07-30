@@ -26,7 +26,7 @@ from pyoperators.utils import (
     last_is_not,
     least_greater_multiple,
     one,
-    openmp_num_threads,
+    omp_num_threads,
     pi,
     pool_threading,
     product,
@@ -501,7 +501,7 @@ def test_pool_threading():
         global counter
         with env:
             omp_num_threads = os.getenv('OMP_NUM_THREADS')
-            expected = openmp_num_threads()
+            expected = omp_num_threads()
             with pool_threading() as pool:
                 assert_equal(int(os.environ['OMP_NUM_THREADS']), 1)
                 if mkl is not None:

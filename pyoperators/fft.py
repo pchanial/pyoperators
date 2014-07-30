@@ -15,7 +15,7 @@ from .core import (
 )
 from .flags import aligned, contiguous, inplace, linear, real, square, unitary
 from .memory import empty
-from .utils import complex_dtype, isalias, openmp_num_threads, product, tointtuple
+from .utils import complex_dtype, isalias, omp_num_threads, product, tointtuple
 from .utils.ufuncs import multiply_conjugate
 from .warnings import warn, PyOperatorsWarning
 
@@ -24,7 +24,7 @@ __all__ = ['ConvolutionOperator', 'FFTOperator']
 try:
     import pyfftw
 
-    FFTW_DEFAULT_NUM_THREADS = openmp_num_threads()
+    FFTW_DEFAULT_NUM_THREADS = omp_num_threads()
     FFTW_WISDOM_FILES = tuple(
         os.path.join(LOCAL_PATH, 'fftw{0}.wisdom'.format(t)) for t in ['', 'f', 'l']
     )
