@@ -45,7 +45,7 @@ __all__ = [
     'merge_none',
     'ndarraywrap',
     'one',
-    'openmp_num_threads',
+    'omp_num_threads',
     'operation_assignment',
     'operation_symbol',
     'pi',
@@ -641,7 +641,7 @@ def one(dtype):
     return np.ones((), dtype=dtype)[()]
 
 
-def openmp_num_threads():
+def omp_num_threads():
     n = os.getenv('OMP_NUM_THREADS')
     if n is not None:
         return int(n)
@@ -671,7 +671,7 @@ def pi(dtype):
 @contextmanager
 def pool_threading(nthreads=None):
     if nthreads is None:
-        nthreads = openmp_num_threads()
+        nthreads = omp_num_threads()
     try:
         import mkl
 
