@@ -882,9 +882,16 @@ def strinfo(msg):
     Info computernode: My information message.
 
     """
-    import platform
+    from .mpi import MPI
 
-    return 'Info {0}: {1}.'.format(platform.node(), msg)
+    rank = MPI.COMM_WORLD.rank
+    size = MPI.COMM_WORLD.size
+    if size > 1:
+        n = str(int(np.log10(size - 1)) + 1)
+        rank = ('/{0:0' + n + '}').format(rank)
+    else:
+        rank = ''
+    return 'Info {0}{1}: {2}.'.format(MPI.Get_processor_name(), rank, msg)
 
 
 def strnbytes(nbytes):
