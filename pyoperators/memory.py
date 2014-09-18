@@ -13,6 +13,7 @@ import gc
 import inspect
 import numpy as np
 from contextlib import contextmanager
+from . import config
 from . import utils
 from .utils import ifirst, product, strshape, tointtuple
 
@@ -29,7 +30,6 @@ MEMORY_ALIGNMENT = 32
 MEMORY_TOLERANCE = 1.2
 
 _gc_nbytes_counter = 0
-verbose = False
 
 
 def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
@@ -41,7 +41,7 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
     shape = tointtuple(shape)
     dtype = np.dtype(dtype)
     if verbose is None:
-        verbose = globals()['verbose']
+        verbose = config.PYOPERATORS_VERBOSE
 
     requested = product(shape) * dtype.itemsize
     if requested == 0:

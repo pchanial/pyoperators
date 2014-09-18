@@ -3,9 +3,10 @@ import contextlib
 import numpy as np
 import operator
 import os
+from .. import config
 
 try:
-    if os.getenv('PYOPERATORS_NO_MPI'):
+    if config.PYOPERATORS_NO_MPI:
         raise ImportError()
     from mpi4py import MPI
 except ImportError:
