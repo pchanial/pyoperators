@@ -307,9 +307,9 @@ def test_one_pi_zero():
 def test_pool_threading():
     try:
         import mkl
+        mkl_nthreads = mkl.get_max_threads()
     except ImportError:
         mkl = None
-    mkl_nthreads = mkl.get_max_threads()
     counter = None
 
     def func_thread(i):
@@ -331,7 +331,7 @@ def test_pool_threading():
     def func(env):
         global counter
         with env:
-            omp_num_threads = os.getenv('OMP_NUM_THREADS')
+            nthreads = os.getenv('OMP_NUM_THREADS')
             expected = omp_num_threads()
             with pool_threading() as pool:
                 assert_equal(int(os.environ['OMP_NUM_THREADS']), 1)
@@ -339,7 +339,7 @@ def test_pool_threading():
                     assert_equal(mkl.get_max_threads(), 1)
                 counter = 0
                 pool.map(func_thread, xrange(pool._processes))
-            assert_equal(os.getenv('OMP_NUM_THREADS'), omp_num_threads)
+            assert_equal(os.getenv('OMP_NUM_THREADS'), nthreads)
             if mkl is not None:
                 assert_equal(mkl.get_max_threads(), mkl_nthreads)
             assert_equal(counter, expected)
