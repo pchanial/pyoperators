@@ -19,16 +19,6 @@ from .utils import ifirst, product, strshape, tointtuple
 
 __all__ = ['empty', 'ones', 'zeros']
 
-# force garbage collection when deleted operators' nbytes exceed this
-# threshold.
-GC_NBYTES_THRESHOLD = 1e8
-
-MEMORY_ALIGNMENT = 32
-
-# We allow reuse of pool variables only if they do not exceed 20% of
-# the requested size
-MEMORY_TOLERANCE = 1.2
-
 _gc_nbytes_counter = 0
 
 
@@ -41,7 +31,7 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
     shape = tointtuple(shape)
     dtype = np.dtype(dtype)
     if verbose is None:
-        verbose = config.PYOPERATORS_VERBOSE
+        verbose = config.VERBOSE
 
     requested = product(shape) * dtype.itemsize
     if requested == 0:
@@ -64,14 +54,16 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
         print(utils.strinfo('Allocating ' + strshape(shape) +
               ' ' + (str(dtype) if dtype.kind != 'V' else 'elements') +
               ' = ' + utils.strnbytes(requested) + ' ' + description))
+
+    alignment = config.MEMORY_ALIGNMENT
     try:
-        buf = np.empty(requested + MEMORY_ALIGNMENT, np.int8)
+        buf = np.empty(requested + alignment, np.int8)
     except MemoryError:
         gc.collect()
-        buf = np.empty(requested + MEMORY_ALIGNMENT, np.int8)
+        buf = np.empty(requested + alignment, np.int8)
 
     address = buf.__array_interface__['data'][0]
-    offset = MEMORY_ALIGNMENT - address % MEMORY_ALIGNMENT
+    offset = alignment - address % alignment
 
     return np.frombuffer(buf.data, np.int8, count=requested, offset=offset) \
              .view(dtype).reshape(shape, order=order)
@@ -109,7 +101,7 @@ def iscompatible(array, shape, dtype, aligned=False, contiguous=False,
     shape = tointtuple(shape)
     dtype = np.dtype(dtype)
     if aligned and \
-       array.__array_interface__['data'][0] % MEMORY_ALIGNMENT != 0:
+       array.__array_interface__['data'][0] % config.MEMORY_ALIGNMENT != 0:
         return False
     if not array.flags.contiguous:
         if contiguous:
@@ -162,7 +154,7 @@ class MemoryPool(object):
         """
         if not isinstance(v, np.ndarray):
             raise TypeError('The input is not an ndarray.')
-        alignment = MEMORY_ALIGNMENT if aligned else 1
+        alignment = config.MEMORY_ALIGNMENT if aligned else 1
         if v.__array_interface__['data'][0] % alignment != 0 or \
            contiguous and not v.flags.contiguous:
             with self.get(v.shape, v.dtype) as buf:
@@ -181,8 +173,8 @@ class MemoryPool(object):
         """
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)
-        compatible = lambda x: iscompatible(x, shape, dtype, aligned,
-                                            contiguous, MEMORY_TOLERANCE)
+        compatible = lambda x: iscompatible(
+            x, shape, dtype, aligned, contiguous, config.MEMORY_TOLERANCE)
         try:
             i = ifirst(self._buffers, compatible)
             v = self._buffers.pop(i)
@@ -319,8 +311,8 @@ class MemoryPool(object):
 def garbage_collect(nbytes=None):
     global _gc_nbytes_counter
     if nbytes is None:
-        nbytes = GC_NBYTES_THRESHOLD
+        nbytes = config.GC_NBYTES_THRESHOLD
     _gc_nbytes_counter += nbytes
-    if _gc_nbytes_counter >= GC_NBYTES_THRESHOLD:
+    if _gc_nbytes_counter >= config.GC_NBYTES_THRESHOLD:
         gc.collect()
         _gc_nbytes_counter = 0

@@ -8,7 +8,7 @@ import sys
 from nose import with_setup
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
-from pyoperators import memory, flags
+from pyoperators import config, flags
 from pyoperators import (
     Operator, AdditionOperator, BlockColumnOperator, BlockDiagonalOperator,
     BlockRowOperator, BlockSliceOperator, CompositionOperator,  GroupOperator,
@@ -1358,16 +1358,16 @@ def test_inplace1():
 
 def setup_memory():
     global old_memory_tolerance, old_memory_verbose
-    old_memory_tolerance = memory.MEMORY_TOLERANCE
-    old_memory_verbose = memory.verbose
+    old_memory_tolerance = config.MEMORY_TOLERANCE
+    old_memory_verbose = config.VERBOSE
     # ensure buffers in the pool are always used
-    memory.MEMORY_TOLERANCE = np.inf
-    memory.verbose = True
+    config.MEMORY_TOLERANCE = np.inf
+    config.VERBOSE = True
 
 
 def teardown_memory():
-    memory.MEMORY_TOLERANCE = old_memory_tolerance
-    memory.verbose = old_memory_verbose
+    config.MEMORY_TOLERANCE = old_memory_tolerance
+    config.VERBOSE = old_memory_verbose
 
 
 @skiptest
