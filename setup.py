@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 import numpy as np
-from distutils.extension import Extension
+import hooks
+from hooks import get_extension, get_cmdclass, get_version
 from numpy.distutils.core import setup
-from hooks import get_cmdclass, get_version
 
 VERSION = '0.12'
+
+hooks.RECOMPILE_CYTHON = False
 
 name = 'pyoperators'
 long_description = open('README.rst').read()
@@ -12,12 +14,14 @@ keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
 ext_modules = [
-    Extension(
+    get_extension(
         "pyoperators.utils.cythonutils",
-        sources=["pyoperators/utils/cythonutils.c"],
-        include_dirs=['.', np.get_include()],
+        sources=["pyoperators/utils/cythonutils.pyx"],
+        include_dirs=[np.get_include()],
     ),
-    Extension("pyoperators.utils.ufuncs", sources=["pyoperators/utils/ufuncs.c.src"]),
+    get_extension(
+        "pyoperators.utils.ufuncs", sources=["pyoperators/utils/ufuncs.c.src"]
+    ),
 ]
 
 setup(
