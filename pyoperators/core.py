@@ -15,6 +15,7 @@ import scipy.sparse as sp
 import types
 from collections import MutableMapping, MutableSequence, MutableSet
 from itertools import groupby, izip
+from . import config
 from .flags import (
     Flags,
     idempotent,
@@ -26,14 +27,7 @@ from .flags import (
     symmetric,
     update_output,
 )
-from .memory import (
-    empty,
-    garbage_collect,
-    iscompatible,
-    zeros,
-    MemoryPool,
-    MEMORY_ALIGNMENT,
-)
+from .memory import empty, garbage_collect, iscompatible, zeros, MemoryPool
 from .utils import (
     all_eq,
     first_is_not,
@@ -2554,8 +2548,10 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         shapeout = output.shape
         dtypein = input.dtype
         dtypeout = output.dtype
-        alignedin = input.__array_interface__['data'][0] % MEMORY_ALIGNMENT == 0
-        alignedout = output.__array_interface__['data'][0] % MEMORY_ALIGNMENT == 0
+        alignedin = input.__array_interface__['data'][0] % config.MEMORY_ALIGNMENT == 0
+        alignedout = (
+            output.__array_interface__['data'][0] % config.MEMORY_ALIGNMENT == 0
+        )
         contiguousin = input.flags.contiguous
         contiguousout = output.flags.contiguous
 

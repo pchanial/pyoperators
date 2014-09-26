@@ -6,7 +6,7 @@ import os
 from .. import config
 
 try:
-    if config.PYOPERATORS_NO_MPI:
+    if config.NO_MPI:
         raise ImportError()
     from mpi4py import MPI
 except ImportError:
