@@ -4,6 +4,8 @@ PyOperators
 
 The PyOperators package defines operators and solvers for high-performance computing. These operators are multi-dimensional functions with optimised and controlled memory management. If linear, they behave like matrices with a sparse storage footprint.
 
+More documentation can be found here: http://pchanial.github.io/pyoperators.
+
 Getting started
 ===============
 
