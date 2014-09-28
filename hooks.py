@@ -38,7 +38,6 @@ F2PY_TABLE = {'integer': {'int8': 'char',
                        'real64': 'double'},
               'complex': {'real32': 'complex_float',
                           'real64': 'complex_double'}}
-RECOMPILE_CYTHON = False
 REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
 REQUIRES_FORTRAN = False
 
@@ -54,6 +53,11 @@ from numpy.distutils.core import Command
 from numpy.distutils.extension import Extension
 from subprocess import call, Popen, PIPE
 from warnings import filterwarnings
+try:
+    from Cython.Build import cythonize
+    USE_CYTHON = True
+except ImportError:
+    USE_CYTHON = False
 
 try:
     root = os.path.dirname(os.path.abspath(__file__))
@@ -146,9 +150,8 @@ def get_cmdclass():
 
 def get_extension(name, sources, **keywords):
     if any(_.endswith('.pyx') for _ in sources):
-        if RECOMPILE_CYTHON:
-            from Cython.Build import cythonize
-            return cythonize([Extension(name, sources, **keywords)])[0]
+        if USE_CYTHON:
+            return cythonize([Extension(name, sources, **keywords)], force=True)[0]
         sources = [_[:-3] + 'c' if _.endswith('.pyx') else _
                    for _ in sources]
     return Extension(name, sources, **keywords)
