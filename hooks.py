@@ -35,12 +35,16 @@ F2PY_TABLE = {
     'real': {'real32': 'float', 'real64': 'double'},
     'complex': {'real32': 'complex_float', 'real64': 'complex_double'},
 }
-RECOMPILE_CYTHON = False
 REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
-REQUIRES_FORTRAN = False
+try:
+    import os
+    from Cython.Build import cythonize
+
+    USE_CYTHON = bool(int(os.getenv('SETUPHOOKS_USE_CYTHON', '1') or '0'))
+except ImportError:
+    USE_CYTHON = False
 
 import numpy
-import os
 import re
 import sys
 from numpy.distutils.command.build import build
@@ -48,7 +52,7 @@ from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.build_src import build_src
 from numpy.distutils.command.sdist import sdist
 from numpy.distutils.core import Command
-from numpy.distutils.extension import Extension
+from numpy.distutils.misc_util import has_f_sources
 from subprocess import call, Popen, PIPE
 from warnings import filterwarnings
 
@@ -79,7 +83,19 @@ def get_cmdclass():
 
     class BuildExtCommand(build_ext):
         def run(self):
-            if REQUIRES_FORTRAN:
+            has_fortran = False
+            has_cython = False
+            for ext in self.extensions:
+                has_fortran = has_fortran or has_f_sources(ext.sources)
+                for isource, source in enumerate(ext.sources):
+                    if source.endswith('.pyx'):
+                        if USE_CYTHON:
+                            has_cython = True
+                        else:
+                            ext.sources[isource] = source[:-3] + 'c'
+            if has_cython:
+                self.extensions = cythonize(self.extensions, force=True)
+            if has_fortran:
                 with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
                     f.write(repr(F2PY_TABLE))
             build_ext.run(self)
@@ -148,16 +164,6 @@ def get_cmdclass():
         'sdist': SDistCommand,
         'test': TestCommand,
     }
-
-
-def get_extension(name, sources, **keywords):
-    if any(_.endswith('.pyx') for _ in sources):
-        if RECOMPILE_CYTHON:
-            from Cython.Build import cythonize
-
-            return cythonize([Extension(name, sources, **keywords)])[0]
-        sources = [_[:-3] + 'c' if _.endswith('.pyx') else _ for _ in sources]
-    return Extension(name, sources, **keywords)
 
 
 def get_version(name, default):
