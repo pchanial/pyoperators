@@ -1,12 +1,9 @@
 #!/usr/bin/env python
 import numpy as np
-import hooks
 from hooks import get_extension, get_cmdclass, get_version
 from numpy.distutils.core import setup
 
 VERSION = '0.12'
-
-hooks.RECOMPILE_CYTHON = False
 
 name = 'pyoperators'
 long_description = open('README.rst').read()
