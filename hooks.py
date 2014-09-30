@@ -37,6 +37,12 @@ F2PY_TABLE = {
 }
 REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
 REQUIRES_FORTRAN = False
+try:
+    from Cython.Build import cythonize
+
+    USE_CYTHON = True
+except ImportError:
+    USE_CYTHON = False
 
 import numpy
 import os
@@ -50,13 +56,6 @@ from numpy.distutils.core import Command
 from numpy.distutils.extension import Extension
 from subprocess import call, Popen, PIPE
 from warnings import filterwarnings
-
-try:
-    from Cython.Build import cythonize
-
-    USE_CYTHON = True
-except ImportError:
-    USE_CYTHON = False
 
 try:
     root = os.path.dirname(os.path.abspath(__file__))
