@@ -143,6 +143,9 @@ class PCGAlgorithm(IterativeAlgorithm):
 def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         callback=None, reuse_initial_state=False):
     """
+    output = pcg(A, b, [x0, tol, maxiter, M, disp, callback,
+                 reuse_initial_state])
+
     Parameters
     ----------
     A : {Operator, sparse matrix, dense matrix}
@@ -178,6 +181,11 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
         'x' : the converged solution.
         'success' : boolean indicating success
         'message' : string indicating cause of failure
+        'nit' : number of completed iterations
+        'error' : normalized residual ||Ax-b|| / ||b||
+        'time' : elapsed time in solver
+        'algorithm' : the PCGAlgorithm instance (the callback function has
+                      access to it and can store information in it)
 
     """
     time0 = time.time()
@@ -197,7 +205,8 @@ def pcg(A, b, x0=None, tol=1.e-5, maxiter=300, M=None, disp=False,
             'message': message,
             'nit': algo.niterations,
             'error': algo.error,
-            'time': time.time() - time0}
+            'time': time.time() - time0,
+            'algorithm': algo}
 
 
 def _norm2(x, comm):
