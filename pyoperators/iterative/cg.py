@@ -172,6 +172,9 @@ def pcg(
     reuse_initial_state=False,
 ):
     """
+    output = pcg(A, b, [x0, tol, maxiter, M, disp, callback,
+                 reuse_initial_state])
+
     Parameters
     ----------
     A : {Operator, sparse matrix, dense matrix}
@@ -207,6 +210,11 @@ def pcg(
         'x' : the converged solution.
         'success' : boolean indicating success
         'message' : string indicating cause of failure
+        'nit' : number of completed iterations
+        'error' : normalized residual ||Ax-b|| / ||b||
+        'time' : elapsed time in solver
+        'algorithm' : the PCGAlgorithm instance (the callback function has
+                      access to it and can store information in it)
 
     """
     time0 = time.time()
@@ -236,6 +244,7 @@ def pcg(
         'nit': algo.niterations,
         'error': algo.error,
         'time': time.time() - time0,
+        'algorithm': algo,
     }
 
 
