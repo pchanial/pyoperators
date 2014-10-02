@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import numpy as np
-from hooks import get_extension, get_cmdclass, get_version
+from hooks import get_cmdclass, get_version
 from numpy.distutils.core import setup
+from numpy.distutils.extension import Extension
 
 VERSION = '0.12'
 
@@ -11,14 +12,12 @@ keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
 
 ext_modules = [
-    get_extension(
+    Extension(
         "pyoperators.utils.cythonutils",
         sources=["pyoperators/utils/cythonutils.pyx"],
         include_dirs=[np.get_include()],
     ),
-    get_extension(
-        "pyoperators.utils.ufuncs", sources=["pyoperators/utils/ufuncs.c.src"]
-    ),
+    Extension("pyoperators.utils.ufuncs", sources=["pyoperators/utils/ufuncs.c.src"]),
 ]
 
 setup(
