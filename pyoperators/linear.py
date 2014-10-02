@@ -386,27 +386,11 @@ class DenseOperator(DenseBlockDiagonalOperator):
 @contiguous
 @update_output
 class SparseBase(Operator):
-    def __init__(self, matrix, dtype=None, shapein=None, shapeout=None, **keywords):
+    def __init__(self, matrix, dtype=None, **keywords):
         if dtype is None:
             dtype = matrix.dtype
-        if shapein is None:
-            shapein = matrix.shape[1]
-        elif product(shapein) != matrix.shape[1]:
-            raise ValueError(
-                "The input shape '{0}' is incompatible with the sparse matrix "
-                "shape {1}.".format(shapein, matrix.shape)
-            )
-        if shapeout is None:
-            shapeout = matrix.shape[0]
-        elif product(shapeout) != matrix.shape[0]:
-            raise ValueError(
-                "The output shape '{0}' is incompatible with the sparse matrix"
-                " shape {1}.".format(shapeout, matrix.shape)
-            )
         self.matrix = matrix
-        Operator.__init__(
-            self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
-        )
+        Operator.__init__(self, dtype=dtype, **keywords)
 
     @property
     def nbytes(self):
@@ -470,6 +454,20 @@ class SparseOperator(SparseBase):
         if isinstance(matrix, sp.lil_matrix):
             raise TypeError(
                 'The LIL format is not suited for arithmetic opera' 'tions.'
+            )
+        if shapein is None:
+            shapein = matrix.shape[1]
+        elif product(shapein) != matrix.shape[1]:
+            raise ValueError(
+                "The input shape '{0}' is incompatible with the sparse matrix "
+                "shape {1}.".format(shapein, matrix.shape)
+            )
+        if shapeout is None:
+            shapeout = matrix.shape[0]
+        elif product(shapeout) != matrix.shape[0]:
+            raise ValueError(
+                "The output shape '{0}' is incompatible with the sparse matrix"
+                " shape {1}.".format(shapeout, matrix.shape)
             )
         SparseBase.__init__(
             self, matrix, dtype=dtype, shapein=shapein, shapeout=shapeout, **keywords
