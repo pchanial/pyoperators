@@ -1172,23 +1172,24 @@ class Operator(object):
         if validateout is not None:
             self.validateout = validateout
 
-        shapein = tointtuple(shapein)
-        shapeout = tointtuple(shapeout)
-        self.shapein = shapein
-        self.shapeout = shapeout
-        if shapein is not None:
-            shapeout = tointtuple(self.reshapein(shapein))
+        self.shapein = tointtuple(shapein)
+        self.shapeout = tointtuple(shapeout)
+        if self.shapein is not None:
+            shapeout = tointtuple(self.reshapein(self.shapein))
             if self.shapeout is None:
                 self.shapeout = shapeout
-        if shapeout is not None:
-            shapein = tointtuple(self.reshapeout(shapeout))
+            else:
+                self.validateout(shapeout)
+        if self.shapeout is not None:
+            shapein = tointtuple(self.reshapeout(self.shapeout))
             if self.shapein is None:
                 self.shapein = shapein
-
-        if shapein is not None:
-            self.validatein(shapein)
-        if shapeout is not None:
-            self.validateout(shapeout)
+            else:
+                self.validatein(shapein)
+        if self.shapein is not None:
+            self.validatein(self.shapein)
+        if self.shapeout is not None:
+            self.validateout(self.shapeout)
 
         if self.shapein is not None and self.shapeout is not None:
             self._set_flags(square=self.shapein == self.shapeout)
@@ -1200,7 +1201,6 @@ class Operator(object):
                 self.shapeout = self.shapein
             self.reshapein = lambda x: x
             self.reshapeout = self.reshapein
-            self.validatein = self.validatein or self.validateout
             self.validateout = self.validatein
             if (
                 self.toshapein.im_func is Operator.toshapein.im_func
@@ -1237,16 +1237,12 @@ class Operator(object):
         )
         self._set_flags(shape_input=flag_is, shape_output=flag_os)
 
-        if flag_is == 'explicit':
+        if self.flags.shape_input == 'explicit':
             self.reshapeout = Operator.reshapeout.__get__(self, type(self))
             self.validatein = Operator.validatein.__get__(self, type(self))
-        if flag_os == 'explicit':
-            if self.flags.square:
-                self.reshapein = self.reshapeout
-                self.validateout = self.validatein
-            else:
-                self.reshapein = Operator.reshapein.__get__(self, type(self))
-                self.validateout = Operator.validateout.__get__(self, type(self))
+        if self.flags.shape_output == 'explicit':
+            self.reshapein = Operator.reshapein.__get__(self, type(self))
+            self.validateout = Operator.validateout.__get__(self, type(self))
 
     def _init_name(self, name):
         """Set operator's __name__ attribute."""
