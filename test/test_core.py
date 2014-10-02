@@ -93,10 +93,6 @@ def assert_is_inttuple(shape, msg=''):
 def assert_square(op, msg=''):
     assert_flags(op, 'square', msg)
     assert_eq(op.shapein, op.shapeout)
-    assert_eq(op.reshapein, op.reshapeout)
-    assert_eq(op.validatein, op.validateout)
-    if op.shapein is None:
-        assert_eq(op.toshapein, op.toshapeout)
 
 
 SHAPES = (None, (), (1,), (3,), (2, 3))
