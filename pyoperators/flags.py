@@ -99,7 +99,8 @@ def symmetric(cls):
     """
     Decorator for symmetric operators, i.e. operators that are equal to their
     transpose.
-    It sets the 'linear' and 'symmetric' flags.
+    It sets the 'linear' and 'symmetric' flags. Note that implicit shape
+    symmetric operators do not have to be square.
 
     """
     return flags(cls, 'symmetric')
@@ -109,7 +110,8 @@ def hermitian(cls):
     """
     Decorator for hermitian operators, i.e. operators that are equal to their
     adjoint.
-    It sets the 'linear' and 'hermitian' flags.
+    It sets the 'linear' and 'hermitian' flags. Note that implicit shape
+    hermitian operators do not have to be square.
 
     """
     return flags(cls, 'hermitian')
@@ -129,7 +131,8 @@ def involutary(cls):
     """
     Decorator for involutary operators, i.e. operators whose composition
     by themselves is equal to the identity.
-    It sets the 'involutary' flag.
+    It sets the 'involutary' flag. Note that implicit shape involutary
+    operators do not have to be square.
 
     """
     return flags(cls, 'involutary')
@@ -139,7 +142,8 @@ def orthogonal(cls):
     """
     Decorator for orthogonal operators, i.e. real operators whose composition
     by their transpose is equal to the identity.
-    It sets the 'real', 'linear' and 'orthogonal' flags.
+    It sets the 'real', 'linear' and 'orthogonal' flags. Note that implicit
+    shape orthogonal operators do not have to be square.
 
     """
     return flags(cls, 'orthogonal')
@@ -149,7 +153,8 @@ def unitary(cls):
     """
     Decorator for orthogonal operators, i.e. operators whose composition
     by their adjoint is equal to the identity.
-    It sets the 'linear' and 'unitary' flags.
+    It sets the 'linear' and 'unitary' flags. Note that implicit shape
+    unitary operators do not have to be square.
 
     """
     return flags(cls, 'unitary')
