@@ -1286,6 +1286,7 @@ class UpperTriangularOperator(BandOperator):
         BandOperator.__init__(self, ab, kl, ku, **kwargs)
 
 
+@square
 @symmetric
 class SymmetricBandOperator(Operator):
     """
@@ -1360,6 +1361,7 @@ class SymmetricBandOperator(Operator):
 
 @real
 @linear
+@square
 @symmetric
 @inplace
 class SymmetricBandToeplitzOperator(Operator):
@@ -1492,6 +1494,7 @@ class DifferenceOperator(Operator):
         return tuple(shape)
 
 
+@square
 @symmetric
 class EigendecompositionOperator(CompositionOperator):
     """
