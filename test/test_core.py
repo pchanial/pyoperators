@@ -147,6 +147,7 @@ def test_flags():
 def test_symmetric():
     mat = np.matrix([[2, 1], [1, 2]])
 
+    @flags.square
     @flags.symmetric
     class Op(Operator):
         def __init__(self):

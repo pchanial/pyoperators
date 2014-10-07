@@ -1092,15 +1092,10 @@ class Operator(object):
             self.flags = flags
             return
         flags = self.validate_flags(flags, **keywords)
-        true_flags = [k for k, v in flags.items() if v is True]
-        if any(_ in true_flags
-               for _ in ['hermitian', 'involutary', 'orthogonal', 'symmetric',
-                         'unitary']):
-            if true_flags != ('involutary',):
+        for flag in ('hermitian', 'orthogonal', 'symmetric', 'unitary'):
+            if flags.get(flag, False):
                 flags['linear'] = True
-            # custom reshapein override the square flag
-            if self.reshapein == Operator.reshapein.__get__(self, type(self)):
-                flags['square'] = True
+                break
         self.flags = self.flags._replace(**flags)
 
     def _validate_arguments(self, input, output):
@@ -1439,6 +1434,7 @@ class DeletedOperator(Operator):
 
 
 @real
+@square
 @symmetric
 @idempotent
 @involutary
@@ -3584,6 +3580,7 @@ class BroadcastingBase(Operator):
         return np.lib.stride_tricks.as_strided(self.data, shape, strides)
 
 
+@square
 @symmetric
 class DiagonalBase(BroadcastingBase):
     """

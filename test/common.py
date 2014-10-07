@@ -122,6 +122,7 @@ class IdentityOutplaceOperator(Operator):
 
 @flags.linear
 @flags.real
+@flags.square
 @flags.symmetric
 class HomothetyOutplaceOperator(Operator):
     def __init__(self, value, **keywords):
