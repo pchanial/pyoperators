@@ -733,9 +733,21 @@ class Operator(object):
             self._generate_associated_operators()
         return self._I
 
-    def copy(self):
-        """Return a copy of the operator."""
-        return copy.copy(self)
+    def copy(self, target=None):
+        """Return a shallow copy of the operator."""
+
+        class Target(object):
+            pass
+
+        if target is None:
+            target = Target()
+        target.__class__ = self.__class__
+        for k, v in self.__dict__.items():
+            if isinstance(v, types.MethodType) and v.__self__ is self:
+                target.__dict__[k] = types.MethodType(v.__func__, target)
+            else:
+                target.__dict__[k] = v
+        return target
 
     @staticmethod
     def _find_common_type(dtypes):
@@ -1815,8 +1827,7 @@ class CommutativeCompositeOperator(CompositeOperator):
         keywords = self._get_attributes(operands, **keywords)
         operands = self._apply_rules(operands)
         if len(operands) == 1 and self.morph_single_operand:
-            self.__class__ = operands[0].__class__
-            self.__dict__ = operands[0].__dict__.copy()
+            operands[0].copy(self)
             self._reset(**keywords)
             return
         CompositeOperator.__init__(self, operands, **keywords)
@@ -2297,8 +2308,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         operands = self._validate_operands(operands)
         operands = self._apply_rules(operands)
         if len(operands) == 1 and self.morph_single_operand:
-            self.__class__ = operands[0].__class__
-            self.__dict__ = operands[0].__dict__.copy()
+            operands[0].copy(self)
+            self._reset(**keywords)
             return
         keywords = self._get_attributes(operands, **keywords)
         self._info = {}
@@ -2926,8 +2937,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
 
         operands = self._validate_operands(operands)
         if len(operands) == 1:
-            self.__class__ = operands[0].__class__
-            self.__dict__ = operands[0].__dict__.copy()
+            operands[0].copy(self)
+            self._reset(**keywords)
             return
 
         if (
