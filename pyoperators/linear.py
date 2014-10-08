@@ -9,7 +9,7 @@ except:
     pass
 import scipy.sparse as sp
 import sys
-from itertools import izip
+
 from scipy.sparse.linalg import eigsh
 from .core import (
     BlockRowOperator, BroadcastingBase, CompositionOperator, ConstantOperator,
@@ -344,7 +344,7 @@ class SparseBase(Operator):
         if isinstance(m, sp.dok_matrix):
             sizeoftuple = sys.getsizeof(())
             return (24 * m.ndim + m.dtype.itemsize +
-                    2 * sizeoftuple + 24) * len(m.viewitems())
+                    2 * sizeoftuple + 24) * len(m.items())
         try:
             return m.data.nbytes
         except AttributeError:
@@ -419,7 +419,7 @@ class SparseOperator(SparseBase):
             raise ValueError('Invalid reduction operation.')
         m = self.matrix
         if isinstance(m, sp.dok_matrix):
-            for (i, j), v in m.iteritems():
+            for (i, j), v in m.items():
                 output[i] += v * input[j]
             return
         M, N = m.shape
@@ -1206,10 +1206,10 @@ class BandOperator(Operator):
         # diag
         out[:] = self.ab[self.ku] * x
         # upper part
-        for i in xrange(self.ku):
+        for i in range(self.ku):
             j = self.ku - i
             out[:-j] += self.ab[i, j:] * x[j:]
-        for i in xrange(self.ku, self.kl + self.ku):
+        for i in range(self.ku, self.kl + self.ku):
             # lower part
             out[i:] += self.ab[i + 1, :-i] * x[:-i]
 
@@ -1219,10 +1219,10 @@ class BandOperator(Operator):
         # diag
         out = self.rab[self.ku] * x
         # upper part
-        for i in xrange(rku):
+        for i in range(rku):
             j = rku - i
             out[:-j] += rab[i, j:] * x[j:]
-        for i in xrange(rku, rkl + rku):
+        for i in range(rku, rkl + rku):
             # lower part
             out[i:] += rab[i + 1, :-i] * x[:-i]
 
@@ -1246,7 +1246,7 @@ class BandOperator(Operator):
         kl, ku = self.kl, self.ku
         rku, rkl = kl, ku
         rab = np.zeros(ab.shape, dtype=ab.dtype)
-        for i in xrange(- kl, ku + 1):
+        for i in range(- kl, ku + 1):
             rab[_band_diag(rku, -i)] = self.diag(i)
         return rab
 
@@ -1307,7 +1307,7 @@ class SymmetricBandOperator(Operator):
 
     def direct(self, x, out):
         out[:] = self.ab[0] * x
-        for i in xrange(1, self.ab.shape[0]):
+        for i in range(1, self.ab.shape[0]):
             # upper part
             out[:-i] += self.ab[i, :-i] * x[i:]
             # lower part
@@ -1451,7 +1451,7 @@ class SymmetricBandToeplitzOperator(Operator):
                     dtype):
         firstrow = firstrow.reshape((-1, ncorr + 1))
         kernel = empty((firstrow.shape[0], fftsize // 2 + 1), dtype)
-        for f, k in izip(firstrow, kernel):
+        for f, k in zip(firstrow, kernel):
             rbuffer[:ncorr+1] = f
             rbuffer[ncorr+1:-ncorr] = 0
             rbuffer[-ncorr:] = f[:0:-1]

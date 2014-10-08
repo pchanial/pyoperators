@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
+import sys
 from hooks import get_cmdclass, get_version
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
@@ -10,12 +11,14 @@ name = 'pyoperators'
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
+define_macros = [] if sys.version_info.major == 2 else [('NPY_PY3K', None)]
 
 ext_modules = [Extension("pyoperators.utils.cythonutils",
                          sources=["pyoperators/utils/cythonutils.pyx"],
                          include_dirs=[np.get_include()]),
                Extension("pyoperators.utils.ufuncs",
-                         sources=["pyoperators/utils/ufuncs.c.src"])]
+                         sources=["pyoperators/utils/ufuncs.c.src"],
+                         define_macros=define_macros)]
 
 setup(name=name,
       version=get_version(name, VERSION),
@@ -38,7 +41,12 @@ setup(name=name,
       license='CeCILL-B',
       classifiers=[
           'Programming Language :: Python',
-          'Programming Language :: Python :: 2 :: Only',
+          'Programming Language :: Python :: 2',
+          'Programming Language :: Python :: 2.6',
+          'Programming Language :: Python :: 2.7',
+          'Programming Language :: Python :: 3',
+          'Programming Language :: Python :: 3.3',
+          'Programming Language :: Python :: 3.4',
           'Programming Language :: C',
           'Programming Language :: Cython',
           'Development Status :: 4 - Beta',
