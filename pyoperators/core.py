@@ -6,15 +6,15 @@ Operator docstring for more information.
 """
 
 from __future__ import absolute_import, division, print_function
-import copy
 import inspect
 import numpy as np
 import operator
 import pyoperators as po
 import scipy.sparse as sp
+import sys
 import types
 from collections import MutableMapping, MutableSequence, MutableSet
-from itertools import groupby, izip
+from itertools import groupby
 from . import config
 from .flags import (
     Flags,
@@ -47,6 +47,7 @@ from .utils import (
     tointtuple,
 )
 from .utils.mpi import MPI
+import collections
 
 __all__ = [
     'Operator',
@@ -345,7 +346,7 @@ class Operator(object):
         of the new class.
         """
         if None not in (self.classout, cls) and self.classout is not cls:
-            for a in attr.keys():
+            for a in list(attr.keys()):
                 if isclassattr(a, cls) and not isclassattr(a, self.classout):
                     del attr[a]
         if 'shape_global' in attr:
@@ -536,14 +537,14 @@ class Operator(object):
         if not inplace or not self.flags.inplace:
             v = zeros(n, dtype)
             if not self.flags.aligned_output:
-                for i in xrange(n):
+                for i in range(n):
                     v[i] = 1
                     o = d[i, :].reshape(shapeout)
                     self.direct(v.reshape(shapein), o)
                     v[i] = 0
             else:
                 o = empty(shapeout, dtype)
-                for i in xrange(n):
+                for i in range(n):
                     v[i] = 1
                     self.direct(v.reshape(shapein), o)
                     d[i, :] = o.ravel()
@@ -554,7 +555,7 @@ class Operator(object):
         u = empty(max(m, n), dtype)
         v = u[:n]
         w = u[:m]
-        for i in xrange(n):
+        for i in range(n):
             v[:] = 0
             v[i] = 1
             self.direct(v.reshape(shapein), w.reshape(shapeout))
@@ -1777,9 +1778,9 @@ class CompositeOperator(Operator):
         if isinstance(self, AdditionOperator):
             op = ' + '
         elif isinstance(self, MultiplicationOperator):
-            op = u' {0} '.format(u'\u00d7').encode('utf-8')
+            op = u' \u00d7 '
         elif isinstance(self, (BlockDiagonalOperator, BlockSliceOperator)):
-            op = u' {0} '.format(u'\u2295').encode('utf-8')
+            op = u' \u2295 '
         else:
             op = ' * '
 
@@ -1802,7 +1803,10 @@ class CompositeOperator(Operator):
             if self.operands[0].data == -1:
                 operands[0] += '1'
 
-        return op.join(operands)
+        op = op.join(operands)
+        if sys.version_info.major == 2:
+            op = op.encode('utf-8')
+        return op
 
     def __repr__(self):
         r = self.__name__ + '(['
@@ -2575,7 +2579,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 "n unconstrained output shape operator is ambiguous."
             )
         dtypes = self._get_dtypes(input.dtype)
-        sizes = [product(s) * d.itemsize for s, d in izip(shapes, dtypes)]
+        sizes = [product(s) * d.itemsize for s, d in zip(shapes, dtypes)]
 
         ninplaces, aligneds, contiguouss = self._get_requirements()
 
@@ -3925,7 +3929,7 @@ class BlockRowOperator(BlockOperator):
             self._need_temporary, output.shape, output.dtype, self.__name__
         ) as buf:
 
-            for op, sin in zip(self.operands, sins)[1:]:
+            for op, sin in zip(self.operands[1:], sins[1:]):
                 i = input[sin]
                 with _pool.copy_if(
                     i, op.flags.aligned_input, op.flags.contiguous_input
@@ -4903,7 +4907,7 @@ def asoperator(x, constant=False, **keywords):
             **keywords,
         )
 
-    if callable(x):
+    if isinstance(x, collections.Callable):
 
         def direct(input, output):
             output[...] = x(input)

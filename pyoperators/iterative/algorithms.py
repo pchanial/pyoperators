@@ -60,7 +60,7 @@ class Algorithm(object):
         """
         Perform n iterations and return current solution.
         """
-        for i in xrange(n):
+        for i in range(n):
             self.iter_ += 1
             self.callback(self)
         return self.current_solution

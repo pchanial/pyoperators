@@ -11,11 +11,14 @@ import os
 import signal
 import timeit
 import types
-
+import sys
 from contextlib import contextmanager
-from itertools import izip
 from . import cythonutils as cu
 from ..warnings import warn, PyOperatorsDeprecationWarning
+
+# Python 2 backward compatibility
+if sys.version_info.major == 2:
+    zip = itertools.izip
 
 __all__ = [
     'all_eq',
@@ -108,7 +111,7 @@ def all_eq(a, b):
             if not all_eq(a[k], b[k]):
                 return False
         return True
-    if isinstance(a, (str, unicode)):
+    if isinstance(a, str):
         if type(a) is not type(b):
             return False
         return a == b
@@ -121,18 +124,18 @@ def all_eq(a, b):
             return False
         if len(a) != len(b):
             return False
-        for a_, b_ in izip(a, b):
+        for a_, b_ in zip(a, b):
             if not all_eq(a_, b_):
                 return False
         return True
     if isinstance(a, types.MethodType):
         if type(a) is not type(b):
             return False
-        return a.im_class is b.im_class and a.im_func is b.im_func
+        return a.__self__.__class__ is b.__self__.__class__ and a.__func__ is b.__func__
     if isinstance(a, types.LambdaType):
         if type(a) is not type(b):
             return False
-        return a.func_code is b.func_code
+        return a.__code__ is b.__code__
     return a == b
 
 
@@ -309,8 +312,9 @@ def groupbykey(iterable, key):
     value of key.
 
     """
-    iterator = izip(iterable, key)
+    iterator = zip(iterable, key)
     i, value = next(iterator)
+
     l = [i]
     for i, k in iterator:
         if k == value:
@@ -346,7 +350,7 @@ def ifirst(l, match):
 
     """
     try:
-        if not callable(match):
+        if not isinstance(match, collections.Callable):
             return next((i for i, _ in enumerate(l) if _ == match))
         return next((i for i, _ in enumerate(l) if match(_)))
     except StopIteration:
@@ -528,7 +532,7 @@ def izip_broadcast(*args):
 
     if any(not hasattr(a, '__len__') or len(a) != 1 for a in args):
         args = [wrap(arg) for arg in args]
-    return izip(*args)
+    return zip(*args)
 
 
 def last(l, f):
@@ -592,7 +596,7 @@ def least_greater_multiple(a, l, out=None):
     slices = [slice(0, m + 1) for m in max_power]
     powers = np.ogrid[slices]
     values = 1
-    for v, p in izip(l, powers):
+    for v, p in zip(l, powers):
         values = values * v**p
     for v, o in it:
         if np.__version__ < '2':
@@ -627,9 +631,9 @@ def merge_none(a, b):
         return None
     if len(a) != len(b):
         raise ValueError('The input sequences do not have the same length.')
-    if any(p != q for p, q in izip(a, b) if None not in (p, q)):
+    if any(p != q for p, q in zip(a, b) if None not in (p, q)):
         raise ValueError('The input sequences have incompatible values.')
-    return tuple(p if p is not None else q for p, q in izip(a, b))
+    return tuple(p if p is not None else q for p, q in zip(a, b))
 
 
 class ndarraywrap(np.ndarray):
@@ -659,7 +663,7 @@ operation_symbol = {
     operator.iadd: '+',
     operator.isub: '-',
     operator.imul: '*',
-    operator.idiv: '/',
+    operator.itruediv: '/',
 }
 
 
@@ -712,7 +716,9 @@ def product(a):
 
 def renumerate(l):
     """Reversed enumerate."""
-    return izip(xrange(len(l) - 1, -1, -1), reversed(l))
+    if isinstance(l, collections.Iterable):
+        l = list(l)
+    return zip(range(len(l) - 1, -1, -1), reversed(l))
 
 
 def reshape_broadcast(x, shape):

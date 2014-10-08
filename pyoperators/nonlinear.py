@@ -2,8 +2,8 @@
 from __future__ import absolute_import, division, print_function
 import numexpr
 
-if numexpr.__version__ < 2.0:
-    raise ImportError('Please update numexpr to a newer version > 2.0.')
+if numexpr.__version__ < '2.0':
+    raise ImportError('Please update numexpr to a newer version >= 2.0.')
 
 import numpy as np
 import pyoperators as po
