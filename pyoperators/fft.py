@@ -557,10 +557,10 @@ def _load_wisdom():
 
     def load(filename):
         try:
-            with open(filename) as f:
+            with open(filename, 'rb') as f:
                 wisdom = f.read()
         except IOError:
-            wisdom = ''
+            wisdom = b''
         return wisdom
 
     wisdom = [load(f) for f in FFTW_WISDOM_FILES]

@@ -1,6 +1,7 @@
 from __future__ import division
 import numpy as np
 import scipy.sparse as sp
+import sys
 from numpy.testing import assert_equal
 from pyoperators import (
     AdditionOperator,
@@ -22,6 +23,7 @@ COMPOSITES = (
     CompositionOperator,
     MultiplicationOperator,
 )
+PYTHON2 = sys.version_info.major == 2
 
 
 class Op1(Operator):
@@ -42,7 +44,7 @@ def test_sparse():
         sp.dia_matrix,
         sp.dok_matrix,
     )
-    expecteds = 224, 184, 192, 184, 308, 2688
+    expecteds = 224, 184, 192, 184, 308, 2688 if PYTHON2 else 2464
 
     def func(matrix, expected):
         op = SparseOperator(matrix(D))

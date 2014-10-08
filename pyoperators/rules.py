@@ -6,6 +6,7 @@ import os
 from . import config
 from .core import HomothetyOperator, IdentityOperator, Operator, ZeroOperator
 from .warnings import warn, PyOperatorsWarning
+import collections
 
 __all__ = ['rule_manager']
 _triggers = {}
@@ -70,7 +71,7 @@ class Rule(object):
         if isinstance(self.predicate, types.FunctionType):
             if type(self.predicate) is not type(other.predicate):
                 return False
-            return self.predicate.func_code is other.predicate.func_code
+            return self.predicate.__code__ is other.predicate.__code__
         if isinstance(self.predicate, str):
             return self.predicate == other.predicate
         return self.predicate is other.predicate
@@ -159,7 +160,7 @@ class UnaryRule(Rule):
             raise ValueError('This is not a unary rule.')
         if self.subjects[0] == '.':
             raise ValueError('The subject cannot be the operator itself.')
-        if callable(predicate) or predicate in ('.', '1'):
+        if isinstance(predicate, collections.Callable) or predicate in ('.', '1'):
             return
         raise ValueError("Invalid predicate: '{0}'.".format(predicate))
 
@@ -167,7 +168,9 @@ class UnaryRule(Rule):
         predicate = self._symbol2operator(reference, self.predicate)
         if predicate is None:
             return None
-        if not isinstance(predicate, Operator) and callable(predicate):
+        if not isinstance(predicate, Operator) and isinstance(
+            predicate, collections.Callable
+        ):
             predicate = predicate(reference)
         if not isinstance(predicate, Operator):
             raise TypeError('The predicate is not an operator.')
@@ -241,7 +244,9 @@ class BinaryRule(Rule):
         if predicate is None:
             return None
 
-        if not isinstance(predicate, Operator) and callable(predicate):
+        if not isinstance(predicate, Operator) and isinstance(
+            predicate, collections.Callable
+        ):
             predicate = predicate(o1, o2)
         if predicate is None:
             return None

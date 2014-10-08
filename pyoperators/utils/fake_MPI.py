@@ -1,7 +1,10 @@
 """
 MPI-wrapper module for non-MPI enabled platforms.
 """
-import __builtin__
+try:
+    import builtins
+except ImportError:
+    import __builtin__ as builtins
 
 _g = globals()
 _constants = (
@@ -216,11 +219,11 @@ COMM_SELF = Comm(0, 1)
 COMM_WORLD = Comm(0, 1)
 
 
-class Exception(__builtin__.Exception):
+class Exception(builtins.Exception):
     """Exception.__init__(self, int ierr=0)"""
 
     def __init__(self, ierr=0):
         pass
 
 
-del _g, _constants, __builtin__
+del _g, _constants, builtins

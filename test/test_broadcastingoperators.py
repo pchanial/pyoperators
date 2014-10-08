@@ -505,14 +505,14 @@ def test_partition():
             shape = tuple(range(2, 2 + ndims))
 
             def sfunc1(ndim):
-                s = range(2, ndim + 2)
+                s = list(range(2, ndim + 2))
                 data = np.arange(product(s)).reshape(s) + 2
                 if cls is MaskOperator:
                     data = (data % 2).astype(bool)
                 return data
 
             def sfunc2(ndim):
-                s = range(2 + ndims - ndim, 2 + ndims)
+                s = list(range(2 + ndims - ndim, 2 + ndims))
                 data = np.arange(product(s)).reshape(s) + 2
                 if cls is MaskOperator:
                     data = (data % 2).astype(bool)

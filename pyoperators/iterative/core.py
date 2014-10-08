@@ -13,6 +13,12 @@ from ..utils import strenum, uninterruptible_if
 from ..memory import empty
 from .stopconditions import NoStopCondition
 
+# Python 2 backward compatibility
+try:
+    range = xrange
+except NameError:
+    pass
+
 __all__ = ['AbnormalStopIteration', 'IterativeAlgorithm']
 
 NO_STOP_CONDITION = NoStopCondition()
@@ -223,7 +229,7 @@ class IterativeAlgorithm(object):
         """Perform n iterations and return current solution."""
         if self.niterations == self.order - 1:
             self.initialize()
-        for i in xrange(n):
+        for i in range(n):
             with uninterruptible_if(self.clean_interrupt):
                 self._check_stop_conditions()
                 self.niterations += 1
@@ -238,6 +244,9 @@ class IterativeAlgorithm(object):
                 self.callback(self)
                 self._update_variables()
         return self.finalize()
+
+    def __next__(self):
+        return self.next()
 
     def iteration(self):
         """
@@ -326,7 +335,7 @@ class IterativeAlgorithm(object):
         """Set the callback function, if specified."""
         if callback is None:
             return
-        if not callable(callback):
+        if not isinstance(callback, collections.Callable):
             raise TypeError('The callback function is not callable.')
         self.callback = callback
 
@@ -400,7 +409,9 @@ class IterativeAlgorithm(object):
 
     def _set_stop_conditions(self, normal_stop, abnormal_stop):
         """Set the stop conditions."""
-        if not callable(normal_stop) or not callable(abnormal_stop):
+        if not isinstance(normal_stop, collections.Callable) or not isinstance(
+            abnormal_stop, collections.Callable
+        ):
             raise TypeError('The stop conditions must be callable.')
         self.normal_stop_condition = normal_stop
         self.abnormal_stop_condition = abnormal_stop

@@ -80,7 +80,7 @@ class WaveletOperator(Operator):
     def _vect2coeffs(self, vect):
         return [
             vect[self.cumsizes[i] : self.cumsizes[i + 1]]
-            for i in xrange(len(self.sizes))
+            for i in range(len(self.sizes))
         ]
 
 
@@ -125,7 +125,7 @@ class Wavelet2dOperator(Operator):
         approx = coeffs[0]
         details = coeffs[1:]
         self.shapes = [approx.shape]
-        self.shapes += [d[i].shape for d in details for i in xrange(3)]
+        self.shapes += [d[i].shape for d in details for i in range(3)]
         self.sizes = [np.prod(s) for s in self.shapes]
         self.cumsizes = np.zeros(len(self.sizes) + 1)
         np.cumsum(self.sizes, out=self.cumsizes[1:])
@@ -150,7 +150,7 @@ class Wavelet2dOperator(Operator):
         details = coeffs[1:]
         # transform 2d arrays into vectors
         vect_coeffs = [approx.ravel()]
-        vect_coeffs += [d[i].ravel() for d in details for i in xrange(3)]
+        vect_coeffs += [d[i].ravel() for d in details for i in range(3)]
         # put everything into a single coefficient
         return np.concatenate(vect_coeffs)
 
@@ -160,8 +160,8 @@ class Wavelet2dOperator(Operator):
         details = [
             [
                 vect[cs[i + j] : cs[i + j + 1]].reshape(self.shapes[i + j])
-                for j in xrange(3)
+                for j in range(3)
             ]
-            for i in xrange(1, len(self.sizes), 3)
+            for i in range(1, len(self.sizes), 3)
         ]
         return approx + details

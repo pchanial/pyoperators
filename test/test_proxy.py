@@ -100,11 +100,11 @@ def test_composite():
     counter = 0
     proxy_lists = [
         get_operator(proxy_list, attr)
-        for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH'
+        for attr in ('', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
     ]
     ref_lists = [
         get_operator(ref_list, attr)
-        for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH'
+        for attr in ('', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
     ]
 
     op = AdditionOperator(CompositionOperator(_) for _ in zip(*proxy_lists))

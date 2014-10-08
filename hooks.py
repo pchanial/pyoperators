@@ -188,7 +188,7 @@ def _get_version_git(default):
                     process.returncode, cmd, stderr
                 )
             )
-        return stdout.strip()
+        return stdout.strip().decode('utf-8')
 
     def get_branches():
         return run(
