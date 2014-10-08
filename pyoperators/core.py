@@ -1214,14 +1214,8 @@ class Operator(object):
                 self.shapeout = self.shapein
             self.reshapein = lambda x: x
             self.reshapeout = self.reshapein
+            self.toshapeout = self.toshapein
             self.validateout = self.validatein
-            if (
-                self.toshapein.__func__ is Operator.toshapein.__func__
-                and self.toshapeout.__func__ is not Operator.toshapeout.__func__
-            ):
-                self.toshapein = self.toshapeout
-            else:
-                self.toshapeout = self.toshapein
 
         if self.shapein is not None:
             try:
