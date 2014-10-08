@@ -1,9 +1,9 @@
-from __future__ import absolute_import, division, print_function
 import contextlib
 import numpy as np
 import operator
 import os
 from .. import config
+from functools import reduce
 
 try:
     if config.NO_MPI:

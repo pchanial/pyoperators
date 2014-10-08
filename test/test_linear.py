@@ -116,7 +116,7 @@ def test_integration_trapeze():
         def direct(self, input, output):
             output[...] = self.x ** (np.arange(input.size) + input)
 
-    value = range(3)
+    value = list(range(3))
     x = [0.5, 1, 2, 4]
     func_op = BlockColumnOperator([Op(_) for _ in x], new_axisout=0)
     eval_ = func_op(value)
@@ -286,8 +286,8 @@ def test_symmetric_band_toeplitz_operator():
             )
         ncorr = len(firstrow) - 1
         dense = np.zeros((n, n))
-        for i in xrange(n):
-            for j in xrange(n):
+        for i in range(n):
+            for j in range(n):
                 if abs(i - j) <= ncorr:
                     dense[i, j] = firstrow[abs(i - j)]
         return DenseOperator(dense, shapein=dense.shape[1])

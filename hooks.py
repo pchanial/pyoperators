@@ -125,7 +125,8 @@ def get_cmdclass():
 
         def run(self):
             cmd = [
-                'nosetests',
+                sys.executable,
+                '-mnose',
                 '--with-coverage',
                 '--cover-html',
                 '--cover-package=' + self.distribution.get_name(),
@@ -148,7 +149,7 @@ def get_cmdclass():
         user_options = [('file=', 'f', 'restrict test to a specific file')]
 
         def run(self):
-            call(['nosetests', self.file])
+            call([sys.executable, '-mnose', self.file])
 
         def initialize_options(self):
             self.file = 'test'
@@ -182,13 +183,13 @@ def _get_version_git(default):
         stdout, stderr = process.communicate()
         if process.returncode != 0:
             if stderr != '':
-                stderr = '\n' + stderr
+                stderr = '\n' + stderr.decode('utf-8')
             raise RuntimeError(
                 'Command failed (error {}): {}{}'.format(
                     process.returncode, cmd, stderr
                 )
             )
-        return stdout.strip()
+        return stdout.strip().decode('utf-8')
 
     def get_branches():
         return run(
