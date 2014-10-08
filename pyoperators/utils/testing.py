@@ -2,7 +2,7 @@ import collections
 import functools
 import numpy as np
 from collections import Container, Mapping
-from itertools import izip
+
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal, assert_allclose
 
@@ -135,7 +135,7 @@ def assert_eq(a, b, msg=''):
     if isinstance(a, Container) and not isinstance(a, (set, str)) and \
        isinstance(b, Container) and not isinstance(b, (set, str)):
         assert_equal(len(a), len(b), msg)
-        for a_, b_ in izip(a, b):
+        for a_, b_ in zip(a, b):
             assert_eq(a_, b_, msg)
         return
 

@@ -227,7 +227,7 @@ def test_interruptible():
 def test_is_scalar():
     def func(x):
         assert isscalarlike(x)
-    for x in (True, 1, 1., 'lkj', u'jj', np.array(1)):
+    for x in (True, 1, 1., 'lkj', 'jj', np.array(1)):
         yield func, x
 
 
@@ -338,7 +338,7 @@ def test_pool_threading():
                 if mkl is not None:
                     assert_equal(mkl.get_max_threads(), 1)
                 counter = 0
-                pool.map(func_thread, xrange(pool._processes))
+                pool.map(func_thread, range(pool._processes))
             assert_equal(os.getenv('OMP_NUM_THREADS'), nthreads)
             if mkl is not None:
                 assert_equal(mkl.get_max_threads(), mkl_nthreads)
