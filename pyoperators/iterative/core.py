@@ -10,6 +10,7 @@ import numpy as np
 import re
 
 from ..utils import strenum, uninterruptible_if
+from ..utils.mpi import MPI
 from ..memory import empty
 from .stopconditions import NoStopCondition
 
@@ -147,7 +148,7 @@ class IterativeAlgorithm(object):
 
         """
         self.clean_interrupt = clean_interrupt
-        self.disp = disp
+        self.disp = False if MPI.COMM_WORLD.rank > 0 else disp
         self._set_buffer_handling(
             inplace_recursion, allocate_new_state, reuse_initial_state
         )
