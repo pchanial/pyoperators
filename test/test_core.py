@@ -393,12 +393,12 @@ def test_times_mul_or_comp():
         return _.flags.linear
 
     def func(x, y):
-        if np.__version__ < '1.9' and isinstance(x, np.ndarray):
+        if isinstance(x, np.ndarray):
             if isinstance(x, np.matrix):
                 x = DenseOperator(x)
             elif x.ndim > 0:
                 x = DiagonalOperator(x)
-        if scipy.__version__ < '0.14' and isinstance(x, csc_matrix):
+        if isinstance(x, csc_matrix):
             x = SparseOperator(x)
         if (
             x is X.T
