@@ -8,6 +8,7 @@ try:
 except:
     pass
 import scipy.sparse as sp
+import scipy.sparse.sparsetools as sps
 import sys
 
 from scipy.sparse.linalg import eigsh
@@ -423,7 +424,7 @@ class SparseOperator(SparseBase):
                 output[i] += v * input[j]
             return
         M, N = m.shape
-        fn = getattr(sp.sparsetools, m.format + '_matvec')
+        fn = getattr(sps, m.format + '_matvec')
         if isinstance(m, (sp.csr_matrix, sp.csc_matrix)):
             fn(M, N, m.indptr, m.indices, m.data, input, output)
         elif isinstance(m, sp.coo_matrix):
