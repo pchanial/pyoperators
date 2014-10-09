@@ -143,7 +143,10 @@ def get_cmdclass():
         user_options = [('file=', 'f', 'restrict test to a specific file')]
 
         def run(self):
-            call(['nosetests', self.file])
+            if sys.version_info.major == 2: 
+                call(['nosetests', self.file])
+            else:
+                call(['nosetests3', self.file])
 
         def initialize_options(self):
             self.file = 'test'
