@@ -9,3 +9,4 @@ pyoperators/__init__.py
 pyoperators/utils/cythonutils.so
 pyoperators/utils/ufuncs.c
 pyoperators/utils/ufuncs.so
+__pycache__
