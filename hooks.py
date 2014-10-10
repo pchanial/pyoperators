@@ -134,7 +134,8 @@ def get_cmdclass():
 
         def run(self):
             cmd = [
-                'nosetests',
+                sys.executable,
+                '-mnose',
                 '--with-coverage',
                 '--cover-html',
                 '--cover-package=' + self.distribution.get_name(),
@@ -157,7 +158,7 @@ def get_cmdclass():
         user_options = [('file=', 'f', 'restrict test to a specific file')]
 
         def run(self):
-            call(['nosetests', self.file])
+            call([sys.executable, '-mnose', self.file])
 
         def initialize_options(self):
             self.file = 'test'
