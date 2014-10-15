@@ -117,12 +117,51 @@ def get_cmdclass():
                 files.append(initfile)
             sdist.make_release_tree(self, base_dir, files)
 
-    class CleanCommand(clean):
+    # clean command adapted from the blaze project:
+    # https://github.com/ContinuumIO/blaze/blob/master/setup.py
+    class CleanCommand(Command):
+        """Custom distutils command to clean the .so and .pyc files."""
+
+        user_options = [("all", "a", "")]
+
+        def initialize_options(self):
+
+            packages = (
+                "pyoperators",
+                "pyoperators.iterative",
+                "pyoperators.utils",
+            )
+
+            self._clean_me = []
+            self._clean_trees = []
+            for toplevel in packages:
+                for root, dirs, files in list(os.walk(toplevel)):
+                    for f in files:
+                        if os.path.splitext(f)[-1] in ('.pyc', '.so', '.o', '.pyd'):
+                            self._clean_me.append(os.path.join(root, f))
+                    for d in dirs:
+                        if d in ('__pycache__'):
+                            self._clean_trees.append(os.path.join(root, d))
+            for d in 'build':
+                if os.path.exists(d):
+                    self._clean_trees.append(d)
+
+        def finalize_options(self):
+            pass
+
         def run(self):
-            try:
-                print(run_git('clean -fdX' + ('n' if self.dry_run else '')))
-            except RuntimeError:
-                clean.run(self)
+            for clean_me in self._clean_me:
+                try:
+                    print('flushing: {}'.format(clean_me))
+                    os.unlink(clean_me)
+                except Exception:
+                    pass
+            for clean_tree in self._clean_trees:
+                try:
+                    print('flushing: {}'.format(clean_tree))
+                    shutil.rmtree(clean_tree)
+                except Exception:
+                    pass
 
     class CoverageCommand(Command):
         description = "run the package coverage"
