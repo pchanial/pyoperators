@@ -11,7 +11,7 @@ What's new ?
 * add environment variables @PYOPERATORS_NO_MPI@ (to prevent importing mpi4py on supercomputers such as NERSC's edison to avoid crashes on login nodes), @PYOPERATORS_GC_NBYTES_THRESHOLD@, @PYOPERATORS_MEMORY_ALIGNMENT@, @PYOPERATORS_MEMORY_TOLERANCE@ and @PYOPERATORS_VERBOSE@ (see config.py file)
 * add helpers last, last_is_not, ilast and ilast_is_not, split
 * improved ProxyOperator: operators in a proxy group may have different shapes, and can access the operator's attributes
-* Return algorithm instance in @pcg@'s output
+* Return algorithm instance in @pcg@ 's output
 * add pool_threading context manager
 * add MPI rank in strinfo
 * in iterative algorithms, silence MPI processes with rank>0
