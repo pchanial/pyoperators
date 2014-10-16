@@ -15,7 +15,7 @@ What's new ?
 * add pool_threading context manager
 * add MPI rank in strinfo
 * in iterative algorithms, silence MPI processes with rank>0
-* add timers to measure the time spent in Operator's __call__ method and in MPI operations
+* add timers to measure the time spent in Operator's @__call__@ method and in MPI operations
 
 API changes, deprecations:
 * rename @openmp_num_threads@ -> @omp_num_threads@
@@ -23,9 +23,9 @@ API changes, deprecations:
 * change @isclassattr@ calling sequence
 
 Under the hood:
-* common superclass for @DiagonalOperator@, @DiagonalNumexprOperator@ and @MaskOperator@
+* common superclass for DiagonalOperator, DiagonalNumexprOperator and MaskOperator
 * add @Cartcomm@ communicator and @Comm.Create_cart@ method in fake_mpi module
-* morph @MPIDistributionIdentityOperator@ into @IdentityOperator@ is comm size is 1
+* morph MPIDistributionIdentityOperator into IdentityOperator is communicator size is 1
 * allow implicit shape SparseBase subclasss
 * update for scipy 0.14
 * new decorator deprecated
