@@ -46,12 +46,12 @@ from .utils import (
     float_dtype,
     inspect_special_values,
     isalias,
-    izip_broadcast,
     pi,
     product,
     strshape,
     tointtuple,
     ufuncs,
+    zip_broadcast,
 )
 from .warnings import warn, PyOperatorsWarning
 
@@ -1671,7 +1671,7 @@ class SymmetricBandToeplitzOperator(Operator):
                 self.fplan.update_arrays(rbuffer, cbuffer)
                 self.bplan.update_arrays(cbuffer, rbuffer)
 
-                for x_, out_, kernel in izip_broadcast(x, out, self.kernel):
+                for x_, out_, kernel in zip_broadcast(x, out, self.kernel):
                     rbuffer[:lpad] = 0
                     rbuffer[lpad : lpad + self.nsamples] = x_
                     rbuffer[lpad + self.nsamples :] = 0

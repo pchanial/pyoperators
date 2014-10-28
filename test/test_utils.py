@@ -21,7 +21,7 @@ from pyoperators.utils import (
     inspect_special_values,
     interruptible,
     isscalarlike,
-    izip_broadcast,
+    zip_broadcast,
     last,
     last_is_not,
     least_greater_multiple,
@@ -390,60 +390,6 @@ def test_is_not_scalar():
         yield func, x
 
 
-def test_izip_broadcast1():
-    def g():
-        i = 0
-        while True:
-            yield i
-            i += 1
-
-    a = [1]
-    b = (np.sin,)
-    c = np.arange(3).reshape((1, 3))
-    d = ('x', 'y', [])
-    e = ['a', 'b', 'c']
-    f = np.arange(6).reshape((3, 2))
-
-    aa = []
-    bb = []
-    cc = []
-    dd = []
-    ee = []
-    ff = []
-    gg = []
-    for a_, b_, c_, d_, e_, f_, g_ in izip_broadcast(a, b, c, d, e, f, g()):
-        aa.append(a_)
-        bb.append(b_)
-        cc.append(c_)
-        dd.append(d_)
-        ee.append(e_)
-        ff.append(f_)
-        gg.append(g_)
-    assert_eq(aa, 3 * a)
-    assert_eq(bb, list(3 * b))
-    assert_eq(cc, [[0, 1, 2], [0, 1, 2], [0, 1, 2]])
-    assert_eq(dd, list(_ for _ in d))
-    assert_eq(ee, list(_ for _ in e))
-    assert_eq(ff, list(_ for _ in f))
-    assert_eq(gg, [0, 1, 2])
-
-
-def test_izip_broadcast2():
-    a = [1]
-    b = (np.sin,)
-    c = np.arange(3).reshape((1, 3))
-    aa = []
-    bb = []
-    cc = []
-    for a_, b_, c_ in izip_broadcast(a, b, c):
-        aa.append(a_)
-        bb.append(b_)
-        cc.append(c_)
-    assert_eq(aa, a)
-    assert_eq(tuple(bb), b)
-    assert_eq(cc, c)
-
-
 def test_least_greater_multiple():
     def func(lgm, expected):
         assert_eq(lgm, expected)
@@ -721,3 +667,71 @@ def test_timer3():
     time.sleep(0.01)
     assert_equal(t._level, 0)
     assert abs(t.elapsed - 0.01) < 0.001
+
+
+def test_zip_broadcast1():
+    def g():
+        i = 0
+        while True:
+            yield i
+            i += 1
+
+    a = [1]
+    b = (np.sin,)
+    c = np.arange(3).reshape((1, 3))
+    d = ('x', 'y', [])
+    e = ['a', 'b', 'c']
+    f = np.arange(6).reshape((3, 2))
+    h = 3
+
+    aa = []
+    bb = []
+    cc = []
+    dd = []
+    ee = []
+    ff = []
+    gg = []
+    hh = []
+    for a_, b_, c_, d_, e_, f_, g_, h_ in zip_broadcast(a, b, c, d, e, f, g(), h):
+        aa.append(a_)
+        bb.append(b_)
+        cc.append(c_)
+        dd.append(d_)
+        ee.append(e_)
+        ff.append(f_)
+        gg.append(g_)
+        hh.append(h_)
+    assert_eq(aa, 3 * a)
+    assert_eq(bb, list(3 * b))
+    assert_eq(cc, [[0, 1, 2], [0, 1, 2], [0, 1, 2]])
+    assert_eq(dd, list(_ for _ in d))
+    assert_eq(ee, list(_ for _ in e))
+    assert_eq(ff, list(_ for _ in f))
+    assert_eq(gg, [0, 1, 2])
+    assert_eq(hh, [3, 3, 3])
+
+
+def test_zip_broadcast2():
+    a = [1]
+    b = (np.sin,)
+    c = np.arange(3).reshape((1, 3))
+    aa = []
+    bb = []
+    cc = []
+    for a_, b_, c_ in zip_broadcast(a, b, c):
+        aa.append(a_)
+        bb.append(b_)
+        cc.append(c_)
+    assert_eq(aa, a)
+    assert_eq(tuple(bb), b)
+    assert_eq(cc, c)
+
+
+def test_zip_broadcast3():
+    a = 'abc'
+    b = [1, 2, 3]
+    assert_eq(tuple(zip_broadcast(a, b)), tuple(zip(a, b)))
+    assert_eq(tuple(zip_broadcast(a, b, iter_str=True)), tuple(zip(a, b)))
+    assert_eq(
+        tuple(zip_broadcast(a, b, iter_str=False)), (('abc', 1), ('abc', 2), ('abc', 3))
+    )
