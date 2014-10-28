@@ -67,7 +67,8 @@ __all__ = ['all_eq',
            'tointtuple',
            'uninterruptible',
            'uninterruptible_if',
-           'zero']
+           'zero',
+           'zip_broadcast']
 
 
 # decorators
@@ -503,21 +504,6 @@ def isscalar(x):
 def isscalarlike(x):
     """Return True for scalars and 0-ranked arrays."""
     return np.isscalar(x) or isinstance(x, np.ndarray) and x.ndim == 0
-
-
-def izip_broadcast(*args):
-    """
-    Like izip, except that arguments which are containers of length 1 are
-    repeated.
-
-    """
-    def wrap(a):
-        if hasattr(a, '__len__') and len(a) == 1:
-            return itertools.repeat(a[0])
-        return a
-    if any(not hasattr(a, '__len__') or len(a) != 1 for a in args):
-        args = [wrap(arg) for arg in args]
-    return zip(*args)
 
 
 def last(l, f):
@@ -1085,3 +1071,36 @@ def uninterruptible_if(condition):
 def zero(dtype):
     """ Return 0 with a given dtype. """
     return np.zeros((), dtype=dtype)[()]
+
+
+@deprecated("use 'zip_broadcast' instead.")
+def izip_broadcast(*args):
+    return zip_broadcast(*args)
+
+
+def zip_broadcast(*args, **keywords):
+    """
+    zip_broadcast(seq1 [, seq2 [...], iter_str=False|True]) ->
+        [(seq1[0], seq2[0] ...), (...)]
+
+    Like zip, except that arguments which are non iterable or containers
+    of length 1 are repeated. If the keyword iter_str is False, string
+    arguments are, unlike zip, not considered as iterable (default is True).
+
+    """
+    if len(keywords) > 1 or len(keywords) == 1 and 'iter_str' not in keywords:
+        raise TypeError('Invalid keyword(s).')
+    iter_str = keywords.get('iter_str', True)
+    n = max(1 if not isinstance(_, collections.Iterable) or
+            isinstance(_, str) and not iter_str
+            else len(_) if hasattr(_, '__len__') else sys.maxint for _ in args)
+
+    def wrap(a):
+        if not isinstance(a, collections.Iterable) or \
+           isinstance(a, str) and not iter_str:
+            return itertools.repeat(a, n)
+        if hasattr(a, '__len__') and len(a) == 1:
+            return itertools.repeat(a[0], n)
+        return a
+    args = [wrap(arg) for arg in args]
+    return zip(*args)
