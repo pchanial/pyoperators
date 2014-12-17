@@ -1490,7 +1490,7 @@ class Operator(object):
         ):
             return self(other)
         try:
-            other = asoperator(other)
+            other = asoperator(other, constant=not self.flags.linear)
         except TypeError:
             return NotImplemented
         if not self.flags.linear or not other.flags.linear:
@@ -1509,7 +1509,7 @@ class Operator(object):
         ):
             return self.T(other)
         try:
-            other = asoperator(other)
+            other = asoperator(other, constant=not self.flags.linear)
         except TypeError:
             return NotImplemented
         if not self.flags.linear or not other.flags.linear:
