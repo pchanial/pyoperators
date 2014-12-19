@@ -50,7 +50,6 @@ import shutil
 import sys
 from distutils.command.clean import clean
 from numpy.distutils.command.build import build
-from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.build_src import build_src
 from numpy.distutils.command.sdist import sdist
 from numpy.distutils.core import Command
@@ -83,7 +82,11 @@ def get_cmdclass():
             )
             build.run(self)
 
-    class BuildExtCommand(build_ext):
+    class BuildSrcCommand(build_src):
+        def initialize_options(self):
+            build_src.initialize_options(self)
+            self.f2py_opts = '--quiet'
+
         def run(self):
             has_fortran = False
             has_cython = False
@@ -91,21 +94,21 @@ def get_cmdclass():
                 has_fortran = has_fortran or has_f_sources(ext.sources)
                 for isource, source in enumerate(ext.sources):
                     if source.endswith('.pyx'):
-                        if USE_CYTHON:
-                            has_cython = True
-                        else:
+                        if not USE_CYTHON:
                             ext.sources[isource] = source[:-3] + 'c'
-            if has_cython:
-                self.extensions = cythonize(self.extensions, force=True)
+                        else:
+                            has_cython = True
             if has_fortran:
                 with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
                     f.write(repr(F2PY_TABLE))
-            build_ext.run(self)
-
-    class BuildSrcCommand(build_src):
-        def initialize_options(self):
-            build_src.initialize_options(self)
-            self.f2py_opts = '--quiet'
+            if has_cython:
+                build_dir = None if self.inplace else self.build_src
+                new_extensions = cythonize(
+                    self.extensions, force=True, build_dir=build_dir
+                )
+                for i in range(len(self.extensions)):
+                    self.extensions[i] = new_extensions[i]
+            build_src.run(self)
 
     class SDistCommand(sdist):
         def make_release_tree(self, base_dir, files):
@@ -113,8 +116,13 @@ def get_cmdclass():
                 self.distribution.get_name(), self.distribution.get_version()
             )
             initfile = os.path.join(self.distribution.get_name(), '__init__.py')
+            new_files = []
+            for f in files:
+                if f.endswith('.pyx'):
+                    new_files.append(f[:-3] + 'c')
             if initfile not in files:
-                files.append(initfile)
+                new_files.append(initfile)
+            files.extend(new_files)
             sdist.make_release_tree(self, base_dir, files)
 
     class CleanCommand(clean):
@@ -198,7 +206,6 @@ def get_cmdclass():
 
     return {
         'build': BuildCommand,
-        'build_ext': BuildExtCommand,
         'build_src': BuildSrcCommand,
         'clean': CleanCommand,
         'coverage': CoverageCommand,
