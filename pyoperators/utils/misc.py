@@ -779,13 +779,13 @@ def settingerr(*args, **keywords):
 
 def split(n, m, rank=None):
     """
-    Return an iterator through the slices that partition a list of n elements
-    in m almost same-size groups. If a rank is provided, only the slice
-    for the rank is returned.
+    Iterate through the slices that partition a list of n elements in m almost
+    same-size groups. If a rank is provided, only the slice for the rank
+    is returned.
 
     Example
     -------
-    >>> split(1000, 2)
+    >>> tuple(split(1000, 2))
     (slice(0, 500, None), slice(500, 1000, None))
     >>> split(1000, 2, 1)
     slice(500, 1000, None)
@@ -805,7 +805,7 @@ def split(n, m, rank=None):
             start += work
             rank += 1
 
-    return tuple(generator())
+    return generator()
 
 
 def strelapsed(t0, msg='Elapsed time'):

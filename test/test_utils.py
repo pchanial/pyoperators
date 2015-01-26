@@ -539,7 +539,7 @@ def test_settingerr():
 
 def test_split():
     def func(n, m):
-        slices = split(n, m)
+        slices = tuple(split(n, m))
         assert_eq(len(slices), m)
         x = np.zeros(n, int)
         for s in slices:
