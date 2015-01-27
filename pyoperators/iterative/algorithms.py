@@ -3,12 +3,6 @@ Implements iterative algorithm class.
 """
 import numpy as np
 from copy import copy
-
-try:
-    import pylab
-except:
-    pass
-
 from .linesearch import optimal_step
 from .criterions import norm2, quadratic_criterion, huber_criterion
 
@@ -209,7 +203,7 @@ class Callback(object):
             are stored with numpy savez function.
         shape: 2-tuple
             Shape of the solution.
-            If not empty tuple, pylab plot or imshow are called to display
+            If not empty tuple, plot or imshow are called to display
             current solution (solution should be 1D or 2D).
 
         Returns
@@ -240,24 +234,26 @@ class Callback(object):
             np.savez(self.savefile, **var_dict)
 
     def imshow(self, algo):
+        import matplotlib.pyplot as mp
+
         if algo.iter_ == 1:
-            self.im = pylab.imshow(algo.current_solution.reshape(self.shape))
+            self.im = mp.imshow(algo.current_solution.reshape(self.shape))
         else:
             self.im.set_data(algo.current_solution.reshape(self.shape))
-        pylab.draw()
-        pylab.show()
+        mp.draw()
+        mp.show()
 
     def plot(self, algo):
-        import pylab
+        import matplotlib.pyplot as mp
 
         if algo.iter_ == 1:
-            self.im = pylab.plot(algo.current_solution)[0]
+            self.im = mp.plot(algo.current_solution)[0]
         else:
             y = algo.current_solution
             self.im.set_ydata(y)
-            pylab.ylim((y.min(), y.max()))
-        pylab.draw()
-        pylab.show()
+            mp.ylim((y.min(), y.max()))
+        mp.draw()
+        mp.show()
 
     def __call__(self, algo):
         if self.verbose:
