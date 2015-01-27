@@ -1,9 +1,6 @@
-import collections
 import functools
 import numpy as np
 from collections import Container, Mapping
-
-from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal, assert_allclose
 
 from .misc import settingerr, strenum
@@ -227,6 +224,7 @@ assert_raises.__doc__ = np.testing.assert_raises.__doc__
 
 
 def skiptest(func):
+    from nose.plugins.skip import SkipTest
     @functools.wraps(func)
     def _():
         raise SkipTest()
@@ -234,6 +232,7 @@ def skiptest(func):
 
 
 def skiptest_if(condition):
+    from nose.plugins.skip import SkipTest
     def decorator(func):
         @functools.wraps(func)
         def _():
@@ -245,6 +244,7 @@ def skiptest_if(condition):
 
 
 def skiptest_unless_module(module):
+    from nose.plugins.skip import SkipTest
     def decorator(func):
         @functools.wraps(func)
         def _():
