@@ -663,7 +663,7 @@ class Operator(object):
         elif 'C' in rules:
             C = _copy_direct(self, rules['C'](self))
         else:
-            C = _copy_direct(
+            C = _copy_direct_all(
                 self, Operator(direct=self.conjugate,
                                name=self.__name__ + '.C',
                                flags={'linear': flags.linear,
@@ -689,7 +689,7 @@ class Operator(object):
         elif flags.orthogonal and 'I' in rules:
             T = _copy_reverse(self, rules['I'](self))
         elif self.transpose is not None:
-            T = _copy_reverse(
+            T = _copy_reverse_all(
                 self, Operator(direct=self.transpose,
                                name=self.__name__ + '.T', flags=new_flags))
         else:
@@ -706,7 +706,7 @@ class Operator(object):
         elif flags.unitary and 'I' in rules:
             H = _copy_reverse(self, rules['I'](self))
         elif self.adjoint is not None:
-            H = _copy_reverse(
+            H = _copy_reverse_all(
                 self, Operator(direct=self.adjoint,
                                name=self.__name__ + '.H', flags=new_flags))
         else:
@@ -717,17 +717,17 @@ class Operator(object):
                 if flags.real:
                     T = H
                 else:
-                    T = _copy_reverse(
+                    T = _copy_reverse_all(
                         self, Operator(direct=H.conjugate, name=
                                        self.__name__ + '.T', flags=new_flags))
             else:
-                T = _copy_reverse(
+                T = _copy_reverse_all(
                     self, Operator(name=self.__name__ + '.T', flags=new_flags))
                 if flags.real:
                     H = T
 
         if H is None:
-            H = _copy_reverse(
+            H = _copy_reverse_all(
                 self, Operator(direct=T.conjugate if T is not None else None,
                                name=self.__name__ + '.H', flags=new_flags))
 
@@ -740,7 +740,7 @@ class Operator(object):
         elif 'I' in rules:
             I = _copy_reverse(self, rules['I'](self))
         else:
-            I = _copy_reverse(
+            I = _copy_reverse_all(
                 self, Operator(direct=self.inverse,
                                name=self.__name__ + '.I',
                                flags={'linear': flags.linear,
@@ -771,7 +771,7 @@ class Operator(object):
                 func = I.conjugate
             else:
                 func = None
-            IC = _copy_reverse(
+            IC = _copy_reverse_all(
                 self, Operator(direct=func, name=self.__name__ + '.I.C',
                                flags=new_flags))
 
@@ -786,7 +786,7 @@ class Operator(object):
         elif 'IT' in rules:
             IT = _copy_direct(self, rules['IT'](self))
         elif self.inverse_transpose is not None:
-            IT = _copy_direct(
+            IT = _copy_direct_all(
                 self, Operator(direct=self.inverse_transpose,
                                name=self.__name__ + '.I.T', flags=new_flags))
         else:
@@ -807,7 +807,7 @@ class Operator(object):
         elif 'IH' in rules:
             IH = _copy_direct(self, rules['IH'](self))
         elif self.inverse_adjoint is not None:
-            IH = _copy_direct(
+            IH = _copy_direct_all(
                 self, Operator(direct=self.inverse_adjoint,
                                name=self.__name__ + '.I.H', flags=new_flags))
         else:
@@ -818,19 +818,19 @@ class Operator(object):
                 if flags.real:
                     IT = IH
                 else:
-                    IT = _copy_direct(
+                    IT = _copy_direct_all(
                         self, Operator(direct=IH.conjugate,
                                        name=self.__name__ + '.I.T',
                                        flags=new_flags))
             else:
-                IT = _copy_direct(
+                IT = _copy_direct_all(
                     self, Operator(name=self.__name__ + '.I.T',
                                    flags=new_flags))
                 if flags.real:
                     IH = IT
 
         if IH is None:
-            IH = _copy_direct(
+            IH = _copy_direct_all(
                 self, Operator(direct=IT.conjugate if IT is not None else None,
                                name=self.__name__ + '.I.H', flags=new_flags))
 
@@ -4160,28 +4160,48 @@ class VariableTranspose(Operator):
 
 def _copy_direct(source, target):
     keywords = {}
-    for attr in OPERATOR_ATTRIBUTES:
-        if attr != 'flags':
-            v = getattr(source, attr)
-            if attr in ('reshapein', 'reshapeout', 'toshapein', 'toshapeout',
-                        'validatein', 'validateout'):
-                if v == getattr(Operator, attr).__get__(source, type(source)):
-                    continue
-            keywords[attr] = v
+    for attr in set(OPERATOR_ATTRIBUTES) - {
+            'flags', 'reshapein', 'reshapeout', 'toshapein', 'toshapeout',
+            'validatein', 'validateout'}:
+        v = getattr(source, attr)
+        keywords[attr] = v
+    Operator.__init__(target, **keywords)
+    return target
+
+
+def _copy_direct_all(source, target):
+    keywords = {}
+    for attr in set(OPERATOR_ATTRIBUTES) - {'flags'}:
+        v = getattr(source, attr)
+        if attr in ('reshapein', 'reshapeout', 'toshapein', 'toshapeout',
+                    'validatein', 'validateout'):
+            if v == getattr(Operator, attr).__get__(source, type(source)):
+                continue
+        keywords[attr] = v
     Operator.__init__(target, **keywords)
     return target
 
 
 def _copy_reverse(source, target):
     keywords = {}
-    for attr in OPERATOR_ATTRIBUTES:
-        if attr != 'flags':
-            v = getattr(source, attr)
-            if attr in ('reshapein', 'reshapeout', 'toshapein', 'toshapeout',
-                        'validatein', 'validateout'):
-                if v == getattr(Operator, attr).__get__(source, type(source)):
-                    continue
-            keywords[_swap_inout(attr)] = v
+    for attr in set(OPERATOR_ATTRIBUTES) - {
+            'flags', 'reshapein', 'reshapeout', 'toshapein', 'toshapeout',
+            'validatein', 'validateout'}:
+        v = getattr(source, attr)
+        keywords[_swap_inout(attr)] = v
+    Operator.__init__(target, **keywords)
+    return target
+
+
+def _copy_reverse_all(source, target):
+    keywords = {}
+    for attr in set(OPERATOR_ATTRIBUTES) - {'flags'}:
+        v = getattr(source, attr)
+        if attr in ('reshapein', 'reshapeout', 'toshapein', 'toshapeout',
+                    'validatein', 'validateout'):
+            if v == getattr(Operator, attr).__get__(source, type(source)):
+                continue
+        keywords[_swap_inout(attr)] = v
     Operator.__init__(target, **keywords)
     return target
 
