@@ -744,6 +744,8 @@ class Operator(object):
             target = Target()
         target.__class__ = self.__class__
         for k, v in self.__dict__.items():
+            if k in ('_C', '_T', '_H', '_I'):
+                continue
             if isinstance(v, types.MethodType) and v.__self__ is self:
                 target.__dict__[k] = types.MethodType(v.__func__, target)
             else:
