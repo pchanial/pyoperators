@@ -608,7 +608,12 @@ def merge_none(a, b):
 
 
 class ndarraywrap(np.ndarray):
-    pass
+    def __array_finalize__(self, obj):
+        if self.ndim == 0:
+            self.__class__ = np.ndarray
+            return
+        if hasattr(obj, '__dict__'):
+            self.__dict__.update(obj.__dict__)
 
 
 def one(dtype):
