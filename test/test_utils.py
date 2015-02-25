@@ -10,9 +10,12 @@ from pyoperators.utils import (
     broadcast_shapes,
     cast,
     complex_dtype,
+    complex_intrinsic_dtype,
     first,
     first_is_not,
     float_dtype,
+    float_intrinsic_dtype,
+    float_or_complex_dtype,
     ifirst,
     ifirst_is_not,
     ilast,
@@ -167,16 +170,36 @@ def test_complex_dtype():
         np.float32,
         np.float64,
         np.float128,
-    )
-    expecteds = (
-        None,
-        complex,
-        complex,
-        complex,
-        complex,
         np.complex64,
         np.complex128,
         np.complex256,
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>c8',
+        '>c16',
+        '>c32',
+    )
+    expecteds = (
+        None,
+        '<c16',
+        '<c16',
+        '<c16',
+        '<c16',
+        '<c8',
+        '<c16',
+        '<c32',
+        '<c8',
+        '<c16',
+        '<c32',
+        '<c16',
+        '>c8',
+        '>c16',
+        '>c32',
+        '>c8',
+        '>c16',
+        '>c32',
     )
 
     def func(dtype, expected):
@@ -184,7 +207,60 @@ def test_complex_dtype():
             assert_raises(TypeError, complex_dtype, dtype)
         else:
             actual = complex_dtype(dtype)
-            assert_eq(actual, expected)
+            assert_eq(actual.str, expected)
+
+    for dtype, expected in zip(dtypes, expecteds):
+        yield func, dtype, expected
+
+
+def test_complex_intrinsic_dtype():
+    dtypes = (
+        str,
+        bool,
+        int,
+        np.uint32,
+        np.float16,
+        np.float32,
+        np.float64,
+        np.float128,
+        np.complex64,
+        np.complex128,
+        np.complex256,
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>c8',
+        '>c16',
+        '>c32',
+    )
+    expecteds = (
+        None,
+        '<c16',
+        '<c16',
+        '<c16',
+        '<c8',
+        '<c8',
+        '<c16',
+        '<c16',
+        '<c8',
+        '<c16',
+        '<c16',
+        '<c8',
+        '<c8',
+        '<c16',
+        '<c16',
+        '<c8',
+        '<c16',
+        '<c16',
+    )
+
+    def func(dtype, expected):
+        if expected is None:
+            assert_raises(TypeError, complex_dtype, dtype)
+        else:
+            actual = complex_intrinsic_dtype(dtype)
+            assert_eq(actual.str, expected)
 
     for dtype, expected in zip(dtypes, expecteds):
         yield func, dtype, expected
@@ -200,16 +276,36 @@ def test_float_dtype():
         np.float32,
         np.float64,
         np.float128,
+        np.complex64,
+        np.complex128,
+        np.complex256,
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>c8',
+        '>c16',
+        '>c32',
     )
     expecteds = (
         None,
-        float,
-        float,
-        float,
-        np.float16,
-        np.float32,
-        np.float64,
-        np.float128,
+        '<f8',
+        '<f8',
+        '<f8',
+        '<f2',
+        '<f4',
+        '<f8',
+        '<f16',
+        '<f4',
+        '<f8',
+        '<f16',
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>f4',
+        '>f8',
+        '>f16',
     )
 
     def func(dtype, expected):
@@ -217,6 +313,112 @@ def test_float_dtype():
             assert_raises(TypeError, float_dtype, dtype)
         else:
             actual = float_dtype(dtype)
+            assert_eq(actual, expected)
+
+    for dtype, expected in zip(dtypes, expecteds):
+        yield func, dtype, expected
+
+
+def test_float_intrinsic_dtype():
+    dtypes = (
+        str,
+        bool,
+        int,
+        np.uint32,
+        np.float16,
+        np.float32,
+        np.float64,
+        np.float128,
+        np.complex64,
+        np.complex128,
+        np.complex256,
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>c8',
+        '>c16',
+        '>c32',
+    )
+    expecteds = (
+        None,
+        '<f8',
+        '<f8',
+        '<f8',
+        '<f4',
+        '<f4',
+        '<f8',
+        '<f8',
+        '<f4',
+        '<f8',
+        '<f8',
+        '<f4',
+        '<f4',
+        '<f8',
+        '<f8',
+        '<f4',
+        '<f8',
+        '<f8',
+    )
+
+    def func(dtype, expected):
+        if expected is None:
+            assert_raises(TypeError, complex_dtype, dtype)
+        else:
+            actual = float_intrinsic_dtype(dtype)
+            assert_eq(actual.str, expected)
+
+    for dtype, expected in zip(dtypes, expecteds):
+        yield func, dtype, expected
+
+
+def test_float_or_complex_dtype():
+    dtypes = (
+        str,
+        bool,
+        int,
+        np.uint32,
+        np.float16,
+        np.float32,
+        np.float64,
+        np.float128,
+        np.complex64,
+        np.complex128,
+        np.complex256,
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>c8',
+        '>c16',
+        '>c32',
+    )
+    expecteds = (
+        None,
+        '<f8',
+        '<f8',
+        '<f8',
+        '<f2',
+        '<f4',
+        '<f8',
+        '<f16',
+        '<c8',
+        '<c16',
+        '<c32',
+        '>f2',
+        '>f4',
+        '>f8',
+        '>f16',
+        '>c8',
+        '>c16',
+        '>c32',
+    )
+
+    def func(dtype, expected):
+        if expected is None:
+            assert_raises(TypeError, float_dtype, dtype)
+        else:
+            actual = float_or_complex_dtype(dtype)
             assert_eq(actual, expected)
 
     for dtype, expected in zip(dtypes, expecteds):

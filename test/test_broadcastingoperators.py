@@ -25,7 +25,7 @@ from pyoperators import (
 from pyoperators.core import BroadcastingBase
 from pyoperators.flags import linear, square
 from pyoperators.rules import rule_manager
-from pyoperators.utils import float_dtype, product
+from pyoperators.utils import float_or_complex_dtype, product
 from pyoperators.utils.testing import (
     assert_eq,
     assert_is,
@@ -429,7 +429,7 @@ def test_dtype():
         if c_ in (IdentityOperator, MaskOperator, ZeroOperator):
             assert_equal(op.dtype, None)
         elif c_ is DiagonalNumexprOperator:
-            assert_equal(op.dtype, float_dtype(t))
+            assert_equal(op.dtype, float_or_complex_dtype(t))
         else:
             assert_equal(op.dtype, t)
 

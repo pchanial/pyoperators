@@ -44,6 +44,7 @@ from .utils import (
     cast,
     complex_dtype,
     float_dtype,
+    float_or_complex_dtype,
     inspect_special_values,
     isalias,
     pi,
@@ -157,7 +158,7 @@ class DenseBase(Operator):
                 "r.".format(data.ndim, naxesin + naxesout + naxesextra)
             )
         if dtype is None:
-            dtype = float_dtype(data.dtype)
+            dtype = float_or_complex_dtype(data.dtype)
         else:
             dtype = np.dtype(dtype)
         data = np.array(data, dtype=dtype, copy=False)
@@ -553,7 +554,7 @@ class DiagonalNumexprOperator(DiagonalBase):
         if broadcast == 'disabled':
             keywords['shapein'] = data.shape
         if dtype is None:
-            dtype = float_dtype(data.dtype)
+            dtype = float_or_complex_dtype(data.dtype)
 
         self.expr = expr
         self.var = var
