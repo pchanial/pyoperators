@@ -23,10 +23,13 @@ __all__ = ['all_eq',
            'broadcast_shapes',
            'cast',
            'complex_dtype',
+           'complex_intrinsic_dtype',
            'deprecated',
            'first',
            'first_is_not',
            'float_dtype',
+           'float_intrinsic_dtype',
+           'float_or_complex_dtype',
            'groupbykey',
            'ifirst',
            'ifirst_is_not',
@@ -196,6 +199,7 @@ def cast(arrays, dtype=None, order='c'):
 def complex_dtype(dtype):
     """
     Return the complex dtype associated to a numeric dtype.
+    For boolean or integer dtype, the default complex dtype is returned.
 
     Parameter
     ---------
@@ -208,24 +212,58 @@ def complex_dtype(dtype):
     dtype('complex128')
     >>> complex_dtype(np.float32)
     dtype('complex64')
-    >>> complex_dtype(np.float64)
+    >>> complex_dtype('>f8')
+    dtype('>c16')
+
+    """
+    dtype = np.dtype(dtype)
+    if dtype.kind == 'c':
+        return dtype
+    if dtype.kind not in 'biuf':
+        raise TypeError('Non numerical data type.')
+    if dtype.kind != 'f' or dtype.itemsize == 2:
+        return np.dtype(complex)
+    return np.dtype('{0}c{1}'.format(dtype.str[0], dtype.itemsize * 2))
+
+
+def complex_intrinsic_dtype(dtype):
+    """
+    Return the intrinsic complex dtype (complex64 or complex128) associated
+    with a numeric dtype.
+
+    Parameter
+    ---------
+    dtype : dtype
+        The input dtype.
+
+    Example
+    -------
+    >>> complex_intrinsic_dtype(int)
+    dtype('complex128')
+    >>> complex_intrinsic_dtype(np.float32)
+    dtype('complex64')
+    >>> complex_intrinsic_dtype('>f16')
+    dtype('complex128')
+    >>> complex_intrinsic_dtype(np.float128)
+    dtype('complex128')
+    >>> complex_intrinsic_dtype(np.complex256)
     dtype('complex128')
 
     """
-    dtype = float_dtype(dtype)
-    if dtype.kind == 'c':
-        return dtype
-    if dtype == np.float16:
-        if not hasattr(np, 'complex32'):
-            return np.dtype(complex)
-    return np.dtype('complex{}'.format(2 * int(dtype.name[5:])))
+    dtype = np.dtype(dtype)
+    if dtype.kind not in 'biufc':
+        raise TypeError('Non numerical data type.')
+    if dtype.kind in 'biu':
+        return np.dtype(complex)
+    itemsize = dtype.itemsize if dtype.kind == 'c' else dtype.itemsize * 2
+    itemsize = max(8, min(itemsize, 16))
+    return np.dtype('c{0}'.format(itemsize))
 
 
 def float_dtype(dtype):
     """
-    Return the floating dtype associated to a numeric dtype.
-    Unless the input dtype kind is float or complex, the default float dtype
-    is returned.
+    Return the floating dtype associated with a numeric dtype.
+    For boolean or integer dtype, the default float dtype is returned.
 
     Parameter
     ---------
@@ -238,7 +276,75 @@ def float_dtype(dtype):
     dtype('float64')
     >>> float_dtype(np.float32)
     dtype('float32')
+    >>> float_dtype('>f8')
+    dtype('>f8')
     >>> float_dtype(np.complex256)
+    dtype('float128')
+    >>> float_dtype('>c32')
+    dtype('>f16')
+
+    """
+    dtype = np.dtype(dtype)
+    if dtype.kind == 'f':
+        return dtype
+    if dtype.kind not in 'biuc':
+        raise TypeError('Non numerical data type.')
+    if dtype.kind != 'c':
+        return np.dtype(float)
+    return np.dtype('{0}f{1}'.format(dtype.str[0], dtype.itemsize // 2))
+
+
+def float_intrinsic_dtype(dtype):
+    """
+    Return the intrinsic floating dtype (float32 or float64) associated
+    to a numeric dtype.
+
+    Parameter
+    ---------
+    dtype : dtype
+        The input dtype.
+
+    Example
+    -------
+    >>> float_intrinsic_dtype(int)
+    dtype('float64')
+    >>> float_intrinsic_dtype(np.float32)
+    dtype('float32')
+    >>> float_intrinsic_dtype('>f8')
+    dtype('float64')
+    >>> float_intrinsic_dtype(np.float128)
+    dtype('float64')
+    >>> float_intrinsic_dtype(np.complex256)
+    dtype('float64')
+
+    """
+    dtype = np.dtype(dtype)
+    if dtype.kind not in 'biufc':
+        raise TypeError('Non numerical data type.')
+    if dtype.kind in 'biu':
+        return np.dtype(float)
+    itemsize = dtype.itemsize if dtype.kind == 'f' else dtype.itemsize // 2
+    itemsize = max(4, min(itemsize, 8))
+    return np.dtype('f{0}'.format(itemsize))
+
+
+def float_or_complex_dtype(dtype):
+    """
+    Return the float or complex dtype associated to a numeric dtype.
+    For boolean or integer dtype, the default float dtype is returned.
+
+    Parameter
+    ---------
+    dtype : dtype
+        The input dtype.
+
+    Example
+    -------
+    >>> float_or_complex_dtype(int)
+    dtype('float64')
+    >>> float_or_complex_dtype(np.float32)
+    dtype('float32')
+    >>> float_or_complex_dtype(np.complex256)
     dtype('complex256')
 
     """
