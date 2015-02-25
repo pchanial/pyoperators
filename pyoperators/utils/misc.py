@@ -1097,8 +1097,8 @@ def zip_broadcast(*args, **keywords):
         raise TypeError('Invalid keyword(s).')
     iter_str = keywords.get('iter_str', True)
     n = max(1 if not isinstance(_, collections.Iterable) or
-            isinstance(_, str) and not iter_str
-            else len(_) if hasattr(_, '__len__') else sys.maxint for _ in args)
+            isinstance(_, str) and not iter_str else len(_)
+            if hasattr(_, '__len__') else sys.maxsize for _ in args)
 
     def wrap(a):
         if not isinstance(a, collections.Iterable) or \
