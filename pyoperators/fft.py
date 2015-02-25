@@ -578,7 +578,7 @@ def _save_wisdom():
             pass
         if len(w) == 0:
             continue
-        with open(filename, 'w') as f:
+        with open(filename, 'wb') as f:
             f.write(w)
 
 

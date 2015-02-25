@@ -1125,7 +1125,7 @@ def zip_broadcast(*args, **keywords):
         and not iter_str
         else len(_)
         if hasattr(_, '__len__')
-        else sys.maxint
+        else sys.maxsize
         for _ in args
     )
 
