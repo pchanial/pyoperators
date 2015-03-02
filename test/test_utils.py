@@ -4,13 +4,14 @@ import os
 import time
 
 from contextlib import contextmanager
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_warns
 from pyoperators import Operator
 from pyoperators.utils import (
     broadcast_shapes,
     cast,
     complex_dtype,
     complex_intrinsic_dtype,
+    deprecated,
     first,
     first_is_not,
     float_dtype,
@@ -50,6 +51,7 @@ from pyoperators.utils.testing import (
     assert_raises,
     assert_same,
 )
+from pyoperators.warnings import PyOperatorsDeprecationWarning
 
 dtypes = [
     np.dtype(t)
@@ -77,6 +79,38 @@ def assert_dtype(a, d):
     if a is None:
         return
     assert_eq(a.dtype, d)
+
+
+def test_deprecated():
+    class mynewclass(object):
+        def __init__(self, a, b=None):
+            self.a = a
+            self.b = b
+
+    assert_raises(TypeError, deprecated, lambda x: x)
+
+    @deprecated('blabla')
+    def myfunc():
+        return 2
+
+    @deprecated
+    class myclass1(mynewclass):
+        pass
+
+    @deprecated('blabla2')
+    class myclass2(mynewclass):
+        pass
+
+    val = assert_warns(PyOperatorsDeprecationWarning, myfunc)
+    assert_equal(val, 2)
+
+    c = assert_warns(PyOperatorsDeprecationWarning, myclass1, 3, b=2)
+    assert_equal(c.a, 3)
+    assert_equal(c.b, 2)
+
+    c = assert_warns(PyOperatorsDeprecationWarning, myclass2, 3, b=2)
+    assert_equal(c.a, 3)
+    assert_equal(c.b, 2)
 
 
 def test_broadcast_shapes():
