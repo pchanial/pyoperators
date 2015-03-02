@@ -4,18 +4,20 @@ import os
 import time
 
 from contextlib import contextmanager
-from numpy.testing import assert_equal
+from numpy.testing import assert_equal, assert_warns
 from pyoperators import Operator
 from pyoperators.utils import (
-    broadcast_shapes, cast, complex_dtype, complex_intrinsic_dtype, first,
-    first_is_not, float_dtype, float_intrinsic_dtype, float_or_complex_dtype,
-    ifirst, ifirst_is_not, ilast, ilast_is_not, groupbykey,
-    inspect_special_values, interruptible, isscalarlike, zip_broadcast, last,
-    last_is_not, least_greater_multiple, one, omp_num_threads, pi,
-    pool_threading, product, reshape_broadcast, setting, settingerr, split,
-    strenum, strplural, strshape, Timer, uninterruptible, zero)
+    broadcast_shapes, cast, complex_dtype, complex_intrinsic_dtype, deprecated,
+    first, first_is_not, float_dtype, float_intrinsic_dtype,
+    float_or_complex_dtype, ifirst, ifirst_is_not, ilast, ilast_is_not,
+    groupbykey, inspect_special_values, interruptible, isscalarlike,
+    zip_broadcast, last, last_is_not, least_greater_multiple, one,
+    omp_num_threads, pi, pool_threading, product, reshape_broadcast, setting,
+    settingerr, split, strenum, strplural, strshape, Timer, uninterruptible,
+    zero)
 from pyoperators.utils.testing import (
     assert_eq, assert_not_in, assert_raises, assert_same)
+from pyoperators.warnings import PyOperatorsDeprecationWarning
 
 dtypes = [np.dtype(t) for t in (np.bool8, np.uint8, np.int8, np.uint16,
           np.int16, np.uint32, np.int32, np.uint64, np.int64, np.float32,
@@ -26,6 +28,41 @@ def assert_dtype(a, d):
     if a is None:
         return
     assert_eq(a.dtype, d)
+
+
+def test_deprecated():
+    class mynewclass(object):
+        def __init__(self, a, b=None):
+            self.a = a
+            self.b = b
+
+    assert_raises(TypeError, deprecated, lambda x: x)
+
+
+    @deprecated('blabla')
+    def myfunc():
+        return 2
+
+
+    @deprecated
+    class myclass1(mynewclass):
+        pass
+
+
+    @deprecated('blabla2')
+    class myclass2(mynewclass):
+        pass
+
+    val = assert_warns(PyOperatorsDeprecationWarning, myfunc)
+    assert_equal(val, 2)
+
+    c = assert_warns(PyOperatorsDeprecationWarning, myclass1, 3, b=2)
+    assert_equal(c.a, 3)
+    assert_equal(c.b, 2)
+
+    c = assert_warns(PyOperatorsDeprecationWarning, myclass2, 3, b=2)
+    assert_equal(c.a, 3)
+    assert_equal(c.b, 2)
 
 
 def test_broadcast_shapes():

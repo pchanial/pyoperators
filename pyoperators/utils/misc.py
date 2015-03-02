@@ -79,14 +79,43 @@ __all__ = ['all_eq',
 
 
 def deprecated(msg):
-    def decorator(func):
-        @functools.wraps(func)
+    """
+    Decorator for function of class deprecation.
+
+    Example
+    -------
+    >>> @deprecated('use mynewfunc instead.')
+    >>> def myfunc():
+    ...    pass
+
+    >>>@deprecated
+    >>>class MyClass(MyNewClass):
+    >>>    pass
+
+    """
+    def decorator(x):
+        if isinstance(x, type):
+            def __init__(self, *args, **keywords):
+                warn('Class {!r} is deprecated: {}'.format(x.__name__, msg),
+                     PyOperatorsDeprecationWarning)
+                x.__init__.__func__(self, *args, **keywords)
+            __init__.__doc__ = x.__init__.__doc__
+            return type(x.__name__, x.__bases__, {'__init__': __init__,
+                                                  '__doc__': x.__doc__})
+
+        @functools.wraps(x)
         def _(*args, **keywords):
-            warn('{!r} is deprecated: {}'.format(func.__name__, msg),
+            warn('Function {!r} is deprecated: {}'.format(x.__name__, msg),
                  PyOperatorsDeprecationWarning)
-            return func(*args, **keywords)
+            return x(*args, **keywords)
         return _
-    return decorator
+    if isinstance(msg, str):
+        return decorator
+    if not isinstance(msg, type):
+        raise TypeError('Missing deprecation message.')
+    x = msg
+    msg = "Use '{0}' instead.".format(x.__base__.__name__)
+    return decorator(x)
 
 
 # other stuff
