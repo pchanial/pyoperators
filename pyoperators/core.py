@@ -100,7 +100,7 @@ class Operator(object):
         and input dtypes. If dtype is None, the output dtype is the input
         dtype.
     C : Operator
-        Oonjugate operator.
+        Conjugate operator.
     T : Operator
         Tranpose operator.
     H : Operator
