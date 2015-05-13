@@ -1764,7 +1764,7 @@ class CompositeOperator(Operator):
 
     def _validate_operands(self, operands, constant=False):
         if not isinstance(operands, (list, tuple, types.GeneratorType)):
-            operands = [operands]
+            raise TypeError('The expected input is a sequence of operators.')
         return [asoperator(op, constant=constant) for op in operands]
 
     def _validate_comm(self, operands):
