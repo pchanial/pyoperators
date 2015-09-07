@@ -11,7 +11,7 @@ name = 'pyoperators'
 long_description = open('README.rst').read()
 keywords = 'scientific computing'
 platforms = 'MacOS X,Linux,Solaris,Unix,Windows'
-define_macros = [] if sys.version_info.major == 2 else [('NPY_PY3K', None)]
+define_macros = [] if sys.version_info[0] == 2 else [('NPY_PY3K', None)]
 
 ext_modules = [
     Extension(
