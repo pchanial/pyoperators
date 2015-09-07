@@ -30,6 +30,20 @@ configurable) or the last tag.
 
 # These variables can be changed by the hooks importer
 ABBREV = 5
+F77_OPENMP = True
+F90_OPENMP = True
+F77_COMPILE_ARGS_GFORTRAN = []
+F77_COMPILE_DEBUG_GFORTRAN = ['-fcheck=all -Og']
+F77_COMPILE_OPT_GFORTRAN = ['-Ofast -march=native']
+F90_COMPILE_ARGS_GFORTRAN = ['-cpp']
+F90_COMPILE_DEBUG_GFORTRAN = ['-fcheck=all -Og']
+F90_COMPILE_OPT_GFORTRAN = ['-Ofast -march=native']
+F77_COMPILE_ARGS_IFORT = []
+F77_COMPILE_DEBUG_IFORT = ['-check all']
+F77_COMPILE_OPT_IFORT = ['-fast']
+F90_COMPILE_ARGS_IFORT = ['-fpp -ftz -fp-model precise -ftrapuv -warn all']
+F90_COMPILE_DEBUG_IFORT = ['-check all']
+F90_COMPILE_OPT_IFORT = ['-fast']
 F2PY_TABLE = {'integer': {'int8': 'char',
                           'int16': 'short',
                           'int32': 'int',
@@ -38,6 +52,9 @@ F2PY_TABLE = {'integer': {'int8': 'char',
                        'real64': 'double'},
               'complex': {'real32': 'complex_float',
                           'real64': 'complex_double'}}
+FCOMPILERS_DEFAULT = 'intelem', 'gfortran'
+LIBRARY_OPENMP_GFORTRAN = 'gomp'
+LIBRARY_OPENMP_IFORT = 'iomp5'
 REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
 try:
     import os
@@ -52,10 +69,16 @@ import shutil
 import sys
 from distutils.command.clean import clean
 from numpy.distutils.command.build import build
+from numpy.distutils.command.build_clib import build_clib
+from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.build_src import build_src
 from numpy.distutils.command.sdist import sdist
 from numpy.distutils.core import Command
-from numpy.distutils.misc_util import has_f_sources
+from numpy.distutils.exec_command import find_executable
+from numpy.distutils.fcompiler import new_fcompiler
+from numpy.distutils.fcompiler.gnu import Gnu95FCompiler
+from numpy.distutils.fcompiler.intel import IntelEM64TFCompiler
+from numpy.distutils.misc_util import f90_ext_match, has_f_sources
 from subprocess import call, Popen, PIPE
 from warnings import filterwarnings
 
@@ -72,6 +95,12 @@ numpy.distutils.from_template.routine_start_re = re.compile(
 numpy.distutils.from_template.function_start_re = re.compile(
     r'\n     (\$|\*)\s*((im)?pure\s+|elemental\s+)*function\b', re.I)
 
+# monkey patch compilers
+Gnu95FCompiler.get_flags_debug = lambda self: []
+Gnu95FCompiler.get_flags_opt = lambda self: []
+IntelEM64TFCompiler.get_flags_debug = lambda self: []
+IntelEM64TFCompiler.get_flags_opt = lambda self: []
+
 
 def get_cmdclass():
 
@@ -80,6 +109,137 @@ def get_cmdclass():
             _write_version(self.distribution.get_name(),
                            self.distribution.get_version())
             build.run(self)
+
+    class BuildClibCommand(build_clib):
+        def finalize_options(self):
+            build_clib.finalize_options(self)
+            if self.fcompiler is None:
+                old_value = numpy.distutils.log.set_verbosity(-2)
+                for _ in FCOMPILERS_DEFAULT:
+                    exe = find_executable(_)
+                    if exe is not None:
+                        self.fcompiler = _
+                        break
+                numpy.distutils.log.set_verbosity(old_value)
+
+        def build_libraries(self, libraries):
+            if numpy.__version__ < "1.7":
+                fcompiler = self.fcompiler
+            else:
+                fcompiler = self._f_compiler
+            if isinstance(fcompiler,
+                          numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
+                old_value = numpy.distutils.log.set_verbosity(-2)
+                exe = numpy.distutils.exec_command.find_executable('gcc-ar')
+                if exe is None:
+                    exe = numpy.distutils.exec_command.find_executable('ar')
+                numpy.distutils.log.set_verbosity(old_value)
+                fcompiler.executables['archiver'][0] = exe
+                flags = F77_COMPILE_ARGS_GFORTRAN + F77_COMPILE_OPT_GFORTRAN
+                if self.debug:
+                    flags += F77_COMPILE_DEBUG_GFORTRAN
+                if F77_OPENMP:
+                    flags += ['-openmp']
+                fcompiler.executables['compiler_f77'] += flags
+                flags = F90_COMPILE_ARGS_GFORTRAN + F90_COMPILE_OPT_GFORTRAN
+                if self.debug:
+                    flags += F90_COMPILE_DEBUG_GFORTRAN
+                if F90_OPENMP:
+                    flags += ['-openmp']
+                fcompiler.executables['compiler_f90'] += flags
+                fcompiler.libraries += [LIBRARY_OPENMP_GFORTRAN]
+            elif isinstance(fcompiler,
+                            numpy.distutils.fcompiler.intel.IntelFCompiler):
+                old_value = numpy.distutils.log.set_verbosity(-2)
+                exe = numpy.distutils.exec_command.find_executable('xiar')
+                numpy.distutils.log.set_verbosity(old_value)
+                fcompiler.executables['archiver'][0] = exe
+                flags = F77_COMPILE_ARGS_IFORT + F77_COMPILE_OPT_IFORT
+                if self.debug:
+                    flags += F77_COMPILE_DEBUG_IFORT
+                if F77_OPENMP:
+                    flags += ['-openmp']
+                fcompiler.executables['compiler_f77'] += flags
+                flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
+                if self.debug:
+                    flags += F90_COMPILE_DEBUG_IFORT
+                if F90_OPENMP:
+                    flags += ['-openmp']
+                fcompiler.executables['compiler_f90'] += flags
+                fcompiler.libraries += [LIBRARY_OPENMP_IFORT]
+            else:
+                raise RuntimeError()
+            build_clib.build_libraries(self, libraries)
+
+    class BuildExtCommand(build_ext):
+        def finalize_options(self):
+            build_ext.finalize_options(self)
+            if self.fcompiler is None:
+                old_value = numpy.distutils.log.set_verbosity(-2)
+                for _ in FCOMPILERS_DEFAULT:
+                    exe = find_executable(_)
+                    if exe is not None:
+                        self.fcompiler = _
+                        break
+                numpy.distutils.log.set_verbosity(old_value)
+
+        def build_extensions(self):
+            # Numpy bug: if an extension has a library only consisting of f77
+            # files, the extension language will always be f77 and no f90
+            # compiler will be initialized
+            need_f90_compiler = self._f90_compiler is None and \
+                any(any(f90_ext_match(s) for s in _.sources)
+                    for _ in self.extensions)
+            if need_f90_compiler:
+                self._f90_compiler = new_fcompiler(compiler=self.fcompiler,
+                                                   verbose=self.verbose,
+                                                   dry_run=self.dry_run,
+                                                   force=self.force,
+                                                   requiref90=True,
+                                                   c_compiler=self.compiler)
+                fcompiler = self._f90_compiler
+                if fcompiler:
+                    fcompiler.customize(self.distribution)
+                if fcompiler and fcompiler.get_version():
+                    fcompiler.customize_cmd(self)
+                    fcompiler.show_customization()
+                else:
+                    ctype = fcompiler.compiler_type if fcompiler \
+                        else self.fcompiler
+                    self.warn('f90_compiler=%s is not available.' % ctype)
+
+            for fc in self._f77_compiler, self._f90_compiler:
+                if isinstance(fc,
+                                numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
+                    flags = F77_COMPILE_ARGS_GFORTRAN + F77_COMPILE_OPT_GFORTRAN
+                    if self.debug:
+                        flags += F77_COMPILE_DEBUG_GFORTRAN
+                    if F77_OPENMP:
+                        flags += ['-openmp']
+                    fc.executables['compiler_f77'] += flags
+                    flags = F90_COMPILE_ARGS_GFORTRAN + F90_COMPILE_OPT_GFORTRAN
+                    if self.debug:
+                        flags += F90_COMPILE_DEBUG_GFORTRAN
+                    if F90_OPENMP:
+                        flags += ['-openmp']
+                    fc.executables['compiler_f90'] += flags
+                    fc.libraries += [LIBRARY_OPENMP_GFORTRAN]
+                elif isinstance(fc,
+                              numpy.distutils.fcompiler.intel.IntelFCompiler):
+                    flags = F77_COMPILE_ARGS_IFORT + F77_COMPILE_OPT_IFORT
+                    if self.debug:
+                        flags += F77_COMPILE_DEBUG_IFORT
+                    if F77_OPENMP:
+                        flags += ['-openmp']
+                    fc.executables['compiler_f77'] += flags
+                    flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
+                    if self.debug:
+                        flags += F90_COMPILE_DEBUG_IFORT
+                    if F90_OPENMP:
+                        flags += ['-openmp']
+                    fc.executables['compiler_f90'] += flags
+                    fc.libraries += [LIBRARY_OPENMP_IFORT]
+            build_ext.build_extensions(self)
 
     class BuildSrcCommand(build_src):
         def initialize_options(self):
@@ -126,11 +286,9 @@ def get_cmdclass():
     class CleanCommand(clean):
         def run(self):
             clean.run(self)
-            try:
+            if is_git_tree():
                 print(run_git('clean -fdX' + ('n' if self.dry_run else '')))
                 return
-            except RuntimeError:
-                pass
 
             extensions = '.o', '.pyc', 'pyd', 'pyo', '.so'
             for root_, dirs, files in os.walk(root):
@@ -140,12 +298,6 @@ def get_cmdclass():
                 for d in dirs:
                     if d in ('build', '__pycache__'):
                         self.__delete(os.path.join(root_, d), dir=True)
-            files = (
-                'MANIFEST',
-                os.path.join(self.distribution.get_name(), '__init__.py'))
-            for f in files:
-                if os.path.exists(f):
-                    self.__delete(f)
 
         def __delete(self, file_, dir=False):
             msg = 'would remove' if self.dry_run else 'removing'
@@ -197,6 +349,8 @@ def get_cmdclass():
             pass
 
     return {'build': BuildCommand,
+            'build_clib': BuildClibCommand,
+            'build_ext': BuildExtCommand,
             'build_src': BuildSrcCommand,
             'clean': CleanCommand,
             'coverage': CoverageCommand,
@@ -219,9 +373,13 @@ def run_git(cmd, cwd=root):
         if stderr != '':
             stderr = '\n' + stderr.decode('utf-8')
         raise RuntimeError(
-            'Command failed (error {}): {}{}'.format(
+            'Command failed (error {0}): {1}{2}'.format(
                 process.returncode, cmd, stderr))
     return stdout.strip().decode('utf-8')
+
+
+def is_git_tree():
+    return os.path.exists(os.path.join(root, '.git'))
 
 
 def _get_version_git(default):
@@ -241,10 +399,11 @@ def _get_version_git(default):
     def get_description():
         branch = get_branch_name()
         try:
-            description = run_git('describe --abbrev={} --tags'.format(ABBREV))
+            description = run_git(
+                'describe --abbrev={0} --tags'.format(ABBREV))
         except RuntimeError:
             description = run_git(
-                'describe --abbrev={} --always'.format(ABBREV))
+                'describe --abbrev={0} --always'.format(ABBREV))
             regex = r"""^
             (?P<commit>.*?)
             (?P<dirty>(-dirty)?)
@@ -297,9 +456,7 @@ def _get_version_git(default):
         # no branch has been created from an ancestor
         return INF
 
-    try:
-        run_git('rev-parse --is-inside-work-tree')
-    except (OSError, RuntimeError):
+    if not is_git_tree():
         return ''
 
     branch, tag, rev_tag, commit, dirty = get_description()
@@ -346,7 +503,7 @@ def _get_version_git(default):
             suffix = 'pre'
     if name != '':
         name += '.'
-    return '{}{}{:02}{}'.format(name, suffix, rev, dirty)
+    return '{0}{1}{2:02}{3}'.format(name, suffix, rev, dirty)
 
 
 def _get_version_init_file(name):
