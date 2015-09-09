@@ -5,7 +5,7 @@ excerpt: Install pyoperators package
 ---
 
 <br>
-The PyOperators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators. The current version of the pyoperators package is {{ site.version_stable }}, and it is still in beta stage.
+The PyOperators package is under the "CECILL-B":http://www.cecill.info/licences/Licence_CeCILL-B_V1-en.html license, a BSD-like free software license, with a citation requirement. The source code and development is hosted at "github":https://github.com/pchanial/pyoperators. The current version of the pyoperators package is {{ site.version_stable }}.
 
 h1. Preparation
 
@@ -17,17 +17,28 @@ The "pip":http://www.pip-installer.org/en/latest/index.html program allows the i
 $ sudo easy_install pip
 {% endhighlight %}
 
-h2. The FFTW package
+h2. The pyFFTW module
 
 The FFTW package and its Python wrapper need to be installed first.
 
 
-* on Linux/Ubuntu, this will be something like:
+* on Linux/Ubuntu with root permissions, this will simply be:
 
 {% highlight bash %}
 $ sudo apt-get install libfftw3-dev
 $ sudo pip install pyFFTW
 {% endhighlight %}
+
+* on Linux, without root permissions, one should make sure that the following libraries are available: @libfftw3.so@, @libfftw3f.so@, @libfftw3l.so@, @libfftw3_threads.so@, @libfftw3f_threads.so@, @libfftw3l_threads.so@ in a directory @${FFTWPATH}/lib@ and that the file @fftw3.h@ is in @${FFTWPATH}/include@. This "bash script":install-fftw.sh can help for this purpose. Then the wrapper can be installed locally:
+
+{% highlight bash %}
+$ MYSOFTDIR=~/software/lib/python2.7/site-packages
+$ CPATH=${FFTWPATH}/include LIBRARY_PATH=${FFTWPATH}/lib pip install pyFFTW --install-option="--install-lib=${MYSOFTDIR}"
+
+$ export PYTHONPATH=${MYSOFTDIR}:${PYTHONPATH}
+$ python -c "import pyfftw; print('Successful installation!')"
+{% endhighlight %}
+
 
 * on MacOS X, using the MacPorts Python interpreter:
 
@@ -35,13 +46,19 @@ $ sudo pip install pyFFTW
 $ sudo port install py-pyfftw
 {% endhighlight %}
 
-* on MacOS X, using a non-MacPorts Python interpreter (such as Enthought's):
+* on MacOS X, using the default Python interpreter or that from a distribution such as Anaconda or Enthought. Note that depending on your installation, a @sudo@ might be required.
 
+With MacPort:
 {% highlight bash %}
 $ sudo port install fftw-3 fftw-3-long fftw-3-single
-$ sudo CPATH=/opt/local/include LIBRARY_PATH=/opt/local/lib pip install pyFFTW
+$ CPATH=/opt/local/include LIBRARY_PATH=/opt/local/lib pip install pyFFTW
 {% endhighlight %}
 
+With HomeBrew:
+{% highlight bash %}
+$ brew install fftw
+$ CPATH=/usr/local/include LIBRARY_PATH=/usr/local/lib pip install pyFFTW
+{% endhighlight %}
 
 h1. Installation
 
