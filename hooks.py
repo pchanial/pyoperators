@@ -49,7 +49,7 @@ F2PY_TABLE = {
     'real': {'real32': 'float', 'real64': 'double'},
     'complex': {'real32': 'complex_float', 'real64': 'complex_double'},
 }
-FCOMPILERS_DEFAULT = 'intelem', 'gfortran'
+FCOMPILERS_DEFAULT = 'ifort', 'gfortran'
 LIBRARY_OPENMP_GFORTRAN = 'gomp'
 LIBRARY_OPENMP_IFORT = 'iomp5'
 REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
@@ -102,6 +102,18 @@ Gnu95FCompiler.get_flags_opt = lambda self: []
 IntelEM64TFCompiler.get_flags_debug = lambda self: []
 IntelEM64TFCompiler.get_flags_opt = lambda self: []
 
+# monkey patch the default Fortran compiler
+if sys.platform.startswith('linux'):
+    _id = 'linux.*'
+elif sys.platform.startswith('darwin'):
+    _id = 'darwin.*'
+else:
+    _id = None
+if _id is not None:
+    table = {'ifort': 'intelem', 'gfortran': 'gnu95'}
+    _df = ((_id, tuple(table[f] for f in FCOMPILERS_DEFAULT)),)
+    numpy.distutils.fcompiler._default_compilers = _df
+
 
 def get_cmdclass():
     class BuildCommand(build):
@@ -112,17 +124,6 @@ def get_cmdclass():
             build.run(self)
 
     class BuildClibCommand(build_clib):
-        def finalize_options(self):
-            build_clib.finalize_options(self)
-            if self.fcompiler is None:
-                old_value = numpy.distutils.log.set_verbosity(-2)
-                for _ in FCOMPILERS_DEFAULT:
-                    exe = find_executable(_)
-                    if exe is not None:
-                        self.fcompiler = _
-                        break
-                numpy.distutils.log.set_verbosity(old_value)
-
         def build_libraries(self, libraries):
             if numpy.__version__ < "1.7":
                 fcompiler = self.fcompiler
@@ -134,7 +135,7 @@ def get_cmdclass():
                 if exe is None:
                     exe = numpy.distutils.exec_command.find_executable('ar')
                 numpy.distutils.log.set_verbosity(old_value)
-                fcompiler.executables['archiver'][0] = exe
+                self.compiler.archiver[0] = exe
                 flags = F77_COMPILE_ARGS_GFORTRAN + F77_COMPILE_OPT_GFORTRAN
                 if self.debug:
                     flags += F77_COMPILE_DEBUG_GFORTRAN
@@ -150,9 +151,10 @@ def get_cmdclass():
                 fcompiler.libraries += [LIBRARY_OPENMP_GFORTRAN]
             elif isinstance(fcompiler, numpy.distutils.fcompiler.intel.IntelFCompiler):
                 old_value = numpy.distutils.log.set_verbosity(-2)
-                exe = numpy.distutils.exec_command.find_executable('xiar')
+                self.compiler.archiver[
+                    0
+                ] = numpy.distutils.exec_command.find_executable('xiar')
                 numpy.distutils.log.set_verbosity(old_value)
-                fcompiler.executables['archiver'][0] = exe
                 flags = F77_COMPILE_ARGS_IFORT + F77_COMPILE_OPT_IFORT
                 if self.debug:
                     flags += F77_COMPILE_DEBUG_IFORT
@@ -171,17 +173,6 @@ def get_cmdclass():
             build_clib.build_libraries(self, libraries)
 
     class BuildExtCommand(build_ext):
-        def finalize_options(self):
-            build_ext.finalize_options(self)
-            if self.fcompiler is None:
-                old_value = numpy.distutils.log.set_verbosity(-2)
-                for _ in FCOMPILERS_DEFAULT:
-                    exe = find_executable(_)
-                    if exe is not None:
-                        self.fcompiler = _
-                        break
-                numpy.distutils.log.set_verbosity(old_value)
-
         def build_extensions(self):
             # Numpy bug: if an extension has a library only consisting of f77
             # files, the extension language will always be f77 and no f90
@@ -443,7 +434,8 @@ def _get_version_git(default):
             common = run_git('merge-base HEAD ' + branch)
         except RuntimeError:
             return INF  # no common ancestor, the branch is dangling
-        return int(run_git('rev-list --count HEAD ^' + common))
+        # git 1.8: return int(run_git('rev-list --count HEAD ^' + common))
+        return len(run_git('rev-list HEAD ^' + common).split('\n'))
 
     def get_rev_since_any_branch():
         if REGEX_RELEASE.startswith('^'):
@@ -495,7 +487,7 @@ def _get_version_git(default):
 
     if rev_branch == rev_tag == INF:
         # no branch and no tag from ancestors, counting from root
-        rev = int(run_git('rev-list --count HEAD'))
+        rev = len(run_git('rev-list HEAD').split('\n'))
         if branch != 'master':
             suffix = 'rev'
     elif rev_tag <= rev_branch:
