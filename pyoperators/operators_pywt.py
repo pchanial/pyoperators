@@ -40,7 +40,7 @@ for l in pywt.wavelist():
 class WaveletOperator(Operator):
     skip_doctest = True
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None,
-                 **keywords):
+                 dtype=float, **keywords):
         """
         1D wavelet decomposition and reconstruction. Wavelet coefficients
         are stored in a vector (ndarray with ndim=1).
@@ -76,7 +76,8 @@ class WaveletOperator(Operator):
         self.cumsizes = np.zeros(len(self.sizes) + 1)
         np.cumsum(self.sizes, out=self.cumsizes[1:])
         shapeout = sum(self.sizes)
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout,
+                          dtype=dtype, **keywords)
         if self.wavelet.orthogonal:
             self.set_rule('T,.', '1', CompositionOperator)
 
@@ -102,7 +103,7 @@ class WaveletOperator(Operator):
 @linear
 class Wavelet2dOperator(Operator):
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None,
-                 **keywords):
+                 dtype=float, **keywords):
         """
         2D wavelet decomposition and reconstruction. Wavelet coefficients
         are stored in a vector (ndarray with ndim=1).
@@ -145,7 +146,8 @@ class Wavelet2dOperator(Operator):
         np.cumsum(self.sizes, out=self.cumsizes[1:])
         shapeout = sum(self.sizes)
 
-        Operator.__init__(self, shapein=shapein, shapeout=shapeout, **keywords)
+        Operator.__init__(self, shapein=shapein, shapeout=shapeout,
+                          dtype=dtype, **keywords)
         if self.wavelet.orthogonal:
             self.set_rule('T,.', '1', CompositionOperator)
 
