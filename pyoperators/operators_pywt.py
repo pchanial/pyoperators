@@ -5,11 +5,24 @@ For now only 1D and 2D wavelets are available.
 """
 from __future__ import absolute_import, division, print_function
 import numpy as np
-import pywt
+try:
+    import pywt
+except ImportError:
+    pass
 from .core import Operator, CompositionOperator
 from .flags import linear, real
 
 __all__ = ['WaveletOperator', 'Wavelet2dOperator']
+
+
+# doctest nose fixture
+def setup_module(module):
+    try:
+        import pywt
+    except ImportError:
+        from nose.plugins.skip import SkipTest
+        raise SkipTest()
+
 
 # dict of corresponding wavelets
 rwavelist = {}
@@ -25,6 +38,7 @@ for l in pywt.wavelist():
 @real
 @linear
 class WaveletOperator(Operator):
+    skip_doctest = True
     def __init__(self, wavelet, mode='zpd', level=None, shapein=None,
                  **keywords):
         """
@@ -35,7 +49,6 @@ class WaveletOperator(Operator):
         --------
         >>> W = WaveletOperator("haar", level=1, shapein=2)
         >>> W.todense()
-
         array([[ 0.70710678,  0.70710678],
                [ 0.70710678, -0.70710678]])
 
@@ -98,7 +111,6 @@ class Wavelet2dOperator(Operator):
         -------
         >>> W = Wavelet2dOperator("haar", level=1, shapein=(2, 2))
         >>> W.todense()
-
         array([[ 0.5,  0.5,  0.5,  0.5],
                [ 0.5,  0.5, -0.5, -0.5],
                [ 0.5, -0.5,  0.5, -0.5],

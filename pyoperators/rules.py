@@ -265,28 +265,32 @@ class RuleManager(object):
     Examples
     --------
     To prevent rule simplifications:
-    >>> from pyoperators.rules import rules
-    >>> rules['none'] = True
+    >>> from pyoperators.rules import rule_manager
+    >>> rule_manager['none'] = True
+
+    To re-enable rule simplifications:
+    >>> rule_manager['none'] = False
+
     or:
-    >>> with rules(none=True):
-    ...     print(rules['none'])
+    >>> with rule_manager(none=True):
     ...     # in this context, operator simplification rules are inhibited
-    >>> print(rules['none'])
+    ...     print(rule_manager['none'])
     True
+    >>> print(rule_manager['none'])
     False
 
     It is possible to nest contexts:
     >>> print(rule_manager['none'])
+    False
     >>> with rule_manager(none=True) as new_rule_manager:
     ...     print(rule_manager['none'])
     ...     with new_rule_manager(none=False):
     ...         print(rule_manager['none'])
     ...     print(rule_manager['none'])
+    True
+    False
+    True
     >>> print(rule_manager['none'])
-    False
-    True
-    False
-    True
     False
 
     """

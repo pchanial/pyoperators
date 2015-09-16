@@ -1835,7 +1835,7 @@ class BlockSliceOperator(CommutativeCompositeOperator):
 
     Examples
     --------
-    >>> op = BlockSliceOperator(HomothetyOperator(3), slice(None,None,2))
+    >>> op = BlockSliceOperator([HomothetyOperator(3)], slice(None,None,2))
     >>> op(np.ones(6))
     array([ 3.,  1.,  3.,  1.,  3.,  1.])
 

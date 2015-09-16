@@ -754,7 +754,6 @@ class Rotation2dOperator(DenseBlockDiagonalOperator):
     Example
     -------
     >>> r = Rotation2dOperator([45, 90], degrees=True)
-    >>> r([1, 0])
     >>> print(r([1, 0]))
     [[  7.07106781e-01   7.07106781e-01]
      [  6.12323400e-17   1.00000000e+00]]
@@ -821,7 +820,7 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
     [  6.12323400e-17   0.00000000e+00  -1.00000000e+00]
     >>> r2 = Rotation3dOperator("XYZ", 30, 40, 50, degrees=True)
     >>> print(r2([1, 0, 0]))
-    [ 0.49240388  0.58682409 -0.64278761]d
+    [ 0.49240388  0.58682409 -0.64278761]
     >>> r3 = Rotation3dOperator("ZY'X''", 50, 40, 30, degrees=True)
     >>> print(r3([1, 0, 0]))
     [ 0.49240388  0.58682409 -0.64278761]
@@ -1046,9 +1045,8 @@ class TridiagonalOperator(Operator):
 
         Exemple
         -------
-        >>> import operators
-        >>> T = operators.TridiagonalOperator([1, 2, 3], [4, 5], [6, 7])
-        >>> T.todense()
+        >>> tri = TridiagonalOperator([1, 2, 3], [4, 5], [6, 7])
+        >>> tri.todense()
         array([[1, 6, 0],
                [4, 2, 7],
                [0, 5, 3]])
