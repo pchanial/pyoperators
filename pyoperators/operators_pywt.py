@@ -4,14 +4,24 @@ For now only 1D and 2D wavelets are available.
 
 """
 from __future__ import absolute_import, division, print_function
+from .core import Operator, CompositionOperator
+from .flags import linear, real
 import numpy as np
 
 try:
     import pywt
+
+    # dict of corresponding wavelets
+    rwavelist = {}
+    for l in pywt.wavelist():
+        if 'bior' in l:
+            rwavelist[l] = 'rbio' + l[-3:]
+        elif 'rbio' in l:
+            rwavelist[l] = 'bior' + l[-3:]
+        else:
+            rwavelist[l] = l
 except ImportError:
     pass
-from .core import Operator, CompositionOperator
-from .flags import linear, real
 
 __all__ = ['WaveletOperator', 'Wavelet2dOperator']
 
@@ -24,17 +34,6 @@ def setup_module(module):
         from nose.plugins.skip import SkipTest
 
         raise SkipTest()
-
-
-# dict of corresponding wavelets
-rwavelist = {}
-for l in pywt.wavelist():
-    if 'bior' in l:
-        rwavelist[l] = 'rbio' + l[-3:]
-    elif 'rbio' in l:
-        rwavelist[l] = 'bior' + l[-3:]
-    else:
-        rwavelist[l] = l
 
 
 @real
