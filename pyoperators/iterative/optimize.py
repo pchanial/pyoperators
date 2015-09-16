@@ -61,7 +61,7 @@ class FminWrapper(object):
 
 
 class FminCOBYLA(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_cobyla.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_cobyla.__doc__
 
     def __init__(self, criterion, cons, x0=None, *args, **kwargs):
         self.cons = cons
@@ -85,7 +85,7 @@ class FminCOBYLA(FminWrapper):
 
 
 class FminPowell(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_powell.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_powell.__doc__
 
     def __call__(self):
         self.first_guess()
@@ -101,7 +101,7 @@ class FminPowell(FminWrapper):
 
 
 class FminCG(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_cg.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_cg.__doc__
 
     def __call__(self):
         self.first_guess()
@@ -121,7 +121,7 @@ class FminCG(FminWrapper):
 
 
 class FminTNC(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_tnc.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_tnc.__doc__
 
     def __call__(self):
         self.first_guess()
@@ -141,7 +141,7 @@ class FminTNC(FminWrapper):
 
 
 class FminNCG(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_ncg.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_ncg.__doc__
 
     def __init__(self, criterion, x0=None, *args, **kwargs):
         super(FminNCG, self).__init__(criterion, x0=x0, *args, **kwargs)
@@ -167,7 +167,7 @@ class FminNCG(FminWrapper):
 
 
 class FminLBFGSB(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_l_bfgs_b.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_l_bfgs_b.__doc__
 
     def __call__(self):
         self.first_guess()
@@ -187,7 +187,7 @@ class FminLBFGSB(FminWrapper):
 
 
 class FminSLSQP(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_slsqp.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_slsqp.__doc__
 
     def __call__(self):
         self.first_guess()
@@ -208,7 +208,7 @@ class FminSLSQP(FminWrapper):
 
 
 class FminBFGS(FminWrapper):
-    __doc__ = FminWrapper.__doc__ + opt.fmin_bfgs.__doc__
+    #    __doc__ = FminWrapper.__doc__ + opt.fmin_bfgs.__doc__
 
     def __call__(self):
         self.first_guess()

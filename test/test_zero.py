@@ -17,6 +17,7 @@ from pyoperators.utils.testing import (
     assert_is_none,
     assert_same,
     assert_is_type,
+    skiptest,
 )
 from .common import OPS, ndarray2, attr2
 
@@ -81,6 +82,7 @@ def test_zero5():
     assert_equal(oz.shapeout, o.shapeout, 'oz, out')
 
 
+@skiptest
 def test_zero6():
     @flags.linear
     class Op(Operator):

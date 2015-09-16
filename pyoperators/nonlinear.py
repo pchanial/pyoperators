@@ -669,7 +669,7 @@ class NumexprOperator(Operator):
     -------
     >>> k = 1.2
     >>> op = NumexprOperator('exp(input+k)', {'k':k})
-    >>> print op(1) == np.exp(2.2)
+    >>> print(op(1) == np.exp(2.2))
     True
 
     """

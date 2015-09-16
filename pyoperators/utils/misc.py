@@ -88,12 +88,15 @@ def deprecated(msg):
     Example
     -------
     >>> @deprecated('use mynewfunc instead.')
-    >>> def myfunc():
+    ... def myfunc():
     ...    pass
 
-    >>>@deprecated
-    >>>class MyClass(MyNewClass):
-    >>>    pass
+    >>> class MyNewClass(object):
+    ...     # here goes the new class to be used instead of the deprecated one
+    ...     pass
+    >>> @deprecated
+    ... class MyClass(MyNewClass):
+    ...    pass
 
     """
 
@@ -590,9 +593,9 @@ def inspect_special_values(x):
     Examples
     --------
     >>> inspect_special_values([0,-1,-1])
-    2, 1, 0, False, False
+    (2, 1, 0, False, False)
     >>> inspect_special_values([0,-1,-1,1.2])
-    0, 0, 0, True, False
+    (0, 0, 0, True, False)
 
     """
     x = np.asarray(x)
@@ -674,7 +677,7 @@ def last(l, f):
 
     Example:
     --------
-    >>> first([1.,2.,3.], lambda x: x > 1.5)
+    >>> last([1.,2.,3.], lambda x: x > 1.5)
     3.0
 
     """
@@ -750,7 +753,7 @@ def merge_none(a, b):
     Example
     -------
     >>> merge_none([1,None,3],[None,2,3])
-    [1, 2, 3]
+    (1, 2, 3)
     """
     if a is b is None:
         return None
@@ -871,7 +874,7 @@ def reshape_broadcast(x, shape):
     [[[0 0]
       [1 1]
       [2 2]]
-
+    <BLANKLINE>
      [[0 0]
       [1 1]
       [2 2]]]
@@ -970,8 +973,8 @@ def strelapsed(t0, msg='Elapsed time'):
     >>> import time
     >>> t0 = time.time()
     >>> pass
-    >>> print(strelapsed(t0, 'Did nothing in'))
-    Info computernode: Did nothing in... 0.00s
+    >>> strelapsed(t0, 'Did nothing in')  # doctest: +ELLIPSIS
+    'Info ...: Did nothing in... 0.00s'
 
     """
     import time
@@ -1014,8 +1017,8 @@ def strinfo(msg):
         The information message.
     Example
     -------
-    >>> print(strinfo('My information message'))
-    Info computernode: My information message.
+    >>> strinfo('My information message')  # doctest: +ELLIPSIS
+    'Info ...: My information message.'
 
     """
     from .mpi import MPI
@@ -1042,8 +1045,8 @@ def strnbytes(nbytes):
     Example
     -------
     >>> a = np.empty((100,100))
-    >>> print(strnbytes(a.nbytes))
-    78.125 KiB
+    >>> strnbytes(a.nbytes)
+    '78.125 KiB'
 
     """
     if nbytes < 1024:
@@ -1079,7 +1082,7 @@ def strplural(n, name, nonumber=False, s=''):
     '1 cat'
     >>> strplural(2, 'cat')
     '2 cats'
-    >>> strplural(2, 'cat', prepend=False)
+    >>> strplural(2, 'cat', nonumber=True)
     'cats'
     >>> animals = ['cat', 'dog']
     >>> strplural(len(animals), 'animal', s=': ') + ', '.join(animals)
@@ -1122,26 +1125,26 @@ class Timer(object):
     Examples
     --------
     >>> import time
-    >>> with Timer('Elapsed time: '):
+    >>> with Timer('Elapsed time: '):  # doctest: +SKIP
     ...     time.sleep(0.1)
     Elapsed time: 0.100191831589s
 
-    >>> with Timer() as t:
+    >>> with Timer() as t:  # doctest: +SKIP
     ...     time.sleep(0.1)
     ...     print(t.elapsed)
     ...     time.sleep(0.1)
-    ... print(t.elapsed)
     0.100234985352
+    >>> print(t.elapsed)  # doctest: +SKIP
     0.200633049011
 
     >>> t = Timer(cumulative=True)
     >>> with t:
     ...     time.sleep(0.1)
-    >>> print(t.elapsed)
-    >>> with t:
-    ...     time.sleep(0.1)
-    >>> print(t.elapsed)
+    >>> print(t.elapsed)  # doctest: +SKIP
     0.100238084793
+    >>> with t:
+    ...     time.sleep(0.1)  # doctest: +SKIP
+    >>> print(t.elapsed)  # doctest: +SKIP
     0.200490236282
 
     """
