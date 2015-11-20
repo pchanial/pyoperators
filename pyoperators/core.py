@@ -3335,7 +3335,8 @@ class BlockRowOperator(BlockOperator):
             keywords.get('flags', {}), linear=operation is operator.iadd)
         BlockOperator.__init__(self, operands, partitionin=partitionin, axisin=
                                axisin, new_axisin=new_axisin, **keywords)
-
+        if not isinstance(self, BlockRowOperator):
+            return
         self.operation = operation
         self._need_temporary = any(not o.flags.update_output for o in
                                    self.operands[1:])
