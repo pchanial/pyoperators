@@ -3906,7 +3906,8 @@ class BlockRowOperator(BlockOperator):
             new_axisin=new_axisin,
             **keywords,
         )
-
+        if not isinstance(self, BlockRowOperator):
+            return
         self.operation = operation
         self._need_temporary = any(not o.flags.update_output for o in self.operands[1:])
 
