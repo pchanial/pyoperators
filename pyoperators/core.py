@@ -4125,7 +4125,7 @@ class BroadcastingBase(Operator):
                     return
         else:
             if b == 'rightward':
-                if axis_ >= ndim:
+                if axis_ > ndim:
                     do_replicate = True
             else:
                 if axis is not None:
