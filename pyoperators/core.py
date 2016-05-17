@@ -428,7 +428,7 @@ class Operator(object):
         self, x, out=None, operation=operation_assignment, preserve_input=True
     ):
 
-        if isinstance(x, Operator):
+        if isinstance(x, collections.Callable):
             if self.flags.idempotent and self is x:
                 return self
             return CompositionOperator([self, x])
