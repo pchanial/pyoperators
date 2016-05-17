@@ -2705,7 +2705,11 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             else:
                 s = tointtuple(op.reshapeout(shapes[i]))
             if None not in (shapes[i + 1], s) and s != shapes[i + 1]:
-                raise ValueError("Incompatible shape in composition.")
+                raise ValueError(
+                    "The input shape '{0}' of {1} is incompatible with '{2}'.".format(
+                        s, str(op), shapes[i + 1]
+                    )
+                )
             if s is not None:
                 shapes[i + 1] = s
 
