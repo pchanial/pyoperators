@@ -1,7 +1,7 @@
 #!/usr/bin/env python
+import hooks
 import numpy as np
 import sys
-from hooks import get_cmdclass, get_version
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
 
@@ -28,7 +28,7 @@ ext_modules = [
 
 setup(
     name=name,
-    version=get_version(name, VERSION),
+    version=hooks.get_version(name, VERSION),
     description='Operators and solvers for high-performance computing.',
     long_description=long_description,
     url='http://pchanial.github.com/pyoperators',
@@ -41,7 +41,7 @@ setup(
     packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],
     platforms=platforms.split(','),
     keywords=keywords.split(','),
-    cmdclass=get_cmdclass(),
+    cmdclass=hooks.cmdclass,
     ext_modules=ext_modules,
     license='CeCILL-B',
     classifiers=[

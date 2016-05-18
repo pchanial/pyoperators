@@ -1,3 +1,2 @@
 include .coveragerc
-include hooks.py
 include README.rst

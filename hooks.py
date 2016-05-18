@@ -27,6 +27,7 @@ since the last release branch (by default of name "v[0-9.]+", but it is
 configurable) or the last tag.
 
 """
+import os
 
 # These variables can be changed by the hooks importer
 ABBREV = 5
@@ -50,16 +51,12 @@ F2PY_TABLE = {
     'complex': {'real32': 'complex_float', 'real64': 'complex_double'},
 }
 FCOMPILERS_DEFAULT = 'ifort', 'gfortran'
+FILE_PREPROCESS = 'preprocess.py'
 LIBRARY_OPENMP_GFORTRAN = 'gomp'
 LIBRARY_OPENMP_IFORT = 'iomp5'
 REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
-try:
-    import os
-    from Cython.Build import cythonize
-
-    USE_CYTHON = bool(int(os.getenv('SETUPHOOKS_USE_CYTHON', '1') or '0'))
-except ImportError:
-    USE_CYTHON = False
+USE_CYTHON = bool(int(os.getenv('SETUPHOOKS_USE_CYTHON', '1') or '0'))
+MIN_VERSION_CYTHON = '0.13'
 
 import numpy
 import re
@@ -116,244 +113,326 @@ if _id is not None:
     numpy.distutils.fcompiler._default_compilers = _df
 
 
-def get_cmdclass():
-    class BuildCommand(build):
-        def run(self):
-            _write_version(
-                self.distribution.get_name(), self.distribution.get_version()
-            )
-            build.run(self)
+class BuildCommand(build):
+    sub_commands = [
+        ('build_pre', lambda *args: True),
+        ('build_cy', lambda *args: True),
+    ] + build.sub_commands
 
-    class BuildClibCommand(build_clib):
-        def build_libraries(self, libraries):
-            if parse_version(numpy.__version__) < parse_version('1.7'):
-                fcompiler = self.fcompiler
+
+class BuildClibCommand(build_clib):
+    def build_libraries(self, libraries):
+        if parse_version(numpy.__version__) < parse_version('1.7'):
+            fcompiler = self.fcompiler
+        else:
+            fcompiler = self._f_compiler
+        if isinstance(fcompiler, numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
+            old_value = numpy.distutils.log.set_verbosity(-2)
+            exe = find_executable('gcc-ar')
+            if exe is None:
+                exe = find_executable('ar')
+            numpy.distutils.log.set_verbosity(old_value)
+            self.compiler.archiver[0] = exe
+            flags = F77_COMPILE_ARGS_GFORTRAN + F77_COMPILE_OPT_GFORTRAN
+            if self.debug:
+                flags += F77_COMPILE_DEBUG_GFORTRAN
+            if F77_OPENMP:
+                flags += ['-openmp']
+            fcompiler.executables['compiler_f77'] += flags
+            flags = F90_COMPILE_ARGS_GFORTRAN + F90_COMPILE_OPT_GFORTRAN
+            if self.debug:
+                flags += F90_COMPILE_DEBUG_GFORTRAN
+            if F90_OPENMP:
+                flags += ['-openmp']
+            fcompiler.executables['compiler_f90'] += flags
+            fcompiler.libraries += [LIBRARY_OPENMP_GFORTRAN]
+        elif isinstance(fcompiler, numpy.distutils.fcompiler.intel.IntelFCompiler):
+            old_value = numpy.distutils.log.set_verbosity(-2)
+            self.compiler.archiver[0] = find_executable('xiar')
+            numpy.distutils.log.set_verbosity(old_value)
+            flags = F77_COMPILE_ARGS_IFORT + F77_COMPILE_OPT_IFORT
+            if self.debug:
+                flags += F77_COMPILE_DEBUG_IFORT
+            if F77_OPENMP:
+                flags += ['-openmp']
+            fcompiler.executables['compiler_f77'] += flags
+            flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
+            if self.debug:
+                flags += F90_COMPILE_DEBUG_IFORT
+            if F90_OPENMP:
+                flags += ['-openmp']
+            fcompiler.executables['compiler_f90'] += flags
+            fcompiler.libraries += [LIBRARY_OPENMP_IFORT]
+        else:
+            raise RuntimeError("Unhandled compiler: '{}'.".format(fcompiler))
+        build_clib.build_libraries(self, libraries)
+
+
+class BuildCyCommand(Command):
+    description = 'cythonize files'
+    user_options = []
+
+    def run(self):
+        extensions = self.distribution.ext_modules
+        if self._has_cython():
+            from Cython.Build import cythonize
+
+            new_extensions = cythonize(extensions)
+            for i, ext in enumerate(new_extensions):
+                for source in extensions[i].sources:
+                    if source.endswith('.pyx'):
+                        # include cython file in the MANIFEST
+                        ext.depends.append(source)
+                extensions[i] = ext
+            return
+
+        for ext in extensions:
+            for isource, source in enumerate(ext.sources):
+                if source.endswith('.pyx'):
+                    suf = 'cpp' if ext.language == 'c++' else 'c'
+                    new_source = source[:-3] + suf
+                    ext.sources[isource] = new_source
+                    if not os.path.exists(new_source):
+                        print(
+                            "Aborting: cythonized file '{}' is missing.".format(
+                                new_source
+                            )
+                        )
+                        sys.exit()
+
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def _has_cython(self):
+        extensions = self.distribution.ext_modules
+        if not USE_CYTHON or not any(
+            _.endswith('.pyx') for ext in extensions for _ in ext.sources
+        ):
+            return False
+        try:
+            import Cython
+        except ImportError:
+            print('Cython is not installed, defaulting to C/C++ files.')
+            return False
+        if parse_version(Cython.__version__) < parse_version(MIN_VERSION_CYTHON):
+            print(
+                "The Cython version is older than that required ('{0}' < '{1"
+                "}'). Defaulting to C/C++ files.".format(
+                    Cython.__version__, MIN_VERSION_CYTHON
+                )
+            )
+            return False
+        return True
+
+
+class BuildExtCommand(build_ext):
+    def build_extensions(self):
+        # Numpy bug: if an extension has a library only consisting of f77
+        # files, the extension language will always be f77 and no f90
+        # compiler will be initialized
+        need_f90_compiler = self._f90_compiler is None and any(
+            any(f90_ext_match(s) for s in _.sources) for _ in self.extensions
+        )
+        if need_f90_compiler:
+            self._f90_compiler = new_fcompiler(
+                compiler=self.fcompiler,
+                verbose=self.verbose,
+                dry_run=self.dry_run,
+                force=self.force,
+                requiref90=True,
+                c_compiler=self.compiler,
+            )
+            fcompiler = self._f90_compiler
+            if fcompiler:
+                fcompiler.customize(self.distribution)
+            if fcompiler and fcompiler.get_version():
+                fcompiler.customize_cmd(self)
+                fcompiler.show_customization()
             else:
-                fcompiler = self._f_compiler
-            if isinstance(fcompiler, numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
-                old_value = numpy.distutils.log.set_verbosity(-2)
-                exe = numpy.distutils.exec_command.find_executable('gcc-ar')
-                if exe is None:
-                    exe = numpy.distutils.exec_command.find_executable('ar')
-                numpy.distutils.log.set_verbosity(old_value)
-                self.compiler.archiver[0] = exe
+                ctype = fcompiler.compiler_type if fcompiler else self.fcompiler
+                self.warn('f90_compiler=%s is not available.' % ctype)
+
+        for fc in self._f77_compiler, self._f90_compiler:
+            if isinstance(fc, numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
                 flags = F77_COMPILE_ARGS_GFORTRAN + F77_COMPILE_OPT_GFORTRAN
                 if self.debug:
                     flags += F77_COMPILE_DEBUG_GFORTRAN
                 if F77_OPENMP:
                     flags += ['-openmp']
-                fcompiler.executables['compiler_f77'] += flags
+                fc.executables['compiler_f77'] += flags
                 flags = F90_COMPILE_ARGS_GFORTRAN + F90_COMPILE_OPT_GFORTRAN
                 if self.debug:
                     flags += F90_COMPILE_DEBUG_GFORTRAN
                 if F90_OPENMP:
                     flags += ['-openmp']
-                fcompiler.executables['compiler_f90'] += flags
-                fcompiler.libraries += [LIBRARY_OPENMP_GFORTRAN]
-            elif isinstance(fcompiler, numpy.distutils.fcompiler.intel.IntelFCompiler):
-                old_value = numpy.distutils.log.set_verbosity(-2)
-                self.compiler.archiver[
-                    0
-                ] = numpy.distutils.exec_command.find_executable('xiar')
-                numpy.distutils.log.set_verbosity(old_value)
+                fc.executables['compiler_f90'] += flags
+                fc.libraries += [LIBRARY_OPENMP_GFORTRAN]
+            elif isinstance(fc, numpy.distutils.fcompiler.intel.IntelFCompiler):
                 flags = F77_COMPILE_ARGS_IFORT + F77_COMPILE_OPT_IFORT
                 if self.debug:
                     flags += F77_COMPILE_DEBUG_IFORT
                 if F77_OPENMP:
                     flags += ['-openmp']
-                fcompiler.executables['compiler_f77'] += flags
+                fc.executables['compiler_f77'] += flags
                 flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
                 if self.debug:
                     flags += F90_COMPILE_DEBUG_IFORT
                 if F90_OPENMP:
                     flags += ['-openmp']
-                fcompiler.executables['compiler_f90'] += flags
-                fcompiler.libraries += [LIBRARY_OPENMP_IFORT]
-            else:
-                raise RuntimeError()
-            build_clib.build_libraries(self, libraries)
+                fc.executables['compiler_f90'] += flags
+                fc.libraries += [LIBRARY_OPENMP_IFORT]
+            elif fc is not None:
+                raise RuntimeError("Unhandled compiler: '{}'.".format(fcompiler))
+        build_ext.build_extensions(self)
 
-    class BuildExtCommand(build_ext):
-        def build_extensions(self):
-            # Numpy bug: if an extension has a library only consisting of f77
-            # files, the extension language will always be f77 and no f90
-            # compiler will be initialized
-            need_f90_compiler = self._f90_compiler is None and any(
-                any(f90_ext_match(s) for s in _.sources) for _ in self.extensions
-            )
-            if need_f90_compiler:
-                self._f90_compiler = new_fcompiler(
-                    compiler=self.fcompiler,
-                    verbose=self.verbose,
-                    dry_run=self.dry_run,
-                    force=self.force,
-                    requiref90=True,
-                    c_compiler=self.compiler,
-                )
-                fcompiler = self._f90_compiler
-                if fcompiler:
-                    fcompiler.customize(self.distribution)
-                if fcompiler and fcompiler.get_version():
-                    fcompiler.customize_cmd(self)
-                    fcompiler.show_customization()
-                else:
-                    ctype = fcompiler.compiler_type if fcompiler else self.fcompiler
-                    self.warn('f90_compiler=%s is not available.' % ctype)
 
-            for fc in self._f77_compiler, self._f90_compiler:
-                if isinstance(fc, numpy.distutils.fcompiler.gnu.Gnu95FCompiler):
-                    flags = F77_COMPILE_ARGS_GFORTRAN + F77_COMPILE_OPT_GFORTRAN
-                    if self.debug:
-                        flags += F77_COMPILE_DEBUG_GFORTRAN
-                    if F77_OPENMP:
-                        flags += ['-openmp']
-                    fc.executables['compiler_f77'] += flags
-                    flags = F90_COMPILE_ARGS_GFORTRAN + F90_COMPILE_OPT_GFORTRAN
-                    if self.debug:
-                        flags += F90_COMPILE_DEBUG_GFORTRAN
-                    if F90_OPENMP:
-                        flags += ['-openmp']
-                    fc.executables['compiler_f90'] += flags
-                    fc.libraries += [LIBRARY_OPENMP_GFORTRAN]
-                elif isinstance(fc, numpy.distutils.fcompiler.intel.IntelFCompiler):
-                    flags = F77_COMPILE_ARGS_IFORT + F77_COMPILE_OPT_IFORT
-                    if self.debug:
-                        flags += F77_COMPILE_DEBUG_IFORT
-                    if F77_OPENMP:
-                        flags += ['-openmp']
-                    fc.executables['compiler_f77'] += flags
-                    flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
-                    if self.debug:
-                        flags += F90_COMPILE_DEBUG_IFORT
-                    if F90_OPENMP:
-                        flags += ['-openmp']
-                    fc.executables['compiler_f90'] += flags
-                    fc.libraries += [LIBRARY_OPENMP_IFORT]
-            build_ext.build_extensions(self)
+class BuildPreCommand(Command):
+    description = 'run the package preprocessing'
+    user_options = []
 
-    class BuildSrcCommand(build_src):
-        def initialize_options(self):
-            build_src.initialize_options(self)
-            self.f2py_opts = '--quiet'
+    def run(self):
+        self._write_version()
+        if os.path.exists(FILE_PREPROCESS):
+            import imp
 
-        def run(self):
-            has_fortran = False
-            has_cython = False
-            for ext in self.extensions:
-                has_fortran = has_fortran or has_f_sources(ext.sources)
-                for isource, source in enumerate(ext.sources):
-                    if source.endswith('.pyx'):
-                        if not USE_CYTHON:
-                            ext.sources[isource] = source[:-3] + 'c'
-                        else:
-                            has_cython = True
-            if has_fortran:
-                with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
-                    f.write(repr(F2PY_TABLE))
-            if has_cython:
-                build_dir = None if self.inplace else self.build_src
-                new_extensions = cythonize(
-                    self.extensions, force=True, build_dir=build_dir
-                )
-                for i in range(len(self.extensions)):
-                    self.extensions[i] = new_extensions[i]
-            build_src.run(self)
+            imp.load_source('preprocess', FILE_PREPROCESS)
 
-    class SDistCommand(sdist):
-        def make_release_tree(self, base_dir, files):
-            _write_version(
-                self.distribution.get_name(), self.distribution.get_version()
-            )
-            initfile = os.path.join(self.distribution.get_name(), '__init__.py')
-            new_files = []
+    def initialize_options(self):
+        pass
+
+    def finalize_options(self):
+        pass
+
+    def _write_version(self):
+        name = self.distribution.get_name()
+        version = self.distribution.get_version()
+        try:
+            init = open(os.path.join(root, name, '__init__.py.in')).readlines()
+        except IOError:
+            return
+        init += ['\n', '__version__ = ' + repr(version) + '\n']
+        open(os.path.join(root, name, '__init__.py'), 'w').writelines(init)
+
+
+class BuildSrcCommand(build_src):
+    def initialize_options(self):
+        build_src.initialize_options(self)
+        self.f2py_opts = '--quiet'
+
+    def run(self):
+        if self._has_fortran():
+            with open(os.path.join(root, '.f2py_f2cmap'), 'w') as f:
+                f.write(repr(F2PY_TABLE))
+        build_src.run(self)
+
+    def _has_fortran(self):
+        return any(has_f_sources(ext.sources) for ext in self.extensions)
+
+
+class SDistCommand(sdist):
+    sub_commands = [
+        ('build_pre', lambda *args: True),
+        ('build_cy', lambda *args: True),
+    ] + sdist.sub_commands
+
+    def add_defaults(self):
+        sdist.add_defaults(self)
+        self.filelist.append('hooks.py')
+        extensions = self.distribution.ext_modules
+        for ext in extensions:
+            for source in ext.sources:
+                if source.endswith('.pyx'):
+                    self.filelist.append(source)
+
+
+class CleanCommand(clean):
+    def run(self):
+        clean.run(self)
+        if is_git_tree():
+            print(run_git('clean -fdX' + ('n' if self.dry_run else '')))
+            return
+
+        extensions = '.o', '.pyc', 'pyd', 'pyo', '.so'
+        for root_, dirs, files in os.walk(root):
             for f in files:
-                if f.endswith('.pyx'):
-                    new_files.append(f[:-3] + 'c')
-            if initfile not in files:
-                new_files.append(initfile)
-            files.extend(new_files)
-            sdist.make_release_tree(self, base_dir, files)
+                if os.path.splitext(f)[-1] in extensions:
+                    self.__delete(os.path.join(root_, f))
+            for d in dirs:
+                if d in ('build', '__pycache__'):
+                    self.__delete(os.path.join(root_, d), dir=True)
 
-    class CleanCommand(clean):
-        def run(self):
-            clean.run(self)
-            if is_git_tree():
-                print(run_git('clean -fdX' + ('n' if self.dry_run else '')))
-                return
+    def __delete(self, file_, dir=False):
+        msg = 'would remove' if self.dry_run else 'removing'
+        try:
+            if not self.dry_run:
+                if dir:
+                    shutil.rmtree(file_)
+                else:
+                    os.unlink(file_)
+        except OSError:
+            msg = 'problem removing'
+        print(msg + ' {!r}'.format(file_))
 
-            extensions = '.o', '.pyc', 'pyd', 'pyo', '.so'
-            for root_, dirs, files in os.walk(root):
-                for f in files:
-                    if os.path.splitext(f)[-1] in extensions:
-                        self.__delete(os.path.join(root_, f))
-                for d in dirs:
-                    if d in ('build', '__pycache__'):
-                        self.__delete(os.path.join(root_, d), dir=True)
 
-        def __delete(self, file_, dir=False):
-            msg = 'would remove' if self.dry_run else 'removing'
-            try:
-                if not self.dry_run:
-                    if dir:
-                        shutil.rmtree(file_)
-                    else:
-                        os.unlink(file_)
-            except OSError:
-                msg = 'problem removing'
-            print(msg + ' {!r}'.format(file_))
+class CoverageCommand(Command):
+    description = "run the package coverage"
+    user_options = [
+        ('file=', 'f', 'restrict coverage to a specific file'),
+        ('erase', None, 'erase previously collected coverage before run'),
+        ('html-dir=', None, 'Produce HTML coverage information in dir'),
+    ]
 
-    class CoverageCommand(Command):
-        description = "run the package coverage"
-        user_options = [
-            ('file=', 'f', 'restrict coverage to a specific file'),
-            ('erase', None, 'erase previously collected coverage before run'),
-            ('html-dir=', None, 'Produce HTML coverage information in dir'),
+    def run(self):
+        cmd = [
+            sys.executable,
+            '-mnose',
+            '--with-coverage',
+            '--cover-html',
+            '--cover-package=' + self.distribution.get_name(),
+            '--cover-html-dir=' + self.html_dir,
         ]
+        if self.erase:
+            cmd.append('--cover-erase')
+        call(cmd + [self.file])
 
-        def run(self):
-            cmd = [
-                sys.executable,
-                '-mnose',
-                '--with-coverage',
-                '--cover-html',
-                '--cover-package=' + self.distribution.get_name(),
-                '--cover-html-dir=' + self.html_dir,
-            ]
-            if self.erase:
-                cmd.append('--cover-erase')
-            call(cmd + [self.file])
+    def initialize_options(self):
+        self.file = 'test'
+        self.erase = 0
+        self.html_dir = 'htmlcov'
 
-        def initialize_options(self):
-            self.file = 'test'
-            self.erase = 0
-            self.html_dir = 'htmlcov'
+    def finalize_options(self):
+        pass
 
-        def finalize_options(self):
-            pass
 
-    class TestCommand(Command):
-        description = "run the test suite"
-        user_options = [('file=', 'f', 'restrict test to a specific file')]
+class TestCommand(Command):
+    description = "run the test suite"
+    user_options = [('file=', 'f', 'restrict test to a specific file')]
 
-        def run(self):
-            call([sys.executable, '-mnose', self.file])
+    def run(self):
+        call([sys.executable, '-mnose', self.file])
 
-        def initialize_options(self):
-            self.file = 'test'
+    def initialize_options(self):
+        self.file = 'test'
 
-        def finalize_options(self):
-            pass
+    def finalize_options(self):
+        pass
 
-    return {
-        'build': BuildCommand,
-        'build_clib': BuildClibCommand,
-        'build_ext': BuildExtCommand,
-        'build_src': BuildSrcCommand,
-        'clean': CleanCommand,
-        'coverage': CoverageCommand,
-        'sdist': SDistCommand,
-        'test': TestCommand,
-    }
+
+cmdclass = {
+    'build': BuildCommand,
+    'build_clib': BuildClibCommand,
+    'build_cy': BuildCyCommand,
+    'build_ext': BuildExtCommand,
+    'build_pre': BuildPreCommand,
+    'build_src': BuildSrcCommand,
+    'clean': CleanCommand,
+    'coverage': CoverageCommand,
+    'sdist': SDistCommand,
+    'test': TestCommand,
+}
 
 
 def get_version(name, default):
@@ -365,11 +444,16 @@ def run_git(cmd, cwd=root):
     if sys.platform == 'win32':
         git = 'git.cmd'
     cmd = git + ' ' + cmd
+    return run(cmd, cwd=cwd)
+
+
+def run(cmd, cwd=root):
     process = Popen(cmd.split(), cwd=cwd, stdout=PIPE, stderr=PIPE)
     stdout, stderr = process.communicate()
     if process.returncode != 0:
+        stderr = stderr.decode('utf-8')
         if stderr != '':
-            stderr = '\n' + stderr.decode('utf-8')
+            stderr = '\n' + stderr
         raise RuntimeError(
             'Command failed (error {0}): {1}{2}'.format(process.returncode, cmd, stderr)
         )
@@ -515,15 +599,6 @@ def _get_version_init_file(name):
     if m is None:
         return ''
     return m.groups()[0]
-
-
-def _write_version(name, version):
-    try:
-        init = open(os.path.join(root, name, '__init__.py.in')).readlines()
-    except IOError:
-        return
-    init += ['\n', '__version__ = ' + repr(version) + '\n']
-    open(os.path.join(root, name, '__init__.py'), 'w').writelines(init)
 
 
 filterwarnings('ignore', "Unknown distribution option: 'install_requires'")
