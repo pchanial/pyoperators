@@ -514,9 +514,10 @@ class SparseOperator(SparseBase):
 @inplace
 class DiagonalNumexprOperator(DiagonalBase):
     """
-    DiagonalOperator whose diagonal elements are calculated on the fly using
-    the numexpr package and that can be separated when added or multiplied
-    to a block operator.
+    DiagonalOperator whose diagonal elements are not stored in memory.
+    They are calculated on the fly using the numexpr package. Such operator
+    can be automatically partitionned when added to or multiplied by a block
+    operator.
 
     Note
     ----
@@ -527,8 +528,14 @@ class DiagonalNumexprOperator(DiagonalBase):
 
     Example
     -------
+    >>> d = DiagonalNumexprOperator(np.arange(3), '2 * data')
+    >>> d.todense()
+    array([[ 0.,  0.,  0.],
+           [ 0.,  2.,  0.],
+           [ 0.,  0.,  4.]])
     >>> alpha = np.arange(100.)
-    >>> d = DiagonalNumexprOperator(alpha, '(x/x0)**data', {'x':1.2, 'x0':1.})
+    >>> d = DiagonalNumexprOperator(alpha, '(a/b)**alpha', {'a':1.2, 'b':2},
+                                    var='alpha')
 
     """
 
