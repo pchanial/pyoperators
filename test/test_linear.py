@@ -28,6 +28,7 @@ from pyoperators.utils.testing import (
     assert_is_none,
     assert_is_type,
     assert_same,
+    skiptest_unless_module,
 )
 from .common import IdentityOutplaceOperator, assert_inplace_outplace
 
@@ -277,6 +278,7 @@ def test_sum_operator():
             assert_eq(d, t.T)
 
 
+@skiptest_unless_module('pyfftw')
 def test_symmetric_band_toeplitz_operator():
     def totoeplitz(n, firstrow):
         if isinstance(n, tuple):
