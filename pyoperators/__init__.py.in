@@ -17,11 +17,7 @@ from .fft import *
 from .linear import *
 from .nonlinear import *
 from .operators_mpi import *
-try:
-    import pywt
-    from .operators_pywt import *
-except ImportError:
-    pass
+from .operators_pywt import *
 from .proxy import *
 from . import iterative
 from .iterative import pcg

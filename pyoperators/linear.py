@@ -1,6 +1,10 @@
 from __future__ import absolute_import, division, print_function
 import multiprocessing
-import numexpr
+
+try:
+    import numexpr
+except:
+    pass
 import numpy as np
 import operator
 
@@ -549,6 +553,8 @@ class DiagonalNumexprOperator(DiagonalBase):
         dtype=None,
         **keywords,
     ):
+        import numexpr
+
         if not isinstance(expr, str):
             raise TypeError('The second argument is not a string expression.')
         if numexpr.__version__ < '2.0.2':
@@ -1615,6 +1621,8 @@ class SymmetricBandToeplitzOperator(Operator):
         nthreads=None,
         **keywords,
     ):
+        import pyfftw
+
         shapein = tointtuple(shapein)
         if dtype is None:
             dtype = float

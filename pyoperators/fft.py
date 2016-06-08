@@ -17,7 +17,6 @@ from .flags import aligned, contiguous, inplace, linear, real, square, unitary
 from .memory import empty
 from .utils import complex_dtype, isalias, omp_num_threads, product, tointtuple
 from .utils.ufuncs import multiply_conjugate
-from .warnings import warn, PyOperatorsWarning
 
 try:
     import pyfftw
@@ -29,7 +28,7 @@ try:
     FFTW_WISDOM_MIN_DELAY = 0.1
     _is_fftw_wisdom_loaded = False
 except:
-    warn('The pyFFTW library is not installed.', PyOperatorsWarning)
+    pass
 
 __all__ = ['ConvolutionOperator', 'FFTOperator']
 
@@ -47,25 +46,6 @@ def setup_module(module):
 # FFTW out-of-place transforms:
 # PRESERVE_INPUT: default except c2r and hc2r
 # DESTROY_INPUT: default for c2r and hc2r, only possibility for multi c2r
-
-OPERATOR_ATTRIBUTES = [
-    'attrin',
-    'attrout',
-    'classin',
-    'classout',
-    'commin',
-    'commout',
-    'reshapein',
-    'reshapeout',
-    'shapein',
-    'shapeout',
-    'toshapein',
-    'toshapeout',
-    'validatein',
-    'validateout',
-    'dtype',
-    'flags',
-]
 
 
 @linear
@@ -114,6 +94,8 @@ class _FFTWConvolutionOperator(Operator):
             Operator's dtype.
 
         """
+        import pyfftw
+
         kernel = np.array(kernel, dtype=dtype, copy=False)
         dtype = kernel.dtype
         if dtype.kind not in ('f', 'c'):
@@ -229,6 +211,8 @@ class _FFTWRealConvolutionOperator(Operator):
         dtype=None,
         **keywords,
     ):
+        import pyfftw
+
         self.kernel = kernel_fft
         self._fplan = fplan
         self._bplan = bplan
@@ -405,6 +389,8 @@ class _FFTWComplexOperator(Operator):
         dtype=complex,
         **keywords,
     ):
+        import pyfftw
+
         shapein = tointtuple(shapein)
         if axes is None:
             axes = range(len(shapein))
