@@ -3935,7 +3935,7 @@ class BlockRowOperator(BlockOperator):
         ) as buf:
 
             for op, sin in zip(self.operands[1:], sins[1:]):
-                i = input[sin]
+                i = input[tuple(sin)]
                 with _pool.copy_if(
                     i, op.flags.aligned_input, op.flags.contiguous_input
                 ) as i:
