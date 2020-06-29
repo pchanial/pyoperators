@@ -22,7 +22,7 @@ __all__ = ['empty', 'ones', 'zeros']
 _gc_nbytes_counter = 0
 
 
-def empty(shape, dtype=np.float, order='c', description=None, verbose=None):
+def empty(shape, dtype=np.float, order='c', description=None, verbose=False):
     """
     Return a new aligned and contiguous array of given shape and type, without
     initializing entries.
