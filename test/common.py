@@ -165,17 +165,17 @@ class Stretch(Operator):
 
     def __init__(self, axis, **keywords):
         self.axis = axis
-        if self.axis < 0:
-            self.slice = [Ellipsis] + (-self.axis) * [slice(None)]
-        else:
-            self.slice = (self.axis + 1) * [slice(None)] + [Ellipsis]
         Operator.__init__(self, **keywords)
 
     def direct(self, input, output):
-        self.slice[self.axis] = slice(0, None, 2)
-        output[self.slice] = input
-        self.slice[self.axis] = slice(1, None, 2)
-        output[self.slice] = input
+        for index in (0, 1):
+            if self.axis < 0:
+                slices = (Ellipsis, slice(index, None, 2)) + (-self.axis - 1) * (
+                    slice(None),
+                )
+            else:
+                slices = self.axis * (slice(None),) + (slice(index, None, 2), Ellipsis)
+            output[slices] = input
 
     def reshapein(self, shape):
         shape_ = list(shape)

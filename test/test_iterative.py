@@ -46,7 +46,7 @@ def test_classes_inv():
         y = A(x)
         algo = c(A, y, maxiter=100, tol=1e-7)
         xe = algo.run()
-        assert_allclose(x, xe, rtol=1e-6)
+        assert_allclose(x, xe, rtol=1e-5)
 
     for A in operator_list:
         for x in vector_list:

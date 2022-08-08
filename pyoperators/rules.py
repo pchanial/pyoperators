@@ -3,10 +3,11 @@ from __future__ import absolute_import, division, print_function
 import inspect
 import types
 import os
+from collections.abc import Callable
+
 from . import config
 from .core import HomothetyOperator, IdentityOperator, Operator, ZeroOperator
 from .warnings import warn, PyOperatorsWarning
-import collections
 
 __all__ = ['rule_manager']
 _triggers = {}
@@ -160,7 +161,7 @@ class UnaryRule(Rule):
             raise ValueError('This is not a unary rule.')
         if self.subjects[0] == '.':
             raise ValueError('The subject cannot be the operator itself.')
-        if isinstance(predicate, collections.Callable) or predicate in ('.', '1'):
+        if isinstance(predicate, Callable) or predicate in ('.', '1'):
             return
         raise ValueError("Invalid predicate: '{0}'.".format(predicate))
 
@@ -168,9 +169,7 @@ class UnaryRule(Rule):
         predicate = self._symbol2operator(reference, self.predicate)
         if predicate is None:
             return None
-        if not isinstance(predicate, Operator) and isinstance(
-            predicate, collections.Callable
-        ):
+        if not isinstance(predicate, Operator) and isinstance(predicate, Callable):
             predicate = predicate(reference)
         if not isinstance(predicate, Operator):
             raise TypeError('The predicate is not an operator.')
@@ -244,9 +243,7 @@ class BinaryRule(Rule):
         if predicate is None:
             return None
 
-        if not isinstance(predicate, Operator) and isinstance(
-            predicate, collections.Callable
-        ):
+        if not isinstance(predicate, Operator) and isinstance(predicate, Callable):
             predicate = predicate(o1, o2)
         if predicate is None:
             return None

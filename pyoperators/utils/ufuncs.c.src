@@ -313,7 +313,6 @@ static PyMethodDef module_methods[] = {
     { NULL, NULL, 0, NULL }
 };
 
-#if defined(NPY_PY3K)
 static PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
     "ufuncs",
@@ -328,23 +327,13 @@ static PyModuleDef moduledef = {
 
 PyMODINIT_FUNC
 PyInit_ufuncs()
-#else
-PyMODINIT_FUNC
-initufuncs()
-#endif
+
 {
     PyObject *m, *f, *d;
-#if defined(NPY_PY3K)
     m = PyModule_Create(&moduledef);
     if (!m) {
         return NULL;
     }
-#else
-    m  = Py_InitModule("ufuncs", module_methods);
-    if (m == NULL) {
-        return;
-    }
-#endif
 
     import_array();
     import_umath();
@@ -381,7 +370,5 @@ initufuncs()
     PyDict_SetItemString(d , "soft_thresholding", f);
     Py_DECREF(f);
 
-#if defined(NPY_PY3K)
     return m;
-#endif
 }

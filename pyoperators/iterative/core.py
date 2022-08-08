@@ -5,20 +5,16 @@ This module defines the base class IterativeAlgorithm.
 
 """
 
-import collections
-import numpy as np
 import re
+from collections import defaultdict
+from collections.abc import Callable
+
+import numpy as np
 
 from ..utils import strenum, uninterruptible_if
 from ..utils.mpi import MPI
 from ..memory import empty
 from .stopconditions import NoStopCondition
-
-# Python 2 backward compatibility
-try:
-    range = xrange
-except NameError:
-    pass
 
 __all__ = ['AbnormalStopIteration', 'IterativeAlgorithm']
 
@@ -336,7 +332,7 @@ class IterativeAlgorithm(object):
         """Set the callback function, if specified."""
         if callback is None:
             return
-        if not isinstance(callback, collections.Callable):
+        if not isinstance(callback, Callable):
             raise TypeError('The callback function is not callable.')
         self.callback = callback
 
@@ -388,7 +384,7 @@ class IterativeAlgorithm(object):
                     b.__array_interface__['data'][0] if isinstance(b, np.ndarray) else 0
                     for b in self._initial_state[var]
                 ]
-            d = collections.defaultdict(list)
+            d = defaultdict(list)
             for n, a in zip(names, addresses):
                 d[a].append(n)
             duplicates = [v for k, v in d.items() if len(v) > 1 and k != 0]
@@ -410,8 +406,8 @@ class IterativeAlgorithm(object):
 
     def _set_stop_conditions(self, normal_stop, abnormal_stop):
         """Set the stop conditions."""
-        if not isinstance(normal_stop, collections.Callable) or not isinstance(
-            abnormal_stop, collections.Callable
+        if not isinstance(normal_stop, Callable) or not isinstance(
+            abnormal_stop, Callable
         ):
             raise TypeError('The stop conditions must be callable.')
         self.normal_stop_condition = normal_stop

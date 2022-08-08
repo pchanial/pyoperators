@@ -13,7 +13,7 @@ import pyoperators as po
 import scipy.sparse as sp
 import sys
 import types
-from collections import MutableMapping, MutableSequence, MutableSet
+from collections.abc import Callable, MutableMapping, MutableSequence, MutableSet
 from itertools import groupby
 from . import config
 from .flags import (
@@ -47,7 +47,6 @@ from .utils import (
     tointtuple,
 )
 from .utils.mpi import MPI
-import collections
 
 __all__ = [
     'Operator',
@@ -428,7 +427,7 @@ class Operator(object):
         self, x, out=None, operation=operation_assignment, preserve_input=True
     ):
 
-        if isinstance(x, collections.Callable):
+        if isinstance(x, Callable):
             if self.flags.idempotent and self is x:
                 return self
             return CompositionOperator([self, x])
@@ -489,7 +488,7 @@ class Operator(object):
             elif type(out) is not cls:
                 out.__class__ = cls
                 if out.__array_finalize__ is not None:
-                    out.__array_finalize__()
+                    out.__array_finalize__(None)
 
             # we cannot simply update __dict__, because of properties.
             # the iteration is sorted by key, so that attributes beginning with
@@ -1964,7 +1963,7 @@ class CommutativeCompositeOperator(CompositeOperator):
             'validateout': first_is_not((o.validateout for o in operands), None),
         }
         for k, v in keywords.items():
-            if k is not 'flags':
+            if k != 'flags':
                 attr[k] = v
         attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
         return attr
@@ -2166,7 +2165,7 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             'flags': cls._merge_flags(operands),
         }
         for k, v in keywords.items():
-            if k is not 'flags':
+            if k != 'flags':
                 attr[k] = v
         attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
         return attr
@@ -3214,7 +3213,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
             'shapeout': self.reshapein(None),
         }
         for k, v in keywords.items():
-            if k is not 'flags':
+            if k != 'flags':
                 attr[k] = v
         attr['flags'].update(Operator.validate_flags(keywords.get('flags', {})))
         return attr
@@ -4660,6 +4659,8 @@ class ReductionOperator(Operator):
             else:
                 direct = lambda x, out: func.reduce(x, axis, dtype, out, skipna=skipna)
         elif isinstance(func, types.FunctionType):
+            if hasattr(func, '__wrapped__'):
+                func = func.__wrapped__
             vars, junk, junk, junk = inspect.getargspec(func)
             if 'axis' not in vars:
                 raise TypeError(
@@ -4944,7 +4945,7 @@ def asoperator(x, constant=False, **keywords):
             **keywords,
         )
 
-    if isinstance(x, collections.Callable):
+    if isinstance(x, Callable):
 
         def direct(input, output):
             output[...] = x(input)

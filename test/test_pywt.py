@@ -13,7 +13,7 @@ from pyoperators.operators_pywt import WaveletOperator, Wavelet2dOperator
 
 sizes = ((32,),)
 shapes = ((4, 4),)
-wavelist = pywt.wavelist()
+wavelist = pywt.wavelist(kind='discrete')
 levels = [2]
 
 

@@ -2105,7 +2105,7 @@ def test_block_slice():
                 slices_ = [
                     [split(size, nops, i) for i in range(nops)],
                     [split(size, size, i) for i in range(nops)],
-                    [ndim * [slice(i, None, nops)] for i in range(nops)],
+                    [ndim * (slice(i, None, nops),) for i in range(nops)],
                 ]
                 for slices in slices_:
                     input = np.zeros(ndim * (size,))

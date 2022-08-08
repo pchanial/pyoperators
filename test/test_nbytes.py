@@ -23,7 +23,7 @@ COMPOSITES = (
     CompositionOperator,
     MultiplicationOperator,
 )
-PYTHON2 = sys.version_info.major == 2
+PYTHON_VERSION = sys.version_info.major == 2
 
 
 class Op1(Operator):
@@ -44,7 +44,7 @@ def test_sparse():
         sp.dia_matrix,
         sp.dok_matrix,
     )
-    expecteds = 224, 184, 192, 184, 308, 2688 if PYTHON2 else 2464
+    expecteds = 224, 184, 192, 184, 308, 2240 if sys.version_info >= (3, 8) else 2464
 
     def func(matrix, expected):
         op = SparseOperator(matrix(D))

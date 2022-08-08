@@ -1,6 +1,6 @@
 import functools
 import numpy as np
-from collections import Container, Mapping
+from collections.abc import Container, Mapping
 from numpy.testing import assert_equal, assert_allclose
 
 from .misc import settingerr, strenum

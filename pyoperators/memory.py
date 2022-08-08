@@ -22,7 +22,7 @@ __all__ = ['empty', 'ones', 'zeros']
 _gc_nbytes_counter = 0
 
 
-def empty(shape, dtype=np.float, order='c', description=None, verbose=False):
+def empty(shape, dtype=float, order='c', description=None, verbose=False):
     """
     Return a new aligned and contiguous array of given shape and type, without
     initializing entries.
@@ -82,7 +82,7 @@ def empty(shape, dtype=np.float, order='c', description=None, verbose=False):
     )
 
 
-def ones(shape, dtype=np.float, order='c', description=None, verbose=None):
+def ones(shape, dtype=float, order='c', description=None, verbose=None):
     """
     Return a new aligned and contiguous array of given shape and type, filled
     with ones.
@@ -93,7 +93,7 @@ def ones(shape, dtype=np.float, order='c', description=None, verbose=None):
     return a
 
 
-def zeros(shape, dtype=np.float, order='c', description=None, verbose=None):
+def zeros(shape, dtype=float, order='c', description=None, verbose=None):
     """
     Return a new aligned and contiguous array of given shape and type, filled
     with zeros.

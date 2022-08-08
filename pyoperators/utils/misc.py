@@ -1,6 +1,5 @@
 from __future__ import absolute_import, division, print_function
 
-import collections
 import functools
 import itertools
 import multiprocessing
@@ -12,13 +11,11 @@ import signal
 import timeit
 import types
 import sys
+from collections.abc import Callable, Container, Iterable, Mapping
 from contextlib import contextmanager
+
 from . import cythonutils as cu
 from ..warnings import warn, PyOperatorsDeprecationWarning
-
-# Python 2 backward compatibility
-if sys.version_info.major == 2:
-    zip = itertools.izip
 
 __all__ = [
     'all_eq',
@@ -147,7 +144,7 @@ def all_eq(a, b):
     """
     if a is b:
         return True
-    if isinstance(a, collections.Mapping):
+    if isinstance(a, Mapping):
         if type(a) is not type(b):
             return False
         if set(a.keys()) != set(b.keys()):
@@ -164,7 +161,7 @@ def all_eq(a, b):
         b, (float, np.ndarray, np.number)
     ):
         return np.allclose(a, b)
-    if isinstance(a, collections.Container):
+    if isinstance(a, Container):
         if type(a) is not type(b):
             return False
         if len(a) != len(b):
@@ -498,7 +495,7 @@ def ifirst(l, match):
 
     """
     try:
-        if not isinstance(match, collections.Callable):
+        if not isinstance(match, Callable):
             return next((i for i, _ in enumerate(l) if _ == match))
         return next((i for i, _ in enumerate(l) if match(_)))
     except StopIteration:
@@ -852,7 +849,7 @@ def product(a):
 
 def renumerate(l):
     """Reversed enumerate."""
-    if isinstance(l, collections.Iterable):
+    if isinstance(l, Iterable):
         l = list(l)
     return zip(range(len(l) - 1, -1, -1), reversed(l))
 
@@ -1267,9 +1264,7 @@ def zip_broadcast(*args, **keywords):
     iter_str = keywords.get('iter_str', True)
     n = max(
         1
-        if not isinstance(_, collections.Iterable)
-        or isinstance(_, str)
-        and not iter_str
+        if not isinstance(_, Iterable) or isinstance(_, str) and not iter_str
         else len(_)
         if hasattr(_, '__len__')
         else sys.maxsize
@@ -1277,11 +1272,7 @@ def zip_broadcast(*args, **keywords):
     )
 
     def wrap(a):
-        if (
-            not isinstance(a, collections.Iterable)
-            or isinstance(a, str)
-            and not iter_str
-        ):
+        if not isinstance(a, Iterable) or isinstance(a, str) and not iter_str:
             return itertools.repeat(a, n)
         if hasattr(a, '__len__') and len(a) == 1:
             return itertools.repeat(a[0], n)

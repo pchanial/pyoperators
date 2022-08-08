@@ -13,7 +13,7 @@ try:
 
     # dict of corresponding wavelets
     rwavelist = {}
-    for l in pywt.wavelist():
+    for l in pywt.wavelist(kind='discrete'):
         if 'bior' in l:
             rwavelist[l] = 'rbio' + l[-3:]
         elif 'rbio' in l:
@@ -58,7 +58,7 @@ class WaveletOperator(Operator):
         See Also
         --------
         See operators.pywt.MODES docstring for available modes.
-        See operators.pywt.wavelist() for available wavelets.
+        See operators.pywt.wavelist(kind='discrete') for available wavelets.
         See operators.pywt.wavedec for the operation performed on input arrays.
 
         Notes
@@ -78,8 +78,7 @@ class WaveletOperator(Operator):
         a = np.zeros(shapein)
         b = pywt.wavedec(a, wavelet, mode=mode, level=level)
         self.sizes = [bi.size for bi in b]
-        self.cumsizes = np.zeros(len(self.sizes) + 1)
-        np.cumsum(self.sizes, out=self.cumsizes[1:])
+        self.cumsizes = list(np.cumsum([0] + self.sizes))
         shapeout = sum(self.sizes)
         Operator.__init__(
             self, shapein=shapein, shapeout=shapeout, dtype=dtype, **keywords
@@ -151,7 +150,7 @@ class Wavelet2dOperator(Operator):
         self.shapes = [approx.shape]
         self.shapes += [d[i].shape for d in details for i in range(3)]
         self.sizes = [np.prod(s) for s in self.shapes]
-        self.cumsizes = np.zeros(len(self.sizes) + 1)
+        self.cumsizes = np.zeros(len(self.sizes) + 1, int)
         np.cumsum(self.sizes, out=self.cumsizes[1:])
         shapeout = sum(self.sizes)
 

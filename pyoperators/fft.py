@@ -534,7 +534,7 @@ class _FFTWComplexBackwardOperator(_FFTWComplexOperator):
 
 def _get_kernel_fft(kernel, shapein, dtypein, shapeout, dtypeout, fft):
     with _pool.get(shapein, dtypein) as kernel_padded:
-        ker_slice = [slice(0, s) for s in kernel.shape]
+        ker_slice = tuple(slice(0, s) for s in kernel.shape)
         kernel_padded[...] = 0
         kernel_padded[ker_slice] = kernel
         ker_origin = (np.array(kernel.shape) - 1) // 2
