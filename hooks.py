@@ -34,7 +34,7 @@ ABBREV = 5
 F77_OPENMP = True
 F90_OPENMP = True
 F77_COMPILE_ARGS_GFORTRAN = []
-F77_COMPILE_DEBUG_GFORTRAN = ['-fcheck=all', '-Og']
+F77_COMPILE_DEBUG_GFORTRAN = ['-fcheck=all -Og']
 F77_COMPILE_OPT_GFORTRAN = ['-Ofast', '-march=native']
 F90_COMPILE_ARGS_GFORTRAN = ['-cpp']
 F90_COMPILE_DEBUG_GFORTRAN = ['-fcheck=all', '-Og']
@@ -58,11 +58,15 @@ REGEX_RELEASE = '^v(?P<name>[0-9.]+)$'
 USE_CYTHON = bool(int(os.getenv('SETUPHOOKS_USE_CYTHON', '1') or '0'))
 MIN_VERSION_CYTHON = '0.13'
 
-import setuptools
+import sys
+
+# we disable setuptools sdist see numpy github issue #7127
+if 'sdist' not in sys.argv:
+    import setuptools
+
 import numpy
 import re
 import shutil
-import sys
 from distutils.command.clean import clean
 from numpy.distutils.command.build_clib import build_clib
 from numpy.distutils.command.build_ext import build_ext
@@ -147,16 +151,16 @@ class BuildClibCommand(build_clib):
             if self.debug:
                 flags += F77_COMPILE_DEBUG_IFORT
             if F77_OPENMP:
-                flags += ['-openmp']
+                flags += ['-qopenmp']
             fcompiler.executables['compiler_f77'] += flags
             flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
             if self.debug:
                 flags += F90_COMPILE_DEBUG_IFORT
             if F90_OPENMP:
-                flags += ['-openmp']
+                flags += ['-qopenmp']
             fcompiler.executables['compiler_f90'] += flags
             fcompiler.libraries += [LIBRARY_OPENMP_IFORT]
-        else:
+        elif fcompiler is not None:
             raise RuntimeError("Unhandled compiler: '{}'.".format(fcompiler))
         build_clib.build_libraries(self, libraries)
 
@@ -268,13 +272,13 @@ class BuildExtCommand(build_ext):
                 if self.debug:
                     flags += F77_COMPILE_DEBUG_IFORT
                 if F77_OPENMP:
-                    flags += ['-openmp']
+                    flags += ['-qopenmp']
                 fc.executables['compiler_f77'] += flags
                 flags = F90_COMPILE_ARGS_IFORT + F90_COMPILE_OPT_IFORT
                 if self.debug:
                     flags += F90_COMPILE_DEBUG_IFORT
                 if F90_OPENMP:
-                    flags += ['-openmp']
+                    flags += ['-qopenmp']
                 fc.executables['compiler_f90'] += flags
                 fc.libraries += [LIBRARY_OPENMP_IFORT]
             elif fc is not None:
@@ -306,7 +310,7 @@ class BuildPreCommand(Command):
             init = open(os.path.join(root, name, '__init__.py.in')).readlines()
         except IOError:
             return
-        init += ['\n', '__version__ = ' + repr(version) + '\n']
+        init += ['\n', "__version__ = '{}'\n".format(version)]
         open(os.path.join(root, name, '__init__.py'), 'w').writelines(init)
 
 
@@ -331,9 +335,14 @@ class BuildSrcCommand(build_src):
 
 
 class SDistCommand(sdist):
-    def make_distribution(self):
+    def run(self):
+        self.run_command('build_pre')
+        self.run_command('build_cy')
+        sdist.run(self)
+
+    def get_file_list(self):
+        sdist.get_file_list(self)
         self.filelist.append('hooks.py')
-        sdist.make_distribution(self)
 
 
 class CleanCommand(clean):
@@ -343,13 +352,19 @@ class CleanCommand(clean):
             print(run_git('clean -fdX' + ('n' if self.dry_run else '')))
             return
 
+        dirs = 'build', self.distribution.get_name() + '.egg-info'
+        for d in dirs:
+            f = os.path.join(root, d)
+            if os.path.exists(f):
+                self.__delete(f, dir=True)
+
         extensions = '.o', '.pyc', 'pyd', 'pyo', '.so'
         for root_, dirs, files in os.walk(root):
             for f in files:
                 if os.path.splitext(f)[-1] in extensions:
                     self.__delete(os.path.join(root_, f))
             for d in dirs:
-                if d in ('build', '__pycache__'):
+                if d == '__pycache__':
                     self.__delete(os.path.join(root_, d), dir=True)
 
     def __delete(self, file_, dir=False):
@@ -442,7 +457,9 @@ def run(cmd, cwd=root):
         if stderr != '':
             stderr = '\n' + stderr
         raise RuntimeError(
-            'Command failed (error {0}): {1}{2}'.format(process.returncode, cmd, stderr)
+            u'Command failed (error {0}): {1}{2}'.format(
+                process.returncode, cmd, stderr
+            )
         )
     return stdout.strip().decode('utf-8')
 
@@ -574,7 +591,7 @@ def _get_version_git(default):
             suffix = 'pre'
     if name != '':
         name += '.'
-    return '{0}{1}{2:02}{3}'.format(name, suffix, rev, dirty)
+    return '{0}{1}{2}{3}'.format(name, suffix, rev, dirty)
 
 
 def _get_version_init_file(name):
