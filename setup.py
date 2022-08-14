@@ -33,11 +33,10 @@ setup(
     maintainer='Pierre Chanial',
     maintainer_email='pierre.chanial@gmail.com',
     setup_requires=['numpy'],
-    install_requires=['numpy>=1.6', 'scipy>=0.9'],
+    install_requires=['numexpr>=2', 'numpy>=1.6', 'scipy>=0.9'],
     extras_require={
         'fft': ['pyfftw'],
         'mpi': ['mpi4py'],
-        'nonlinear': ['numexpr>=2'],
         'wavelet': ['pywt'],
     },
     packages=['pyoperators', 'pyoperators.iterative', 'pyoperators.utils'],

@@ -1,10 +1,7 @@
 # coding: utf-8
 from __future__ import absolute_import, division, print_function
 
-try:
-    import numexpr
-except:
-    pass
+import numexpr
 import numpy as np
 import pyoperators as po
 from .core import (
@@ -675,8 +672,6 @@ class NumexprOperator(Operator):
     """
 
     def __init__(self, expr, global_dict=None, dtype=float, **keywords):
-        import numexpr
-
         self.expr = expr
         self.global_dict = global_dict
         if numexpr.__version__ < '2.1':
