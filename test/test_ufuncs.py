@@ -3,11 +3,11 @@ import numpy as np
 from pyoperators.utils import pi
 from pyoperators.utils.testing import assert_eq, assert_same
 from pyoperators.utils.ufuncs import abs2, masking, multiply_conjugate
-from .common import DTYPES, COMPLEX_DTYPES
+from .common import BIGGEST_FLOAT_TYPE, COMPLEX_DTYPES, DTYPES
 
 
 def test_abs2():
-    x = np.array([pi(np.float128) + 1j, pi(np.float128) * 1j, 3])
+    x = np.array([pi(BIGGEST_FLOAT_TYPE) + 1j, pi(BIGGEST_FLOAT_TYPE) * 1j, 3])
 
     def func(d):
         x_ = np.array(x if d.kind == 'c' else x.real, dtype=d)

@@ -30,7 +30,7 @@ from pyoperators.utils.testing import (
     assert_same,
     skiptest_unless_module,
 )
-from .common import IdentityOutplaceOperator, assert_inplace_outplace
+from .common import FLOAT_DTYPES, IdentityOutplaceOperator, assert_inplace_outplace
 
 SHAPES = ((), (1,), (3,), (2, 3), (2, 3, 4))
 
@@ -40,7 +40,7 @@ def test_degrees():
         d = DegreesOperator(dtype=dtype)
         assert_same(d(1), np.degrees(np.ones((), dtype=dtype)))
 
-    for dtype in (np.float16, np.float32, np.float64, np.float128):
+    for dtype in FLOAT_DTYPES:
         yield func, dtype
 
 
@@ -131,7 +131,7 @@ def test_radians():
         d = RadiansOperator(dtype=dtype)
         assert_same(d(1), np.radians(np.ones((), dtype=dtype)))
 
-    for dtype in (np.float16, np.float32, np.float64, np.float128):
+    for dtype in FLOAT_DTYPES:
         yield func, dtype
 
 

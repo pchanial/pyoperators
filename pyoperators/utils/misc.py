@@ -767,7 +767,8 @@ operation_symbol = {
 
 def pi(dtype):
     """Return pi with a given dtype."""
-    return 4 * np.arctan(one(dtype))
+    dtype = np.dtype(dtype)
+    return dtype.type(4) * np.arctan(one(dtype))
 
 
 @contextmanager

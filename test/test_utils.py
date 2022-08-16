@@ -51,27 +51,7 @@ from pyoperators.utils.testing import (
     assert_same,
 )
 from pyoperators.warnings import PyOperatorsDeprecationWarning
-
-dtypes = [
-    np.dtype(t)
-    for t in (
-        np.bool8,
-        np.uint8,
-        np.int8,
-        np.uint16,
-        np.int16,
-        np.uint32,
-        np.int32,
-        np.uint64,
-        np.int64,
-        np.float32,
-        np.float64,
-        np.float128,
-        np.complex64,
-        np.complex128,
-        np.complex256,
-    )
-]
+from .common import BIGGEST_FLOAT_TYPE, COMPLEX_DTYPES, FLOAT_DTYPES, DTYPES
 
 
 def assert_dtype(a, d):
@@ -194,7 +174,7 @@ def test_cast():
 
 
 def test_complex_dtype():
-    dtypes = (
+    dtypes = [
         str,
         bool,
         int,
@@ -202,19 +182,15 @@ def test_complex_dtype():
         np.float16,
         np.float32,
         np.float64,
-        np.float128,
         np.complex64,
         np.complex128,
-        np.complex256,
         '>f2',
         '>f4',
         '>f8',
-        '>f16',
         '>c8',
         '>c16',
-        '>c32',
-    )
-    expecteds = (
+    ]
+    expecteds = [
         None,
         '<c16',
         '<c16',
@@ -222,18 +198,17 @@ def test_complex_dtype():
         '<c16',
         '<c8',
         '<c16',
-        '<c32',
         '<c8',
         '<c16',
-        '<c32',
         '<c16',
         '>c8',
         '>c16',
-        '>c32',
         '>c8',
         '>c16',
-        '>c32',
-    )
+    ]
+    if hasattr(np, 'float128'):
+        dtypes.extend([np.float128, '>f16', np.complex256, '>c32'])
+        expecteds.extend(['<c32', '>c32', '<c32', '>c32'])
 
     def func(dtype, expected):
         if expected is None:
@@ -247,7 +222,7 @@ def test_complex_dtype():
 
 
 def test_float_dtype():
-    dtypes = (
+    dtypes = [
         str,
         bool,
         int,
@@ -255,19 +230,15 @@ def test_float_dtype():
         np.float16,
         np.float32,
         np.float64,
-        np.float128,
         np.complex64,
         np.complex128,
-        np.complex256,
         '>f2',
         '>f4',
         '>f8',
-        '>f16',
         '>c8',
         '>c16',
-        '>c32',
-    )
-    expecteds = (
+    ]
+    expecteds = [
         None,
         '<f8',
         '<f8',
@@ -275,18 +246,17 @@ def test_float_dtype():
         '<f2',
         '<f4',
         '<f8',
-        '<f16',
         '<f4',
         '<f8',
-        '<f16',
         '>f2',
         '>f4',
         '>f8',
-        '>f16',
         '>f4',
         '>f8',
-        '>f16',
-    )
+    ]
+    if hasattr(np, 'float128'):
+        dtypes.extend([np.float128, '>f16', np.complex256, '>c32'])
+        expecteds.extend(['<f16', '>f16', '<f16', '>f16'])
 
     def func(dtype, expected):
         if expected is None:
@@ -300,7 +270,7 @@ def test_float_dtype():
 
 
 def test_float_intrinsic_dtype():
-    dtypes = (
+    dtypes = [
         str,
         bool,
         int,
@@ -308,19 +278,15 @@ def test_float_intrinsic_dtype():
         np.float16,
         np.float32,
         np.float64,
-        np.float128,
         np.complex64,
         np.complex128,
-        np.complex256,
         '>f2',
         '>f4',
         '>f8',
-        '>f16',
         '>c8',
         '>c16',
-        '>c32',
-    )
-    expecteds = (
+    ]
+    expecteds = [
         None,
         '<f8',
         '<f8',
@@ -328,18 +294,17 @@ def test_float_intrinsic_dtype():
         '<f4',
         '<f4',
         '<f8',
-        '<f8',
         '<f4',
-        '<f8',
         '<f8',
         '<f4',
         '<f4',
         '<f8',
-        '<f8',
         '<f4',
         '<f8',
-        '<f8',
-    )
+    ]
+    if hasattr(np, 'float128'):
+        dtypes.extend([np.float128, '>f16', np.complex256, '>c32'])
+        expecteds.extend(['<f8', '<f8', '<f8', '<f8'])
 
     def func(dtype, expected):
         if expected is None:
@@ -353,7 +318,7 @@ def test_float_intrinsic_dtype():
 
 
 def test_float_or_complex_dtype():
-    dtypes = (
+    dtypes = [
         str,
         bool,
         int,
@@ -361,19 +326,15 @@ def test_float_or_complex_dtype():
         np.float16,
         np.float32,
         np.float64,
-        np.float128,
         np.complex64,
         np.complex128,
-        np.complex256,
         '>f2',
         '>f4',
         '>f8',
-        '>f16',
         '>c8',
         '>c16',
-        '>c32',
-    )
-    expecteds = (
+    ]
+    expecteds = [
         None,
         '<f8',
         '<f8',
@@ -381,18 +342,17 @@ def test_float_or_complex_dtype():
         '<f2',
         '<f4',
         '<f8',
-        '<f16',
         '<c8',
         '<c16',
-        '<c32',
         '>f2',
         '>f4',
         '>f8',
-        '>f16',
         '>c8',
         '>c16',
-        '>c32',
-    )
+    ]
+    if hasattr(np, 'float128'):
+        dtypes.extend([np.float128, '>f16', np.complex256, '>c32'])
+        expecteds.extend(['<f16', '>f16', '<c32', '>c32'])
 
     def func(dtype, expected):
         if expected is None:
@@ -506,7 +466,7 @@ def test_inspect_special_values():
     def func(x):
         assert_eq(inspect_special_values(x), ref(x))
 
-    for d in dtypes:
+    for d in [bool] + DTYPES:
         for x in (
             (1, 1.1, 0, -1, -1),
             (-1, -1),
@@ -583,21 +543,16 @@ def test_least_greater_multiple():
 
 
 def test_one_pi_zero():
-    expected = 1, 4 * np.arctan(np.array(1, np.float128)), 0
+
+    expected = 1, 4 * np.arctan(np.array(1, BIGGEST_FLOAT_TYPE)), 0
 
     def func(f, dtype, exp):
+        actual = f(dtype)
+        assert_equal(actual.dtype, dtype)
         assert_same(f(dtype), np.array(exp, dtype=dtype))
 
     for f, exp in zip((one, pi, zero), expected):
-        for dtype in (
-            np.float16,
-            np.float32,
-            np.float64,
-            np.float128,
-            np.complex64,
-            np.complex128,
-            np.complex256,
-        ):
+        for dtype in FLOAT_DTYPES + COMPLEX_DTYPES:
             yield func, f, dtype, exp
 
 

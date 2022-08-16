@@ -36,7 +36,7 @@ from pyoperators.utils.testing import (
     assert_not_in,
     assert_same,
 )
-from .common import HomothetyOutplaceOperator
+from .common import DTYPES, HomothetyOutplaceOperator
 
 clss = (
     ConstantOperator,
@@ -48,19 +48,6 @@ clss = (
     ZeroOperator,
 )
 sameshapes = ((False, True), (True, True), (True, True), (True, True))
-types = (
-    bool,
-    np.int8,
-    np.int16,
-    np.int32,
-    np.int64,
-    np.float16,
-    np.float32,
-    np.float64,
-    np.float128,
-    np.complex128,
-    np.complex256,
-)
 
 
 def get_operator(cls, data, **keywords):
@@ -434,7 +421,7 @@ def test_dtype():
             assert_equal(op.dtype, t)
 
     for c in clss:
-        for t in types:
+        for t in [bool] + DTYPES:
             yield func, c, t
 
 

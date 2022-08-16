@@ -4,27 +4,32 @@ import pyoperators
 from pyoperators import Operator, flags
 from pyoperators.utils.testing import assert_eq
 
-DTYPES = [
-    np.dtype(t)
-    for t in (
-        np.uint8,
-        np.int8,
-        np.uint16,
-        np.int16,
-        np.uint32,
-        np.int32,
-        np.uint64,
-        np.int64,
-        np.float16,
-        np.float32,
-        np.float64,
-        np.float128,
-        np.complex64,
-        np.complex128,
-        np.complex256,
-    )
-]
-COMPLEX_DTYPES = [np.dtype(t) for t in (np.complex64, np.complex128, np.complex256)]
+FLOAT_DTYPES = [np.dtype(_) for _ in (np.float16, np.float32, np.float64)]
+COMPLEX_DTYPES = [np.dtype(_) for _ in (np.complex64, np.complex128)]
+if hasattr(np, 'float128'):
+    FLOAT_DTYPES.append(np.dtype(np.float128))
+    BIGGEST_FLOAT_TYPE = np.float128
+else:
+    BIGGEST_FLOAT_TYPE = np.float64
+if hasattr(np, 'complex256'):
+    COMPLEX_DTYPES.append(np.dtype(np.complex256))
+DTYPES = (
+    [
+        np.dtype(_)
+        for _ in (
+            np.uint8,
+            np.int8,
+            np.uint16,
+            np.int16,
+            np.uint32,
+            np.int32,
+            np.uint64,
+            np.int64,
+        )
+    ]
+    + FLOAT_DTYPES
+    + COMPLEX_DTYPES
+)
 
 
 class ndarray1(np.ndarray):
