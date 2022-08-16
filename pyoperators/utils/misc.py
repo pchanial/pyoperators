@@ -22,7 +22,6 @@ __all__ = [
     'broadcast_shapes',
     'cast',
     'complex_dtype',
-    'complex_intrinsic_dtype',
     'deprecated',
     'first',
     'first_is_not',
@@ -274,40 +273,6 @@ def complex_dtype(dtype):
     if dtype.kind != 'f' or dtype.itemsize == 2:
         return np.dtype(complex)
     return np.dtype('{0}c{1}'.format(dtype.str[0], dtype.itemsize * 2))
-
-
-def complex_intrinsic_dtype(dtype):
-    """
-    Return the intrinsic complex dtype (complex64 or complex128) associated
-    with a numeric dtype.
-
-    Parameter
-    ---------
-    dtype : dtype
-        The input dtype.
-
-    Example
-    -------
-    >>> complex_intrinsic_dtype(int)
-    dtype('complex128')
-    >>> complex_intrinsic_dtype(np.float32)
-    dtype('complex64')
-    >>> complex_intrinsic_dtype('>f16')
-    dtype('complex128')
-    >>> complex_intrinsic_dtype(np.float128)
-    dtype('complex128')
-    >>> complex_intrinsic_dtype(np.complex256)
-    dtype('complex128')
-
-    """
-    dtype = np.dtype(dtype)
-    if dtype.kind not in 'biufc':
-        raise TypeError('Non numerical data type.')
-    if dtype.kind in 'biu':
-        return np.dtype(complex)
-    itemsize = dtype.itemsize if dtype.kind == 'c' else dtype.itemsize * 2
-    itemsize = max(8, min(itemsize, 16))
-    return np.dtype('c{0}'.format(itemsize))
 
 
 def float_dtype(dtype):

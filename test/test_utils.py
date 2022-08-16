@@ -10,7 +10,6 @@ from pyoperators.utils import (
     broadcast_shapes,
     cast,
     complex_dtype,
-    complex_intrinsic_dtype,
     deprecated,
     first,
     first_is_not,
@@ -241,59 +240,6 @@ def test_complex_dtype():
             assert_raises(TypeError, complex_dtype, dtype)
         else:
             actual = complex_dtype(dtype)
-            assert_eq(actual.str, expected)
-
-    for dtype, expected in zip(dtypes, expecteds):
-        yield func, dtype, expected
-
-
-def test_complex_intrinsic_dtype():
-    dtypes = (
-        str,
-        bool,
-        int,
-        np.uint32,
-        np.float16,
-        np.float32,
-        np.float64,
-        np.float128,
-        np.complex64,
-        np.complex128,
-        np.complex256,
-        '>f2',
-        '>f4',
-        '>f8',
-        '>f16',
-        '>c8',
-        '>c16',
-        '>c32',
-    )
-    expecteds = (
-        None,
-        '<c16',
-        '<c16',
-        '<c16',
-        '<c8',
-        '<c8',
-        '<c16',
-        '<c16',
-        '<c8',
-        '<c16',
-        '<c16',
-        '<c8',
-        '<c8',
-        '<c16',
-        '<c16',
-        '<c8',
-        '<c16',
-        '<c16',
-    )
-
-    def func(dtype, expected):
-        if expected is None:
-            assert_raises(TypeError, complex_dtype, dtype)
-        else:
-            actual = complex_intrinsic_dtype(dtype)
             assert_eq(actual.str, expected)
 
     for dtype, expected in zip(dtypes, expecteds):
