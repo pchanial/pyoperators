@@ -10,6 +10,8 @@ The PyOperators package contains the following modules or packages:
 - operators_pywt : (optional) loaded if PyWavelets is present.
 
 """
+from importlib.metadata import version as _version
+
 from .utils import *
 from .utils.mpi import MPI
 from .core import *
@@ -26,14 +28,15 @@ from .warnings import PyOperatorsWarning
 import sys
 import types
 
-__all__ = [f for f in dir() if f[0] != '_' and not isinstance(eval(f),
-           types.ModuleType)]
+__all__ = [
+    f for f in dir() if f[0] != '_' and not isinstance(eval(f), types.ModuleType)
+]
 
-if sys.version_info.major == 2:
-    del f
 del sys
 del types
 
 I = IdentityOperator()
 O = ZeroOperator()
 X = Variable('X')
+
+__version__ = _version('pyoperators')
