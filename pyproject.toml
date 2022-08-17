@@ -5,5 +5,57 @@ requires = [
     "oldest-supported-numpy",
     "pchanial-legacy-install-hooks",
     "setuptools==64.0.3",
+    "setuptools_scm[toml]>=6.2",
     "wheel",
 ]
+
+[project]
+name = "pyoperators"
+authors = [
+    {name = "Pierre Chanial", email = "pierre.chanial@gmail.com"},
+]
+maintainers = [
+    {name = "Pierre Chanial", email = "pierre.chanial@gmail.com"},
+]
+description = "Operators and solvers for high-performance computing."
+readme = "README.rst"
+keywords = [
+    "scientific computing",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: C",
+    "Programming Language :: Cython",
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering",
+]
+requires-python = ">=3.7"
+license = {file = "LICENSE"}
+dependencies = [
+    "numexpr>=2",
+    "numpy>=1.6",
+    "scipy>=0.9",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+fft = ["pyfftw"]
+mpi = ["mpi4py"]
+wavelet = ["pywavelets"]
+
+[project.urls]
+homepage = "http://pchanial.github.io/pyoperators/"
+repository = "http://pchanial.github.com/pyoperators"
+
+[tool.setuptools.packages.find]
+include = ["pyoperators*"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+fallback_version = "0.0.0"
