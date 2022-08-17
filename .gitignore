@@ -10,3 +10,4 @@ pyoperators/utils/cythonutils.c
 pyoperators/utils/ufuncs.c
 __pycache__
 *.egg-info
+venv*/

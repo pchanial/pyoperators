@@ -25,7 +25,6 @@ keywords = [
 classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: C",
@@ -35,7 +34,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "Topic :: Scientific/Engineering",
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.8"
 license = {file = "LICENSE"}
 dependencies = [
     "numexpr>=2",
@@ -50,8 +49,8 @@ mpi = ["mpi4py"]
 wavelet = ["pywavelets"]
 
 [project.urls]
-homepage = "http://pchanial.github.io/pyoperators/"
-repository = "http://pchanial.github.com/pyoperators"
+homepage = "https://pchanial.github.io/pyoperators"
+repository = "https://github.com/pchanial/pyoperators"
 
 [tool.setuptools.packages.find]
 include = ["pyoperators*"]
