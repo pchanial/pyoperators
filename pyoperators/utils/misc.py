@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import functools
 import itertools
 import multiprocessing
@@ -102,7 +100,7 @@ def deprecated(msg):
 
             def __init__(self, *args, **keywords):
                 warn(
-                    'Class {!r} is deprecated: {}'.format(x.__name__, msg),
+                    f'Class {x.__name__!r} is deprecated: {msg}',
                     PyOperatorsDeprecationWarning,
                 )
                 if sys.version_info.major > 2:
@@ -118,7 +116,7 @@ def deprecated(msg):
         @functools.wraps(x)
         def _(*args, **keywords):
             warn(
-                'Function {!r} is deprecated: {}'.format(x.__name__, msg),
+                f'Function {x.__name__!r} is deprecated: {msg}',
                 PyOperatorsDeprecationWarning,
             )
             return x(*args, **keywords)
@@ -130,7 +128,7 @@ def deprecated(msg):
     if not isinstance(msg, type):
         raise TypeError('Missing deprecation message.')
     x = msg
-    msg = "Use '{0}' instead.".format(x.__base__.__name__)
+    msg = f"Use '{x.__base__.__name__}' instead."
     return decorator(x)
 
 
@@ -273,7 +271,7 @@ def complex_dtype(dtype):
         raise TypeError('Non numerical data type.')
     if dtype.kind != 'f' or dtype.itemsize == 2:
         return np.dtype(complex)
-    return np.dtype('{0}c{1}'.format(dtype.str[0], dtype.itemsize * 2))
+    return np.dtype(f'{dtype.str[0]}c{dtype.itemsize * 2}')
 
 
 def float_dtype(dtype):
@@ -307,7 +305,7 @@ def float_dtype(dtype):
         raise TypeError('Non numerical data type.')
     if dtype.kind != 'c':
         return np.dtype(float)
-    return np.dtype('{0}f{1}'.format(dtype.str[0], dtype.itemsize // 2))
+    return np.dtype(f'{dtype.str[0]}f{dtype.itemsize // 2}')
 
 
 def float_intrinsic_dtype(dtype):
@@ -341,7 +339,7 @@ def float_intrinsic_dtype(dtype):
         return np.dtype(float)
     itemsize = dtype.itemsize if dtype.kind == 'f' else dtype.itemsize // 2
     itemsize = max(4, min(itemsize, 8))
-    return np.dtype('f{0}'.format(itemsize))
+    return np.dtype(f'f{itemsize}')
 
 
 def float_or_complex_dtype(dtype):
@@ -391,7 +389,7 @@ def first(l, f):
 
     """
     try:
-        return next((_ for _ in l if f(_)))
+        return next(_ for _ in l if f(_))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
@@ -856,8 +854,8 @@ def reshape_broadcast(x, shape):
         os != 1 and os != ns for os, ns in zip(x.shape, shape[-x.ndim :])
     ):
         raise ValueError(
-            "The requested shape '{0}' is incompatible with that "
-            "of the array '{1}'.".format(shape, x.shape)
+            "The requested shape '{}' is incompatible with that "
+            "of the array '{}'.".format(shape, x.shape)
         )
     strides = (len(shape) - x.ndim) * (0,) + tuple(
         (0 if sh == 1 else st for sh, st in zip(x.shape, x.strides))
@@ -946,7 +944,7 @@ def strelapsed(t0, msg='Elapsed time'):
     """
     import time
 
-    return strinfo(msg + '... {0:.2f}s'.format(time.time() - t0))[:-1]
+    return strinfo(msg + f'... {time.time()-t0:.2f}s')[:-1]
 
 
 def strenum(choices, last='or'):
@@ -966,7 +964,7 @@ def strenum(choices, last='or'):
     "'blue', 'red' or 'yellow'"
 
     """
-    choices = ["'{0}'".format(choice) for choice in choices]
+    choices = [f"'{choice}'" for choice in choices]
     if len(choices) == 0:
         raise ValueError('There is no valid choice.')
     if len(choices) == 1:
@@ -997,7 +995,7 @@ def strinfo(msg):
         rank = ('/{0:0' + n + '}').format(rank)
     else:
         rank = ''
-    return 'Info {0}{1}: {2}.'.format(MPI.Get_processor_name(), rank, msg)
+    return f'Info {MPI.Get_processor_name()}{rank}: {msg}.'
 
 
 def strnbytes(nbytes):
@@ -1085,7 +1083,7 @@ def strshape(shape, broadcast=None):
     return str(shape).replace(' ', '').replace("'", '')
 
 
-class Timer(object):
+class Timer:
     """
     Context manager for timing purposes.
 
@@ -1149,7 +1147,7 @@ class Timer(object):
             return
         self._elapsed += self.timer() - self._start
         if self.msg is not None:
-            print('{}{}s'.format(self.msg, self.elapsed))
+            print(f'{self.msg}{self.elapsed}s')
 
     @property
     def elapsed(self):

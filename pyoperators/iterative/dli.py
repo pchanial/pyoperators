@@ -28,7 +28,7 @@ Z0 = 0.05
 __all__ = ['DoubleLoopAlgorithm']
 
 
-class Criterion(object):
+class Criterion:
     def __init__(self, algo):
         self.algo = algo
         self.shapein = self.algo.model.shapein
@@ -260,7 +260,7 @@ class DoubleLoopAlgorithm(Algorithm):
         e = self.inv_cov_approx.eigenvalues
         v = self.inv_cov_approx.eigenvectors
         B = self.prior
-        self.z = sum([ei * (B * vi) ** 2 for ei, vi in zip(e, v.T)])
+        self.z = sum(ei * (B * vi) ** 2 for ei, vi in zip(e, v.T))
 
     def update_g_star(self):
         self.g_star = np.dot(self.z.T, self.inv_gamma)

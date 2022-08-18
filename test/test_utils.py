@@ -63,7 +63,7 @@ def assert_dtype(a, d):
 
 
 def test_deprecated():
-    class mynewclass(object):
+    class mynewclass:
         def __init__(self, a, b=None):
             self.a = a
             self.b = b

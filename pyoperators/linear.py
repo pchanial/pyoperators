@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import multiprocessing
 
 try:
@@ -158,8 +156,8 @@ class DenseBase(Operator):
             naxesextra = data.ndim - naxesin - naxesout
         if naxesin + naxesout + naxesextra != data.ndim:
             raise ValueError(
-                "The number of dimensions of the input array '{0}' is too larg"
-                "e. The expected number is '{1}'. To disambiguate the handling"
+                "The number of dimensions of the input array '{}' is too larg"
+                "e. The expected number is '{}'. To disambiguate the handling"
                 " of the extra dimension(s), use the operators DenseBlockColum"
                 "nOperator, DenseBlockDiagonalOperator or DenseBlockRowOperato"
                 "r.".format(data.ndim, naxesin + naxesout + naxesextra)
@@ -211,15 +209,15 @@ class DenseBase(Operator):
     def validatein(self, shape):
         if len(shape) < self.naxesin or shape[-self.naxesin :] != self._sn:
             return ValueError(
-                "The input shape '{0}' is invalid. The last dimension(s) shoul"
-                "d be '{1}'.".format(shape, self._sn)
+                "The input shape '{}' is invalid. The last dimension(s) shoul"
+                "d be '{}'.".format(shape, self._sn)
             )
 
     def validateout(self, shape):
         if len(shape) < self.naxesout or shape[-self.naxesout :] != self._sm:
             return ValueError(
-                "The output shape '{0}' is invalid. The last dimension(s) shou"
-                "ld be '{1}'.".format(shape, self._sm)
+                "The output shape '{}' is invalid. The last dimension(s) shou"
+                "ld be '{}'.".format(shape, self._sm)
             )
 
     @staticmethod
@@ -419,7 +417,7 @@ class SparseBase(Operator):
             return m.data.nbytes
         except AttributeError:
             pass
-        raise TypeError("The sparse format '{0}' is not handled.".format(type(m)))
+        raise TypeError("The sparse format '{}' is not handled.".format(type(m)))
 
 
 class SparseOperator(SparseBase):
@@ -466,15 +464,15 @@ class SparseOperator(SparseBase):
             shapein = matrix.shape[1]
         elif product(shapein) != matrix.shape[1]:
             raise ValueError(
-                "The input shape '{0}' is incompatible with the sparse matrix "
-                "shape {1}.".format(shapein, matrix.shape)
+                "The input shape '{}' is incompatible with the sparse matrix "
+                "shape {}.".format(shapein, matrix.shape)
             )
         if shapeout is None:
             shapeout = matrix.shape[0]
         elif product(shapeout) != matrix.shape[0]:
             raise ValueError(
-                "The output shape '{0}' is incompatible with the sparse matrix"
-                " shape {1}.".format(shapeout, matrix.shape)
+                "The output shape '{}' is incompatible with the sparse matrix"
+                " shape {}.".format(shapeout, matrix.shape)
             )
         SparseBase.__init__(
             self, matrix, dtype=dtype, shapein=shapein, shapeout=shapeout, **keywords
@@ -955,7 +953,7 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
             raise TypeError('Invalid type for the input convention.')
         convention = convention.upper()
         if any(l not in "XYZ'" for l in convention):
-            raise ValueError("Invalid convention '{0}'.".format(convention))
+            raise ValueError(f"Invalid convention '{convention}'.")
         a1 = np.asarray(a1)
         a2 = np.asarray(a2)
         a3 = np.asarray(a3)
@@ -1151,7 +1149,7 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
                 c2 * c3,
             )
         else:
-            raise ValueError("Invalid rotation convention {0}.".format(convention))
+            raise ValueError(f"Invalid rotation convention {convention}.")
 
         keywords['flags'] = self.validate_flags(
             keywords.get('flags', {}), orthogonal=True

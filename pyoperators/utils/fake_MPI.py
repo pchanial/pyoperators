@@ -106,7 +106,7 @@ for i, c in enumerate(_constants):
     _g[c] = i
 
 
-class Comm(object):
+class Comm:
     _keyvals = {}  # class attribute
 
     def __init__(self, rank, size):

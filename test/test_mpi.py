@@ -71,7 +71,7 @@ def test_collect():
 
 
 def test_distribute():
-    class MyComm(object):
+    class MyComm:
         def __init__(self, rank, size):
             self.rank = rank
             self.size = size

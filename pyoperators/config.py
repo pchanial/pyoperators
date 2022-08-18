@@ -14,10 +14,7 @@ def getenv(key, default, cls):
             val = int(val)
         val = cls(val)
     except ValueError:
-        _warn(
-            "Invalid environment variable {0}='{1}'".format(key, val),
-            _PyOperatorsWarning,
-        )
+        _warn(f"Invalid environment variable {key}='{val}'", _PyOperatorsWarning)
         return cls(default)
     return val
 
@@ -29,12 +26,10 @@ if LOCAL_PATH is None:
 if not _os.path.exists(LOCAL_PATH):
     try:
         _os.makedirs(LOCAL_PATH)
-    except IOError:
-        _warn(
-            "User path '{0}' cannot be created.".format(LOCAL_PATH), _PyOperatorsWarning
-        )
+    except OSError:
+        _warn(f"User path '{LOCAL_PATH}' cannot be created.", _PyOperatorsWarning)
 elif not _os.access(LOCAL_PATH, _os.W_OK):
-    _warn("User path '{0}' is not writable.".format(LOCAL_PATH), _PyOperatorsWarning)
+    _warn(f"User path '{LOCAL_PATH}' is not writable.", _PyOperatorsWarning)
 
 # force garbage collection when deleted operators' nbytes exceed this
 # threshold.

@@ -1,6 +1,3 @@
-# coding: utf-8
-from __future__ import absolute_import, division, print_function
-
 import numexpr
 import numpy as np
 
@@ -282,7 +279,7 @@ class ClipOperator(Operator):
         return self.minvalue.nbytes + self.maxvalue.nbytes
 
     def __str__(self):
-        return 'clip(..., {0}, {1})'.format(self.minvalue, self.maxvalue)
+        return f'clip(..., {self.minvalue}, {self.maxvalue})'
 
 
 @square
@@ -344,7 +341,7 @@ class PowerOperator(Operator):
         return self.n.nbytes
 
     def __str__(self):
-        return '...**{0}'.format(self.n)
+        return f'...**{self.n}'
 
 
 class ReciprocalOperator(PowerOperator):
@@ -380,7 +377,7 @@ class SquareOperator(PowerOperator):
         np.square(input, output)
 
     def __str__(self):
-        return u'...²'.encode('utf-8')
+        return '...²'.encode()
 
 
 class ProductOperator(ReductionOperator):
@@ -414,11 +411,7 @@ class ProductOperator(ReductionOperator):
         )
 
     def __str__(self):
-        return (
-            'product'
-            if self.axis is None
-            else 'product(..., axis={0})'.format(self.axis)
-        )
+        return 'product' if self.axis is None else f'product(..., axis={self.axis})'
 
 
 class MaxOperator(ReductionOperator):
@@ -456,7 +449,7 @@ class MaxOperator(ReductionOperator):
         )
 
     def __str__(self):
-        return 'max' if self.axis is None else 'max(..., axis={0})'.format(self.axis)
+        return 'max' if self.axis is None else f'max(..., axis={self.axis})'
 
 
 class MinOperator(ReductionOperator):
@@ -494,7 +487,7 @@ class MinOperator(ReductionOperator):
         )
 
     def __str__(self):
-        return 'min' if self.axis is None else 'min(..., axis={0})'.format(self.axis)
+        return 'min' if self.axis is None else f'min(..., axis={self.axis})'
 
 
 class MinMaxOperator(BlockColumnOperator):
@@ -538,9 +531,7 @@ class MinMaxOperator(BlockColumnOperator):
         )
 
     def __str__(self):
-        return (
-            'minmax' if self.axis is None else 'minmax(..., axis={0})'.format(self.axis)
-        )
+        return 'minmax' if self.axis is None else f'minmax(..., axis={self.axis})'
 
 
 @square
@@ -582,7 +573,7 @@ class MaximumOperator(Operator):
         return self.value.nbytes
 
     def __str__(self):
-        return 'maximum(..., {0})'.format(self.value)
+        return f'maximum(..., {self.value})'
 
 
 @square
@@ -624,7 +615,7 @@ class MinimumOperator(Operator):
         return self.value.nbytes
 
     def __str__(self):
-        return 'minimum(..., {0})'.format(self.value)
+        return f'minimum(..., {self.value})'
 
 
 @square
@@ -699,7 +690,7 @@ class NumexprOperator(Operator):
         )
 
     def __str__(self):
-        return 'numexpr({0}, ...)'.format(self.expr)
+        return f'numexpr({self.expr}, ...)'
 
 
 @square
@@ -741,7 +732,7 @@ class RoundOperator(Operator):
         }
         if method not in table:
             raise ValueError(
-                'Invalid rounding method. Expected values are {0}.'.format(
+                'Invalid rounding method. Expected values are {}.'.format(
                     strenum(table.keys())
                 )
             )
@@ -770,7 +761,7 @@ class RoundOperator(Operator):
             method = 'ceil'
         elif method == 'tz':
             method = 'trunc'
-        return 'round_{0}'.format(method)
+        return f'round_{method}'
 
 
 @square
@@ -819,7 +810,7 @@ class HardThresholdingOperator(Operator):
         return self.a.nbytes
 
     def __str__(self):
-        return 'hardthreshold(..., {0})'.format(self.a)
+        return f'hardthreshold(..., {self.a})'
 
 
 @square
@@ -861,7 +852,7 @@ class SoftThresholdingOperator(Operator):
         return self.a.nbytes
 
     def __str__(self):
-        return 'softthreshold(..., {0})'.format(self.a)
+        return f'softthreshold(..., {self.a})'
 
 
 @separable
@@ -875,7 +866,7 @@ class _1dNdOperator(Operator):
             raise NotImplementedError('ndim == 1 is not implemented.')
         if order.upper() not in ('C', 'F'):
             raise ValueError(
-                "Invalid order '{0}'. Expected order is 'C' or 'F" "'".format(order)
+                "Invalid order '{}'. Expected order is 'C' or 'F" "'".format(order)
             )
         order = order.upper()
 
@@ -897,8 +888,8 @@ class _1dNdOperator(Operator):
     def _validate_to1d(self, shape):
         if shape[-1] != self.ndim:
             raise ValueError(
-                "Invalid shape '{0}'. The expected last dimension"
-                " is '{1}'.".format(shape, self.ndim)
+                "Invalid shape '{}'. The expected last dimension"
+                " is '{}'.".format(shape, self.ndim)
             )
 
 

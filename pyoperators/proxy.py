@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import inspect
 
 from . import core
@@ -53,14 +51,14 @@ class ProxyBase(core.Operator):
         cls = self.common[1].__name__
         source = '\n'.join(inspect.getsource(self.callback).split('\n')[:2])
         if self.shapein is not None:
-            sin = ', shapein={0}'.format(strshape(self.shapein))
+            sin = f', shapein={strshape(self.shapein)}'
         else:
             sin = ''
         if sin:
-            sout = ', shapeout={0}'.format(strshape(self.shapeout))
+            sout = f', shapeout={strshape(self.shapeout)}'
         else:
             sout = ''
-        return '{0}({1}, {2}, {3!r}{4}{5})'.format(
+        return '{}({}, {}, {!r}{}{})'.format(
             type(self).__name__, number, cls, source, sin, sout
         )
 

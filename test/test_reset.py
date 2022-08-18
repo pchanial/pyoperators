@@ -1,5 +1,3 @@
-from __future__ import division
-
 from numpy.testing import assert_equal
 
 from pyoperators import Operator

@@ -3,12 +3,11 @@ Module defining stop conditions for iterative algorithms.
 
 """
 
-from __future__ import absolute_import, division, print_function
 
 __all__ = ['StopCondition', 'MaxErrorStopCondition', 'MaxIterationStopCondition']
 
 
-class StopCondition(object):
+class StopCondition:
     """
     A class defining stop conditions for iterative algorithms. It must be
     called with an Algorithm instance as argument. To stop the iterations,
@@ -62,7 +61,7 @@ class MaxErrorStopCondition(StopCondition):
         StopCondition.__init__(self, lambda s: s.error <= maxerror, message)
 
     def __str__(self):
-        return 'maxerror={0}'.format(self.maxerror)
+        return f'maxerror={self.maxerror}'
 
 
 class MaxIterationStopCondition(StopCondition):
@@ -79,4 +78,4 @@ class MaxIterationStopCondition(StopCondition):
         StopCondition.__init__(self, lambda s: s.niterations == maxiteration, message)
 
     def __str__(self):
-        return 'maxiteration={0}'.format(self.maxiteration)
+        return f'maxiteration={self.maxiteration}'

@@ -7,7 +7,6 @@ the stack may contain the array that will be the output of the operator.
 Care has been taken to ensure that the latter is released from the stack
 to avoid side effects.
 """
-from __future__ import absolute_import, division, print_function
 
 import gc
 import inspect
@@ -127,7 +126,7 @@ def iscompatible(
     return array.nbytes >= nbytes and array.nbytes <= tolerance * nbytes
 
 
-class MemoryPool(object):
+class MemoryPool:
     """
     Class implementing a pool of buffers.
     """
@@ -328,20 +327,20 @@ class MemoryPool(object):
         """
         if len(self) == 0:
             return 'The memory stack is empty.'
-        d = dict(
-            (v.__array_interface__['data'][0] if isinstance(v, np.ndarray) else v, k)
+        d = {
+            v.__array_interface__['data'][0] if isinstance(v, np.ndarray) else v: k
             for k, v in names.items()
-        )
+        }
         result = []
         for i, s in enumerate(self._buffers):
-            res = '{0:<2}: '.format(i)
+            res = f'{i:<2}: '
             address = s.__array_interface__['data'][0]
             if address in d:
                 strid = d[address] + ' '
             else:
                 strid = ''
             strid += hex(address)
-            res += '{1}\t({2} bytes)'.format(i, strid, s.nbytes)
+            res += f'{strid}\t({s.nbytes} bytes)'
             result.append(res)
         return '\n'.join(result)
 

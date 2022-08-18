@@ -113,7 +113,7 @@ def _scalar_mul(func1, scalar):
 
 
 # norm classes
-class Norm(object):
+class Norm:
     """
     An abstract class to define norm classes.
     """
@@ -127,7 +127,7 @@ class Norm(object):
     def __mul__(self, x):
         # returns a norm with modified _call and _diff
         if np.isscalar(x):
-            kwargs = dict((k, v) for k, v in self.__dict__.items() if k[0] != '_')
+            kwargs = {k: v for k, v in self.__dict__.items() if k[0] != '_'}
             N = type(self)(kwargs)
             N._call = _scalar_mul(self._call, x)
             N._diff = _scalar_mul(self._diff, x)
@@ -237,7 +237,7 @@ class Normp(Norm):
 # ==================
 
 
-class CriterionElement(object):
+class CriterionElement:
     def __init__(self, norm, op, data=None):
         # test inputs
         if not isinstance(norm, Norm):
@@ -341,7 +341,7 @@ class CriterionElement(object):
 # ===========
 
 
-class Criterion(object):
+class Criterion:
     def __init__(self, elements):
         if np.any([el.shapein != elements[0].shapein for el in elements]):
             raise ValueError("CriterionElements should have the same shape.")
@@ -349,10 +349,10 @@ class Criterion(object):
         self.shapein = elements[0].shapein
 
     def __call__(self, x):
-        return sum([el(x) for el in self.elements])
+        return sum(el(x) for el in self.elements)
 
     def diff(self, x):
-        return sum([el.diff(x) for el in self.elements])
+        return sum(el.diff(x) for el in self.elements)
 
     def __mul__(self, x):
         """returns a criterion element with modified norm"""
@@ -398,7 +398,7 @@ def quadratic_criterion(model, data, hypers=[], priors=[], covariances=None):
         norms = [Norm2(C) for C in covariances]
     likelihood = CriterionElement(norms[0], model, data=data)
     prior_elements = [CriterionElement(n, p) for n, p in zip(norms[1:], priors)]
-    prior = sum([h * p for h, p in zip(hypers, prior_elements)])
+    prior = sum(h * p for h, p in zip(hypers, prior_elements))
     criterion = likelihood + prior
     return criterion
 
@@ -407,7 +407,7 @@ def huber_criterion(model, data, hypers=[], priors=[], deltas=[]):
     norms = [Huber(d) for d in deltas]
     likelihood = CriterionElement(norms[0], model, data=data)
     prior_elements = [CriterionElement(n, p) for n, p in zip(norms[1:], priors)]
-    prior = sum([h * p for h, p in zip(hypers, prior_elements)])
+    prior = sum(h * p for h, p in zip(hypers, prior_elements))
     criterion = likelihood + prior
     return criterion
 
@@ -416,6 +416,6 @@ def normp_criterion(model, data, hypers=[], priors=[], ps=[]):
     norms = [Normp(p) for p in ps]
     likelihood = CriterionElement(norms[0], model, data=data)
     prior_elements = [CriterionElement(n, p) for n, p in zip(norms[1:], priors)]
-    prior = sum([h * p for h, p in zip(hypers, prior_elements)])
+    prior = sum(h * p for h, p in zip(hypers, prior_elements))
     criterion = likelihood + prior
     return criterion

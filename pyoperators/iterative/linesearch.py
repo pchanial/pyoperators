@@ -53,7 +53,7 @@ def optimal_step(algo):
     return a
 
 
-class Backtracking(object):
+class Backtracking:
     def __init__(self, maxiter=10, tau=0.5):
         self.maxiter = maxiter
         self.tau = tau
@@ -83,7 +83,7 @@ except ImportError:
 
 if 'linesearch' in locals():
 
-    class LineSearch(object):
+    class LineSearch:
         """
         Wraps scipy.optimize.linesearch.line_search
         """

@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import inspect
 import os
 import types
@@ -18,7 +16,7 @@ _description_triggers = {
 }
 
 
-class Rule(object):
+class Rule:
     """
     Abstract class for operator rules.
 
@@ -32,7 +30,7 @@ class Rule(object):
     def __init__(self, subjects, predicate):
 
         if not isinstance(subjects, (list, str, tuple)):
-            raise TypeError("The input {0} is invalid.".format(subjects))
+            raise TypeError(f"The input {subjects} is invalid.")
 
         subjects_ = self._split_subject(subjects)
         if any(
@@ -40,7 +38,7 @@ class Rule(object):
             and (not isinstance(s, type) or not issubclass(s, Operator))
             for s in subjects_
         ):
-            raise TypeError("The subjects {0} are invalid.".format(subjects))
+            raise TypeError(f"The subjects {subjects} are invalid.")
         if len(subjects_) == 0:
             raise ValueError('No rule subject is specified.')
         if len(subjects_) > 2:
@@ -88,7 +86,7 @@ class Rule(object):
         try:
             return {'C': op._C, 'T': op._T, 'H': op._H, 'I': op._I}[symbol]
         except (KeyError):
-            raise ValueError("Invalid symbol: '{0}'.".format(symbol))
+            raise ValueError(f"Invalid symbol: '{symbol}'.")
 
     @classmethod
     def _split_subject(cls, subject):
@@ -115,7 +113,7 @@ class Rule(object):
             if isinstance(self.predicate, types.LambdaType)
             else self.predicate
         )
-        return '{0} = {1}'.format(','.join(subjects), spredicate)
+        return '{} = {}'.format(','.join(subjects), spredicate)
 
     __repr__ = __str__
 
@@ -156,14 +154,14 @@ class UnaryRule(Rule):
     """
 
     def __init__(self, subjects, predicate):
-        super(UnaryRule, self).__init__(subjects, predicate)
+        super().__init__(subjects, predicate)
         if len(self.subjects) != 1:
             raise ValueError('This is not a unary rule.')
         if self.subjects[0] == '.':
             raise ValueError('The subject cannot be the operator itself.')
         if isinstance(predicate, Callable) or predicate in ('.', '1'):
             return
-        raise ValueError("Invalid predicate: '{0}'.".format(predicate))
+        raise ValueError(f"Invalid predicate: '{predicate}'.")
 
     def __call__(self, reference):
         predicate = self._symbol2operator(reference, self.predicate)
@@ -220,7 +218,7 @@ class BinaryRule(Rule):
     """
 
     def __init__(self, subjects, predicate):
-        super(BinaryRule, self).__init__(subjects, predicate)
+        super().__init__(subjects, predicate)
         if len(self.subjects) != 2:
             raise ValueError('This is not a binary rule.')
         self.reference = 1 if self.subjects[1] == '.' else 0
@@ -253,11 +251,11 @@ class BinaryRule(Rule):
             isinstance(predicate, (list, tuple))
             and all(isinstance(o, Operator) for o in predicate)
         ):
-            raise TypeError("The predicate '{0}' is not an operator.".format(predicate))
+            raise TypeError("The predicate '{}' is not an operator.".format(predicate))
         return predicate
 
 
-class RuleManager(object):
+class RuleManager:
     """
     Manage a set of rule prescriptions.
 
@@ -309,7 +307,7 @@ class RuleManager(object):
     def __call__(self, **keywords):
         for key in keywords:
             if key not in self:
-                raise KeyError('Unknown rule: {!r}'.format(key))
+                raise KeyError(f'Unknown rule: {key!r}')
         self._deferred_triggers = keywords
         return self
 
@@ -328,7 +326,7 @@ class RuleManager(object):
 
     def __setitem__(self, key, value):
         if key not in self:
-            raise KeyError('Unknown rule: {!r}'.format(key))
+            raise KeyError(f'Unknown rule: {key!r}')
         _triggers[key] = value
 
     def __contains__(self, key):
@@ -401,7 +399,7 @@ class RuleManager(object):
         if not os.path.exists(path):
             return
         if not os.access(path, os.R_OK):
-            warn('The file {0!r} cannot be read.'.format(path), PyOperatorsWarning)
+            warn(f'The file {path!r} cannot be read.', PyOperatorsWarning)
             return
         with open(path) as f:
             for iline, line in enumerate(f.readlines()):

@@ -1,5 +1,3 @@
-from __future__ import division
-
 import itertools
 
 import numpy as np
@@ -60,7 +58,7 @@ def test_convolution_real():
                 for iy in range(ky * 2 + 1, ky * 2 + 3):
                     ishape = (ix, iy)
                     image = np.zeros(ishape)
-                    image[tuple([s // 2 for s in image.shape])] = 1.0
+                    image[tuple(s // 2 for s in image.shape)] = 1.0
                     yield func, image, kernel
 
     for kx in range(1, 4, 2):
@@ -74,7 +72,7 @@ def test_convolution_real():
                         for iz in range(kz * 2 + 1, kz * 2 + 3):
                             ishape = (ix, iy, iz)
                             image = np.zeros(ishape)
-                            image[tuple([s // 2 for s in image.shape])] = 1.0
+                            image[tuple(s // 2 for s in image.shape)] = 1.0
                             yield func, image, kernel
 
 
@@ -92,7 +90,7 @@ def test_convolution_complex():
         kernel = np.ones(ndims * (3,), complex)
         kernel.flat[-1] = 0.5
         image = np.zeros(ndims * (6,))
-        image[tuple([s // 2 for s in image.shape])] = 1.0
+        image[tuple(s // 2 for s in image.shape)] = 1.0
         yield func, image, kernel
 
 

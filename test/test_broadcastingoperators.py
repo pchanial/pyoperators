@@ -1,5 +1,3 @@
-from __future__ import division
-
 import itertools
 import operator
 
@@ -132,7 +130,7 @@ def test_diagonal2():
 
     for op in (AdditionOperator, CompositionOperator):  # , MultiplicationOperator):
         for d1, d2 in itertools.combinations(ops, 2):
-            if set((d1.broadcast, d2.broadcast)) == set(('leftward', 'rightward')):
+            if {d1.broadcast, d2.broadcast} == {'leftward', 'rightward'}:
                 continue
             yield func, op, d1, d2
 
@@ -276,7 +274,7 @@ def test_constant_rules1():
     def func(c1, t1, c2, t2):
         op2 = ConstantOperator(c2, broadcast=t2)
         op = op1 + op2
-        if set((op1.broadcast, op2.broadcast)) != set(('rightward', 'leftward')):
+        if {op1.broadcast, op2.broadcast} != {'rightward', 'leftward'}:
             assert_is_instance(op, ConstantOperator)
         v = np.zeros((2, 3))
         op(np.nan, v)

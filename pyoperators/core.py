@@ -1,11 +1,9 @@
-# coding: utf-8
 """
 The core module defines the Operator class. Operators are functions
 which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
 
-from __future__ import absolute_import, division, print_function
 
 import inspect
 import operator
@@ -96,7 +94,7 @@ OPERATOR_ATTRIBUTES = [
 ]
 
 
-class Operator(object):
+class Operator:
     """
     Operator top-level class.
 
@@ -390,7 +388,7 @@ class Operator(object):
         """
         if self.shapein is not None and self.shapein != shapein:
             raise ValueError(
-                "The input shape '{0}' is incompatible with that of {1}: '{2}'"
+                "The input shape '{}' is incompatible with that of {}: '{}'"
                 ".".format(shapein, self.__name__, self.shapein)
             )
 
@@ -696,7 +694,7 @@ class Operator(object):
             if None not in self.rules:
                 raise ValueError('There is no unary rule.')
             raise ValueError(
-                "The operation '{0}' has no rules.".format(type(operation).__name__)
+                "The operation '{}' has no rules.".format(type(operation).__name__)
             )
         rules = self.rules[operation]
         if operation is not None:
@@ -740,7 +738,7 @@ class Operator(object):
     def copy(self, target=None):
         """Return a shallow copy of the operator."""
 
-        class Target(object):
+        class Target:
             pass
 
         if target is None:
@@ -769,7 +767,7 @@ class Operator(object):
         of the instance and of themselves.
 
         """
-        rules = dict((r.subjects[0], r) for r in self.rules.get(None, {}))
+        rules = {r.subjects[0]: r for r in self.rules.get(None, {})}
         flags = self.flags
 
         if flags.real:
@@ -1066,7 +1064,7 @@ class Operator(object):
             mask = [f in flags for f in auto_flags]
             if any(mask):
                 raise ValueError(
-                    'The {0} {1} cannot be set.'.format(
+                    'The {} {} cannot be set.'.format(
                         strplural(np.sum(mask), 'flag', nonumber=True),
                         strenum([a for a, m in zip(auto_flags, mask) if m]),
                     )
@@ -1278,9 +1276,7 @@ class Operator(object):
         unless the 'flag' keyword is specified. It may lead to inconsistencies.
 
         """
-        keywords = dict(
-            (k, v) for k, v in self.__dict__.items() if k in OPERATOR_ATTRIBUTES
-        )
+        keywords = {k: v for k, v in self.__dict__.items() if k in OPERATOR_ATTRIBUTES}
         keywords.update(keywords_)
 
         # reset attributes
@@ -1351,8 +1347,8 @@ class Operator(object):
             output = output.view(np.ndarray)
             if output.dtype != dtype:
                 raise ValueError(
-                    "The output has an invalid dtype '{0}'. Expected dtype is "
-                    "'{1}'.".format(output.dtype, dtype)
+                    "The output has an invalid dtype '{}'. Expected dtype is "
+                    "'{}'.".format(output.dtype, dtype)
                 )
 
             # if the output does not fulfill the operator's alignment &
@@ -1395,7 +1391,7 @@ class Operator(object):
             if shapeout is None:
                 shapeout = input.shape
             output = empty(
-                shapeout, dtype, description="for {0}'s output.".format(self.__name__)
+                shapeout, dtype, description=f"for {self.__name__}'s output."
             )
         return input, input_, output, output_
 
@@ -1407,21 +1403,21 @@ class Operator(object):
         if isinstance(flags, dict):
             flags = flags.copy()
         elif isinstance(flags, Flags):
-            flags = dict((k, v) for k, v in zip(Flags._fields, flags))
+            flags = {k: v for k, v in zip(Flags._fields, flags)}
         elif isinstance(flags, (list, tuple, str)):
             if isinstance(flags, str):
                 flags = [f.strip() for f in flags.split(',')]
-            flags = dict((f, True) for f in flags)
+            flags = {f: True for f in flags}
         else:
             raise TypeError(
                 "The operator flags have an invalid type '{0}'.".format(flags)
             )
         flags.update(keywords)
         if any(not isinstance(f, str) for f in flags):
-            raise TypeError("Invalid type for the operator flags: {0}.".format(flags))
+            raise TypeError("Invalid type for the operator flags: {}.".format(flags))
         if any(f not in Flags._fields for f in flags):
             raise ValueError(
-                "Invalid operator flags '{0}'. The properties must be one of t"
+                "Invalid operator flags '{}'. The properties must be one of t"
                 "he following: ".format(flags.keys()) + strenum(Flags._fields) + '.'
             )
         return flags
@@ -1460,13 +1456,13 @@ class Operator(object):
 
         if None not in (shapein, shapein_) and shapein != shapein_:
             raise ValueError(
-                "The specified input shape '{0}' is incompatible with the expe"
-                "cted one '{1}'.".format(shapein, shapein_)
+                "The specified input shape '{}' is incompatible with the expe"
+                "cted one '{}'.".format(shapein, shapein_)
             )
         if None not in (shapeout, shapeout_) and shapeout != shapeout_:
             raise ValueError(
-                "The specified output shape '{0}' is incompatible with the exp"
-                "ected one '{1}'.".format(shapeout, shapeout_)
+                "The specified output shape '{}' is incompatible with the exp"
+                "ected one '{}'.".format(shapeout, shapeout_)
             )
 
         return (
@@ -1525,7 +1521,7 @@ class Operator(object):
         if not self.flags.linear:
             return po.nonlinear.PowerOperator(n)(self)
         if not np.allclose(n, np.round(n)):
-            raise ValueError("The exponent '{0}' is not an integer.".format(n))
+            raise ValueError(f"The exponent '{n}' is not an integer.")
         if n == -1:
             return self.I
         if n == 0:
@@ -1663,7 +1659,7 @@ class Operator(object):
                 if val.size > 1:
                     s += ', ' if val.size == 2 else ', ..., '
                     s += str(val.flat[-1])
-                s += val.ndim * ']' + ', dtype={0})'.format(val.dtype)
+                s += val.ndim * ']' + f', dtype={val.dtype})'
             elif var == 'dtype':
                 s = str(val)
             else:
@@ -1739,7 +1735,7 @@ class CompositeOperator(Operator):
 
     @property
     def nbytes(self):
-        d = dict((id(_), _) for _ in self.operands)
+        d = {id(_): _ for _ in self.operands}
         unique = set(d.keys())
         return sum(d[_].nbytes for _ in unique)
 
@@ -1772,10 +1768,10 @@ class CompositeOperator(Operator):
 
     def _validate_comm(self, operands):
         comms = [op.commin for op in operands if op.commin is not None]
-        if len(set(id(c) for c in comms)) > 1:
+        if len({id(c) for c in comms}) > 1:
             raise ValueError('The input MPI communicators are incompatible.')
         comms = [op.commout for op in operands if op.commout is not None]
-        if len(set(id(c) for c in comms)) > 1:
+        if len({id(c) for c in comms}) > 1:
             raise ValueError('The output MPI communicators are incompatible.')
         return operands
 
@@ -1783,15 +1779,15 @@ class CompositeOperator(Operator):
         if isinstance(self, AdditionOperator):
             op = ' + '
         elif isinstance(self, MultiplicationOperator):
-            op = u' \u00d7 '
+            op = ' \u00d7 '
         elif isinstance(self, (BlockDiagonalOperator, BlockSliceOperator)):
-            op = u' \u2295 '
+            op = ' \u2295 '
         else:
             op = ' * '
 
         # parentheses for AdditionOperator and BlockDiagonalOperator
         operands = [
-            '({0})'.format(o)
+            f'({o})'
             if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
             else str(o)
             for o in self.operands
@@ -1889,7 +1885,7 @@ class CommutativeCompositeOperator(CompositeOperator):
                 print(strcls + ' OPERANDS')
                 print(len(strcls) * '=' + '=========')
                 for i, op in enumerate(ops):
-                    print('{0}: {1!r}'.format(i, op))
+                    print(f'{i}: {op!r}')
 
             print_operands()
 
@@ -1914,7 +1910,7 @@ class CommutativeCompositeOperator(CompositeOperator):
                         if new_ops is None:
                             continue
                         if DEBUG:
-                            print('Because of rule {0}:'.format(rule))
+                            print(f'Because of rule {rule}:')
                             print(
                                 '     MERGING ({0}, {1}) into {2!s} ~ {2!r}'.format(
                                     i, j, new_ops
@@ -2009,7 +2005,7 @@ class CommutativeCompositeOperator(CompositeOperator):
             return None
         if any(s != shapes[0] for s in shapes):
             raise ValueError(
-                'The {0}put shapes are incompatible: {1}.'.format(
+                'The {}put shapes are incompatible: {}.'.format(
                     inout, strenum(shapes, 'and')
                 )
             )
@@ -2123,8 +2119,8 @@ class BlockSliceOperator(CommutativeCompositeOperator):
             slices = tuple(slices)
         if len(operands) != len(slices):
             raise ValueError(
-                "The number of slices '{0}' is not equal to the number of oper"
-                "ands '{1}'.".format(len(slices), len(operands))
+                "The number of slices '{}' is not equal to the number of oper"
+                "ands '{}'.".format(len(slices), len(operands))
             )
 
         CommutativeCompositeOperator.__init__(self, operands, **keywords)
@@ -2202,9 +2198,9 @@ class NonCommutativeCompositeOperator(CompositeOperator):
         if DEBUG:
 
             def print_rules(i, rules):
-                print('Rules for ({0}, {1}):'.format(i, i + 1))
+                print(f'Rules for ({i}, {i+1}):')
                 for i, r in enumerate(rules):
-                    print('    {0}: {1}'.format(i, r))
+                    print(f'    {i}: {r}')
                 print()
 
             def print_operands():
@@ -2213,7 +2209,7 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                 print('COMPOSITION OPERANDS')
                 print('====================')
                 for i, op in enumerate(ops):
-                    print('{0}: {1!r}'.format(i, op))
+                    print(f'{i}: {op!r}')
 
             import pdb
 
@@ -2259,16 +2255,14 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                     continue
                 consumed = True
                 if DEBUG:
-                    print('Because of rule {0}:'.format(rule))
+                    print(f'Because of rule {rule}:')
                 if isinstance(new_ops, tuple):
                     if len(new_ops) != 2:
                         raise NotImplementedError()
                     ops[i], ops[i + 1] = new_ops
                     if DEBUG:
-                        print('    DOUBLE CHANGE: {0} into {1}'.format(i, new_ops[0]))
-                        print(
-                            '    DOUBLE CHANGE: {0} into {1}'.format(i + 1, new_ops[1])
-                        )
+                        print('    DOUBLE CHANGE: {} into {}'.format(i, new_ops[0]))
+                        print('    DOUBLE CHANGE: {} into {}'.format(i + 1, new_ops[1]))
                         print_operands()
                     i += 1
                     break
@@ -2605,7 +2599,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         # make first operand out-of-place
         if (
-            sizes[0] < max([s for s in sizes[: ninplaces[0] + 1]])
+            sizes[0] < max(s for s in sizes[: ninplaces[0] + 1])
             or not alignedout
             and aligneds[0]
             or not contiguousout
@@ -2709,9 +2703,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 s = tointtuple(op.reshapeout(shapes[i]))
             if None not in (shapes[i + 1], s) and s != shapes[i + 1]:
                 raise ValueError(
-                    "The input shape '{0}' of {1} is incompatible with '{2}'.".format(
-                        s, str(op), shapes[i + 1]
-                    )
+                    f"The input shape '{s}' of {str(op)} is incompatible with '{shapes[i+1]}'."
                 )
             if s is not None:
                 shapes[i + 1] = s
@@ -2838,9 +2830,9 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                     continue
                 need_protection = len(group) > 1 or ' ' in s_group
                 if need_protection:
-                    s = '({0})({1})'.format(s_group, s)
+                    s = f'({s_group})({s})'
                 else:
-                    s = s_group + '({0})'.format(s)
+                    s = s_group + f'({s})'
                 continue
             for op in group:
                 s_op = str(op)
@@ -2848,12 +2840,12 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                     s = s_op
                     continue
                 if '...' not in s_op:
-                    s = '{0}({1})'.format(s_op, s)
+                    s = f'{s_op}({s})'
                     continue
                 protected = '...,' in s_op or ', ...' in s_op
                 need_protection = ' ' in s  # XXX fail for f(..., z=1)
                 if not protected and need_protection:
-                    s = s_op.replace('...', '({0})'.format(s))
+                    s = s_op.replace('...', f'({s})')
                 else:
                     s = s_op.replace('...', s)
         return s
@@ -3313,7 +3305,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
         if p is None or new_axis is not None:
             if any(s != shape for s in explicit):
                 raise ValueError(
-                    "The operands have incompatible shapes: '{0}'" ".".format(shapes)
+                    "The operands have incompatible shapes: '{}'" ".".format(shapes)
                 )
             if p is None:
                 return shape
@@ -3335,8 +3327,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             if p[i] is not None
         ):
             raise ValueError(
-                "The blocks have shapes '{0}' incompatible with the partition "
-                "{1}.".format(shapes, p)
+                "The blocks have shapes '{}' incompatible with the partition "
+                "{}.".format(shapes, p)
             )
         if len(explicit) != 1:
             ok = [
@@ -3345,8 +3337,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             ok[axis] = True
             if not all(ok):
                 raise ValueError(
-                    "The dimensions of the blocks '{0}' are not the same along"
-                    " axes other than that of the partition '{1}'.".format(shapes, p)
+                    "The dimensions of the blocks '{}' are not the same along"
+                    " axes other than that of the partition '{}'.".format(shapes, p)
                 )
 
         p = merge_none(p, [s[axis] if s is not None else None for s in shapes])
@@ -3851,7 +3843,7 @@ class BlockColumnOperator(BlockOperator):
                 op.direct(input, o)
 
     def __str__(self):
-        operands = ['[{0}]'.format(o) for o in self.operands]
+        operands = [f'[{o}]' for o in self.operands]
         if len(operands) > 2:
             operands = [operands[0], '...', operands[-1]]
         return '[ ' + ' '.join(operands) + ' ]'
@@ -4030,8 +4022,8 @@ class BroadcastingBase(Operator):
         values = ('leftward', 'rightward', 'disabled', 'scalar')
         if broadcast not in values:
             raise ValueError(
-                "Invalid value '{0}' for the broadcast keyword. Expected value"
-                "s are {1}.".format(broadcast, strenum(values))
+                "Invalid value '{}' for the broadcast keyword. Expected value"
+                "s are {}.".format(broadcast, strenum(values))
             )
         if data.ndim == 0 and broadcast in ('leftward', 'rightward'):
             broadcast = 'scalar'
@@ -4068,7 +4060,7 @@ class BroadcastingBase(Operator):
 
     @staticmethod
     def _rule_broadcast(b1, b2, cls, operation):
-        b = set([b1.broadcast, b2.broadcast])
+        b = {b1.broadcast, b2.broadcast}
         if 'leftward' in b and 'rightward' in b:
             return None
         if 'disabled' in b:
@@ -4234,7 +4226,7 @@ class DiagonalBase(BroadcastingBase):
 
     @staticmethod
     def _rule_multiply(b1, b2):
-        b = set([b1.broadcast, b2.broadcast])
+        b = {b1.broadcast, b2.broadcast}
         if 'leftward' in b and 'rightward' in b:
             return
         if 'disabled' in b:
@@ -4647,12 +4639,12 @@ class ReductionOperator(Operator):
         if isinstance(func, np.ufunc):
             if func.nin != 2:
                 raise TypeError(
-                    "The input ufunc '{0}' has {1} input argument. Expected nu"
+                    "The input ufunc '{}' has {} input argument. Expected nu"
                     "mber is 2.".format(func.__name__, func.nin)
                 )
             if func.nout != 1:
                 raise TypeError(
-                    "The input ufunc '{0}' has {1} output arguments. Expected "
+                    "The input ufunc '{}' has {} output arguments. Expected "
                     "number is 1.".format(func.__name__, func.nout)
                 )
             if np.__version__ < '2':
@@ -4668,7 +4660,7 @@ class ReductionOperator(Operator):
             vars, junk, junk, junk = inspect.getargspec(func)
             if 'axis' not in vars:
                 raise TypeError(
-                    "The input function '{0}' does not have an 'ax"
+                    "The input function '{}' does not have an 'ax"
                     "is' argument.".format(func.__name__)
                 )
             kw = {}
