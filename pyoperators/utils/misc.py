@@ -28,7 +28,6 @@ __all__ = [
     'float_dtype',
     'float_intrinsic_dtype',
     'float_or_complex_dtype',
-    'groupbykey',
     'ifirst',
     'ifirst_is_not',
     'ilast',
@@ -414,27 +413,6 @@ def first_is_not(iterable, value):
 
     """
     return next((_ for _ in iterable if _ is not value), value)
-
-
-def groupbykey(iterable, key):
-    """
-    Create an iterator which returns (key, sub-iterator) grouped by each
-    value of key.
-
-    """
-    iterator = zip(iterable, key)
-    i, value = next(iterator)
-
-    l = [i]
-    for i, k in iterator:
-        if k == value:
-            l.append(i)
-            continue
-        yield value, l
-        value = k
-        l = [i]
-    if len(l) != 0:
-        yield value, l
 
 
 def ifirst(iterable, match):
