@@ -18,7 +18,6 @@ from pyoperators.utils import (
     float_dtype,
     float_intrinsic_dtype,
     float_or_complex_dtype,
-    groupbykey,
     ifirst,
     ifirst_is_not,
     ilast,
@@ -431,22 +430,6 @@ def test_ifirst_is_not():
         [None, None],
         None,
     )
-
-
-def test_groupbykey():
-    vals = ['a', 'b', 'c', 'd']
-    keys = itertools.combinations_with_replacement([1, 2, 3, 4], 4)
-
-    def func(k):
-        result = list(groupbykey(vals, k))
-        expected = [
-            (k, tuple(i[0] for i in it))
-            for k, it in itertools.groupby(zip(vals, k), lambda x: x[1])
-        ]
-        assert_equal(result, expected)
-
-    for k in keys:
-        yield func, k
 
 
 def test_inspect_special_values():
