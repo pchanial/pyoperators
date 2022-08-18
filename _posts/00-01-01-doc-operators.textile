@@ -886,5 +886,5 @@ h3. MPI operators
 * MPIDistributionIdentityOperator
 
 
-More operators can be found in the project "PySimulators":http://pchanial.github.com/pysimulators, projection, discrete differences, compression, downsampling, MPI operators, etc.
+More operators can be found in the project "PySimulators":https://pchanial.github.io/pysimulators, projection, discrete differences, compression, downsampling, MPI operators, etc.
 There is an on-going work consisting in migrating the most generic ones into the pyoperators package.
