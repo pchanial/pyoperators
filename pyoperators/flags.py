@@ -38,7 +38,7 @@ class Flags(
 
     def __new__(cls):
         t = 15 * (False,) + (True, False, False, '', '')
-        return super(Flags, cls).__new__(cls, *t)
+        return super().__new__(cls, *t)
 
     def __str__(self):
         n = max(len(f) for f in self._fields)

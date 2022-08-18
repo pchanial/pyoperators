@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 # DEPRECATED
-class Algorithm(object):
+class Algorithm:
     """
     Abstract class to define iterative algorithms.
 
@@ -98,7 +98,7 @@ GTOL = 1e-6
 MAXITER = None
 
 # stop conditions
-class StopCondition(object):
+class StopCondition:
     """
     A class defining stop conditions for iterative algorithms.
     Must be called with an Algorithm instance as argument.
@@ -156,7 +156,7 @@ class StopCondition(object):
         Returns a string with current condition values.
         """
         if self.resid is not None and self.tol is not None:
-            return "\t %1.2e / %1.2e" % (self.resid, self.tol)
+            return f"\t {self.resid:1.2e} / {self.tol:1.2e}"
         else:
             return "\t Residual"
 
@@ -185,7 +185,7 @@ def polak_ribiere(algo):
 # callback function
 
 
-class Callback(object):
+class Callback:
     """
     A Callback instance is called by an Algorithm at each iteration
     with the Algorithm instance as input. It can be used to display
@@ -428,13 +428,13 @@ class HuberConjugateGradient(ConjugateGradient):
 # for backward compatibility
 def define_stop_condition(**kwargs):
     defaults = {'maxiter': None, 'tol': TOL, 'gtol': GTOL, 'cond': np.any}
-    new_kwargs = dict((k, kwargs.get(k, v)) for k, v in defaults.items())
+    new_kwargs = {k: kwargs.get(k, v) for k, v in defaults.items()}
     return StopCondition(**new_kwargs)
 
 
 def define_callback(**kwargs):
     defaults = {'verbose': False, 'savefile': None, 'shape': ()}
-    new_kwargs = dict((k, kwargs.get(k, v)) for k, v in defaults.items())
+    new_kwargs = {k: kwargs.get(k, v) for k, v in defaults.items()}
     return Callback(**new_kwargs)
 
 

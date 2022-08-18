@@ -1,5 +1,3 @@
-from __future__ import division
-
 import itertools
 
 from pyoperators.iterative.stopconditions import StopCondition

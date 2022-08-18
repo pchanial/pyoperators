@@ -79,13 +79,13 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
         if np.all(same):
             return
 
-        msg = 'Arrays are not equal (mismatch {0:.1%}'.format(1 - np.mean(same))
+        msg = f'Arrays are not equal (mismatch {1-np.mean(same):.1%}'
         if np.any(~same_ & np.isfinite(actual) & np.isfinite(desired)):
             rtolmin = np.nanmax(
                 abs(actual - desired) / np.minimum(abs(actual), abs(desired))
             )
             atolmin = np.nanmax(abs(actual - desired))
-            msg += ', min rtol: {0}, min atol: {1}'.format(
+            msg += ', min rtol: {}, min atol: {}'.format(
                 rtolmin / np.finfo(dtype).eps, atolmin / np.finfo(dtype).eps
             )
         check_nan = np.isnan(actual) & ~np.isnan(desired) | np.isnan(
@@ -118,7 +118,7 @@ def assert_eq(a, b, msg=''):
         return
 
     if not msg:
-        msg = 'Items are not equal:\n ACTUAL: {0}\n DESIRED: {1}'.format(a, b)
+        msg = f'Items are not equal:\n ACTUAL: {a}\n DESIRED: {b}'
 
     # a or b is an ndarray sub-class
     if (
@@ -241,7 +241,7 @@ def assert_is_type(a, cls, msg=None):
     if any(type(a) is t for t in cls):
         return
     raise AssertionError(
-        "{0} is of type '{1}' instead of {2}{3}".format(
+        "{} is of type '{}' instead of {}{}".format(
             a, type(a).__name__, strenum(c.__name__ for c in cls), _get_msg(msg)
         )
     )

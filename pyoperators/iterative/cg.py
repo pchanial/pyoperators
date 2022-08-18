@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import time
 
 import numpy as np
@@ -104,8 +102,8 @@ class PCGAlgorithm(IterativeAlgorithm):
             raise ValueError('The operator input shape is not explicit.')
         if A.shapein != b.shape:
             raise ValueError(
-                "The operator input shape '{0}' is incompatible with that of t"
-                "he RHS '{1}'.".format(A.shapein, b.shape)
+                "The operator input shape '{}' is incompatible with that of t"
+                "he RHS '{}'.".format(A.shapein, b.shape)
             )
         self.A = A
         self.b = b
@@ -159,7 +157,7 @@ class PCGAlgorithm(IterativeAlgorithm):
     @staticmethod
     def callback(self):
         if self.disp:
-            print('{0:4}: {1}'.format(self.niterations, self.error))
+            print(f'{self.niterations:4}: {self.error}')
 
 
 def pcg(

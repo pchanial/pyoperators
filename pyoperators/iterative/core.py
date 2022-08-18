@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 """
 This module defines the base class IterativeAlgorithm.
 
@@ -25,7 +23,7 @@ class AbnormalStopIteration(Exception):
     pass
 
 
-class IterativeAlgorithm(object):
+class IterativeAlgorithm:
     """
     Abstract class for iterative algorithms.
 
@@ -168,8 +166,8 @@ class IterativeAlgorithm(object):
         elif len(self.variables) == 1:
             current = getattr(self, self.variables[0] + '_new')
         else:
-            dict((v, getattr(self, v + '_new')) for v in self.variables)
-        print('{0:4}: {1}'.format(self.niterations, current))
+            {v: getattr(self, v + '_new') for v in self.variables}
+        print(f'{self.niterations:4}: {current}')
 
     def cont(self):
         """Continue an interrupted computation."""
@@ -194,7 +192,7 @@ class IterativeAlgorithm(object):
         """
         if len(self.variables) == 1:
             return getattr(self, self.variables[0])
-        return dict((v, getattr(self, v)) for v in self.variables)
+        return {v: getattr(self, v) for v in self.variables}
 
     def initialize(self):
         """
@@ -302,7 +300,7 @@ class IterativeAlgorithm(object):
         suffix += ['_old']
         if self.order == 2:
             return suffix
-        return suffix + ['_old{0}'.format(o - 1) for o in range(3, self.order + 1)]
+        return suffix + [f'_old{o-1}' for o in range(3, self.order + 1)]
 
     def _set_buffer_handling(
         self, inplace_recursion, allocate_new_state, reuse_initial_state
@@ -365,8 +363,8 @@ class IterativeAlgorithm(object):
             shape = shapes[0]
             if any(s != shape for s in shapes[1:]):
                 raise ValueError(
-                    "The shapes of the initial values of '{0}' ar"
-                    "e incompatible: {1}.".format(var, shapes)
+                    "The shapes of the initial values of '{}' ar"
+                    "e incompatible: {}.".format(var, shapes)
                 )
 
             self.info[var] = {'names': names, 'shape': shape, 'dtype': dtype}
@@ -416,7 +414,7 @@ class IterativeAlgorithm(object):
     def _set_variables(self, keywords):
         """Set the variable names of the recursion."""
         regex = re.compile(r'^((?!(_old[0-9]*|_new|_dtype)$).)*$')
-        variables = list(set(k for k in keywords if regex.match(k)))
+        variables = list({k for k in keywords if regex.match(k)})
         variables.sort()
 
         suffix = self._get_suffix()
@@ -424,7 +422,7 @@ class IterativeAlgorithm(object):
             for s in suffix:
                 if s != '_new' and var + s not in keywords:
                     raise ValueError(
-                        "The initial value '{0}' is not specified" ".".format(var + s)
+                        "The initial value '{}' is not specified" ".".format(var + s)
                     )
         self.variables = variables
 

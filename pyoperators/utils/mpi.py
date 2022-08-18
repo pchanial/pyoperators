@@ -64,7 +64,7 @@ def as_mpi(x):
     try:
         return x, DTYPE_MAP[x.dtype]
     except KeyError:
-        raise KeyError("The dtype '{0}' is not handled in MPI.".format(x.dtype.name))
+        raise KeyError("The dtype '{}' is not handled in MPI.".format(x.dtype.name))
 
 
 def combine(n, comm=MPI.COMM_WORLD):
@@ -100,7 +100,7 @@ def combine_shape(shape, comm=None):
     with timer_mpi:
         shapes = comm.allgather(shape)
     if any(len(s) != len(shapes[0]) or s[1:] != shapes[0][1:] for s in shapes):
-        raise ValueError("The shapes are incompatible: '{0}'.".format(shapes))
+        raise ValueError(f"The shapes are incompatible: '{shapes}'.")
     return (sum(s[0] for s in shapes),) + shapes[0][1:]
 
 
@@ -214,4 +214,4 @@ def mprint(msg='', comm=MPI.COMM_WORLD):
         if all(m == msgs[0] for m in msgs):
             print(msg)
         else:
-            print('\n'.join('Rank {}: {}'.format(i, m) for i, m in enumerate(msgs)))
+            print('\n'.join(f'Rank {i}: {m}' for i, m in enumerate(msgs)))

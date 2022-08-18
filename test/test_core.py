@@ -1,5 +1,3 @@
-from __future__ import division, print_function
-
 import itertools
 import operator
 import sys
@@ -75,7 +73,7 @@ def assert_flags(operator, flags, msg=''):
     if isinstance(flags, str):
         flags = [f.replace(' ', '') for f in flags.split(',')]
     for f in flags:
-        assert getattr(operator.flags, f), 'Operator {0} is not {1}.'.format(
+        assert getattr(operator.flags, f), 'Operator {} is not {}.'.format(
             operator, f
         ) + (' ' + msg if msg else '')
 
@@ -84,13 +82,13 @@ def assert_flags_false(operator, flags, msg=''):
     if isinstance(flags, str):
         flags = [f.replace(' ', '') for f in flags.split(',')]
     for f in flags:
-        assert not getattr(operator.flags, f), 'Operator {0} is {1}.'.format(
+        assert not getattr(operator.flags, f), 'Operator {} is {}.'.format(
             operator, f
         ) + (' ' + msg if msg else '')
 
 
 def assert_is_inttuple(shape, msg=''):
-    msg = '{0} is not an int tuple.'.format(shape) + (' ' + msg if msg else '')
+    msg = f'{shape} is not an int tuple.' + (' ' + msg if msg else '')
     assert type(shape) is tuple, msg
     assert all([isinstance(s, int) for s in shape]), msg
 
@@ -599,7 +597,7 @@ def test_shape_implicit():
             return shape[0] / self.factor
 
         def __str__(self):
-            return super(Op, self).__str__() + 'x{0}'.format(self.factor)
+            return super().__str__() + f'x{self.factor}'
 
     o1, o2, o3 = Op(2), Op(3), Op(4)
     assert o1.shapein is o2.shapein is o3.shapein is None

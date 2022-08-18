@@ -16,7 +16,7 @@ __all__ = [
 ]
 
 
-class FminWrapper(object):
+class FminWrapper:
     """
     Abstract class to generate wrappers around scipy.optimize fmin_*
     functions.
@@ -144,7 +144,7 @@ class FminNCG(FminWrapper):
     #    __doc__ = FminWrapper.__doc__ + opt.fmin_ncg.__doc__
 
     def __init__(self, criterion, x0=None, *args, **kwargs):
-        super(FminNCG, self).__init__(criterion, x0=x0, *args, **kwargs)
+        super().__init__(criterion, x0=x0, *args, **kwargs)
         if self.hessian_p is None:
             raise ValueError("Cannot run FminNCG if the criterion has no hessian.")
 

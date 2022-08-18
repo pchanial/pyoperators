@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function
-
 import os
 import time
 
@@ -24,7 +22,7 @@ try:
 
     FFTW_DEFAULT_NUM_THREADS = omp_num_threads()
     FFTW_WISDOM_FILES = tuple(
-        os.path.join(LOCAL_PATH, 'fftw{0}.wisdom'.format(t)) for t in ['', 'f', 'l']
+        os.path.join(LOCAL_PATH, 'fftw{}.wisdom'.format(t)) for t in ['', 'f', 'l']
     )
     FFTW_WISDOM_MIN_DELAY = 0.1
     _is_fftw_wisdom_loaded = False
@@ -109,8 +107,8 @@ class _FFTWConvolutionOperator(Operator):
         shapein = tointtuple(shapein)
         if len(shapein) != kernel.ndim:
             raise ValueError(
-                "The kernel dimension '{0}' is incompatible with that of the s"
-                "pecified shape '{1}'.".format(kernel.ndim, len(shapein))
+                "The kernel dimension '{}' is incompatible with that of the s"
+                "pecified shape '{}'.".format(kernel.ndim, len(shapein))
             )
 
         # if the kernel is larger than the image, we don't crop it since it
@@ -557,7 +555,7 @@ def _load_wisdom():
         try:
             with open(filename, 'rb') as f:
                 wisdom = f.read()
-        except IOError:
+        except OSError:
             wisdom = b''
         return wisdom
 
