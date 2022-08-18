@@ -46,7 +46,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 fft = ["pyfftw"]
 mpi = ["mpi4py"]
-wavelet = ["pywavelets"]
+wavelets = ["pywavelets"]
 
 [project.urls]
 homepage = "https://pchanial.github.io/pyoperators"
