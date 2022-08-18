@@ -2483,19 +2483,13 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 for rule in op.rules[CompositionOperator]['left']:
                     if rule.subjects != ('.', HomothetyOperator):
                         continue
-                    try:
-                        new_op = rule(op, h)
-                    except:
-                        continue
+                    new_op = rule(op, h)
                     if new_op is not None:
                         raise StopIteration()
                 for rule in op.rules[CompositionOperator]['right']:
                     if rule.subjects != (HomothetyOperator, '.'):
                         continue
-                    try:
-                        new_op = rule(h, op)
-                    except:
-                        continue
+                    new_op = rule(h, op)
                     if new_op is not None:
                         raise StopIteration()
         except StopIteration:
