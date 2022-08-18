@@ -1,8 +1,10 @@
 from __future__ import division
 
 import itertools
+
 import numpy as np
 from numpy.testing import assert_equal
+
 from pyoperators.config import MEMORY_ALIGNMENT
 from pyoperators.memory import MemoryPool, empty
 from pyoperators.utils import tointtuple

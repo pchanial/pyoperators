@@ -1,25 +1,28 @@
 from __future__ import division
+
 import numpy as np
 from numpy.testing import assert_equal
+
 from pyoperators import (
     CompositionOperator,
     ConstantOperator,
+    O,
     Operator,
     ZeroOperator,
     flags,
     rule_manager,
-    O,
 )
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
     assert_is,
     assert_is_instance,
     assert_is_none,
-    assert_same,
     assert_is_type,
+    assert_same,
     skiptest,
 )
-from .common import OPS, ndarray2, attr2
+
+from .common import OPS, attr2, ndarray2
 
 op = Operator()
 ops = [_() for _ in OPS] + [_(flags={'linear': False}) for _ in OPS]

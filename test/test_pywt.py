@@ -9,7 +9,7 @@ except ImportError:
 
     raise SkipTest
 
-from pyoperators.operators_pywt import WaveletOperator, Wavelet2dOperator
+from pyoperators.operators_pywt import Wavelet2dOperator, WaveletOperator
 
 sizes = ((32,),)
 shapes = ((4, 4),)

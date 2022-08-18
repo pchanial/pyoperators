@@ -1,15 +1,17 @@
 import numpy as np
+from numpy.testing import assert_equal
+
 from pyoperators import (
+    MPI,
     IdentityOperator,
     MPIDistributionGlobalOperator,
     MPIDistributionIdentityOperator,
-    MPI,
 )
 from pyoperators.utils import split
 from pyoperators.utils.mpi import (
     DTYPE_MAP,
-    OP_PY_MAP,
     OP_MPI_MAP,
+    OP_PY_MAP,
     as_mpi,
     combine_shape,
     distribute_shape,
@@ -17,7 +19,6 @@ from pyoperators.utils.mpi import (
     filter_comm,
 )
 from pyoperators.utils.testing import assert_eq, assert_is_type
-from numpy.testing import assert_equal
 
 comm = MPI.COMM_WORLD
 rank = comm.rank

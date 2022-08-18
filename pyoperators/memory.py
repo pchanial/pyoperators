@@ -11,10 +11,11 @@ from __future__ import absolute_import, division, print_function
 
 import gc
 import inspect
-import numpy as np
 from contextlib import contextmanager
-from . import config
-from . import utils
+
+import numpy as np
+
+from . import config, utils
 from .utils import ifirst, product, strshape, tointtuple
 
 __all__ = ['empty', 'ones', 'zeros']

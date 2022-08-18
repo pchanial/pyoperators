@@ -1,6 +1,4 @@
-from . import ufuncs
-from . import mpi
-from . import testing
+from . import mpi, testing, ufuncs
 from .cythonutils import *
 from .misc import *
 

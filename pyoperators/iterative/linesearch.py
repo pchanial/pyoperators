@@ -16,6 +16,7 @@ if scipy.optimize is in PYTHONPATH:
 - LineSearch, LineSearchArmijo, LineSearchWolfe1; LineSearchWolfe2
 """
 import numpy as np
+
 from .criterions import Norm2
 
 __all__ = ['optimal_step', 'Backtracking', 'default_backtracking']

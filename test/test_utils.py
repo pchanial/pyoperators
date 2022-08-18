@@ -1,12 +1,14 @@
 import itertools
-import numpy as np
 import os
 import time
-
 from contextlib import contextmanager
+
+import numpy as np
 from numpy.testing import assert_equal, assert_warns
+
 from pyoperators import Operator
 from pyoperators.utils import (
+    Timer,
     broadcast_shapes,
     cast,
     complex_dtype,
@@ -16,20 +18,19 @@ from pyoperators.utils import (
     float_dtype,
     float_intrinsic_dtype,
     float_or_complex_dtype,
+    groupbykey,
     ifirst,
     ifirst_is_not,
     ilast,
     ilast_is_not,
-    groupbykey,
     inspect_special_values,
     interruptible,
     isscalarlike,
-    zip_broadcast,
     last,
     last_is_not,
     least_greater_multiple,
-    one,
     omp_num_threads,
+    one,
     pi,
     pool_threading,
     product,
@@ -40,9 +41,9 @@ from pyoperators.utils import (
     strenum,
     strplural,
     strshape,
-    Timer,
     uninterruptible,
     zero,
+    zip_broadcast,
 )
 from pyoperators.utils.testing import (
     assert_eq,
@@ -51,7 +52,8 @@ from pyoperators.utils.testing import (
     assert_same,
 )
 from pyoperators.warnings import PyOperatorsDeprecationWarning
-from .common import BIGGEST_FLOAT_TYPE, COMPLEX_DTYPES, FLOAT_DTYPES, DTYPES
+
+from .common import BIGGEST_FLOAT_TYPE, COMPLEX_DTYPES, DTYPES, FLOAT_DTYPES
 
 
 def assert_dtype(a, d):

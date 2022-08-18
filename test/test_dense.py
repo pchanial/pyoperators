@@ -2,8 +2,9 @@ from __future__ import division
 
 import numpy as np
 from numpy.testing import assert_equal, assert_raises, assert_warns
+
 from pyoperators import BlockDiagonalOperator, HomothetyOperator, PyOperatorsWarning
-from pyoperators.linear import DenseOperator, DenseBlockDiagonalOperator
+from pyoperators.linear import DenseBlockDiagonalOperator, DenseOperator
 from pyoperators.rules import rule_manager
 from pyoperators.utils import broadcast_shapes, product, reshape_broadcast
 from pyoperators.utils.testing import assert_is_instance, assert_is_type, assert_same

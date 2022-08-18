@@ -1,32 +1,34 @@
-import numpy as np
 import os
-import pyoperators
 import tempfile
 import warnings
+
+import numpy as np
 from nose import with_setup
 from numpy.testing import assert_equal, assert_raises, assert_warns
+
+import pyoperators
 from pyoperators import (
-    Operator,
     AdditionOperator,
     CompositionOperator,
     DiagonalOperator,
     HomothetyOperator,
     IdentityOperator,
     MultiplicationOperator,
+    Operator,
     PyOperatorsWarning,
 )
 from pyoperators.flags import linear
-from pyoperators.rules import BinaryRule, UnaryRule, RuleManager, rule_manager
+from pyoperators.rules import BinaryRule, RuleManager, UnaryRule, rule_manager
 from pyoperators.utils import ndarraywrap
 from pyoperators.utils.testing import (
     assert_eq,
     assert_is,
+    assert_is_instance,
     assert_is_none,
     assert_is_not_none,
-    assert_is_instance,
 )
 
-from .common import OPS, ndarray2, attr2
+from .common import OPS, attr2, ndarray2
 
 op = Operator()
 ops = [OP() for OP in OPS]

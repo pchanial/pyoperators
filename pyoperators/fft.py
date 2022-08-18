@@ -1,8 +1,9 @@
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import os
 import time
+
+import numpy as np
 
 from .config import LOCAL_PATH
 from .core import (

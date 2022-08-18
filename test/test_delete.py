@@ -1,9 +1,11 @@
 from __future__ import division
+
 import numpy as np
 from numpy.testing import assert_raises
-from pyoperators import config, DiagonalOperator, HomothetyOperator, memory, Operator
-from pyoperators.utils import setting
+
+from pyoperators import DiagonalOperator, HomothetyOperator, Operator, config, memory
 from pyoperators.core import DeletedOperator
+from pyoperators.utils import setting
 
 
 def test_init():

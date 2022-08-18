@@ -3,7 +3,9 @@ from __future__ import absolute_import, division, print_function
 
 import numexpr
 import numpy as np
+
 import pyoperators as po
+
 from .core import (
     BlockColumnOperator,
     CompositionOperator,

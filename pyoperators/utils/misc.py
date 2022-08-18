@@ -4,18 +4,19 @@ import functools
 import itertools
 import multiprocessing
 import multiprocessing.dummy
-import numpy as np
 import operator
 import os
 import signal
+import sys
 import timeit
 import types
-import sys
 from collections.abc import Callable, Container, Iterable, Mapping
 from contextlib import contextmanager
 
+import numpy as np
+
+from ..warnings import PyOperatorsDeprecationWarning, warn
 from . import cythonutils as cu
-from ..warnings import warn, PyOperatorsDeprecationWarning
 
 __all__ = [
     'all_eq',

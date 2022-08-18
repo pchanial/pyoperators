@@ -1,9 +1,11 @@
 import contextlib
-import numpy as np
 import operator
 import os
-from .. import config
 from functools import reduce
+
+import numpy as np
+
+from .. import config
 
 try:
     if config.NO_MPI:
@@ -11,7 +13,8 @@ try:
     from mpi4py import MPI
 except ImportError:
     from . import fake_MPI as MPI
-from .misc import deprecated, isscalarlike, Timer, tointtuple
+
+from .misc import Timer, deprecated, isscalarlike, tointtuple
 
 __all__ = [
     'MPI',

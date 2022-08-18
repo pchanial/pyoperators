@@ -2,10 +2,10 @@ from __future__ import division
 
 import numpy as np
 from numpy.testing import assert_equal
-from pyoperators import AdditionOperator, CompositionOperator, Operator, flags
-from pyoperators.utils.testing import assert_same
-from pyoperators.proxy import proxy_group
 
+from pyoperators import AdditionOperator, CompositionOperator, Operator, flags
+from pyoperators.proxy import proxy_group
+from pyoperators.utils.testing import assert_same
 
 mat = np.array([[1, 1, 1j], [0, 1, 1], [0, 0, 1]])
 matI = np.linalg.inv(mat)

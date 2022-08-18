@@ -1,11 +1,13 @@
 import itertools
+
 from nose import SkipTest
 from numpy.testing import assert_equal
+
 from pyoperators import (
     CompositionOperator,
+    Operator,
     PowerOperator,
     ProductOperator,
-    Operator,
     flags,
 )
 
