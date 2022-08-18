@@ -11,9 +11,9 @@ from collections.abc import Callable
 
 import numpy as np
 
+from ..memory import empty
 from ..utils import strenum, uninterruptible_if
 from ..utils.mpi import MPI
-from ..memory import empty
 from .stopconditions import NoStopCondition
 
 __all__ = ['AbnormalStopIteration', 'IterativeAlgorithm']

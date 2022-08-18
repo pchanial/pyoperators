@@ -1,6 +1,7 @@
 from pyoperators import IdentityOperator
 from pyoperators.utils.testing import assert_eq, assert_is, assert_is_type
-from .common import OPS, ndarray2, attr2
+
+from .common import OPS, attr2, ndarray2
 
 ops = [_() for _ in OPS] + [
     _(flags={'linear': False, 'contiguous_input': True}) for _ in OPS

@@ -1,8 +1,11 @@
 from __future__ import division
+
+import sys
+
 import numpy as np
 import scipy.sparse as sp
-import sys
 from numpy.testing import assert_equal
+
 from pyoperators import (
     AdditionOperator,
     BlockColumnOperator,

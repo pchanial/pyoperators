@@ -1,13 +1,13 @@
 from __future__ import absolute_import, division, print_function
 
 import inspect
-import types
 import os
+import types
 from collections.abc import Callable
 
 from . import config
 from .core import HomothetyOperator, IdentityOperator, Operator, ZeroOperator
-from .warnings import warn, PyOperatorsWarning
+from .warnings import PyOperatorsWarning, warn
 
 __all__ = ['rule_manager']
 _triggers = {}

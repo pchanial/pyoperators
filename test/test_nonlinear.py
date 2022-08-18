@@ -1,8 +1,10 @@
 from __future__ import division
 
 import itertools
+
 import numpy as np
 from numpy.testing import assert_allclose, assert_equal, assert_raises
+
 from pyoperators import (
     Cartesian2SphericalOperator,
     CompositionOperator,
@@ -15,10 +17,10 @@ from pyoperators import (
     PowerOperator,
     ReciprocalOperator,
     RoundOperator,
-    SqrtOperator,
-    SquareOperator,
     SoftThresholdingOperator,
     Spherical2CartesianOperator,
+    SqrtOperator,
+    SquareOperator,
 )
 from pyoperators.utils import product
 from pyoperators.utils.testing import assert_is_instance, assert_is_type, assert_same

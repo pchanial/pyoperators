@@ -1,46 +1,51 @@
 from __future__ import division, print_function
+
 import itertools
-import numpy as np
 import operator
-import scipy
 import sys
 
+import numpy as np
+import scipy
 from nose import with_setup
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal
-from pyoperators import config, flags
+from scipy.sparse import csc_matrix
+
 from pyoperators import (
-    Operator,
     AdditionOperator,
     BlockColumnOperator,
     BlockDiagonalOperator,
     BlockRowOperator,
     BlockSliceOperator,
     CompositionOperator,
-    GroupOperator,
     ConstantOperator,
     DenseOperator,
     DiagonalOperator,
+    GroupOperator,
     HomothetyOperator,
+    I,
     IdentityOperator,
     MultiplicationOperator,
+    Operator,
     PowerOperator,
     ReciprocalOperator,
     ReductionOperator,
     SparseOperator,
     SquareOperator,
-    asoperator,
-    I,
     X,
+    asoperator,
+    config,
+    flags,
 )
-from pyoperators.core import CopyOperator, _pool as pool
+from pyoperators.core import CopyOperator
+from pyoperators.core import _pool as pool
 from pyoperators.memory import zeros
 from pyoperators.rules import rule_manager
 from pyoperators.utils import (
-    ndarraywrap,
     first_is_not,
     isalias,
     isscalarlike,
+    ndarraywrap,
     operation_assignment,
     product,
     split,
@@ -49,15 +54,15 @@ from pyoperators.utils.mpi import MPI
 from pyoperators.utils.testing import (
     assert_eq,
     assert_is,
-    assert_is_none,
     assert_is_instance,
-    assert_raises,
+    assert_is_none,
     assert_is_type,
+    assert_raises,
     assert_same,
     skiptest,
 )
-from scipy.sparse import csc_matrix
-from .common import OPS, ALL_OPS, DTYPES, HomothetyOutplaceOperator
+
+from .common import ALL_OPS, DTYPES, OPS, HomothetyOutplaceOperator
 
 PYTHON_26 = sys.version_info < (2, 7)
 np.seterr(all='raise')

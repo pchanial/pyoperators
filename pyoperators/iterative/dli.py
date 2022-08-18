@@ -11,12 +11,14 @@ http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.165.8284&rep=rep1&type=
 
 """
 from copy import copy
+
 import numpy as np
-from .algorithms import Algorithm, default_callback, StopCondition
+
+from ..core import DiagonalOperator, IdentityOperator, asoperator, asoperator1d
+from .algorithms import Algorithm, StopCondition, default_callback
 from .criterions import Norm2
 from .lanczos import LanczosAlgorithm
 from .optimize import FminNCG
-from ..core import DiagonalOperator, IdentityOperator, asoperator, asoperator1d
 
 DEFAULT_STOP = StopCondition(maxiter=5)
 

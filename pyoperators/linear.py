@@ -1,22 +1,25 @@
 from __future__ import absolute_import, division, print_function
+
 import multiprocessing
 
 try:
     import numexpr
 except:
     pass
-import numpy as np
 import operator
+
+import numpy as np
 
 try:
     import pyfftw
 except:
     pass
-import scipy.sparse as sp
-import scipy.sparse.sparsetools as sps
 import sys
 
+import scipy.sparse as sp
+import scipy.sparse.sparsetools as sps
 from scipy.sparse.linalg import eigsh
+
 from .core import (
     BlockRowOperator,
     BroadcastingBase,
@@ -29,8 +32,8 @@ from .core import (
     Operator,
     ReductionOperator,
     ZeroOperator,
-    operation_assignment,
     _pool,
+    operation_assignment,
 )
 from .flags import (
     contiguous,
@@ -58,7 +61,7 @@ from .utils import (
     ufuncs,
     zip_broadcast,
 )
-from .warnings import warn, PyOperatorsWarning
+from .warnings import PyOperatorsWarning, warn
 
 __all__ = [
     'BandOperator',

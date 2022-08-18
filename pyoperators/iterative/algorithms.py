@@ -1,10 +1,12 @@
 """
 Implements iterative algorithm class.
 """
-import numpy as np
 from copy import copy
+
+import numpy as np
+
+from .criterions import huber_criterion, norm2, quadratic_criterion
 from .linesearch import optimal_step
-from .criterions import norm2, quadratic_criterion, huber_criterion
 
 __all__ = [
     'ConjugateGradient',

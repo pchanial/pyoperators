@@ -6,15 +6,19 @@ Operator docstring for more information.
 """
 
 from __future__ import absolute_import, division, print_function
+
 import inspect
-import numpy as np
 import operator
-import pyoperators as po
-import scipy.sparse as sp
 import sys
 import types
 from collections.abc import Callable, MutableMapping, MutableSequence, MutableSet
 from itertools import groupby
+
+import numpy as np
+import scipy.sparse as sp
+
+import pyoperators as po
+
 from . import config
 from .flags import (
     Flags,
@@ -27,8 +31,9 @@ from .flags import (
     symmetric,
     update_output,
 )
-from .memory import empty, garbage_collect, iscompatible, zeros, MemoryPool
+from .memory import MemoryPool, empty, garbage_collect, iscompatible, zeros
 from .utils import (
+    Timer,
     all_eq,
     first_is_not,
     inspect_special_values,
@@ -43,7 +48,6 @@ from .utils import (
     strenum,
     strplural,
     strshape,
-    Timer,
     tointtuple,
 )
 from .utils.mpi import MPI

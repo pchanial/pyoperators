@@ -1,5 +1,7 @@
 from __future__ import absolute_import, division, print_function
+
 import inspect
+
 from . import core
 from .utils import operation_assignment, strshape
 

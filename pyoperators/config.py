@@ -1,6 +1,8 @@
 import os as _os
 import site as _site
-from .warnings import warn as _warn, PyOperatorsWarning as _PyOperatorsWarning
+
+from .warnings import PyOperatorsWarning as _PyOperatorsWarning
+from .warnings import warn as _warn
 
 
 def getenv(key, default, cls):

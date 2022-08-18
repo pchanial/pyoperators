@@ -1,8 +1,11 @@
 import itertools
+
 import numpy as np
+
 from pyoperators.utils import pi
 from pyoperators.utils.testing import assert_eq, assert_same
 from pyoperators.utils.ufuncs import abs2, masking, multiply_conjugate
+
 from .common import BIGGEST_FLOAT_TYPE, COMPLEX_DTYPES, DTYPES
 
 

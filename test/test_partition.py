@@ -1,8 +1,6 @@
 import numpy as np
 
 from pyoperators import (
-    flags,
-    Operator,
     AdditionOperator,
     BlockColumnOperator,
     BlockDiagonalOperator,
@@ -10,19 +8,22 @@ from pyoperators import (
     CompositionOperator,
     DiagonalOperator,
     HomothetyOperator,
+    I,
     IdentityOperator,
     MultiplicationOperator,
-    I,
+    Operator,
     asoperator,
+    flags,
 )
 from pyoperators.core import BlockOperator
 from pyoperators.utils import merge_none
 from pyoperators.utils.testing import (
     assert_eq,
     assert_is_instance,
-    assert_raises,
     assert_is_type,
+    assert_raises,
 )
+
 from .common import Stretch
 
 

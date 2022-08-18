@@ -1,7 +1,9 @@
 from __future__ import absolute_import, division, print_function
+
 import numpy as np
+
 from .core import IdentityOperator, Operator
-from .flags import real, linear, square, inplace
+from .flags import inplace, linear, real, square
 from .utils import isalias, split
 from .utils.mpi import MPI, as_mpi, distribute_shape, timer_mpi
 

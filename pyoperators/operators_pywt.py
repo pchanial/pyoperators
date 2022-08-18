@@ -4,9 +4,11 @@ For now only 1D and 2D wavelets are available.
 
 """
 from __future__ import absolute_import, division, print_function
-from .core import Operator, CompositionOperator
-from .flags import linear, real
+
 import numpy as np
+
+from .core import CompositionOperator, Operator
+from .flags import linear, real
 
 try:
     import pywt

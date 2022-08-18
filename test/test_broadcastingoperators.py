@@ -1,26 +1,28 @@
 from __future__ import division
 
 import itertools
-import numpy as np
 import operator
+
+import numpy as np
 from numpy.testing import assert_equal, assert_raises
+
 from pyoperators import (
     AdditionOperator,
     BlockDiagonalOperator,
     CompositionOperator,
     ConstantOperator,
-    DiagonalOperator,
     DiagonalNumexprOperator,
+    DiagonalOperator,
     HomothetyOperator,
+    I,
     IdentityOperator,
     MaskOperator,
     MultiplicationOperator,
+    O,
     Operator,
     PackOperator,
     UnpackOperator,
     ZeroOperator,
-    I,
-    O,
 )
 from pyoperators.core import BroadcastingBase
 from pyoperators.flags import linear, square
@@ -36,6 +38,7 @@ from pyoperators.utils.testing import (
     assert_not_in,
     assert_same,
 )
+
 from .common import DTYPES, HomothetyOutplaceOperator
 
 clss = (

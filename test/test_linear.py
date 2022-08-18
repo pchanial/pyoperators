@@ -1,25 +1,25 @@
 from __future__ import division
 
 import numpy as np
-import pyoperators
-
 from numpy.testing import assert_allclose
+
+import pyoperators
 from pyoperators import (
     BlockColumnOperator,
     BlockDiagonalOperator,
     DegreesOperator,
     DenseOperator,
-    DiagonalOperator,
     DiagonalNumexprOperator,
+    DiagonalOperator,
     DifferenceOperator,
     IntegrationTrapezeOperator,
     Operator,
     RadiansOperator,
     Rotation2dOperator,
     Rotation3dOperator,
-    TridiagonalOperator,
-    SymmetricBandToeplitzOperator,
     SumOperator,
+    SymmetricBandToeplitzOperator,
+    TridiagonalOperator,
 )
 from pyoperators.utils import product
 from pyoperators.utils.testing import (
@@ -30,6 +30,7 @@ from pyoperators.utils.testing import (
     assert_same,
     skiptest_unless_module,
 )
+
 from .common import FLOAT_DTYPES, IdentityOutplaceOperator, assert_inplace_outplace
 
 SHAPES = ((), (1,), (3,), (2, 3), (2, 3, 4))

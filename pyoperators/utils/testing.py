@@ -1,7 +1,8 @@
 import functools
-import numpy as np
 from collections.abc import Container, Mapping
-from numpy.testing import assert_equal, assert_allclose
+
+import numpy as np
+from numpy.testing import assert_allclose, assert_equal
 
 from .misc import settingerr, strenum
 

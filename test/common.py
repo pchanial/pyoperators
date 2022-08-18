@@ -1,6 +1,6 @@
 import numpy as np
-import pyoperators
 
+import pyoperators
 from pyoperators import Operator, flags
 from pyoperators.utils.testing import assert_eq
 

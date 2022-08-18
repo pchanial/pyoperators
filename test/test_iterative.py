@@ -6,8 +6,9 @@ Testing of the iterative module
 """
 
 import numpy as np
-import pyoperators
 from numpy.testing import assert_allclose
+
+import pyoperators
 from pyoperators import IdentityOperator, iterative
 from pyoperators.utils.testing import assert_same, skiptest
 
