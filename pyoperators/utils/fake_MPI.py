@@ -1,109 +1,104 @@
 """
 MPI-wrapper module for non-MPI enabled platforms.
 """
-try:
-    import builtins
-except ImportError:
-    import __builtin__ as builtins
+import builtins as _builtins
+from itertools import count as _count
 
-_g = globals()
-_constants = (
-    'SUM',
-    'MIN',
-    'MAX',
-    'PROD',
-    'BAND',
-    'BOR',
-    'BXOR',
-    'LAND',
-    'LOR',
-    'LXOR',
-    'MAXLOC',
-    'MINLOC',
-    'BOOL',
-    'BYTE',
-    'C_BOOL',
-    'C_COMPLEX',
-    'C_DOUBLE_COMPLEX',
-    'C_FLOAT_COMPLEX',
-    'C_LONG_DOUBLE_COMPLEX',
-    'CHAR',
-    'CHARACTER',
-    'WCHAR',
-    'COMPLEX',
-    'COMPLEX4',
-    'COMPLEX8',
-    'COMPLEX16',
-    'COMPLEX32',
-    'DOUBLE',
-    'DOUBLE_COMPLEX',
-    'DOUBLE_INT',
-    'DOUBLE_PRECISION',
-    'F_BOOL',
-    'F_COMPLEX',
-    'F_DOUBLE',
-    'F_DOUBLE_COMPLEX',
-    'F_FLOAT',
-    'F_FLOAT_COMPLEX',
-    'F_INT',
-    'FLOAT',
-    'FLOAT_INT',
-    'INT',
-    'INT8_T',
-    'INT16_T',
-    'INT32_T',
-    'INT64_T',
-    'INT_INT',
-    'INTEGER',
-    'INTEGER1',
-    'INTEGER2',
-    'INTEGER4',
-    'INTEGER8',
-    'INTEGER16',
-    'LOGICAL',
-    'LOGICAL1',
-    'LOGICAL2',
-    'LOGICAL4',
-    'LOGICAL8',
-    'LONG',
-    'LONG_DOUBLE',
-    'LONG_DOUBLE_INT',
-    'LONG_INT',
-    'LONG_LONG',
-    'PACKED',
-    'REAL',
-    'REAL2',
-    'REAL4',
-    'REAL8',
-    'REAL16',
-    'SHORT',
-    'SHORT_INT',
-    'SIGNED_CHAR',
-    'SIGNED_INT',
-    'SIGNED_LONG',
-    'SIGNED_LONG_LONG',
-    'SIGNED_SHORT',
-    'SINT8_T',
-    'SINT16_T',
-    'SINT32_T',
-    'SINT64_T',
-    'TWOINT',
-    'UINT8_T',
-    'UINT16_T',
-    'UINT32_T',
-    'UINT64_T',
-    'UNSIGNED',
-    'UNSIGNED_CHAR',
-    'UNSIGNED_INT',
-    'UNSIGNED_LONG',
-    'UNSIGNED_LONG_LONG',
-    'UNSIGNED_SHORT',
-    'WCHAR',
-    'IN_PLACE',
-    'KEYVAL_INVALID',
-)
-for i, c in enumerate(_constants):
-    _g[c] = i
+_inc = _count()
+
+SUM = next(_inc)
+MIN = next(_inc)
+MAX = next(_inc)
+PROD = next(_inc)
+BAND = next(_inc)
+BOR = next(_inc)
+BXOR = next(_inc)
+LAND = next(_inc)
+LOR = next(_inc)
+LXOR = next(_inc)
+MAXLOC = next(_inc)
+MINLOC = next(_inc)
+BOOL = next(_inc)
+BYTE = next(_inc)
+C_BOOL = next(_inc)
+C_COMPLEX = next(_inc)
+C_DOUBLE_COMPLEX = next(_inc)
+C_FLOAT_COMPLEX = next(_inc)
+C_LONG_DOUBLE_COMPLEX = next(_inc)
+CHAR = next(_inc)
+CHARACTER = next(_inc)
+WCHAR = next(_inc)
+COMPLEX = next(_inc)
+COMPLEX4 = next(_inc)
+COMPLEX8 = next(_inc)
+COMPLEX16 = next(_inc)
+COMPLEX32 = next(_inc)
+DOUBLE = next(_inc)
+DOUBLE_COMPLEX = next(_inc)
+DOUBLE_INT = next(_inc)
+DOUBLE_PRECISION = next(_inc)
+F_BOOL = next(_inc)
+F_COMPLEX = next(_inc)
+F_DOUBLE = next(_inc)
+F_DOUBLE_COMPLEX = next(_inc)
+F_FLOAT = next(_inc)
+F_FLOAT_COMPLEX = next(_inc)
+F_INT = next(_inc)
+FLOAT = next(_inc)
+FLOAT_INT = next(_inc)
+INT = next(_inc)
+INT8_T = next(_inc)
+INT16_T = next(_inc)
+INT32_T = next(_inc)
+INT64_T = next(_inc)
+INT_INT = next(_inc)
+INTEGER = next(_inc)
+INTEGER1 = next(_inc)
+INTEGER2 = next(_inc)
+INTEGER4 = next(_inc)
+INTEGER8 = next(_inc)
+INTEGER16 = next(_inc)
+LOGICAL = next(_inc)
+LOGICAL1 = next(_inc)
+LOGICAL2 = next(_inc)
+LOGICAL4 = next(_inc)
+LOGICAL8 = next(_inc)
+LONG = next(_inc)
+LONG_DOUBLE = next(_inc)
+LONG_DOUBLE_INT = next(_inc)
+LONG_INT = next(_inc)
+LONG_LONG = next(_inc)
+PACKED = next(_inc)
+REAL = next(_inc)
+REAL2 = next(_inc)
+REAL4 = next(_inc)
+REAL8 = next(_inc)
+REAL16 = next(_inc)
+SHORT = next(_inc)
+SHORT_INT = next(_inc)
+SIGNED_CHAR = next(_inc)
+SIGNED_INT = next(_inc)
+SIGNED_LONG = next(_inc)
+SIGNED_LONG_LONG = next(_inc)
+SIGNED_SHORT = next(_inc)
+SINT8_T = next(_inc)
+SINT16_T = next(_inc)
+SINT32_T = next(_inc)
+SINT64_T = next(_inc)
+TWOINT = next(_inc)
+UINT8_T = next(_inc)
+UINT16_T = next(_inc)
+UINT32_T = next(_inc)
+UINT64_T = next(_inc)
+UNSIGNED = next(_inc)
+UNSIGNED_CHAR = next(_inc)
+UNSIGNED_INT = next(_inc)
+UNSIGNED_LONG = next(_inc)
+UNSIGNED_LONG_LONG = next(_inc)
+UNSIGNED_SHORT = next(_inc)
+WCHAR = next(_inc)
+IN_PLACE = next(_inc)
+KEYVAL_INVALID = next(_inc)
 
 
 class Comm:
@@ -219,11 +214,8 @@ COMM_SELF = Comm(0, 1)
 COMM_WORLD = Comm(0, 1)
 
 
-class Exception(builtins.Exception):
+class Exception(_builtins.Exception):
     """Exception.__init__(self, int ierr=0)"""
 
     def __init__(self, ierr=0):
         pass
-
-
-del _g, _constants, builtins

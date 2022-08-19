@@ -2,10 +2,11 @@ import inspect
 import os
 import types
 from collections.abc import Callable
+from warnings import warn
 
 from . import config
 from .core import HomothetyOperator, IdentityOperator, Operator, ZeroOperator
-from .warnings import PyOperatorsWarning, warn
+from .warnings import PyOperatorsWarning
 
 __all__ = ['rule_manager']
 _triggers = {}
@@ -30,7 +31,7 @@ class Rule:
     def __init__(self, subjects, predicate):
 
         if not isinstance(subjects, (list, str, tuple)):
-            raise TypeError(f"The input {subjects} is invalid.")
+            raise TypeError(f'The input {subjects} is invalid.')
 
         subjects_ = self._split_subject(subjects)
         if any(
@@ -38,7 +39,7 @@ class Rule:
             and (not isinstance(s, type) or not issubclass(s, Operator))
             for s in subjects_
         ):
-            raise TypeError(f"The subjects {subjects} are invalid.")
+            raise TypeError(f'The subjects {subjects} are invalid.')
         if len(subjects_) == 0:
             raise ValueError('No rule subject is specified.')
         if len(subjects_) > 2:
@@ -57,7 +58,7 @@ class Rule:
         if not isinstance(predicate, (str, types.FunctionType)):
             raise TypeError('Invalid predicate.')
         if isinstance(predicate, str) and '{' in predicate:
-            raise ValueError("Predicate cannot be a subclass.")
+            raise ValueError('Predicate cannot be a subclass.')
 
         self.subjects = subjects_
         self.predicate = predicate
@@ -68,7 +69,7 @@ class Rule:
         if self.subjects != other.subjects:
             return False
         if isinstance(self.predicate, types.FunctionType):
-            if type(self.predicate) is not type(other.predicate):
+            if not isinstance(other.predicate, types.FunctionType):
                 return False
             return self.predicate.__code__ is other.predicate.__code__
         if isinstance(self.predicate, str):
@@ -251,7 +252,7 @@ class BinaryRule(Rule):
             isinstance(predicate, (list, tuple))
             and all(isinstance(o, Operator) for o in predicate)
         ):
-            raise TypeError("The predicate '{}' is not an operator.".format(predicate))
+            raise TypeError(f"The predicate '{predicate}' is not an operator.")
         return predicate
 
 
@@ -428,7 +429,7 @@ class RuleManager:
                     value = eval(value, {})
                 except Exception:
                     warn(
-                        'In file {0!r}, line {1}: {2!r} cannot be evaluated'.format(
+                        'In file {!r}, line {}: {!r} cannot be evaluated'.format(
                             path, iline + 1, value
                         ),
                         PyOperatorsWarning,

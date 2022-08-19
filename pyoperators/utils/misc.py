@@ -10,10 +10,11 @@ import timeit
 import types
 from collections.abc import Callable, Container, Iterable, Mapping
 from contextlib import contextmanager
+from warnings import warn
 
 import numpy as np
 
-from ..warnings import PyOperatorsDeprecationWarning, warn
+from ..warnings import PyOperatorsDeprecationWarning
 from . import cythonutils as cu
 
 __all__ = [
@@ -370,16 +371,16 @@ def float_or_complex_dtype(dtype):
     return dtype
 
 
-def first(l, f):
+def first(iterable, func):
     """
-    Return first item in list that verifies a certain condition, or raise
+    Return first item in iterable that verifies a certain condition, or raise
     a ValueError exception otherwise.
 
     Parameters
     ----------
-    l : list
+    iterable : Iterable
         List of elements to be searched for.
-    f : function
+    func : function
         Function that evaluates to True to match an element.
 
     Example:
@@ -389,21 +390,21 @@ def first(l, f):
 
     """
     try:
-        return next(_ for _ in l if f(_))
+        return next(_ for _ in iterable if func(_))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
 
-def first_is_not(l, v):
+def first_is_not(iterable, value):
     """
-    Return first item in list which is not the specified value.
+    Return first item in an iterable which is not the specified value.
     If all items are the specified value, return it.
 
     Parameters
     ----------
-    l : sequence
+    iterable : Iterable
         The list of elements to be inspected.
-    v : object
+    value : object
         The value not to be matched.
 
     Example:
@@ -412,7 +413,7 @@ def first_is_not(l, v):
     'b'
 
     """
-    return next((_ for _ in l if _ is not v), v)
+    return next((_ for _ in iterable if _ is not value), value)
 
 
 def groupbykey(iterable, key):
@@ -436,15 +437,15 @@ def groupbykey(iterable, key):
         yield value, l
 
 
-def ifirst(l, match):
+def ifirst(iterable, match):
     """
-    Return the index of the first item in a list that verifies a certain
+    Return the index of the first item in an iterable that verifies a certain
     condition or is equal to a certain value. Raise a ValueError exception
     otherwise.
 
     Parameters
     ----------
-    l : iterator
+    iterable : Iterable
         List of elements to be searched for.
     match : callable or object
         Function that evaluates to True to match an element or the element
@@ -460,23 +461,23 @@ def ifirst(l, match):
     """
     try:
         if not isinstance(match, Callable):
-            return next((i for i, _ in enumerate(l) if _ == match))
-        return next((i for i, _ in enumerate(l) if match(_)))
+            return next((i for i, _ in enumerate(iterable) if _ == match))
+        return next((i for i, _ in enumerate(iterable) if match(_)))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
 
-def ifirst_is_not(l, v):
+def ifirst_is_not(iterable, value):
     """
-    Return index of first item in list which is not the specified value.
+    Return index of first item in an iterable which is not the specified value.
     If the list is empty or if all items are the specified value, raise
     a ValueError exception.
 
     Parameters
     ----------
-    l : sequence
+    iterable : Iterable
         The list of elements to be inspected.
-    v : object
+    value : object
         The value not to be matched.
 
     Example:
@@ -486,20 +487,20 @@ def ifirst_is_not(l, v):
 
     """
     try:
-        return next((i for i, _ in enumerate(l) if _ is not v))
+        return next((i for i, _ in enumerate(iterable) if _ is not value))
     except StopIteration:
         raise ValueError('There is no matching item in the list.')
 
 
-def ilast(l, match):
+def ilast(iterable, match):
     """
-    Return the index of the last item in a list that verifies a certain
+    Return the index of the last item in an iterable that verifies a certain
     condition or is equal to a certain value. Raise a ValueError exception
     otherwise.
 
     Parameters
     ----------
-    l : iterator
+    iterable : Iterable
         List of elements to be searched for.
     match : callable or object
         Function that evaluates to True to match an element or the element
@@ -513,22 +514,22 @@ def ilast(l, match):
     3
 
     """
-    l = tuple(l)
-    index = ifirst(reversed(l), match)
-    return len(l) - index - 1
+    iterable = tuple(iterable)
+    index = ifirst(reversed(iterable), match)
+    return len(iterable) - index - 1
 
 
-def ilast_is_not(l, v):
+def ilast_is_not(iterable, value):
     """
-    Return index of last item in list which is not the specified value.
+    Return index of last item in an iterable which is not the specified value.
     If the list is empty or if all items are the specified value, raise
     a ValueError exception.
 
     Parameters
     ----------
-    l : sequence
+    iterable : Iterable
         The list of elements to be inspected.
-    v : object
+    value : object
         The value not to be matched.
 
     Example:
@@ -537,9 +538,9 @@ def ilast_is_not(l, v):
     2
 
     """
-    l = tuple(l)
-    index = ifirst_is_not(reversed(l), v)
-    return len(l) - index - 1
+    iterable = tuple(iterable)
+    index = ifirst_is_not(reversed(iterable), value)
+    return len(iterable) - index - 1
 
 
 def inspect_special_values(x):
@@ -627,16 +628,16 @@ def isscalarlike(x):
     return np.isscalar(x) or isinstance(x, np.ndarray) and x.ndim == 0
 
 
-def last(l, f):
+def last(iterable, func):
     """
     Return last item in list that verifies a certain condition, or raise
     a ValueError exception otherwise.
 
     Parameters
     ----------
-    l : list
+    iterable : Iterable
         List of elements to be searched for.
-    f : function
+    func : function
         Function that evaluates to True to match an element.
 
     Example:
@@ -645,19 +646,19 @@ def last(l, f):
     3.0
 
     """
-    return first(reversed(tuple(l)), f)
+    return first(reversed(tuple(iterable)), func)
 
 
-def last_is_not(l, v):
+def last_is_not(iterable, value):
     """
     Return last item in list which is not the specified value.
     If all items are the specified value, return it.
 
     Parameters
     ----------
-    l : sequence
+    iterable : Iterable
         The list of elements to be inspected.
-    v : object
+    value : object
         The value not to be matched.
 
     Example:
@@ -666,12 +667,13 @@ def last_is_not(l, v):
     'c'
 
     """
-    return first_is_not(reversed(tuple(l)), v)
+    return first_is_not(reversed(tuple(iterable)), value)
 
 
-def least_greater_multiple(a, l, out=None):
+def least_greater_multiple(a, factors, out=None):
     """
-    Return the least multiple of values in a list greater than a given number.
+    Return the least multiple of factors, which is greater than or equal to a given
+    number.
 
     Example
     -------
@@ -679,16 +681,16 @@ def least_greater_multiple(a, l, out=None):
     2304
 
     """
-    if any(v <= 0 for v in l):
+    if any(v <= 0 for v in factors):
         raise ValueError('The list of multiple is not positive;')
     it = np.nditer(
         [a, out], op_flags=[['readonly'], ['writeonly', 'allocate', 'no_broadcast']]
     )
-    max_power = [int(np.ceil(np.log(np.max(a)) / np.log(v))) for v in l]
+    max_power = [int(np.ceil(np.log(np.max(a)) / np.log(v))) for v in factors]
     slices = [slice(0, m + 1) for m in max_power]
     powers = np.ogrid[slices]
     values = 1
-    for v, p in zip(l, powers):
+    for v, p in zip(factors, powers):
         values = values * v**p
     for v, o in it:
         if np.__version__ < '2':
@@ -812,11 +814,11 @@ def product(a):
     return np.product(a, dtype=a.dtype)
 
 
-def renumerate(l):
+def renumerate(iterable):
     """Reversed enumerate."""
-    if isinstance(l, Iterable):
-        l = list(l)
-    return zip(range(len(l) - 1, -1, -1), reversed(l))
+    if isinstance(iterable, Iterable):
+        iterable = list(iterable)
+    return zip(range(len(iterable) - 1, -1, -1), reversed(iterable))
 
 
 def reshape_broadcast(x, shape):
@@ -885,8 +887,6 @@ def settingerr(*args, **keywords):
     old = np.seterr(*args, **keywords)
     try:
         yield
-    except:
-        raise
     finally:
         np.seterr(**old)
 
@@ -1174,24 +1174,22 @@ def uninterruptible():
     """
     Make a block of code uninterruptible with CTRL-C.
     The KeyboardInterrupt is re-raised after the block is executed.
-
     """
     signal_old = signal.getsignal(signal.SIGINT)
-    # XXX the nonlocal Python3 would be handy here
-    ctrlc_is_pressed = []
+    ctrlc_is_pressed = False
 
     def signal_handler(signal, frame):
-        ctrlc_is_pressed.append(True)
+        nonlocal ctrlc_is_pressed
+        ctrlc_is_pressed = True
 
     signal.signal(signal.SIGINT, signal_handler)
     try:
         yield
-    except:
-        raise
     finally:
         signal.signal(signal.SIGINT, signal_old)
-        if len(ctrlc_is_pressed) > 0:
-            raise KeyboardInterrupt()
+
+    if ctrlc_is_pressed:
+        raise KeyboardInterrupt()
 
 
 @contextmanager

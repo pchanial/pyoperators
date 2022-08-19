@@ -1,5 +1,5 @@
 """
-Line searches: find minimum of a multivariate function. 
+Line searches: find minimum of a multivariate function.
 
 Optionnaly depends on scipy.optimize for some line searches.
 

@@ -22,24 +22,22 @@ try:
 
     FFTW_DEFAULT_NUM_THREADS = omp_num_threads()
     FFTW_WISDOM_FILES = tuple(
-        os.path.join(LOCAL_PATH, 'fftw{}.wisdom'.format(t)) for t in ['', 'f', 'l']
+        os.path.join(LOCAL_PATH, f'fftw{t}.wisdom') for t in ['', 'f', 'l']
     )
     FFTW_WISDOM_MIN_DELAY = 0.1
     _is_fftw_wisdom_loaded = False
-except:
-    pass
+except ImportError:
+    pyfftw = None
 
 __all__ = ['ConvolutionOperator', 'FFTOperator']
 
 
 # doctest nose fixture
 def setup_module(module):
-    try:
-        import pyfftw
-    except ImportError:
+    if pyfftw is None:
         from nose.plugins.skip import SkipTest
 
-        raise SkipTest()
+        raise SkipTest('pyfftw is not installed')
 
 
 # FFTW out-of-place transforms:
@@ -93,7 +91,8 @@ class _FFTWConvolutionOperator(Operator):
             Operator's dtype.
 
         """
-        import pyfftw
+        if pyfftw is None:
+            raise ImportError('The package pyfftw is not installed.')
 
         kernel = np.array(kernel, dtype=dtype, copy=False)
         dtype = kernel.dtype
@@ -210,7 +209,8 @@ class _FFTWRealConvolutionOperator(Operator):
         dtype=None,
         **keywords,
     ):
-        import pyfftw
+        if pyfftw is None:
+            raise ImportError('The package pyfftw is not installed.')
 
         self.kernel = kernel_fft
         self._fplan = fplan
@@ -388,7 +388,8 @@ class _FFTWComplexOperator(Operator):
         dtype=complex,
         **keywords,
     ):
-        import pyfftw
+        if pyfftw is None:
+            raise ImportError('The package pyfftw is not installed.')
 
         shapein = tointtuple(shapein)
         if axes is None:

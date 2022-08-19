@@ -4,13 +4,12 @@ which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
 
-
 import inspect
-import operator
 import sys
 import types
 from collections.abc import Callable, MutableMapping, MutableSequence, MutableSet
 from itertools import groupby
+from operator import iadd, imul
 
 import numpy as np
 import scipy.sparse as sp
@@ -694,7 +693,7 @@ class Operator:
             if None not in self.rules:
                 raise ValueError('There is no unary rule.')
             raise ValueError(
-                "The operation '{}' has no rules.".format(type(operation).__name__)
+                f"The operation '{type(operation).__name__}' has no rules."
             )
         rules = self.rules[operation]
         if operation is not None:
@@ -729,7 +728,7 @@ class Operator:
         return self._H
 
     @property
-    def I(self):
+    def I(self):  # noqa: E741, E743
         """Return the inverse of the operator."""
         if self._I is None:
             self._generate_associated_operators()
@@ -868,15 +867,15 @@ class Operator:
             )
 
         if flags.involutary:
-            I = self
+            I = self  # noqa: E741
         elif flags.orthogonal:
-            I = T
+            I = T  # noqa: E741
         elif flags.unitary:
-            I = H
+            I = H  # noqa: E741
         elif 'I' in rules:
-            I = _copy_reverse(self, rules['I'](self))
+            I = _copy_reverse(self, rules['I'](self))  # noqa: E741
         else:
-            I = _copy_reverse_all(
+            I = _copy_reverse_all(  # noqa: E741
                 self,
                 Operator(
                     direct=self.inverse,
@@ -1410,11 +1409,11 @@ class Operator:
             flags = {f: True for f in flags}
         else:
             raise TypeError(
-                "The operator flags have an invalid type '{0}'.".format(flags)
+                f"The operator flags have an invalid type '{flags}'."
             )
         flags.update(keywords)
         if any(not isinstance(f, str) for f in flags):
-            raise TypeError("Invalid type for the operator flags: {}.".format(flags))
+            raise TypeError(f"Invalid type for the operator flags: {flags}.")
         if any(f not in Flags._fields for f in flags):
             raise ValueError(
                 "Invalid operator flags '{}'. The properties must be one of t"
@@ -1628,7 +1627,7 @@ class Operator:
                 try:
                     if val == defaults[ivar - nargs]:
                         continue
-                except:
+                except Exception:
                     if val is defaults[ivar - nargs]:
                         continue
             if (
@@ -1905,7 +1904,7 @@ class CommutativeCompositeOperator(CompositeOperator):
                 if j != i:
                     for rule in ops[i].rules[type(self)]:
                         if DEBUG:
-                            print("({0}, {1}): testing rule '{2}'".format(i, j, rule))
+                            print(f"({i}, {j}): testing rule '{rule}'")
                         new_ops = rule(ops[i], ops[j])
                         if new_ops is None:
                             continue
@@ -2024,7 +2023,7 @@ class AdditionOperator(CommutativeCompositeOperator):
 
     def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands)
-        CommutativeCompositeOperator.__init__(self, operands, operator.iadd, **keywords)
+        CommutativeCompositeOperator.__init__(self, operands, iadd, **keywords)
         if not isinstance(self, CommutativeCompositeOperator):
             return
         self.set_rule('C', lambda s: type(s)([m.C for m in s.operands]))
@@ -2058,7 +2057,7 @@ class MultiplicationOperator(CommutativeCompositeOperator):
 
     def __init__(self, operands, **keywords):
         operands = self._validate_operands(operands, constant=True)
-        CommutativeCompositeOperator.__init__(self, operands, operator.imul, **keywords)
+        CommutativeCompositeOperator.__init__(self, operands, imul, **keywords)
         if not isinstance(self, CommutativeCompositeOperator):
             return
         self.set_rule('C', lambda s: type(s)([m.C for m in s.operands]))
@@ -2261,8 +2260,8 @@ class NonCommutativeCompositeOperator(CompositeOperator):
                         raise NotImplementedError()
                     ops[i], ops[i + 1] = new_ops
                     if DEBUG:
-                        print('    DOUBLE CHANGE: {} into {}'.format(i, new_ops[0]))
-                        print('    DOUBLE CHANGE: {} into {}'.format(i + 1, new_ops[1]))
+                        print(f'    DOUBLE CHANGE: {i} into {new_ops[0]}')
+                        print(f'    DOUBLE CHANGE: {i + 1} into {new_ops[1]}')
                         print_operands()
                     i += 1
                     break
@@ -2467,9 +2466,9 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return sum(
             (
                 self._apply_rule_homothety_linear(list(group))
-                if linear
+                if islinear
                 else list(group)
-                for linear, group in groupby(operands, lambda o: o.flags.linear)
+                for islinear, group in groupby(operands, lambda o: o.flags.linear)
             ),
             [],
         )
@@ -2703,7 +2702,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
                 s = tointtuple(op.reshapeout(shapes[i]))
             if None not in (shapes[i + 1], s) and s != shapes[i + 1]:
                 raise ValueError(
-                    f"The input shape '{s}' of {str(op)} is incompatible with '{shapes[i+1]}'."
+                    f"The input shape {s} of {str(op)} is incompatible with "
+                    f"{shapes[i+1]}."
                 )
             if s is not None:
                 shapes[i + 1] = s
@@ -2821,9 +2821,11 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             return str(self.operands[0])
 
         s = ''
-        for linear, group in groupby(reversed(self.operands), lambda _: _.flags.linear):
+        for islinear, group in groupby(
+            reversed(self.operands), lambda _: _.flags.linear
+        ):
             group = tuple(group)
-            if linear:
+            if islinear:
                 s_group = ' * '.join(str(_) for _ in reversed(group))
                 if len(s) == 0:
                     s = s_group
@@ -3317,7 +3319,7 @@ class BlockOperator(NonCommutativeCompositeOperator):
         rank = len(shape)
         if any(len(s) != rank for s in explicit):
             raise ValueError(
-                "The blocks do not have the same number of dimensions: '{0}'.".format(
+                "The blocks do not have the same number of dimensions: '{}'.".format(
                     shapes
                 )
             )
@@ -3877,7 +3879,7 @@ class BlockRowOperator(BlockOperator):
         partitionin=None,
         axisin=None,
         new_axisin=None,
-        operation=operator.iadd,
+        operation=iadd,
         **keywords,
     ):
 
@@ -3893,7 +3895,7 @@ class BlockRowOperator(BlockOperator):
         partitionin = tointtuple(partitionin)
 
         keywords['flags'] = Operator.validate_flags(
-            keywords.get('flags', {}), linear=operation is operator.iadd
+            keywords.get('flags', {}), linear=operation is iadd
         )
         BlockOperator.__init__(
             self,

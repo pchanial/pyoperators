@@ -1,5 +1,4 @@
 import warnings
-from warnings import warn
 
 
 class PyOperatorsWarning(UserWarning):
