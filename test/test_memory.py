@@ -1,7 +1,5 @@
-import itertools
-
 import numpy as np
-from numpy.testing import assert_equal
+import pytest
 
 from pyoperators.config import MEMORY_ALIGNMENT
 from pyoperators.memory import MemoryPool, empty
@@ -14,8 +12,8 @@ buffers = [
     empty(11)[1:],
     empty(21)[1:].reshape((10, 2))[::2, :],
 ]
-aligned = 3 * [True] + [False, False]
-contiguous = [_.flags.contiguous for _ in buffers]
+alignments = 3 * [True] + [False, False]
+contiguities = [_.flags.contiguous for _ in buffers]
 
 
 def assert_contiguous(x):
@@ -32,84 +30,94 @@ def address(l):
     return [address(_) for _ in l]
 
 
-def test_empty():
-    shapes = (10, (10,), (2, 10), (3, 3, 3))
-    dtypes = (float, np.int8, complex)
-
-    def func(v, s, d):
-        assert_equal(v.shape, tointtuple(s))
-        assert_equal(v.dtype, d)
-        assert_aligned(v)
-        assert_contiguous(v)
-
-    for s in shapes:
-        for d in dtypes:
-            v = empty(s, d)
-            yield func, v, s, d
+@pytest.mark.parametrize('shape', [10, (10,), (2, 10), (3, 3, 3)])
+@pytest.mark.parametrize('dtype', [float, np.int8, complex])
+def test_empty(shape, dtype):
+    value = empty(shape, dtype)
+    assert value.shape == tointtuple(shape)
+    assert value.dtype == dtype
+    assert_aligned(value)
+    assert_contiguous(value)
 
 
-def test_set():
+@pytest.mark.parametrize('buffer', buffers)
+def test_set(buffer):
     pool = MemoryPool()
     a = np.empty(9)
     c = np.empty(11)
     pool.add(a)
     pool.add(c)
 
-    def func(b):
-        assert address(pool._buffers) == address([a, b, c])
-
-    for b in buffers:
-        with pool.set(b):
-            yield func, b
-        assert address(pool._buffers) == address([a, c])
+    with pool.set(buffer):
+        assert address(pool._buffers) == address([a, buffer, c])
+    assert address(pool._buffers) == address([a, c])
 
 
-def test_get():
+@pytest.fixture(scope='module')
+def pool_test_get():
     pool = MemoryPool()
     pa = empty(9)
     pc = empty(11)
     pool.add(pa)
     pool.add(pc)
+    return pool, pa, pc
 
-    def func(v, b, bs, ba, bc, s, a, c):
-        assert_equal(v.shape, s)
-        if a:
-            assert_aligned(v)
-        if c:
-            assert_contiguous(v)
-        if a > ba or c and not bc or not bc and s != bs:
-            assert address(pool._buffers) == address([pa, b])
-        else:
-            assert address(pool._buffers) == address([pa, pc])
 
-    for b, ba, bc in zip(buffers, aligned, contiguous):
-        with pool.set(b):
-            for (s, a, c) in itertools.product(
-                [(10,), (5, 2), (2, 5)], [False, True], [False, True]
+@pytest.mark.parametrize(
+    'buffer, aligned, contiguous', zip(buffers, alignments, contiguities)
+)
+@pytest.mark.parametrize('req_shape', [(10,), (5, 2), (2, 5)])
+@pytest.mark.parametrize('req_aligned', [False, True])
+@pytest.mark.parametrize('req_contiguous', [False, True])
+def test_get_old(
+    pool_test_get, buffer, aligned, contiguous, req_shape, req_aligned, req_contiguous
+):
+    pool, pa, pc = pool_test_get
+
+    with pool.set(buffer):
+        with pool.get(req_shape, float, req_aligned, req_contiguous) as v:
+            assert v.shape == req_shape
+            if req_aligned:
+                assert_aligned(v)
+            if req_contiguous:
+                assert_contiguous(v)
+            if (
+                req_aligned > aligned
+                or req_contiguous
+                and not contiguous
+                or not contiguous
+                and req_shape != buffer.shape
             ):
-                with pool.get(s, float, a, c) as v:
-                    yield func, v, b, b.shape, ba, bc, s, a, c
-                assert address(pool._buffers) == address([pa, b, pc])
-        assert address(pool._buffers) == address([pa, pc])
+                assert address(pool._buffers) == address([pa, buffer])
+            else:
+                assert address(pool._buffers) == address([pa, pc])
+
+        assert address(pool._buffers) == address([pa, buffer, pc])
+
+    assert address(pool._buffers) == address([pa, pc])
 
 
-def test_new_entry():
+@pytest.fixture(scope='module')
+def pool_test_new_entry():
     pool = MemoryPool()
     a = empty(12)
     b = empty(20)
     pool.add(a)
     pool.add(b)
-    shapes = ((4,), (15,), (30,))
+    yield {
+        'pool': pool,
+        'a': a,
+        'b': b,
+    }
 
-    def func(i, s, d=-1):
-        assert_equal(len(pool), 3 + i)
 
-    for i, s in enumerate(shapes):
-        with pool.get(s, float):
-            pass
-        yield func, i, s
-    for s in [a.shape, b.shape]:
-        for d in [0, 1, 2]:
-            with pool.get(s[0] - d, float):
-                pass
-            yield func, i, s, d
+@pytest.mark.parametrize('i, shape', enumerate([4, 12 - 1, 20 - 1]))
+def test_new_entry(mocker, pool_test_new_entry, i, shape):
+    mocker.patch('pyoperators.config.MEMORY_TOLERANCE', 1.0)
+    pool = pool_test_new_entry['pool']
+    a = pool_test_new_entry['a']
+    b = pool_test_new_entry['b']
+
+    with pool.get(shape, float):
+        pass
+    assert len(pool) == 3 + i

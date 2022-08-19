@@ -2,7 +2,7 @@ import numpy as np
 
 import pyoperators
 from pyoperators import Operator, flags
-from pyoperators.utils.testing import assert_eq
+from pyoperators.utils import operation_assignment
 
 FLOAT_DTYPES = [np.dtype(_) for _ in (np.float16, np.float32, np.float64)]
 COMPLEX_DTYPES = [np.dtype(_) for _ in (np.complex64, np.complex128)]
@@ -146,7 +146,7 @@ ALL_OPS = [
 
 @flags.linear
 @flags.square
-class IdentityOutplaceOperator(Operator):
+class IdentityOutplace(Operator):
     def direct(self, input, output):
         output[...] = input
 
@@ -155,7 +155,7 @@ class IdentityOutplaceOperator(Operator):
 @flags.real
 @flags.square
 @flags.symmetric
-class HomothetyOutplaceOperator(Operator):
+class HomothetyOutplace(Operator):
     def __init__(self, value, **keywords):
         Operator.__init__(self, **keywords)
         self.value = value
@@ -193,8 +193,35 @@ class Stretch(Operator):
         return shape_
 
 
-def assert_inplace_outplace(op, v, expected):
-    w = op(v)
-    assert_eq(w, expected)
-    op(v, out=w)
-    assert_eq(w, expected)
+@flags.update_output
+class CanUpdateOutput(Operator):
+    def direct(self, input, output, operation=operation_assignment):
+        operation(output, input)
+
+
+def get_associated_array(array, kind: str):
+    if kind == '':
+        return array
+    if kind == 'real':
+        return array.real
+    raise ValueError(f'Invalid associated array: {kind}')
+
+
+def get_associated_operator(op: Operator, attr: str) -> Operator:
+    if attr == '':
+        return op
+    if attr in 'CTHI':
+        return getattr(op, attr)
+    if attr == 'IC':
+        return op.I.C
+    if attr == 'IT':
+        return op.I.T
+    if attr == 'IH':
+        return op.I.H
+    raise ValueError(f'Invalid associated operator: {attr}')
+
+
+def totuple(seq):
+    if isinstance(seq, list):
+        return tuple(totuple(_) for _ in seq)
+    return seq

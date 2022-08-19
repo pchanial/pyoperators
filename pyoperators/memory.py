@@ -188,8 +188,12 @@ class MemoryPool:
     ):
         """
         Extract a buffer from the pool given the following requirements:
-        shape, dtype, alignment, contiguity.
-
+            * shape
+            * dtype
+            * alignment
+            * contiguity
+        If no buffers in the pool meet the requirements, a new empty ndarray is created
+        and returned.
         """
         shape = tointtuple(shape)
         dtype = np.dtype(dtype)

@@ -1,5 +1,8 @@
+import pytest
+from numpy.testing import assert_equal
+
 from pyoperators import IdentityOperator
-from pyoperators.utils.testing import assert_eq, assert_is, assert_is_type
+from pyoperators.utils.testing import assert_is_type
 
 from .common import OPS, attr2, ndarray2
 
@@ -8,45 +11,41 @@ ops = [_() for _ in OPS] + [
 ]
 
 
-def test_rule_right():
-    ids = (
+@pytest.mark.parametrize(
+    'id_',
+    [
         IdentityOperator(classout=ndarray2, attrout=attr2),
         IdentityOperator(shapein=4, classout=ndarray2, attrout=attr2),
-    )
-
-    def func(id_, op_):
-        op = id_(op_)
-        assert_is_type(op, type(op_))
-        attr = {}
-        assert_is(op.classout, id_.classout)
-        attr.update(op_.attrout)
-        attr.update(id_.attrout)
-        assert_eq(op.attrout, attr)
-        assert_eq(op.flags.linear, op_.flags.linear)
-        assert_eq(op.flags.contiguous_input, op_.flags.contiguous_input)
-
-    for id_ in ids:
-        for op_ in ops:
-            yield func, id_, op_
+    ],
+)
+@pytest.mark.parametrize('op_', ops)
+def test_rule_right(id_, op_):
+    op = id_(op_)
+    assert type(op) is type(op_)
+    attr = {}
+    assert op.classout is id_.classout
+    attr.update(op_.attrout)
+    attr.update(id_.attrout)
+    assert_equal(op.attrout, attr)
+    assert_equal(op.flags.linear, op_.flags.linear)
+    assert_equal(op.flags.contiguous_input, op_.flags.contiguous_input)
 
 
-def test_rule_left():
-    ids = (
+@pytest.mark.parametrize(
+    'id_',
+    [
         IdentityOperator(classout=ndarray2, attrout=attr2),
         IdentityOperator(shapein=3, classout=ndarray2, attrout=attr2),
-    )
-
-    def func(op_, id_):
-        op = op_(id_)
-        assert_is_type(op, type(op_))
-        attr = {}
-        assert_is(op.classout, op_.classout)
-        attr.update(id_.attrout)
-        attr.update(op_.attrout)
-        assert_eq(op.attrout, attr)
-        assert_eq(op.flags.linear, op_.flags.linear)
-        assert_eq(op.flags.contiguous_input, op_.flags.contiguous_input)
-
-    for op_ in ops:
-        for id_ in ids:
-            yield func, op_, id_
+    ],
+)
+@pytest.mark.parametrize('op_', ops)
+def test_rule_left(id_, op_):
+    op = op_(id_)
+    assert_is_type(op, type(op_))
+    attr = {}
+    assert op.classout is op_.classout
+    attr.update(id_.attrout)
+    attr.update(op_.attrout)
+    assert op.attrout == attr
+    assert op.flags.linear == op_.flags.linear
+    assert op.flags.contiguous_input == op_.flags.contiguous_input

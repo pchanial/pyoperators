@@ -32,14 +32,6 @@ except ImportError:
 __all__ = ['ConvolutionOperator', 'FFTOperator']
 
 
-# doctest nose fixture
-def setup_module(module):
-    if pyfftw is None:
-        from nose.plugins.skip import SkipTest
-
-        raise SkipTest('pyfftw is not installed')
-
-
 # FFTW out-of-place transforms:
 # PRESERVE_INPUT: default except c2r and hc2r
 # DESTROY_INPUT: default for c2r and hc2r, only possibility for multi c2r

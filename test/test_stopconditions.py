@@ -1,47 +1,50 @@
 import itertools
 
+import pytest
+
 from pyoperators.iterative.stopconditions import StopCondition
-from pyoperators.utils.testing import assert_eq, assert_raises
 
 
 class A:
     pass
 
 
-sc1 = StopCondition(lambda s: s.a > 2, 'a>2')
-sc2 = StopCondition(lambda s: s.b > 2, 'b>2')
-sc3 = StopCondition(lambda s: s.c > 2, 'c>2')
+sc1 = StopCondition(lambda _: _.a > 2, 'a>2')
+sc2 = StopCondition(lambda _: _.b > 2, 'b>2')
+sc3 = StopCondition(lambda _: _.c > 2, 'c>2')
+sc = sc1 or sc2 or sc2
 
 
-def test_stop_condition():
-    values = (1, 3)
+@pytest.mark.parametrize('value', [1, 3])
+def test_stop_condition(value):
+    class A:
+        def __init__(self, a):
+            self.a = a
 
-    def func(v):
-        a = A()
-        a.a = v
-        if v > 2:
-            assert_raises(StopIteration, sc1, a)
-
-    for v in values:
-        yield func, v
+    obj = A(value)
+    if value > 2:
+        with pytest.raises(StopIteration):
+            sc1(obj)
+    else:
+        sc1(obj)
 
 
-def test_stop_condition_or():
-    sc = sc1 or sc2 or sc2
+@pytest.mark.parametrize('a, b, c', itertools.product((1, 3), repeat=3))
+def test_stop_condition_or(a, b, c):
+    class ABC:
+        def __init__(self, a, b, c):
+            self.a = a
+            self.b = b
+            self.c = c
 
-    def func(v):
-        a = A()
-        a.a, a.b, a.c = v
-        if any(_ > 2 for _ in v):
-            try:
-                sc(a)
-            except StopIteration as e:
-                if a.a > 2:
-                    assert_eq(str(e), str(sc1))
-                elif a.b > 2:
-                    assert_eq(str(e), str(sc2))
-                else:
-                    assert_eq(str(e), str(sc3))
-
-    for v in itertools.product((1, 3), repeat=3):
-        yield func, v
+    obj = ABC(a, b, c)
+    if any(_ > 2 for _ in (a, b, c)):
+        try:
+            sc(obj)
+        except StopIteration as e:
+            if obj.a > 2:
+                assert str(e) == str(sc1)
+            elif obj.b > 2:
+                assert str(e) == str(sc2)
+            else:
+                assert str(e) == str(sc3)

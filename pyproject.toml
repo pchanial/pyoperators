@@ -47,10 +47,35 @@ dynamic = ["version"]
 fft = ["pyfftw"]
 mpi = ["mpi4py"]
 wavelets = ["pywavelets"]
+dev = [
+    "pyfftw",
+    "mpi4py",
+    "pywavelets",
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pchanial-legacy-install-hooks",
+]
 
 [project.urls]
 homepage = "https://pchanial.github.io/pyoperators"
 repository = "https://github.com/pchanial/pyoperators"
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "except ImportError:",
+    "raise NotImplementedError",
+    "if typing.TYPE_CHECKING:",
+]
+show_missing = true
+skip_covered = true
+
+[tool.pytest.ini_options]
+addopts = "-ra --cov=pyoperators"
+testpaths = [
+    "test",
+]
 
 [tool.setuptools.packages.find]
 include = ["pyoperators*"]

@@ -27,14 +27,6 @@ except ImportError:
 __all__ = ['WaveletOperator', 'Wavelet2dOperator']
 
 
-# doctest nose fixture
-def setup_module(module):
-    if pywt is None:
-        from nose.plugins.skip import SkipTest
-
-        raise SkipTest('pywavelets is not installed.')
-
-
 @real
 @linear
 class WaveletOperator(Operator):

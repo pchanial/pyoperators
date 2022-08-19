@@ -1,13 +1,6 @@
 import numpy as np
-from numpy.testing import assert_raises
 
-from pyoperators import DiagonalOperator, HomothetyOperator, Operator, config, memory
-from pyoperators.core import DeletedOperator
-from pyoperators.utils import setting
-
-
-def test_init():
-    assert_raises, NotImplementedError, DeletedOperator
+from pyoperators import DiagonalOperator, HomothetyOperator, Operator, memory
 
 
 def test_str():
@@ -26,15 +19,15 @@ def test_collection_reset():
     assert memory._gc_nbytes_counter == 0
 
 
-def test_collection():
-    with setting(config, 'GC_NBYTES_THRESHOLD', 8000):
-        memory.garbage_collect()
-        counter = 0
-        for i in range(10):
-            data = np.arange(100)
-            counter += data.nbytes
-            op = DiagonalOperator(data)
-            op.delete()
-            if i < 9:
-                assert memory._gc_nbytes_counter == counter
-        assert memory._gc_nbytes_counter == 0
+def test_collection(mocker):
+    mocker.patch('pyoperators.config.GC_NBYTES_THRESHOLD', 8000)
+    memory.garbage_collect()
+    counter = 0
+    for i in range(10):
+        data = np.arange(100)
+        counter += data.nbytes
+        op = DiagonalOperator(data)
+        op.delete()
+        if i < 9:
+            assert memory._gc_nbytes_counter == counter
+    assert memory._gc_nbytes_counter == 0
