@@ -102,8 +102,8 @@ class PCGAlgorithm(IterativeAlgorithm):
             raise ValueError('The operator input shape is not explicit.')
         if A.shapein != b.shape:
             raise ValueError(
-                "The operator input shape '{}' is incompatible with that of t"
-                "he RHS '{}'.".format(A.shapein, b.shape)
+                f"The operator input shape '{A.shapein}' is incompatible with that of "
+                f"the RHS '{b.shape}'."
             )
         self.A = A
         self.b = b

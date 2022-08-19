@@ -106,8 +106,8 @@ class _FFTWConvolutionOperator(Operator):
         shapein = tointtuple(shapein)
         if len(shapein) != kernel.ndim:
             raise ValueError(
-                "The kernel dimension '{}' is incompatible with that of the s"
-                "pecified shape '{}'.".format(kernel.ndim, len(shapein))
+                f"The kernel dimension '{kernel.ndim}' is incompatible with that of "
+                f"the specified shape '{len(shapein)}'."
             )
 
         # if the kernel is larger than the image, we don't crop it since it

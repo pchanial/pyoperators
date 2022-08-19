@@ -856,8 +856,8 @@ def reshape_broadcast(x, shape):
         os != 1 and os != ns for os, ns in zip(x.shape, shape[-x.ndim :])
     ):
         raise ValueError(
-            "The requested shape '{}' is incompatible with that "
-            "of the array '{}'.".format(shape, x.shape)
+            f"The requested shape '{shape}' is incompatible with that "
+            f"of the array '{x.shape}'."
         )
     strides = (len(shape) - x.ndim) * (0,) + tuple(
         (0 if sh == 1 else st for sh, st in zip(x.shape, x.strides))
@@ -992,7 +992,7 @@ def strinfo(msg):
     size = MPI.COMM_WORLD.size
     if size > 1:
         n = str(int(np.log10(size - 1)) + 1)
-        rank = ('/{0:0' + n + '}').format(rank)
+        rank = ('/{:0' + n + '}').format(rank)
     else:
         rank = ''
     return f'Info {MPI.Get_processor_name()}{rank}: {msg}.'

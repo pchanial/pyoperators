@@ -129,7 +129,7 @@ class DenseBase(Operator):
                 naxesout = data.ndim - naxesextra - naxesin
         if naxesin is None or naxesout is None:
             raise ValueError(
-                'The keywords naxesin and naxesout must be both s' 'pecified.'
+                'The keywords naxesin and naxesout must be both specified.'
             )
         if naxesextra is None:
             naxesextra = data.ndim - naxesin - naxesout
@@ -139,18 +139,18 @@ class DenseBase(Operator):
                 return
             if naxesextra < 0:
                 raise ValueError(
-                    "The number of input and output dimensions ('{0}' and '{1}"
-                    "') exceeds the number of dimensions of the input array {2"
-                    '}.'.format(naxesin, naxesout, data.ndim)
+                    f"The number of input and output dimensions ('{naxesin}' and "
+                    f"'{naxesout}') exceeds the number of dimensions of the input "
+                    f"array '{data.ndim}'."
                 )
             naxesextra = data.ndim - naxesin - naxesout
         if naxesin + naxesout + naxesextra != data.ndim:
             raise ValueError(
-                "The number of dimensions of the input array '{}' is too larg"
-                "e. The expected number is '{}'. To disambiguate the handling"
-                ' of the extra dimension(s), use the operators DenseBlockColum'
-                'nOperator, DenseBlockDiagonalOperator or DenseBlockRowOperato'
-                'r.'.format(data.ndim, naxesin + naxesout + naxesextra)
+                f"The number of dimensions of the input array '{data.ndim}' is too "
+                f"large. The expected number is '{naxesin + naxesout + naxesextra}'. "
+                f'To disambiguate the handling of the extra dimension(s), use the '
+                f'operators DenseBlockColumnOperator, DenseBlockDiagonalOperator or '
+                f'DenseBlockRowOperator.'
             )
         if dtype is None:
             dtype = float_or_complex_dtype(data.dtype)
@@ -172,9 +172,9 @@ class DenseBase(Operator):
         if not isalias(_data, data):
             # this warning only happens if naxesin or naxesout > 1
             warn(
-                'The input array could not be reshaped without making a copy.'
-                ' To avoid potential duplication of the data in memory, consi'
-                'der giving a contiguous data argument.',
+                'The input array could not be reshaped without making a copy. '
+                'To avoid potential duplication of the data in memory, consider giving '
+                'a contiguous data argument.',
                 PyOperatorsWarning,
             )
             data = _data.reshape(data.shape)
@@ -199,15 +199,15 @@ class DenseBase(Operator):
     def validatein(self, shape):
         if len(shape) < self.naxesin or shape[-self.naxesin :] != self._sn:
             return ValueError(
-                "The input shape '{}' is invalid. The last dimension(s) shoul"
-                "d be '{}'.".format(shape, self._sn)
+                f"The input shape '{shape}' is invalid. The last dimension(s) should "
+                f"be '{self._sn}'."
             )
 
     def validateout(self, shape):
         if len(shape) < self.naxesout or shape[-self.naxesout :] != self._sm:
             return ValueError(
-                "The output shape '{}' is invalid. The last dimension(s) shou"
-                "ld be '{}'.".format(shape, self._sm)
+                f"The output shape '{shape}' is invalid. The last dimension(s) should "
+                f"be '{self._sm}'."
             )
 
     @staticmethod
@@ -268,9 +268,9 @@ class DenseBlockDiagonalOperator(DenseBase):
             extrashapein = self.shapein[: -self.naxesin]
             if broadcast_shapes(extrashapein, self._sl) != extrashapein:
                 raise NotImplementedError(
-                    'With this explicit input shape, the operator is not diago'
-                    'nal block anymore. Its transpose would not be incorrect a'
-                    'nd DenseBlockColumnOperator is not yet implemented.'
+                    'With this explicit input shape, the operator is not diagonal '
+                    'block anymore. Its transpose would not be incorrect and '
+                    'DenseBlockColumnOperator is not yet implemented.'
                 )
         self.set_rule(
             ('.', DenseBlockDiagonalOperator), self._rule_mul, CompositionOperator
@@ -447,22 +447,20 @@ class SparseOperator(SparseBase):
         if not sp.issparse(matrix):
             raise TypeError('The input sparse matrix type is not recognised.')
         if isinstance(matrix, sp.lil_matrix):
-            raise TypeError(
-                'The LIL format is not suited for arithmetic opera' 'tions.'
-            )
+            raise TypeError('The LIL format is not suited for arithmetic operations.')
         if shapein is None:
             shapein = matrix.shape[1]
         elif product(shapein) != matrix.shape[1]:
             raise ValueError(
-                "The input shape '{}' is incompatible with the sparse matrix "
-                'shape {}.'.format(shapein, matrix.shape)
+                f"The input shape '{shapein}' is incompatible with the sparse matrix "
+                f"shape '{matrix.shape}'."
             )
         if shapeout is None:
             shapeout = matrix.shape[0]
         elif product(shapeout) != matrix.shape[0]:
             raise ValueError(
-                "The output shape '{}' is incompatible with the sparse matrix"
-                ' shape {}.'.format(shapeout, matrix.shape)
+                f"The output shape '{shapeout}' is incompatible with the sparse matrix "
+                f"shape '{matrix.shape}'."
             )
         SparseBase.__init__(
             self, matrix, dtype=dtype, shapein=shapein, shapeout=shapeout, **keywords
@@ -726,9 +724,8 @@ class PackBase(BroadcastingBase):
         actual = shape[0 if self.broadcast == 'rightward' else -1]
         if actual != self.n:
             raise ValueError(
-                "The shape '{}' is incompatible with that expected '{}'.".format(
-                    strshape(shape), strshape((self.n,), broadcast=self.broadcast)
-                )
+                f"The shape '{strshape(shape)}' is incompatible with that expected "
+                f"'{strshape((self.n,), broadcast=self.broadcast)}'."
             )
 
     def _validate_unpacked(self, shape):
@@ -738,9 +735,8 @@ class PackBase(BroadcastingBase):
             actual = shape[-self.data.ndim :]
         if actual != self.data.shape:
             raise ValueError(
-                "The shape '{}' is incompatible with that expected '{}'.".format(
-                    strshape(shape), strshape(self.data.shape, broadcast=self.broadcast)
-                )
+                f"The shape '{strshape(shape)}' is incompatible with that expected "
+                f"'{strshape(self.data.shape, broadcast=self.broadcast)}'."
             )
 
 
@@ -1252,20 +1248,20 @@ class TridiagonalOperator(Operator):
         if diagonal.ndim != 1:
             raise ValueError('The diagonal must be a 1-dimensional array.')
         if subdiagonal.ndim != 1:
-            raise ValueError('The diagonal must be a 1-dimensional array.')
+            raise ValueError('The subdiagonal must be a 1-dimensional array.')
         if superdiagonal is not None and superdiagonal.ndim != 1:
-            raise ValueError('The diagonal must be a 1-dimensional array.')
+            raise ValueError('The superdiagonal must be a 1-dimensional array.')
 
         shapein = diagonal.size
         if subdiagonal.size not in (1, shapein - 1):
             raise ValueError(
-                'The sub diagonal should be the length of the diagonal minus o'
-                'ne or a scalar.'
+                'The subdiagonal should be the length of the diagonal minus one or '
+                'a scalar.'
             )
         if superdiagonal is not None and superdiagonal.size not in (1, shapein - 1):
             raise ValueError(
-                'The super diagonal should be the length of the d'
-                'iagonal minus one or a scalar.'
+                'The superdiagonal should be the length of the diagonal minus one or '
+                'a scalar.'
             )
 
         if superdiagonal is None:
@@ -1352,8 +1348,7 @@ class TridiagonalOperator(Operator):
 @square
 class BandOperator(Operator):
     """
-    Store a band matrix in ab format as defined in LAPACK
-    documentation.
+    Store a band matrix in ab format as defined in LAPACK documentation.
 
     TODO:direct and transpose methods should call BLAS2 gbmv (not yet in scipy)
     =====
@@ -1381,7 +1376,6 @@ class BandOperator(Operator):
     Notes
     -----
     For a description of band matrices see LAPACK doc :
-
     http://www.netlib.org/lapack/lug/node124.html
 
     """
@@ -1499,9 +1493,8 @@ class UpperTriangularOperator(BandOperator):
 @symmetric
 class SymmetricBandOperator(Operator):
     """
-    SymmetricBandOperator do not store diagonal datas in the same
-    format as BandOperator does. This is not a subclass of
-    BandOperator.
+    SymmetricBandOperator do not store diagonal datas in the same format as BandOperator
+    does. This is not a subclass of BandOperator.
 
     TODO: direct method should call BLAS2 sbmv (not yet in scipy)
     =====
@@ -1540,8 +1533,7 @@ class SymmetricBandOperator(Operator):
         max_ev=0,
     ):
         """
-        Solve real symmetric or complex hermitian band matrix
-        eigenvalue problem.
+        Solve real symmetric or complex hermitian band matrix eigenvalue problem.
 
         Uses scipy.linalg.eig_banded function.
         """
@@ -1586,8 +1578,8 @@ class SymmetricBandToeplitzOperator(Operator):
     """
     The SymmetricBandToeplitz operator for symmetric band Toeplitz matrices.
 
-    The vector product is implemented using the FFTW library, so it scales
-    as O(nlogn) operations.
+    The vector product is implemented using the FFTW library, so it scales as O(nlogn)
+    operations.
 
     Example
     -------
@@ -1738,9 +1730,8 @@ class DifferenceOperator(Operator):
 @symmetric
 class EigendecompositionOperator(CompositionOperator):
     """
-    Define a symmetric Operator from the eigendecomposition of another
-    symmetric Operator. This can be used as an approximation for the
-    operator.
+    Define a symmetric Operator from the eigendecomposition of another symmetric
+    Operator. This can be used as an approximation for the operator.
 
     Inputs
     -------
@@ -1765,8 +1756,7 @@ class EigendecompositionOperator(CompositionOperator):
     Notes
     -----
 
-    This is really a wrapper for
-    scipy.sparse.linalg.eigen.arpack.eigsh
+    This is really a wrapper for scipy.sparse.linalg.eigen.arpack.eigsh
     """
 
     def __init__(self, A=None, v=None, w=None, **kwargs):
@@ -1786,22 +1776,21 @@ class EigendecompositionOperator(CompositionOperator):
 
     def det(self):
         """
-        Output an approximation of the determinant from the
-        eigenvalues.
+        Output an approximation of the determinant from the eigenvalues.
         """
         return np.prod(self.eigenvalues)
 
     def logdet(self):
         """
-        Output the log of the determinant. Useful as the determinant
-        of large matrices can exceed floating point capabilities.
+        Output the log of the determinant. Useful as the determinant of large matrices
+        can exceed floating point capabilities.
         """
         return np.sum(np.log(self.eigenvalues))
 
     def __pow__(self, n):
         """
-        Raising an eigendecomposition to an integer power requires
-        only raising the eigenvalues to this power.
+        Raising an eigendecomposition to an integer power requires only raising
+        the eigenvalues to this power.
         """
         return EigendecompositionOperator(v=self.eigenvectors, w=self.eigenvalues**n)
 
@@ -1810,14 +1799,12 @@ class EigendecompositionOperator(CompositionOperator):
 
     def cond(self):
         """
-        Output an approximation of the condition number by taking the
-        ratio of the maximum over the minimum eigenvalues, removing
-        the zeros.
+        Output an approximation of the condition number by taking the ratio of
+        the maximum over the minimum eigenvalues, removing the zeros.
 
-        For better approximation of the condition number, one should
-        consider generating the eigendecomposition with the keyword
-        which='BE', in order to have a correct estimate of the small
-        eigenvalues.
+        For better approximation of the condition number, one should consider generating
+        the eigendecomposition with the keyword which='BE', in order to have a correct
+        estimate of the small eigenvalues.
         """
         nze = self.eigenvalues[self.eigenvalues != 0]
         return nze.max() / nze.min()

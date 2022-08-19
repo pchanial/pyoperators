@@ -42,12 +42,12 @@ class Flags(
 
     def __str__(self):
         n = max(len(f) for f in self._fields)
-        fields = ['  ' + f.upper().ljust(n) + ' : ' for f in self._fields]
+        fields = [f'  {f.upper().ljust(n)} : ' for f in self._fields]
         return '\n'.join([f + str(v) for f, v in zip(fields, self)])
 
     def __repr__(self):
         n = max(len(f) for f in self._fields)
-        fields = [f.ljust(n) + '= ' for f in self._fields]
+        fields = [f'{f.ljust(n)}= ' for f in self._fields]
         return (
             type(self).__name__
             + '(\n  '

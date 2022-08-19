@@ -63,7 +63,7 @@ def as_mpi(x):
     try:
         return x, DTYPE_MAP[x.dtype]
     except KeyError:
-        raise KeyError("The dtype '{}' is not handled in MPI.".format(x.dtype.name))
+        raise KeyError(f'The dtype {x.dtype.name!r} is not handled in MPI.')
 
 
 def combine(n, comm=MPI.COMM_WORLD):

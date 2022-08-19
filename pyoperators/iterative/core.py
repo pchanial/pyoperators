@@ -173,7 +173,7 @@ class IterativeAlgorithm:
         """Continue an interrupted computation."""
         if self.niterations == 0:
             raise RuntimeError(
-                "The iterative algorithm is not yet started. Us" "e the 'run' method."
+                "The iterative algorithm is not yet started. Use the 'run' method."
             )
         try:
             return self.next(np.iinfo(int).max)
@@ -201,9 +201,9 @@ class IterativeAlgorithm:
         """
         if self.niterations > self.order - 1 and self.reuse_initial_state:
             raise RuntimeError(
-                'It is not possible to restart an algorithm for which the init'
-                'ial state has not been saved. Instantiate the algorithme with'
-                ' the keyword reuse_initial_state set to False.'
+                'It is not possible to restart an algorithm for which the initial '
+                'state has not been saved. Instantiate the algorithme with the keyword '
+                'reuse_initial_state set to False.'
             )
         self.niterations = self.order - 1
         self.success = True
@@ -250,7 +250,7 @@ class IterativeAlgorithm:
 
         """
         raise NotImplementedError(
-            "The algorithm does not define an 'iteration" "' method."
+            "The algorithm does not define an 'iteration' method."
         )
 
     def restart(self, n=None):
@@ -262,8 +262,8 @@ class IterativeAlgorithm:
         """Run the algorithm."""
         if self.niterations > self.order - 1:
             raise RuntimeError(
-                "The iterative algorithm is already started. Us"
-                "e the methods 'restart' or 'cont' instead."
+                "The iterative algorithm is already started. Use the methods 'restart' "
+                "or 'cont' instead."
             )
         n = n or np.iinfo(int).max
         try:
@@ -363,8 +363,8 @@ class IterativeAlgorithm:
             shape = shapes[0]
             if any(s != shape for s in shapes[1:]):
                 raise ValueError(
-                    "The shapes of the initial values of '{}' ar"
-                    "e incompatible: {}.".format(var, shapes)
+                    f'The shapes of the initial values of {var!r} are incompatible: '
+                    f'{shapes}.'
                 )
 
             self.info[var] = {'names': names, 'shape': shape, 'dtype': dtype}
@@ -387,10 +387,9 @@ class IterativeAlgorithm:
                 d[a].append(n)
             duplicates = [v for k, v in d.items() if len(v) > 1 and k != 0]
             if len(duplicates) > 0:
+                msg = strenum(('='.join(d) for d in duplicates), 'and')
                 raise ValueError(
-                    'Some initial values refer to the same buffer: {0}.'.format(
-                        strenum(('='.join(d) for d in duplicates), 'and')
-                    )
+                    f'Some initial values refer to the same buffer: {msg}.'
                 )
 
     def _set_order(self, keywords):
@@ -421,9 +420,7 @@ class IterativeAlgorithm:
         for var in variables:
             for s in suffix:
                 if s != '_new' and var + s not in keywords:
-                    raise ValueError(
-                        "The initial value '{}' is not specified" ".".format(var + s)
-                    )
+                    raise ValueError(f'The initial value {var + s!r} is not specified.')
         self.variables = variables
 
     def _update_variables(self):

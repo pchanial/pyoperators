@@ -58,9 +58,7 @@ class ProxyBase(core.Operator):
             sout = f', shapeout={strshape(self.shapeout)}'
         else:
             sout = ''
-        return '{}({}, {}, {!r}{}{})'.format(
-            type(self).__name__, number, cls, source, sin, sout
-        )
+        return f'{type(self).__name__}({number}, {cls}, {source!r}{sin}{sout})'
 
     __str__ = __repr__
 

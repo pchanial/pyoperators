@@ -39,9 +39,9 @@ class FminWrapper:
 
     def __init__(self, criterion, x0=None, *args, **kwargs):
         self.criterion = criterion
-        self.gradient = getattr(criterion, "gradient", None)
-        self.hessian = getattr(criterion, "hessian", None)
-        self.hessian_p = getattr(criterion, "hessian_p", None)
+        self.gradient = getattr(criterion, 'gradient', None)
+        self.hessian = getattr(criterion, 'hessian', None)
+        self.hessian_p = getattr(criterion, 'hessian_p', None)
         self.shapein = criterion.shapein
         self.args = args
         self.kwargs = kwargs
@@ -146,7 +146,7 @@ class FminNCG(FminWrapper):
     def __init__(self, criterion, x0=None, *args, **kwargs):
         super().__init__(criterion, x0=x0, *args, **kwargs)
         if self.hessian_p is None:
-            raise ValueError("Cannot run FminNCG if the criterion has no hessian.")
+            raise ValueError('Cannot run FminNCG if the criterion has no hessian.')
 
     def __call__(self):
         self.first_guess()

@@ -41,5 +41,5 @@ def test_wavelet2d_transpose():
                 yield check_wavelet2d_transpose, w, l, s
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     nose.run(defaultTest=__file__)

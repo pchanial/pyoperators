@@ -72,7 +72,7 @@ class Criterion:
     def d2like(self, u):
         sigma = self.algo.sigma
         X = self.algo.model
-        N = getattr(self.algo, "noise_covariance", None)
+        N = getattr(self.algo, 'noise_covariance', None)
         if N is None:
             N = IdentityOperator()
         return sigma ** (-2) * X.T * N * X
@@ -167,7 +167,7 @@ class DoubleLoopAlgorithm(Algorithm):
         tau=None,
         sigma=1.0,
         optimizer=FminNCG,
-        lanczos={"maxiter": 300},
+        lanczos={'maxiter': 300},
         fmin_args={},
         callback=default_callback,
         stop_condition=DEFAULT_STOP,
@@ -193,7 +193,7 @@ class DoubleLoopAlgorithm(Algorithm):
                     tau = np.asscalar(tau)
                 self.tau = tau * np.ones(prior.shape[0])
             except (ValueError):
-                raise ValueError("Incorrect shape for tau.")
+                raise ValueError('Incorrect shape for tau.')
         self.sigma = sigma
         self.optimizer = optimizer
         self.lanczos = lanczos
@@ -224,10 +224,10 @@ class DoubleLoopAlgorithm(Algorithm):
         self.update_inv_gamma()
 
     def iterate(self):
-        print("Iteration %i / %i" % (self.iter_ + 1, self.stop_condition.maxiter))
-        print("Outer loop")
+        print('Iteration %i / %i' % (self.iter_ + 1, self.stop_condition.maxiter))
+        print('Outer loop')
         self.outer()
-        print("Inner loop")
+        print('Inner loop')
         self.inner()
         return Algorithm.iterate(self)
 
