@@ -720,15 +720,15 @@ class RoundOperator(Operator):
         method = method.lower()
         table = {
             'rtz': np.trunc,
-            #'rti'
+            # 'rti'
             'rtmi': np.floor,
             'rtpi': np.ceil,
-            #'rhtz'
-            #'rhti'
+            # 'rhtz'
+            # 'rhti'
             'rhtmi': self._direct_rhtmi,
             'rhtpi': self._direct_rhtpi,
             'rhte': lambda i, o: np.round(i, 0, o),
-            #'rhs'
+            # 'rhs'
         }
         if method not in table:
             raise ValueError(

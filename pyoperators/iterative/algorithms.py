@@ -17,6 +17,7 @@ __all__ = [
     'polak_ribiere',
 ]
 
+
 # DEPRECATED
 class Algorithm:
     """
@@ -96,6 +97,7 @@ class Algorithm:
 TOL = 1e-6
 GTOL = 1e-6
 MAXITER = None
+
 
 # stop conditions
 class StopCondition:

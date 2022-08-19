@@ -1,19 +1,10 @@
 import multiprocessing
-
-try:
-    import numexpr
-except:
-    pass
 import operator
-
-import numpy as np
-
-try:
-    import pyfftw
-except:
-    pass
 import sys
+from warnings import warn
 
+import numexpr
+import numpy as np
 import scipy.sparse as sp
 import scipy.sparse.sparsetools as sps
 from scipy.sparse.linalg import eigsh
@@ -22,7 +13,6 @@ from .core import (
     BlockRowOperator,
     BroadcastingBase,
     CompositionOperator,
-    ConstantOperator,
     DiagonalBase,
     DiagonalOperator,
     HomothetyOperator,
@@ -59,7 +49,7 @@ from .utils import (
     ufuncs,
     zip_broadcast,
 )
-from .warnings import PyOperatorsWarning, warn
+from .warnings import PyOperatorsWarning
 
 __all__ = [
     'BandOperator',
@@ -151,16 +141,16 @@ class DenseBase(Operator):
                 raise ValueError(
                     "The number of input and output dimensions ('{0}' and '{1}"
                     "') exceeds the number of dimensions of the input array {2"
-                    "}.".format(naxesin, naxesout, data.ndim)
+                    '}.'.format(naxesin, naxesout, data.ndim)
                 )
             naxesextra = data.ndim - naxesin - naxesout
         if naxesin + naxesout + naxesextra != data.ndim:
             raise ValueError(
                 "The number of dimensions of the input array '{}' is too larg"
                 "e. The expected number is '{}'. To disambiguate the handling"
-                " of the extra dimension(s), use the operators DenseBlockColum"
-                "nOperator, DenseBlockDiagonalOperator or DenseBlockRowOperato"
-                "r.".format(data.ndim, naxesin + naxesout + naxesextra)
+                ' of the extra dimension(s), use the operators DenseBlockColum'
+                'nOperator, DenseBlockDiagonalOperator or DenseBlockRowOperato'
+                'r.'.format(data.ndim, naxesin + naxesout + naxesextra)
             )
         if dtype is None:
             dtype = float_or_complex_dtype(data.dtype)
@@ -417,7 +407,7 @@ class SparseBase(Operator):
             return m.data.nbytes
         except AttributeError:
             pass
-        raise TypeError("The sparse format '{}' is not handled.".format(type(m)))
+        raise TypeError(f"The sparse format '{type(m)}' is not handled.")
 
 
 class SparseOperator(SparseBase):
@@ -465,14 +455,14 @@ class SparseOperator(SparseBase):
         elif product(shapein) != matrix.shape[1]:
             raise ValueError(
                 "The input shape '{}' is incompatible with the sparse matrix "
-                "shape {}.".format(shapein, matrix.shape)
+                'shape {}.'.format(shapein, matrix.shape)
             )
         if shapeout is None:
             shapeout = matrix.shape[0]
         elif product(shapeout) != matrix.shape[0]:
             raise ValueError(
                 "The output shape '{}' is incompatible with the sparse matrix"
-                " shape {}.".format(shapeout, matrix.shape)
+                ' shape {}.'.format(shapeout, matrix.shape)
             )
         SparseBase.__init__(
             self, matrix, dtype=dtype, shapein=shapein, shapeout=shapeout, **keywords
@@ -736,7 +726,7 @@ class PackBase(BroadcastingBase):
         actual = shape[0 if self.broadcast == 'rightward' else -1]
         if actual != self.n:
             raise ValueError(
-                "The shape '{0}' is incompatible with that expected '{1}'.".format(
+                "The shape '{}' is incompatible with that expected '{}'.".format(
                     strshape(shape), strshape((self.n,), broadcast=self.broadcast)
                 )
             )
@@ -748,7 +738,7 @@ class PackBase(BroadcastingBase):
             actual = shape[-self.data.ndim :]
         if actual != self.data.shape:
             raise ValueError(
-                "The shape '{0}' is incompatible with that expected '{1}'.".format(
+                "The shape '{}' is incompatible with that expected '{}'.".format(
                     strshape(shape), strshape(self.data.shape, broadcast=self.broadcast)
                 )
             )
@@ -952,7 +942,7 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
         if not isinstance(convention, str):
             raise TypeError('Invalid type for the input convention.')
         convention = convention.upper()
-        if any(l not in "XYZ'" for l in convention):
+        if any(_ not in "XYZ'" for _ in convention):
             raise ValueError(f"Invalid convention '{convention}'.")
         a1 = np.asarray(a1)
         a2 = np.asarray(a2)
@@ -1149,7 +1139,7 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
                 c2 * c3,
             )
         else:
-            raise ValueError(f"Invalid rotation convention {convention}.")
+            raise ValueError(f'Invalid rotation convention {convention}.')
 
         keywords['flags'] = self.validate_flags(
             keywords.get('flags', {}), orthogonal=True
@@ -1461,7 +1451,7 @@ class BandOperator(Operator):
         """
         ab = self.ab
         kl, ku = self.kl, self.ku
-        rku, rkl = kl, ku
+        rku, _ = kl, ku
         rab = np.zeros(ab.shape, dtype=ab.dtype)
         for i in range(-kl, ku + 1):
             rab[_band_diag(rku, -i)] = self.diag(i)

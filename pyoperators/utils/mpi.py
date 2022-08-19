@@ -1,6 +1,5 @@
 import contextlib
 import operator
-import os
 from functools import reduce
 
 import numpy as np

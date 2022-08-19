@@ -14,27 +14,25 @@ try:
 
     # dict of corresponding wavelets
     rwavelist = {}
-    for l in pywt.wavelist(kind='discrete'):
-        if 'bior' in l:
-            rwavelist[l] = 'rbio' + l[-3:]
-        elif 'rbio' in l:
-            rwavelist[l] = 'bior' + l[-3:]
+    for name in pywt.wavelist(kind='discrete'):
+        if 'bior' in name:
+            rwavelist[name] = 'rbio' + name[-3:]
+        elif 'rbio' in name:
+            rwavelist[name] = 'bior' + name[-3:]
         else:
-            rwavelist[l] = l
+            rwavelist[name] = name
 except ImportError:
-    pass
+    pywt = None
 
 __all__ = ['WaveletOperator', 'Wavelet2dOperator']
 
 
 # doctest nose fixture
 def setup_module(module):
-    try:
-        import pywt
-    except ImportError:
+    if pywt is None:
         from nose.plugins.skip import SkipTest
 
-        raise SkipTest()
+        raise SkipTest('pywavelets is not installed.')
 
 
 @real

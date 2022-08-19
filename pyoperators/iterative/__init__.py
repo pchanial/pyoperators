@@ -12,9 +12,19 @@ Contains the following modules:
 """
 
 # these modules are WIP
-from . import algorithms, criterions, dli, optimize
-from .cg import *
-from .core import *
-from .stopconditions import *
+from .cg import pcg
+from .core import AbnormalStopIteration, IterativeAlgorithm
+from .stopconditions import (
+    StopCondition,
+    MaxErrorStopCondition,
+    MaxIterationStopCondition
+)
 
-del core
+__all__ = [
+    'AbnormalStopIteration',
+    'IterativeAlgorithm',
+    'MaxErrorStopCondition',
+    'MaxIterationStopCondition',
+    'StopCondition',
+    'pcg',
+]

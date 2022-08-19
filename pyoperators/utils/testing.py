@@ -52,8 +52,8 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
         raise TypeError('Non numeric type.')
     if not broadcasting and actual.shape != desired.shape:
         raise AssertionError(
-            "The actual array shape '{0}' is different from the desired one '{"
-            "1}'.".format(actual.shape, desired.shape)
+            f"The actual array shape {actual.shape} is different from the desired one"
+            f" {desired.shape}."
         )
     if actual.dtype.kind in ('b', 'i', 'u') and desired.dtype.kind in ('b', 'i', 'u'):
         if not broadcasting:
@@ -85,9 +85,9 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
                 abs(actual - desired) / np.minimum(abs(actual), abs(desired))
             )
             atolmin = np.nanmax(abs(actual - desired))
-            msg += ', min rtol: {}, min atol: {}'.format(
-                rtolmin / np.finfo(dtype).eps, atolmin / np.finfo(dtype).eps
-            )
+            min_rtol = rtolmin / np.finfo(dtype).eps
+            min_atol = atolmin / np.finfo(dtype).eps
+            msg += f', min rtol: {min_rtol}, min atol: {min_atol}'
         check_nan = np.isnan(actual) & ~np.isnan(desired) | np.isnan(
             desired
         ) & ~np.isnan(actual)
@@ -104,12 +104,7 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
                 r = [r[0], r[1], r[2] + ' ...']
             return '\n'.join(r)
 
-        raise AssertionError(
-            msg
-            + ")\n x: {1}\n y: {2}".format(
-                1 - np.mean(same), trepr(actual), trepr(desired)
-            )
-        )
+        raise AssertionError(msg + f")\n x: {trepr(actual)}\n y: {trepr(desired)}")
 
 
 def assert_eq(a, b, msg=''):
@@ -167,7 +162,7 @@ def assert_eq(a, b, msg=''):
 
     try:
         equal = a == b
-    except:
+    except Exception:
         equal = False
 
     assert equal, msg

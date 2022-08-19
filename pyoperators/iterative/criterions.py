@@ -32,6 +32,7 @@ __all__ = [
     'normp_criterion',
 ]
 
+
 # norms
 # =====
 
