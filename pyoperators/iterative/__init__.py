@@ -15,9 +15,9 @@ Contains the following modules:
 from .cg import pcg
 from .core import AbnormalStopIteration, IterativeAlgorithm
 from .stopconditions import (
-    StopCondition,
     MaxErrorStopCondition,
-    MaxIterationStopCondition
+    MaxIterationStopCondition,
+    StopCondition,
 )
 
 __all__ = [

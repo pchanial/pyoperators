@@ -132,10 +132,10 @@ class Norm:
             N = type(self)(kwargs)
             N._call = _scalar_mul(self._call, x)
             N._diff = _scalar_mul(self._diff, x)
-            if hasattr(N, "_hessian"):
+            if hasattr(N, '_hessian'):
                 N._hessian = _scalar_mul(self._hessian, x)
         else:
-            raise ValueError("Expects only scalar multiplication")
+            raise ValueError('Expects only scalar multiplication')
         return N
 
     __imul__ = __mul__
@@ -242,16 +242,16 @@ class CriterionElement:
     def __init__(self, norm, op, data=None):
         # test inputs
         if not isinstance(norm, Norm):
-            raise ValueError("First parameter should be a Norm instance")
+            raise ValueError('First parameter should be a Norm instance')
         self.norm = norm
         if not isinstance(op, Operator):
-            raise ValueError("First parameter should be an Operator instance")
+            raise ValueError('First parameter should be an Operator instance')
         self.op = op
         self.shapein = op.shapein
         if not (isinstance(data, np.ndarray) or data is None):
-            raise ValueError("data parameter should be ndarray or None")
+            raise ValueError('data parameter should be ndarray or None')
         if data is not None and not data.shape == np.prod(op.shapeout):
-            raise ValueError("data shape sould equal operator shapeout")
+            raise ValueError('data shape sould equal operator shapeout')
         self.data = data
 
         # cache result
@@ -305,7 +305,7 @@ class CriterionElement:
             new_norm = x * self.norm
             return CriterionElement(new_norm, self.op, self.data)
         else:
-            raise ValueError("Expects only scalar multiplication")
+            raise ValueError('Expects only scalar multiplication')
 
     __imul__ = __mul__
     __rmul__ = __mul__
@@ -314,11 +314,11 @@ class CriterionElement:
         """Returns a criterion"""
         if isinstance(x, CriterionElement):
             if self.shapein != x.shapein:
-                raise ValueError("CriterionElements should have the same shape.")
+                raise ValueError('CriterionElements should have the same shape.')
             return Criterion([self, x])
         elif isinstance(x, Criterion):
             if self.shapein != x.shapein:
-                raise ValueError("CriterionElements should have the same shape.")
+                raise ValueError('CriterionElements should have the same shape.')
             return Criterion(
                 [
                     self,
@@ -332,7 +332,7 @@ class CriterionElement:
                 ]
             )
         else:
-            raise ValueError("Expects Criterion or CriterionElement")
+            raise ValueError('Expects Criterion or CriterionElement')
 
     __radd__ = __add__
     __iadd__ = __add__
@@ -345,7 +345,7 @@ class CriterionElement:
 class Criterion:
     def __init__(self, elements):
         if np.any([el.shapein != elements[0].shapein for el in elements]):
-            raise ValueError("CriterionElements should have the same shape.")
+            raise ValueError('CriterionElements should have the same shape.')
         self.elements = elements
         self.shapein = elements[0].shapein
 
@@ -360,7 +360,7 @@ class Criterion:
         if np.isscalar(x):
             return Criterion([x * e for e in self.elements])
         else:
-            raise ValueError("Expects only scalar multiplication")
+            raise ValueError('Expects only scalar multiplication')
 
     __imul__ = __mul__
     __rmul__ = __mul__
@@ -383,7 +383,7 @@ class Criterion:
                 ]
             )
         else:
-            raise ValueError("Expects Criterion or scalar")
+            raise ValueError('Expects Criterion or scalar')
 
     __radd__ = __add__
     __iadd__ = __add__

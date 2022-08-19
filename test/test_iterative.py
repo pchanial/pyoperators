@@ -9,7 +9,9 @@ import numpy as np
 from numpy.testing import assert_allclose
 
 import pyoperators
-from pyoperators import IdentityOperator, iterative
+from pyoperators import IdentityOperator
+from pyoperators.iterative.algorithms import acg
+from pyoperators.iterative.cg import PCGAlgorithm, pcg
 from pyoperators.utils.testing import assert_same, skiptest
 
 # collection of definite positive symmetric linear operators to test
@@ -22,11 +24,11 @@ operator_list = [
 vector_list = [np.ones(16), np.arange(1, 17)]
 
 # collection of old solvers
-methods = [iterative.algorithms.acg]
+methods = [acg]
 
 # collection of solvers
-classes = [iterative.cg.PCGAlgorithm]
-solvers = [iterative.cg.pcg]
+classes = [PCGAlgorithm]
+solvers = [pcg]
 
 
 @skiptest

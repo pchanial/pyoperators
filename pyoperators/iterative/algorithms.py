@@ -158,9 +158,9 @@ class StopCondition:
         Returns a string with current condition values.
         """
         if self.resid is not None and self.tol is not None:
-            return f"\t {self.resid:1.2e} / {self.tol:1.2e}"
+            return f'\t {self.resid:1.2e} / {self.tol:1.2e}'
         else:
-            return "\t Residual"
+            return '\t Residual'
 
 
 default_stop = StopCondition(maxiter=MAXITER, tol=TOL, gtol=GTOL)
@@ -224,16 +224,16 @@ class Callback:
         if self.verbose:
             if algo.iter_ == 1:
                 print('Iteration \t Criterion')
-            print_str = "\t%i \t %e" % (algo.iter_, algo.current_criterion)
+            print_str = '\t%i \t %e' % (algo.iter_, algo.current_criterion)
             print_str += algo.stop_condition.str(algo)
             print(print_str)
 
     def save(self, algo):
         if self.savefile is not None:
             var_dict = {
-                "iter": algo.iter_,
-                "criterion": algo.current_criterion,
-                "solution": algo.current_solution,
+                'iter': algo.iter_,
+                'criterion': algo.current_criterion,
+                'solution': algo.current_solution,
             }
             np.savez(self.savefile, **var_dict)
 

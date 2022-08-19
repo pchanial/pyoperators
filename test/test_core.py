@@ -3,7 +3,6 @@ import operator
 import sys
 
 import numpy as np
-import scipy
 from nose import with_setup
 from nose.plugins.skip import SkipTest
 from numpy.testing import assert_equal

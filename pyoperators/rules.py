@@ -342,7 +342,7 @@ class RuleManager:
     def __str__(self):
         nk = max(len(k) for k in self)
         nv = max(len(repr(v)) for v in self.values())
-        s = '{0:' + str(nk) + '} = {1!r:' + str(nv) + '}  # {2}'
+        s = '{:' + str(nk) + '} = {!r:' + str(nv) + '}  # {}'
         return '\n'.join(
             s.format(k, self[k], _description_triggers.get(k, '')) for k in self
         )
@@ -418,8 +418,8 @@ class RuleManager:
                     if len(line) == 0:
                         continue
                     warn(
-                        'In file {0!r}, line {1} does not define a rule: {2!r'
-                        '}.'.format(path, iline + 1, line_orig),
+                        f'In file {path!r}, line {iline + 1} does not define a rule: '
+                        f'{line_orig!r}',
                         PyOperatorsWarning,
                     )
                     continue
@@ -429,9 +429,8 @@ class RuleManager:
                     value = eval(value, {})
                 except Exception:
                     warn(
-                        'In file {!r}, line {}: {!r} cannot be evaluated'.format(
-                            path, iline + 1, value
-                        ),
+                        f'In file {path!r}, line {iline + 1}: {value!r} cannot be '
+                        f'evaluated',
                         PyOperatorsWarning,
                     )
                     continue

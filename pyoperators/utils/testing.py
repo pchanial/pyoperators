@@ -52,8 +52,8 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
         raise TypeError('Non numeric type.')
     if not broadcasting and actual.shape != desired.shape:
         raise AssertionError(
-            f"The actual array shape {actual.shape} is different from the desired one"
-            f" {desired.shape}."
+            f"The actual array shape '{actual.shape}' is different from the desired one"
+            f" '{desired.shape}'."
         )
     if actual.dtype.kind in ('b', 'i', 'u') and desired.dtype.kind in ('b', 'i', 'u'):
         if not broadcasting:
@@ -104,7 +104,7 @@ def assert_same(actual, desired, atol=0, rtol=5, broadcasting=False):
                 r = [r[0], r[1], r[2] + ' ...']
             return '\n'.join(r)
 
-        raise AssertionError(msg + f")\n x: {trepr(actual)}\n y: {trepr(desired)}")
+        raise AssertionError(f'{msg})\n x: {trepr(actual)}\n y: {trepr(desired)}')
 
 
 def assert_eq(a, b, msg=''):
@@ -172,35 +172,35 @@ def assert_in(a, b, msg=None):
     """Assert that the first argument is in the second one."""
     if a in b:
         return
-    assert False, str(a) + ' is not in ' + str(b) + _get_msg(msg)
+    assert False, f'{a} is not in {b}{_get_msg(msg)}'
 
 
 def assert_not_in(a, b, msg=None):
     """Assert that the first argument is not in second one."""
     if a not in b:
         return
-    assert False, str(a) + ' is in ' + str(b) + _get_msg(msg)
+    assert False, f'{a} is in {b}{_get_msg(msg)}'
 
 
 def assert_is(a, b, msg=None):
     """Assert arguments are equal as determined by the 'is' operator."""
     if a is b:
         return
-    assert False, str(a) + ' is not ' + str(b) + _get_msg(msg)
+    assert False, f'{a} is not {b}{_get_msg(msg)}'
 
 
 def assert_is_not(a, b, msg=None):
     """Assert arguments are not equal as determined by the 'is' operator."""
     if a is not b:
         return
-    assert False, str(a) + ' is ' + str(b) + _get_msg(msg)
+    assert False, f'{a} is {b}{_get_msg(msg)}'
 
 
 def assert_is_instance(a, cls, msg=None):
     """Assert that the first argument is an instance of the second one."""
     if isinstance(a, cls):
         return
-    assert False, str(a) + " is not a '" + cls.__name__ + "' instance" + _get_msg(msg)
+    assert False, f'{a} is not a {cls.__name__!r} instance{_get_msg(msg)}'
 
 
 def assert_is_not_instance(a, cls, msg=None):
@@ -210,21 +210,21 @@ def assert_is_not_instance(a, cls, msg=None):
     """
     if not isinstance(a, cls):
         return
-    assert False, str(a) + " is a '" + cls.__name__ + "' instance" + _get_msg(msg)
+    assert False, f'{a} is a {cls.__name__!r} instance{_get_msg(msg)}'
 
 
 def assert_is_none(a, msg=None):
     """Assert argument is None."""
     if a is None:
         return
-    assert False, str(a) + ' is not None' + _get_msg(msg)
+    assert False, f'{a} is not None{_get_msg(msg)}'
 
 
 def assert_is_not_none(a, msg=None):
     """Assert argument is not None."""
     if a is not None:
         return
-    assert False, str(a) + ' is None' + _get_msg(msg)
+    assert False, f'{a} is None{_get_msg(msg)}'
 
 
 def assert_is_type(a, cls, msg=None):
@@ -236,9 +236,8 @@ def assert_is_type(a, cls, msg=None):
     if any(type(a) is t for t in cls):
         return
     raise AssertionError(
-        "{} is of type '{}' instead of {}{}".format(
-            a, type(a).__name__, strenum(c.__name__ for c in cls), _get_msg(msg)
-        )
+        f'{a} is of type {type(a).__name__!r} instead of '
+        f'{strenum(c.__name__ for c in cls)}{_get_msg(msg)}'
     )
 
 

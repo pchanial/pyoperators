@@ -11,7 +11,7 @@ ext_modules = [
     ),
     Extension(
         'pyoperators.utils.ufuncs',
-        sources=["pyoperators/utils/ufuncs.c.src"],
+        sources=['pyoperators/utils/ufuncs.c.src'],
     ),
 ]
 

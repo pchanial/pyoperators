@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import nose
 import numpy as np
 from numpy import testing
 

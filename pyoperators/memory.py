@@ -54,14 +54,9 @@ def empty(shape, dtype=float, order='c', description=None, verbose=False):
             description = 'in ' + description
         print(
             utils.strinfo(
-                'Allocating '
-                + strshape(shape)
-                + ' '
-                + (str(dtype) if dtype.kind != 'V' else 'elements')
-                + ' = '
-                + utils.strnbytes(requested)
-                + ' '
-                + description
+                f'Allocating {strshape(shape)} '
+                f"{str(dtype) if dtype.kind != 'V' else 'elements'} = "
+                f'{utils.strnbytes(requested)} {description}'
             )
         )
 
@@ -143,8 +138,8 @@ class MemoryPool:
         a = v.__array_interface__['data'][0]
         if any(_.__array_interface__['data'][0] == a for _ in self._buffers):
             raise ValueError(
-                'There already is an entry in the pool pointing t'
-                'o this memory location.'
+                'There already is an entry in the pool pointing to this memory '
+                'location.'
             )
         try:
             i = ifirst(self._buffers, lambda x: x.nbytes >= v.nbytes)
@@ -163,8 +158,8 @@ class MemoryPool:
     @contextmanager
     def copy_if(self, v, aligned=False, contiguous=False):
         """
-        Return a context manager which may copy the input array into
-        a buffer from the pool to ensure alignment and contiguity requirements.
+        Return a context manager which may copy the input array into a buffer
+        from the pool to ensure alignment and contiguity requirements.
 
         """
         if not isinstance(v, np.ndarray):

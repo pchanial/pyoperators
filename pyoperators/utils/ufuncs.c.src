@@ -74,7 +74,7 @@ abs2@c@_real(char **args, npy_intp *dimensions, npy_intp *steps, void *data)
 }
 /**end repeat**/
 
-static PyUFuncGenericFunction abs2_funcs[6] = 
+static PyUFuncGenericFunction abs2_funcs[6] =
     {&abs2f, &abs2, &abs2l,
      &abs2f_real, &abs2_real, &abs2l_real};
 
@@ -139,7 +139,7 @@ NPY_NO_EXPORT void
     if (in == out) {
         for (i = 0; i < n; i++) {
             if (*mask)
-                *((@type@ *)out) = 0;          
+                *((@type@ *)out) = 0;
             mask += mask_step;
             out += out_step;
         }
@@ -194,7 +194,7 @@ NPY_NO_EXPORT void
 }
 /**end repeat**/
 
-static PyUFuncGenericFunction masking_funcs[17] = 
+static PyUFuncGenericFunction masking_funcs[17] =
            {&BYTE_masking, &UBYTE_masking,
             &SHORT_masking, &USHORT_masking,
             &INT_masking, &UINT_masking,
@@ -261,7 +261,7 @@ multiply_real_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps,
 }
 /**end repeat**/
 
-static PyUFuncGenericFunction multiply_conjugate_funcs[6] = 
+static PyUFuncGenericFunction multiply_conjugate_funcs[6] =
            {&multiply_conjugatef,
             &multiply_conjugate,
             &multiply_conjugatel,
@@ -301,7 +301,7 @@ soft_thresholding@c@(char **args, npy_intp *dimensions, npy_intp* steps,
 }
 /**end repeat**/
 
-static PyUFuncGenericFunction soft_thresholding_funcs[3] = 
+static PyUFuncGenericFunction soft_thresholding_funcs[3] =
            {&soft_thresholdingf,
             &soft_thresholding,
             &soft_thresholdingl};

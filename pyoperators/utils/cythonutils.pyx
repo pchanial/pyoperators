@@ -129,4 +129,3 @@ def inspect_special_values_complex128(np.ndarray[np.complex128_t, ndim=1] v):
     if other == 1:
         return 0, 0, 0, True, True
     return nmones, nzeros, nones, False, same == 1
-

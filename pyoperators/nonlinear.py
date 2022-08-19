@@ -52,15 +52,12 @@ class _CartesianSpherical(Operator):
 
     def __init__(self, convention, dtype=float, **keywords):
         if not isinstance(convention, str):
-            raise TypeError(
-                "The input convention '{0}' is not a string.".format(convention)
-            )
+            raise TypeError(f"The input convention '{convention}' is not a string.")
         convention_ = convention.replace(' ', '').lower()
         if convention_ not in self.CONVENTIONS:
             raise ValueError(
-                "Invalid spherical convention '{0}'. Expected values are {1}.".format(
-                    convention, strenum(self.CONVENTIONS)
-                )
+                f"Invalid spherical convention '{convention}'. Expected values are "
+                f'{strenum(self.CONVENTIONS)}.'
             )
         self.convention = convention_
         Operator.__init__(self, dtype=dtype, **keywords)
@@ -732,9 +729,7 @@ class RoundOperator(Operator):
         }
         if method not in table:
             raise ValueError(
-                'Invalid rounding method. Expected values are {}.'.format(
-                    strenum(table.keys())
-                )
+                f'Invalid rounding method. Expected values are {strenum(table)}.'
             )
         Operator.__init__(self, table[method], **keywords)
         self.method = method
@@ -865,9 +860,7 @@ class _1dNdOperator(Operator):
         if ndim == 1:
             raise NotImplementedError('ndim == 1 is not implemented.')
         if order.upper() not in ('C', 'F'):
-            raise ValueError(
-                "Invalid order '{}'. Expected order is 'C' or 'F" "'".format(order)
-            )
+            raise ValueError(f"Invalid order {order!r}. Expected order is 'C' or 'F'.")
         order = order.upper()
 
         Operator.__init__(self, **keywords)
@@ -888,8 +881,8 @@ class _1dNdOperator(Operator):
     def _validate_to1d(self, shape):
         if shape[-1] != self.ndim:
             raise ValueError(
-                "Invalid shape '{}'. The expected last dimension"
-                " is '{}'.".format(shape, self.ndim)
+                f"Invalid shape '{shape}'. The expected last dimension is "
+                f"'{self.ndim}'."
             )
 
 

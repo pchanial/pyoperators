@@ -241,18 +241,18 @@ def test_rotation_3d_3axis():
 
     # extrinsic rotations
     conventions = (
-        "XZX",
-        "XZY",
-        "XYX",
-        "XYZ",
-        "YXY",
-        "YXZ",
-        "YZY",
-        "YZX",
-        "ZYZ",
-        "ZYX",
-        "ZXZ",
-        "ZXY",
+        'XZX',
+        'XZY',
+        'XYX',
+        'XYZ',
+        'YXY',
+        'YXZ',
+        'YZY',
+        'YZX',
+        'ZYZ',
+        'ZYX',
+        'ZXZ',
+        'ZXY',
     )
 
     def func(c):
