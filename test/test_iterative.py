@@ -1,68 +1,58 @@
-#!/usr/bin/env python
-
 """
 Testing of the iterative module
 
 """
 
 import numpy as np
+import pytest
 from numpy.testing import assert_allclose
 
 import pyoperators
 from pyoperators import IdentityOperator
 from pyoperators.iterative.algorithms import acg
 from pyoperators.iterative.cg import PCGAlgorithm, pcg
-from pyoperators.utils.testing import assert_same, skiptest
+from pyoperators.utils.testing import assert_same
 
 # collection of definite positive symmetric linear operators to test
-operator_list = [
+OPERATORS = [
     pyoperators.DiagonalOperator(np.random.rand(16)),
     pyoperators.TridiagonalOperator(np.arange(1, 17), np.arange(1, 16)),
 ]
 
 # collection of vectors
-vector_list = [np.ones(16), np.arange(1, 17)]
+VECTORS = [np.ones(16), np.arange(1, 17)]
 
 # collection of old solvers
-methods = [acg]
+METHODS = [acg]
 
 # collection of solvers
-classes = [PCGAlgorithm]
-solvers = [pcg]
+CLASSES = [PCGAlgorithm]
+SOLVERS = [pcg]
 
 
-@skiptest
-def test_methods_inv():
-    def func(m, A, x):
-        y = A * x
-        xe = m(A, y, maxiter=100, tol=1e-7)
-        assert_same(x, xe)
-
-    for A in operator_list:
-        for x in vector_list:
-            for m in methods:
-                yield func, m, A, x
+@pytest.mark.xfail(reason='reason: Unknown.')
+@pytest.mark.parametrize('operator', OPERATORS)
+@pytest.mark.parametrize('vector', VECTORS)
+@pytest.mark.parametrize('method', METHODS)
+def test_methods_inv(operator, vector, method):
+    y = operator * vector
+    xe = method(operator, y, maxiter=100, tol=1e-7)
+    assert_same(vector, xe)
 
 
-def test_classes_inv():
-    def func(c, A, x):
-        y = A(x)
-        algo = c(A, y, maxiter=100, tol=1e-7)
-        xe = algo.run()
-        assert_allclose(x, xe, rtol=1e-5)
-
-    for A in operator_list:
-        for x in vector_list:
-            for c in classes:
-                yield func, c, A, x
+@pytest.mark.parametrize('operator', OPERATORS)
+@pytest.mark.parametrize('vector', VECTORS)
+@pytest.mark.parametrize('cls', CLASSES)
+def test_classes_inv(operator, vector, cls):
+    y = operator(vector)
+    algo = cls(operator, y, maxiter=100, tol=1e-7)
+    xe = algo.run()
+    assert_allclose(vector, xe, rtol=1e-5)
 
 
-def test_solution_as_x0():
-    def func(s, v):
-        solution = s(IdentityOperator(shapein=v.shape), v, x0=v)
-        assert_same(solution['nit'], 0)
-        assert_same(solution['x'], v)
-
-    for s in solvers:
-        for v in vector_list:
-            yield func, s, v
+@pytest.mark.parametrize('solver', SOLVERS)
+@pytest.mark.parametrize('vector', VECTORS)
+def test_solution_as_x0(solver, vector):
+    solution = solver(IdentityOperator(shapein=vector.shape), vector, x0=vector)
+    assert_same(solution['nit'], 0)
+    assert_same(solution['x'], vector)

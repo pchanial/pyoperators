@@ -1,7 +1,6 @@
 import itertools
 
-from nose import SkipTest
-from numpy.testing import assert_equal
+import pytest
 
 from pyoperators import (
     CompositionOperator,
@@ -35,8 +34,8 @@ class L(Operator):
 def check(group, expected):
     actual = str(CompositionOperator(group))
     if '**2**2' in actual:
-        raise SkipTest
-    assert_equal(str(CompositionOperator(group)), expected)
+        pytest.xfail('**2**2')
+    assert str(CompositionOperator(group)) == expected
 
 
 def test1():
@@ -56,7 +55,7 @@ def test1():
         '(l * l)(n(n))|(l * l)(n(l))|(l * l * l)(n)|l * l * l * l'
     )
     for group, expected in zip(groups, expecteds.split('|')):
-        yield check, group, expected
+        check(group, expected)
 
 
 def test2():
@@ -99,7 +98,7 @@ def test2():
         if a not in group:
             continue
         expected = next(expecteds)
-        yield check, group, expected
+        check(group, expected)
 
 
 def test3():
@@ -142,9 +141,9 @@ def test3():
         if a not in group:
             continue
         expected = next(expecteds)
-        yield check, group, expected
+        check(group, expected)
 
 
+@pytest.mark.xfail(reason='reason: Extra parenthesis.')
 def test4():
-    raise SkipTest
     assert str(PowerOperator(3)(ProductOperator(axis=2))) == 'product(..., axis=2)**3'

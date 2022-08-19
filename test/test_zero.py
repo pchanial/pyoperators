@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 from numpy.testing import assert_equal
 
 from pyoperators import (
@@ -11,24 +12,17 @@ from pyoperators import (
     rule_manager,
 )
 from pyoperators.utils import ndarraywrap
-from pyoperators.utils.testing import (
-    assert_is,
-    assert_is_instance,
-    assert_is_none,
-    assert_is_type,
-    assert_same,
-    skiptest,
-)
+from pyoperators.utils.testing import assert_equal
 
 from .common import OPS, attr2, ndarray2
 
 op = Operator()
-ops = [_() for _ in OPS] + [_(flags={'linear': False}) for _ in OPS]
-zeros_left = (
+TEST_ZERO_OPS = [_() for _ in OPS] + [_(flags={'linear': False}) for _ in OPS]
+ZERO_LEFTS = (
     ZeroOperator(classout=ndarray2, attrout=attr2),
     ZeroOperator(shapein=4, classout=ndarray2, attrout=attr2),
 )
-zeros_right = (
+ZEROS_RIGHTS = (
     ZeroOperator(classout=ndarray2, attrout=attr2),
     ZeroOperator(classout=ndarray2, attrout=attr2, flags='square'),
     ZeroOperator(shapein=3, classout=ndarray2, attrout=attr2),
@@ -40,34 +34,34 @@ def test_zero1():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6)
     zo = z(o)
-    assert_is_instance(zo, ZeroOperator)
-    assert_equal(zo.shapein, o.shapein)
-    assert_is_none(zo.shapeout)
+    assert isinstance(zo, ZeroOperator)
+    assert zo.shapein == o.shapein
+    assert zo.shapeout is None
 
 
 def test_zero2():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator()
     zo = z(o)
-    assert_is_instance(zo, ZeroOperator)
-    assert_is_none(zo.shapein, 'in')
-    assert_equal(zo.shapeout, z.shapeout, 'out')
+    assert isinstance(zo, ZeroOperator)
+    assert zo.shapein is None, 'in'
+    assert zo.shapeout == z.shapeout, 'out'
 
 
 def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator(flags='square')
     zo = z * o
-    assert_is_instance(zo, ZeroOperator)
-    assert_equal(zo.shapein, z.shapein, 'in')
-    assert_equal(zo.shapeout, z.shapeout, 'out')
+    assert isinstance(zo, ZeroOperator)
+    assert zo.shapein == z.shapein, 'in'
+    assert zo.shapeout == z.shapeout, 'out'
 
 
 def test_zero4():
     z = ZeroOperator()
     o = Operator(flags='linear')
-    assert_is_instance(z * o, ZeroOperator)
-    assert_is_instance(o * z, ZeroOperator)
+    assert isinstance(z * o, ZeroOperator)
+    assert isinstance(o * z, ZeroOperator)
 
 
 def test_zero5():
@@ -75,15 +69,15 @@ def test_zero5():
     o = Operator(shapein=3, shapeout=6, flags='linear')
     zo = z * o
     oz = o * z
-    assert_is_instance(zo, ZeroOperator, 'zo')
-    assert_equal(zo.shapein, o.shapein, 'zo in')
-    assert_is_none(zo.shapeout, 'zo out')
-    assert_is_instance(oz, ZeroOperator, 'oz')
-    assert_is_none(oz.shapein, 'oz, in')
-    assert_equal(oz.shapeout, o.shapeout, 'oz, out')
+    assert isinstance(zo, ZeroOperator), 'zo'
+    assert zo.shapein == o.shapein, 'zo in'
+    assert zo.shapeout is None, 'zo out'
+    assert isinstance(oz, ZeroOperator), 'oz'
+    assert oz.shapein is None, 'oz, in'
+    assert oz.shapeout == o.shapeout, 'oz, out'
 
 
-@skiptest
+@pytest.mark.xfail(reason='reason: Unknown.')
 def test_zero6():
     @flags.linear
     class Op(Operator):
@@ -104,17 +98,17 @@ def test_zero6():
     od = o.todense(shapein=4)
     zo = z * o
     zod_ref = np.dot(np.zeros((8, 8)), od)
-    assert_same((z * o).todense(shapein=4), zod_ref)
+    assert_equal((z * o).todense(shapein=4), zod_ref)
     oz = o * z
     ozd_ref = np.dot(od, np.zeros((4, 4)))
-    assert_same((o * z).todense(shapein=4), ozd_ref)
-    assert_same(zo.T.todense(shapein=8), zod_ref.T)
-    assert_same(oz.T.todense(shapein=8), ozd_ref.T)
+    assert_equal((o * z).todense(shapein=4), ozd_ref)
+    assert_equal(zo.T.todense(shapein=8), zod_ref.T)
+    assert_equal(oz.T.todense(shapein=8), ozd_ref.T)
 
 
 def test_zero7():
     z = ZeroOperator()
-    assert_equal(z * z, z)
+    assert z * z == z
 
 
 def test_zero8():
@@ -122,64 +116,58 @@ def test_zero8():
         pass
 
     o = Op()
-    assert_is_type(o + O, Op)
+    assert type(o + O) is Op
 
 
-def test_merge_zero_left():
-    def func(op1, op2):
-        op = op1(op2)
-        assert_is_instance(op, ZeroOperator)
-        attr = {}
-        attr.update(op2.attrout)
-        attr.update(op1.attrout)
-        assert_equal(op.attrout, attr)
-        x = np.ones(3)
-        y = ndarraywrap(4)
-        op(x, y)
-        y2_tmp = np.empty(4)
-        y2 = np.empty(4)
-        op2(x, y2_tmp)
-        op1(y2_tmp, y2)
-        assert_equal(y, y2)
-        assert_is_instance(y, op1.classout)
-
-    for op1 in zeros_left:
-        for op2 in ops:
-            yield func, op1, op2
+@pytest.mark.parametrize('op1', ZERO_LEFTS)
+@pytest.mark.parametrize('op2', TEST_ZERO_OPS)
+def test_merge_zero_left(op1, op2):
+    op = op1(op2)
+    assert isinstance(op, ZeroOperator)
+    attr = {}
+    attr.update(op2.attrout)
+    attr.update(op1.attrout)
+    assert op.attrout == attr
+    x = np.ones(3)
+    y = ndarraywrap(4)
+    op(x, y)
+    y2_tmp = np.empty(4)
+    y2 = np.empty(4)
+    op2(x, y2_tmp)
+    op1(y2_tmp, y2)
+    assert_equal(y, y2)
+    assert isinstance(y, op1.classout)
 
 
-def test_merge_zero_right():
-    def func(op1, op2):
-        op = op1(op2)
-        attr = {}
-        attr.update(op2.attrout)
-        attr.update(op1.attrout)
-        assert_equal(op.attrout, attr)
-        assert_is(op.classout, op1.classout)
-        if op1.flags.linear:
-            assert_is_type(op, ZeroOperator)
-            assert_same(op.todense(shapein=3, shapeout=4), np.zeros((4, 3)))
-            return
-        if (
-            op1.flags.shape_output == 'unconstrained'
-            or op1.flags.shape_input != 'explicit'
-            and op2.flags.shape_output != 'explicit'
-        ):
-            assert_is_type(op, CompositionOperator)
-        else:
-            assert_is_type(op, ConstantOperator)
+@pytest.mark.parametrize('op1', TEST_ZERO_OPS)
+@pytest.mark.parametrize('op2', ZEROS_RIGHTS)
+def test_merge_zero_right(op1, op2):
+    op = op1(op2)
+    attr = {}
+    attr.update(op2.attrout)
+    attr.update(op1.attrout)
+    assert op.attrout == attr
+    assert op.classout is op1.classout
+    if op1.flags.linear:
+        assert type(op) is ZeroOperator
+        assert_equal(op.todense(shapein=3, shapeout=4), np.zeros((4, 3)))
+        return
+    if (
+        op1.flags.shape_output == 'unconstrained'
+        or op1.flags.shape_input != 'explicit'
+        and op2.flags.shape_output != 'explicit'
+    ):
+        assert type(op) is CompositionOperator
+    else:
+        assert type(op) is ConstantOperator
 
-        if (
-            op1.flags.shape_input == 'unconstrained'
-            and op2.flags.shape_output == 'unconstrained'
-        ):
-            return
-        with rule_manager(none=True):
-            op_ref = op1(op2)
-        assert_same(
-            op.todense(shapein=3, shapeout=4), op_ref.todense(shapein=3, shapeout=4)
-        )
-
-    for op1 in ops:
-        for op2 in zeros_right:
-            yield func, op1, op2
+    if (
+        op1.flags.shape_input == 'unconstrained'
+        and op2.flags.shape_output == 'unconstrained'
+    ):
+        return
+    with rule_manager(none=True):
+        op_ref = op1(op2)
+    assert_equal(
+        op.todense(shapein=3, shapeout=4), op_ref.todense(shapein=3, shapeout=4)
+    )

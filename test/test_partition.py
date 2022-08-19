@@ -1,4 +1,6 @@
 import numpy as np
+import pytest
+from numpy.testing import assert_equal
 
 from pyoperators import (
     AdditionOperator,
@@ -17,57 +19,66 @@ from pyoperators import (
 )
 from pyoperators.core import BlockOperator
 from pyoperators.utils import merge_none
-from pyoperators.utils.testing import (
-    assert_eq,
-    assert_is_instance,
-    assert_is_type,
-    assert_raises,
-)
 
 from .common import Stretch
 
 
-def test_partition1():
-    o1 = HomothetyOperator(1, shapein=1)
-    o2 = HomothetyOperator(2, shapein=2)
-    o3 = HomothetyOperator(3, shapein=3)
-    r = DiagonalOperator([1, 2, 2, 3, 3, 3]).todense()
-
-    def func(ops, p):
-        op = BlockDiagonalOperator(ops, partitionin=p, axisin=0)
-        assert_eq(op.todense(6), r, str(op))
-
-    for ops, p in zip(
-        ((o1, o2, o3), (I, o2, o3), (o1, 2 * I, o3), (o1, o2, 3 * I)),
-        (None, (1, 2, 3), (1, 2, 3), (1, 2, 3)),
-    ):
-        yield func, ops, p
+@pytest.fixture(scope='module')
+def ref_partition1():
+    return DiagonalOperator([1, 2, 2, 3, 3, 3]).todense()
 
 
-def test_partition2():
+@pytest.mark.parametrize(
+    'ops, partition',
+    [
+        (
+            (
+                HomothetyOperator(1, shapein=1),
+                HomothetyOperator(2, shapein=2),
+                HomothetyOperator(3, shapein=3),
+            ),
+            None,
+        ),
+        (
+            (I, HomothetyOperator(2, shapein=2), HomothetyOperator(3, shapein=3)),
+            (1, 2, 3),
+        ),
+        (
+            (HomothetyOperator(1, shapein=1), 2 * I, HomothetyOperator(3, shapein=3)),
+            (1, 2, 3),
+        ),
+        (
+            (HomothetyOperator(1, shapein=1), HomothetyOperator(2, shapein=2), 3 * I),
+            (1, 2, 3),
+        ),
+    ],
+)
+def test_partition1(ref_partition1, ops, partition):
+    op = BlockDiagonalOperator(ops, partitionin=partition, axisin=0)
+    assert_equal(op.todense(6), ref_partition1, str(op))
+
+
+@pytest.mark.parametrize(
+    'axisp, partition',
+    [
+        (0, (1, 1, 1)),
+        (1, (1, 2, 1)),
+        (2, (2, 2, 1)),
+        (3, (2, 3, 1)),
+        (-1, (2, 3, 1)),
+        (-2, (2, 2, 1)),
+        (-3, (1, 2, 1)),
+    ],
+)
+@pytest.mark.parametrize('axiss', range(4))
+def test_partition2(axisp, partition, axiss):
     # in some cases in this test, partitionout cannot be inferred from
     # partitionin, because the former depends on the input rank
-    i = np.arange(3 * 4 * 5 * 6).reshape(3, 4, 5, 6)
-
-    def func(axisp, p, axiss):
-        op = BlockDiagonalOperator(3 * [Stretch(axiss)], partitionin=p, axisin=axisp)
-        assert_eq(op(i), Stretch(axiss)(i))
-
-    for axisp, p in zip(
-        (0, 1, 2, 3, -1, -2, -3),
-        (
-            (1, 1, 1),
-            (1, 2, 1),
-            (2, 2, 1),
-            (2, 3, 1),
-            (2, 3, 1),
-            (2, 2, 1),
-            (1, 2, 1),
-            (1, 1, 1),
-        ),
-    ):
-        for axiss in (0, 1, 2, 3):
-            yield func, axisp, p, axiss
+    input = np.arange(3 * 4 * 5 * 6).reshape(3, 4, 5, 6)
+    op = BlockDiagonalOperator(
+        3 * [Stretch(axiss)], partitionin=partition, axisin=axisp
+    )
+    assert_equal(op(input), Stretch(axiss)(input))
 
 
 def test_partition3():
@@ -90,33 +101,33 @@ def test_partition4():
     assert isinstance(r, BlockDiagonalOperator)
 
 
-def test_block1():
+@pytest.mark.parametrize(
+    'axis, shape',
+    [
+        (-3, (3, 2, 2)),
+        (-2, (2, 3, 2)),
+        (-1, (2, 2, 3)),
+        (0, (3, 2, 2)),
+        (1, (2, 3, 2)),
+        (2, (2, 2, 3)),
+    ],
+)
+def test_block1(axis, shape):
     ops = [HomothetyOperator(i, shapein=(2, 2)) for i in range(1, 4)]
-
-    def func(axis, s):
-        op = BlockDiagonalOperator(ops, new_axisin=axis)
-        assert_eq(op.shapein, s)
-        assert_eq(op.shapeout, s)
-
-    for axis, s in zip(
-        range(-3, 3), ((3, 2, 2), (2, 3, 2), (2, 2, 3), (3, 2, 2), (2, 3, 2), (2, 2, 3))
-    ):
-        yield func, axis, s
+    op = BlockDiagonalOperator(ops, new_axisin=axis)
+    assert_equal(op.shapein, shape)
+    assert_equal(op.shapeout, shape)
 
 
-def test_block2():
+@pytest.mark.parametrize('axisp', [0, 1, 2, 3, -1, -2, -3])
+@pytest.mark.parametrize('axiss', [0, 1, 2])
+def test_block2(axisp, axiss):
     shape = (3, 4, 5, 6)
     i = np.arange(np.product(shape)).reshape(shape)
-
-    def func(axisp, axiss):
-        op = BlockDiagonalOperator(shape[axisp] * [Stretch(axiss)], new_axisin=axisp)
-        axisp_ = axisp if axisp >= 0 else axisp + 4
-        axiss_ = axiss if axisp_ > axiss else axiss + 1
-        assert_eq(op(i), Stretch(axiss_)(i))
-
-    for axisp in (0, 1, 2, 3, -1, -2, -3):
-        for axiss in (0, 1, 2):
-            yield func, axisp, axiss
+    op = BlockDiagonalOperator(shape[axisp] * [Stretch(axiss)], new_axisin=axisp)
+    axisp_ = axisp if axisp >= 0 else axisp + 4
+    axiss_ = axiss if axisp_ > axiss else axiss + 1
+    assert_equal(op(i), Stretch(axiss_)(i))
 
 
 def test_block3():
@@ -142,44 +153,76 @@ def test_block4():
 def test_block_column1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, BlockColumnOperator, [I2, 2 * I3], axisout=0)
-    assert_raises(ValueError, BlockColumnOperator, [I2, 2 * I3], new_axisout=0)
+
+    with pytest.raises(ValueError):
+        BlockColumnOperator([I2, 2 * I3], axisout=0)
+
+    with pytest.raises(ValueError):
+        BlockColumnOperator([I2, 2 * I3], new_axisout=0)
 
 
 def test_block_column2():
     p = np.matrix([[1, 0], [0, 2], [1, 0]])
     o = asoperator(np.matrix(p))
     e = BlockColumnOperator([o, 2 * o], axisout=0)
-    assert_eq(e.todense(), np.vstack([p, 2 * p]))
-    assert_eq(e.T.todense(), e.todense().T)
+    assert_equal(e.todense(), np.vstack([p, 2 * p]))
+    assert_equal(e.T.todense(), e.todense().T)
     e = BlockColumnOperator([o, 2 * o], new_axisout=0)
-    assert_eq(e.todense(), np.vstack([p, 2 * p]))
-    assert_eq(e.T.todense(), e.todense().T)
+    assert_equal(e.todense(), np.vstack([p, 2 * p]))
+    assert_equal(e.T.todense(), e.todense().T)
 
 
 def test_block_row1():
     I2 = IdentityOperator(2)
     I3 = IdentityOperator(3)
-    assert_raises(ValueError, BlockRowOperator, [I2, 2 * I3], axisin=0)
-    assert_raises(ValueError, BlockRowOperator, [I2, 2 * I3], new_axisin=0)
+
+    with pytest.raises(ValueError):
+        BlockRowOperator([I2, 2 * I3], axisin=0)
+
+    with pytest.raises(ValueError):
+        BlockRowOperator([I2, 2 * I3], new_axisin=0)
 
 
 def test_block_row2():
     p = np.matrix([[1, 0], [0, 2], [1, 0]])
     o = asoperator(np.matrix(p))
     r = BlockRowOperator([o, 2 * o], axisin=0)
-    assert_eq(r.todense(), np.hstack([p, 2 * p]))
-    assert_eq(r.T.todense(), r.todense().T)
+    assert_equal(r.todense(), np.hstack([p, 2 * p]))
+    assert_equal(r.T.todense(), r.todense().T)
     r = BlockRowOperator([o, 2 * o], new_axisin=0)
-    assert_eq(r.todense(), np.hstack([p, 2 * p]))
-    assert_eq(r.T.todense(), r.todense().T)
+    assert_equal(r.todense(), np.hstack([p, 2 * p]))
+    assert_equal(r.T.todense(), r.todense().T)
 
 
-def test_partition_implicit_commutative():
-    partitions = (None, None), (2, None), (None, 3), (2, 3)
+@pytest.mark.parametrize('operation', [AdditionOperator, MultiplicationOperator])
+@pytest.mark.parametrize('p1', [(None, None), (2, None), (None, 3), (2, 3)])
+@pytest.mark.parametrize('p2', [(None, None), (2, None), (None, 3), (2, 3)])
+def test_partition_implicit_commutative(operation, p1, p2):
     ops = [I, 2 * I]
 
-    def func(op1, op2, p1, p2, cls):
+    for cls, aout, ain, pout1, pin1, pout2, pin2 in zip(
+        (BlockRowOperator, BlockDiagonalOperator, BlockColumnOperator),
+        (None, 0, 0),
+        (0, 0, None),
+        (None, p1, p1),
+        (p1, p1, None),
+        (None, p2, p2),
+        (p2, p2, None),
+    ):
+        op1 = BlockOperator(
+            ops,
+            partitionout=pout1,
+            partitionin=pin1,
+            axisin=ain,
+            axisout=aout,
+        )
+        op2 = BlockOperator(
+            ops,
+            partitionout=pout2,
+            partitionin=pin2,
+            axisin=ain,
+            axisout=aout,
+        )
         op = operation([op1, op2])
         assert type(op) is cls
         if op.partitionin is None:
@@ -191,42 +234,59 @@ def test_partition_implicit_commutative():
         else:
             assert op.partitionout == merge_none(p1, p2)
 
-    for operation in (AdditionOperator, MultiplicationOperator):
-        for p1 in partitions:
-            for p2 in partitions:
-                for cls, aout, ain, pout1, pin1, pout2, pin2 in zip(
-                    (BlockRowOperator, BlockDiagonalOperator, BlockColumnOperator),
-                    (None, 0, 0),
-                    (0, 0, None),
-                    (None, p1, p1),
-                    (p1, p1, None),
-                    (None, p2, p2),
-                    (p2, p2, None),
-                ):
-                    op1 = BlockOperator(
-                        ops,
-                        partitionout=pout1,
-                        partitionin=pin1,
-                        axisin=ain,
-                        axisout=aout,
-                    )
-                    op2 = BlockOperator(
-                        ops,
-                        partitionout=pout2,
-                        partitionin=pin2,
-                        axisin=ain,
-                        axisout=aout,
-                    )
-                    yield func, op1, op2, p1, p2, cls
 
-
-def test_partition_implicit_composition():
-    partitions = (None, None), (2, None), (None, 3), (2, 3)
+@pytest.mark.parametrize('pin1', [(None, None), (2, None), (None, 3), (2, 3)])
+@pytest.mark.parametrize('pout2', [(None, None), (2, None), (None, 3), (2, 3)])
+def test_partition_implicit_composition(pin1, pout2):
     ops = [I, 2 * I]
 
-    def func(op1, op2, pin1, pout2, cls):
+    for cls1, cls2, cls, aout1, ain1, aout2, ain2, pout1, pin2, in zip(
+        (
+            BlockRowOperator,
+            BlockRowOperator,
+            BlockDiagonalOperator,
+            BlockDiagonalOperator,
+        ),
+        (
+            BlockDiagonalOperator,
+            BlockColumnOperator,
+            BlockDiagonalOperator,
+            BlockColumnOperator,
+        ),
+        (
+            BlockRowOperator,
+            HomothetyOperator,
+            BlockDiagonalOperator,
+            BlockColumnOperator,
+        ),
+        (None, None, 0, 0),
+        (0, 0, 0, 0),
+        (0, 0, 0, 0),
+        (0, None, 0, None),
+        (None, None, pin1, pin1),
+        (pout2, None, pout2, None),
+    ):
+        op1 = BlockOperator(
+            ops,
+            partitionin=pin1,
+            partitionout=pout1,
+            axisout=aout1,
+            axisin=ain1,
+        )
+        assert type(op1) is cls1
+
+        op2 = BlockOperator(
+            ops,
+            partitionout=pout2,
+            partitionin=pin2,
+            axisout=aout2,
+            axisin=ain2,
+        )
+        assert type(op2) is cls2
+
         op = op1 * op2
-        assert_is_instance(op, cls)
+        assert isinstance(op, cls)
+
         if not isinstance(op, BlockOperator):
             return
         pout = None if isinstance(op, BlockRowOperator) else merge_none(pin1, pout2)
@@ -234,69 +294,24 @@ def test_partition_implicit_composition():
         assert pout == op.partitionout
         assert pin == op.partitionin
 
-    for pin1 in partitions:
-        for pout2 in partitions:
-            for cls1, cls2, cls, aout1, ain1, aout2, ain2, pout1, pin2, in zip(
-                (
-                    BlockRowOperator,
-                    BlockRowOperator,
-                    BlockDiagonalOperator,
-                    BlockDiagonalOperator,
-                ),
-                (
-                    BlockDiagonalOperator,
-                    BlockColumnOperator,
-                    BlockDiagonalOperator,
-                    BlockColumnOperator,
-                ),
-                (
-                    BlockRowOperator,
-                    HomothetyOperator,
-                    BlockDiagonalOperator,
-                    BlockColumnOperator,
-                ),
-                (None, None, 0, 0),
-                (0, 0, 0, 0),
-                (0, 0, 0, 0),
-                (0, None, 0, None),
-                (None, None, pin1, pin1),
-                (pout2, None, pout2, None),
-            ):
-                op1 = BlockOperator(
-                    ops,
-                    partitionin=pin1,
-                    partitionout=pout1,
-                    axisout=aout1,
-                    axisin=ain1,
-                )
-                op2 = BlockOperator(
-                    ops,
-                    partitionout=pout2,
-                    partitionin=pin2,
-                    axisout=aout2,
-                    axisin=ain2,
-                )
-                yield func, op1, op2, pin1, pout2, cls
 
-
-def test_mul():
-    opnl = Operator(shapein=10, flags='square')
-    oplin = Operator(flags='linear,square', shapein=10)
-    clss = (
+@pytest.mark.parametrize(
+    'op',
+    [Operator(shapein=10, flags='square'), Operator(flags='linear,square', shapein=10)],
+)
+@pytest.mark.parametrize(
+    'cls1, cls2, cls3',
+    [
         (BlockRowOperator, BlockDiagonalOperator, BlockRowOperator),
         3 * (BlockDiagonalOperator,),
         (BlockDiagonalOperator, BlockColumnOperator, BlockColumnOperator),
         (BlockRowOperator, BlockColumnOperator, AdditionOperator),
-    )
-
-    def func(op, cls1, cls2, cls3):
-        operation = CompositionOperator if op.flags.linear else MultiplicationOperator
-        op1 = cls1(3 * [op], axisin=0)
-        op2 = cls2(3 * [op], axisout=0)
-        result = op1 * op2
-        assert_is_type(result, cls3)
-        assert_is_type(result.operands[0], operation)
-
-    for op in opnl, oplin:
-        for cls1, cls2, cls3 in clss:
-            yield func, op, cls1, cls2, cls3
+    ],
+)
+def test_mul(op, cls1, cls2, cls3):
+    operation = CompositionOperator if op.flags.linear else MultiplicationOperator
+    op1 = cls1(3 * [op], axisin=0)
+    op2 = cls2(3 * [op], axisout=0)
+    result = op1 * op2
+    assert type(result) is cls3
+    assert type(result.operands[0]) is operation

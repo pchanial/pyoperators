@@ -1,5 +1,13 @@
+import sys
+
 import numpy as np
-from numpy.testing import assert_allclose
+import pytest
+
+try:
+    import pyfftw  # noqa
+except ImportError:
+    pass
+from numpy.testing import assert_allclose, assert_equal
 
 import pyoperators
 from pyoperators import (
@@ -20,88 +28,81 @@ from pyoperators import (
     TridiagonalOperator,
 )
 from pyoperators.utils import product
-from pyoperators.utils.testing import (
-    assert_eq,
-    assert_is_instance,
-    assert_is_none,
-    assert_is_type,
-    assert_same,
-    skiptest_unless_module,
-)
+from pyoperators.utils.testing import assert_same
 
-from .common import FLOAT_DTYPES, IdentityOutplaceOperator, assert_inplace_outplace
+from .common import FLOAT_DTYPES, IdentityOutplace
 
 SHAPES = ((), (1,), (3,), (2, 3), (2, 3, 4))
 
 
-def test_degrees():
-    def func(dtype):
-        d = DegreesOperator(dtype=dtype)
-        assert_same(d(1), np.degrees(np.ones((), dtype=dtype)))
+def assert_inplace_outplace(op, v, expected):
+    w = op(v)
+    assert_equal(w, expected)
+    op(v, out=w)
+    assert_equal(w, expected)
 
-    for dtype in FLOAT_DTYPES:
-        yield func, dtype
+
+@pytest.mark.parametrize('dtype', FLOAT_DTYPES)
+def test_degrees(dtype):
+    d = DegreesOperator(dtype=dtype)
+    assert_same(d(1), np.degrees(np.ones((), dtype=dtype)))
 
 
 def test_degrees_rules():
     d = DegreesOperator()
-    assert_is_type(d.I, RadiansOperator)
+    assert type(d.I) is RadiansOperator
 
 
-def test_diagonal_numexpr():
+@pytest.mark.parametrize('broadcast', [None, 'rightward', 'leftward', 'disabled'])
+@pytest.mark.parametrize(
+    'values', [np.array([3, 2, 1.0]), np.array([[1, 2, 3], [2, 3, 4], [3, 4, 5.0]])]
+)
+def test_diagonal_numexpr(broadcast, values):
+    if values.ndim > 1 and broadcast in (None, 'disabled'):
+        return
+
     diag = np.array([1, 2, 3])
-    expr = '(data+1)*3'
+    expr = '(data + 1) * 3'
 
-    def func(broadcast, values):
-        if broadcast == 'rightward':
-            expected = (values.T * (diag.T + 1) * 3).T
-        else:
-            expected = values * (diag + 1) * 3
-        op = DiagonalNumexprOperator(diag, expr, broadcast=broadcast)
-        if broadcast in ('leftward', 'rightward'):
-            assert op.broadcast == broadcast
-            assert_is_none(op.shapein)
-        else:
-            assert op.broadcast == 'disabled'
-            assert_eq(op.shapein, diag.shape)
-            assert_eq(op.shapeout, diag.shape)
-        assert_inplace_outplace(op, values, expected)
+    if broadcast == 'rightward':
+        expected = (values.T * (diag.T + 1) * 3).T
+    else:
+        expected = values * (diag + 1) * 3
+    op = DiagonalNumexprOperator(diag, expr, broadcast=broadcast)
 
-    for broadcast in (None, 'rightward', 'leftward', 'disabled'):
-        for values in (
-            np.array([3, 2, 1.0]),
-            np.array([[1, 2, 3], [2, 3, 4], [3, 4, 5.0]]),
-        ):
-            if values.ndim > 1 and broadcast in (None, 'disabled'):
-                continue
-            yield func, broadcast, values
+    if broadcast in ('leftward', 'rightward'):
+        assert op.broadcast == broadcast
+        assert op.shapein is None
+    else:
+        assert op.broadcast == 'disabled'
+        assert op.shapein == diag.shape
+        assert op.shapeout == diag.shape
+
+    assert_inplace_outplace(op, values, expected)
 
 
 def test_diagonal_numexpr2():
-    d1 = DiagonalNumexprOperator([1, 2, 3], '(data+1)*3', broadcast='rightward')
-    d2 = DiagonalNumexprOperator([3, 2, 1], '(data+2)*2')
+    d1 = DiagonalNumexprOperator([1, 2, 3], '(data + 1) * 3', broadcast='rightward')
+    d2 = DiagonalNumexprOperator([3, 2, 1], '(data + 2) * 2')
     d = d1 * d2
-    assert_is_instance(d, DiagonalOperator)
-    assert_eq(d.broadcast, 'disabled')
-    assert_eq(d.data, [60, 72, 72])
-    c = BlockColumnOperator(3 * [IdentityOutplaceOperator()], new_axisout=0)
+    assert isinstance(d, DiagonalOperator)
+    assert d.broadcast == 'disabled'
+    assert_equal(d.data, [60, 72, 72])
+    c = BlockColumnOperator(3 * [IdentityOutplace()], new_axisout=0)
     v = [1, 2]
     assert_inplace_outplace(d1 * c, v, d1(c(v)))
 
 
-def test_diff_non_optimised():
-    def func(shape, axis):
+@pytest.mark.parametrize('shape', [(3,), (3, 4), (3, 4, 5), (3, 4, 5, 6)])
+def test_diff_non_optimised(shape):
+    for axis in range(len(shape)):
         dX = DifferenceOperator(axis=axis, shapein=shape)
         a = np.arange(product(shape)).reshape(shape)
-        assert_eq(dX(a), np.diff(a, axis=axis))
+        assert_equal(dX(a), np.diff(a, axis=axis))
         dX_dense = dX.todense()
 
         dXT_dense = dX.T.todense()
-        assert_eq(dX_dense.T, dXT_dense)
-
-    for shape in ((3,), (3, 4), (3, 4, 5), (3, 4, 5, 6)):
-        for axis in range(len(shape)):
-            yield func, shape, axis
+        assert_equal(dX_dense.T, dXT_dense)
 
 
 def test_integration_trapeze():
@@ -125,94 +126,73 @@ def test_integration_trapeze():
     assert_same(integ(value), expected)
 
 
-def test_radians():
-    def func(dtype):
-        d = RadiansOperator(dtype=dtype)
-        assert_same(d(1), np.radians(np.ones((), dtype=dtype)))
-
-    for dtype in FLOAT_DTYPES:
-        yield func, dtype
+@pytest.mark.parametrize('dtype', FLOAT_DTYPES)
+def test_radians(dtype):
+    d = RadiansOperator(dtype=dtype)
+    assert_same(d(1), np.radians(np.ones((), dtype=dtype)))
 
 
 def test_radians_rules():
     d = RadiansOperator()
-    assert_is_type(d.I, DegreesOperator)
+    assert type(d.I) is DegreesOperator
 
 
-def test_rotation_2d():
-    def func(shape, degrees):
-        angle = np.arange(product(shape)).reshape(shape)
-        if degrees:
-            angle_ = np.radians(angle)
-        else:
-            angle_ = angle
-        angle_ = angle_.reshape(angle.size)
-        r = Rotation2dOperator(angle, degrees=degrees)
-        actual = r([1, 0]).reshape((angle.size, 2))
-        expected = np.array([np.cos(angle_), np.sin(angle_)]).T
-        assert_same(actual, expected)
-
-    for shape in SHAPES:
-        for degrees in False, True:
-            yield func, shape, degrees
+@pytest.mark.parametrize('shape', SHAPES)
+@pytest.mark.parametrize('degrees', [False, True])
+def test_rotation_2d(shape, degrees):
+    angle = np.arange(product(shape)).reshape(shape)
+    if degrees:
+        angle_ = np.radians(angle)
+    else:
+        angle_ = angle
+    angle_ = angle_.reshape(angle.size)
+    r = Rotation2dOperator(angle, degrees=degrees)
+    actual = r([1, 0]).reshape((angle.size, 2))
+    expected = np.array([np.cos(angle_), np.sin(angle_)]).T
+    assert_same(actual, expected)
 
 
-def test_rotation_3d_1axis():
-    rx = Rotation3dOperator('X', 90, degrees=True)
-    ry = Rotation3dOperator('Y', 90, degrees=True)
-    rz = Rotation3dOperator('Z', 90, degrees=True)
+@pytest.mark.parametrize(
+    'convention, expected',
+    [
+        ('X', [[1, 0, 0], [0, 0, 1], [0, -1, 0]]),
+        ('Y', [[0, 0, -1], [0, 1, 0], [1, 0, 0]]),
+        ('Z', [[0, 1, 0], [-1, 0, 0], [0, 0, 1]]),
+    ],
+)
+def test_rotation_3d_1axis(convention, expected):
+    rot = Rotation3dOperator(convention, 90, degrees=True)
     ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    assert_allclose(rot(ref), expected, atol=1e-15)
 
-    # single axis rotations
-    exps = (
-        [[1, 0, 0], [0, 0, 1], [0, -1, 0]],
-        [[0, 0, -1], [0, 1, 0], [1, 0, 0]],
-        [[0, 1, 0], [-1, 0, 0], [0, 0, 1]],
+
+@pytest.mark.parametrize('convention', ["XY'", "XZ'", "YX'", "YZ'", "ZX'", "ZY'"])
+def test_intrinsic_rotation_3d_2axis(convention):
+    ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    alpha = 0.1
+    beta = 0.2
+    r = Rotation3dOperator(convention, alpha, beta)
+    r2 = Rotation3dOperator(convention[0], alpha) * Rotation3dOperator(
+        convention[1], beta
     )
-
-    def func(rot, exp):
-        assert_allclose(rot(ref), exp, atol=1e-15)
-
-    for rot, exp in zip((rx, ry, rz), exps):
-        yield func, rot, exp
+    assert_allclose(r(ref), r2(ref))
 
 
-def test_rotation_3d_2axis():
+@pytest.mark.parametrize('convention', ['XY', 'XZ', 'YX', 'YZ', 'ZX', 'ZY'])
+def test_extrinsic_rotation_3d_2axis(convention):
     ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     alpha = 0.1
     beta = 0.2
-
-    # intrinsic rotations
-    conventions = ("XY'", "XZ'", "YX'", "YZ'", "ZX'", "ZY'")
-
-    def func(c):
-        r = Rotation3dOperator(c, alpha, beta)
-        r2 = Rotation3dOperator(c[0], alpha) * Rotation3dOperator(c[1], beta)
-        assert_allclose(r(ref), r2(ref))
-
-    for c in conventions:
-        yield func, c
-
-    # extrinsic rotations
-    conventions = ('XY', 'XZ', 'YX', 'YZ', 'ZX', 'ZY')
-
-    def func(c):
-        r = Rotation3dOperator(c, alpha, beta)
-        r2 = Rotation3dOperator(c[1], beta) * Rotation3dOperator(c[0], alpha)
-        assert_allclose(r(ref), r2(ref))
-
-    for c in conventions:
-        yield func, c
+    r = Rotation3dOperator(convention, alpha, beta)
+    r2 = Rotation3dOperator(convention[1], beta) * Rotation3dOperator(
+        convention[0], alpha
+    )
+    assert_allclose(r(ref), r2(ref))
 
 
-def test_rotation_3d_3axis():
-    ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    alpha = 0.1
-    beta = 0.2
-    gamma = 0.3
-
-    # intrinsic rotations
-    conventions = (
+@pytest.mark.parametrize(
+    'convention',
+    [
         "XZ'X''",
         "XZ'Y''",
         "XY'X''",
@@ -225,22 +205,25 @@ def test_rotation_3d_3axis():
         "ZY'X''",
         "ZX'Z''",
         "ZX'Y''",
+    ],
+)
+def test_intrinsic_rotation_3d_3axis(convention):
+    ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    alpha = 0.1
+    beta = 0.2
+    gamma = 0.3
+    r = Rotation3dOperator(convention, alpha, beta, gamma)
+    r2 = (
+        Rotation3dOperator(convention[0], alpha)
+        * Rotation3dOperator(convention[1], beta)
+        * Rotation3dOperator(convention[3], gamma)
     )
+    assert_allclose(r(ref), r2(ref))
 
-    def func(c):
-        r = Rotation3dOperator(c, alpha, beta, gamma)
-        r2 = (
-            Rotation3dOperator(c[0], alpha)
-            * Rotation3dOperator(c[1], beta)
-            * Rotation3dOperator(c[3], gamma)
-        )
-        assert_allclose(r(ref), r2(ref))
 
-    for c in conventions:
-        yield func, c
-
-    # extrinsic rotations
-    conventions = (
+@pytest.mark.parametrize(
+    'convention',
+    [
         'XZX',
         'XZY',
         'XYX',
@@ -253,32 +236,32 @@ def test_rotation_3d_3axis():
         'ZYX',
         'ZXZ',
         'ZXY',
+    ],
+)
+def test_extrinsic_rotation_3d_3axis(convention):
+    ref = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+    alpha = 0.1
+    beta = 0.2
+    gamma = 0.3
+    r = Rotation3dOperator(convention, alpha, beta, gamma)
+    r2 = (
+        Rotation3dOperator(convention[2], gamma)
+        * Rotation3dOperator(convention[1], beta)
+        * Rotation3dOperator(convention[0], alpha)
     )
-
-    def func(c):
-        r = Rotation3dOperator(c, alpha, beta, gamma)
-        r2 = (
-            Rotation3dOperator(c[2], gamma)
-            * Rotation3dOperator(c[1], beta)
-            * Rotation3dOperator(c[0], alpha)
-        )
-        assert_allclose(r(ref), r2(ref))
-
-    for c in conventions:
-        yield func, c
+    assert_allclose(r(ref), r2(ref))
 
 
-def test_sum_operator():
-    for s in SHAPES[1:]:
-        for a in [None] + list(range(len(s))):
-            op = SumOperator(axis=a)
-            d = op.todense(shapein=s)
-            t = op.T.todense(shapeout=s)
-            assert_eq(d, t.T)
+@pytest.mark.parametrize('shape', SHAPES[1:])
+def test_sum_operator(shape):
+    for axis in [None, *range(len(shape))]:
+        op = SumOperator(axis=axis)
+        d = op.todense(shapein=shape)
+        t = op.T.todense(shapeout=shape)
+        assert_equal(d, t.T)
 
 
-@skiptest_unless_module('pyfftw')
-def test_symmetric_band_toeplitz_operator():
+def assert_symmetric_band_toeplitz(n, firstrow):
     def totoeplitz(n, firstrow):
         if isinstance(n, tuple):
             n_ = n[-1]
@@ -293,40 +276,43 @@ def test_symmetric_band_toeplitz_operator():
                     dense[i, j] = firstrow[abs(i - j)]
         return DenseOperator(dense, shapein=dense.shape[1])
 
-    def func(n, firstrow):
-        s = SymmetricBandToeplitzOperator(n, firstrow)
-        if firstrow == [1] or firstrow == [[2], [1]]:
-            assert_is_instance(s, DiagonalOperator)
-        assert_same(s.todense(), totoeplitz(n, firstrow).todense(), atol=1)
-
-    for n in [2, 3, 4, 5]:
-        for firstrow in ([1], [2, 1]):
-            yield func, n, firstrow
-    for n in ((2, _) for _ in [2, 3, 4, 5]):
-        for firstrow in ([[2], [1]], [[2, 1], [3, 2]]):
-            yield func, n, firstrow
+    s = SymmetricBandToeplitzOperator(n, firstrow)
+    if firstrow == [1] or firstrow == [[2], [1]]:
+        assert isinstance(s, DiagonalOperator)
+    assert_same(s.todense(), totoeplitz(n, firstrow).todense(), atol=1)
 
 
-def test_tridiagonal_operator():
-    values = (
-        ([1, 1, 0], [2, 1], [2, 2]),
-        ([1, 1, 2], [2, 1], None),
-        ([1j, 1, 0], [2, 1], [-1j, 2]),
-        ([1, 1j, 2], [2j, 1], None),
-    )
-    expected = (
-        [[1, 2, 0], [2, 1, 2], [0, 1, 0]],
-        [[1, 2, 0], [2, 1, 1], [0, 1, 2]],
-        [[1j, -1j, 0], [2, 1, 2], [0, 1, 0]],
-        [[1, -2j, 0], [2j, 1j, 1], [0, 1, 2]],
-    )
+@pytest.mark.skipif(
+    'pyfftw' not in sys.modules, reason='SymmetricBandToeplitzOperator requires pyfftw.'
+)
+@pytest.mark.parametrize('n', [2, 3, 4, 5])
+@pytest.mark.parametrize('firstrow', [[1], [2, 1]])
+def test_symmetric_band_toeplitz_operator(n, firstrow):
+    assert_symmetric_band_toeplitz(n, firstrow)
 
-    def func(v, e):
-        o = TridiagonalOperator(v[0], v[1], v[2])
-        assert_eq(o.todense(), e)
-        assert_eq(o.T.todense(), e.T)
-        assert_eq(o.C.todense(), e.conj())
-        assert_eq(o.H.todense(), e.T.conj())
 
-    for v, e in zip(values, expected):
-        yield func, v, np.array(e)
+@pytest.mark.skipif(
+    'pyfftw' not in sys.modules, reason='SymmetricBandToeplitzOperator requires pyfftw.'
+)
+@pytest.mark.parametrize('n', [(2, _) for _ in [2, 3, 4, 5]])
+@pytest.mark.parametrize('firstrow', [[[2], [1]], [[2, 1], [3, 2]]])
+def test_block_symmetric_band_toeplitz_operator(n, firstrow):
+    assert_symmetric_band_toeplitz(n, firstrow)
+
+
+@pytest.mark.parametrize(
+    'diagonals, expected',
+    [
+        (([1, 1, 0], [2, 1], [2, 2]), [[1, 2, 0], [2, 1, 2], [0, 1, 0]]),
+        (([1, 1, 2], [2, 1], None), [[1, 2, 0], [2, 1, 1], [0, 1, 2]]),
+        (([1j, 1, 0], [2, 1], [-1j, 2]), [[1j, -1j, 0], [2, 1, 2], [0, 1, 0]]),
+        (([1, 1j, 2], [2j, 1], None), [[1, -2j, 0], [2j, 1j, 1], [0, 1, 2]]),
+    ],
+)
+def test_tridiagonal_operator(diagonals, expected):
+    expected = np.array(expected)
+    op = TridiagonalOperator(*diagonals)
+    assert_equal(op.todense(), expected)
+    assert_equal(op.T.todense(), expected.T)
+    assert_equal(op.C.todense(), expected.conj())
+    assert_equal(op.H.todense(), expected.T.conj())

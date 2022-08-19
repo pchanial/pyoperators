@@ -752,6 +752,11 @@ def pi(dtype):
 
 @contextmanager
 def pool_threading(nthreads=None):
+    """Return a multiprocessing dummy pool.
+
+    The pool will operate in an context in which OMP_NUM_THREADS and MKL max
+    threads are set to 1.
+    """
     if nthreads is None:
         nthreads = omp_num_threads()
     try:

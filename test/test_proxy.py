@@ -1,5 +1,7 @@
+from test.common import get_associated_operator
+
 import numpy as np
-from numpy.testing import assert_equal
+import pytest
 
 from pyoperators import AdditionOperator, CompositionOperator, Operator, flags
 from pyoperators.proxy import proxy_group
@@ -50,18 +52,6 @@ def callback(i):
     return MyOperator(i + 1, shapein=3)
 
 
-def get_operator(list, attr):
-    if attr == '':
-        return list
-    elif attr == 'IC':
-        return [_.I.C for _ in list]
-    elif attr == 'IT':
-        return [_.I.T for _ in list]
-    elif attr == 'IH':
-        return [_.I.H for _ in list]
-    return [getattr(_, attr) for _ in list]
-
-
 nproxy = 5
 ref_list = [callback(i) for i in range(nproxy)]
 proxy_list = proxy_group(nproxy, callback)
@@ -72,44 +62,42 @@ def test_copy():
     assert proxy.copy().common is proxy.common
 
 
-def test():
-    def func(attr):
-        olist = get_operator(proxy_list, attr)
-        rlist = get_operator(ref_list, attr)
-        for o, r in zip(olist, rlist):
-            assert_same(o.todense(), r.todense())
-
-    for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH':
-        yield func, attr
+def get_associated_operators(list, attr):
+    return [get_associated_operator(_, attr) for _ in list]
 
 
-def test_addition():
-    def func(attr):
-        op = AdditionOperator(get_operator(proxy_list, attr))
-        ref = AdditionOperator(get_operator(ref_list, attr))
-        assert_same(op.todense(), ref.todense())
+@pytest.mark.parametrize('attr', ['', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH'])
+def test(attr):
+    olist = get_associated_operators(proxy_list, attr)
+    rlist = get_associated_operators(ref_list, attr)
+    for o, r in zip(olist, rlist):
+        assert_same(o.todense(), r.todense())
 
-    for attr in '', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH':
-        yield func, attr
+
+@pytest.mark.parametrize('attr', ['', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH'])
+def test_addition(attr):
+    op = AdditionOperator(get_associated_operators(proxy_list, attr))
+    ref = AdditionOperator(get_associated_operators(ref_list, attr))
+    assert_same(op.todense(), ref.todense())
 
 
 def test_composite():
     global counter
     counter = 0
     proxy_lists = [
-        get_operator(proxy_list, attr)
+        get_associated_operators(proxy_list, attr)
         for attr in ('', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
     ]
     ref_lists = [
-        get_operator(ref_list, attr)
+        get_associated_operators(ref_list, attr)
         for attr in ('', 'C', 'T', 'H', 'I', 'IC', 'IT', 'IH')
     ]
 
     op = AdditionOperator(CompositionOperator(_) for _ in zip(*proxy_lists))
     ref = AdditionOperator(CompositionOperator(_) for _ in zip(*ref_lists))
     assert_same(op.todense(), ref.todense())
-    assert_equal(counter, nproxy * op.shapein[0])
+    assert counter == nproxy * op.shapein[0]
 
 
 def test_getattr():
-    assert_equal(np.sum(_.i for _ in proxy_list), np.sum(_.i for _ in ref_list))
+    assert sum(_.i for _ in proxy_list) == sum(_.i for _ in ref_list)
