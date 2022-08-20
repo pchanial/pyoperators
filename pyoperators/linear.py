@@ -1627,13 +1627,13 @@ class SymmetricBandToeplitzOperator(Operator):
                 fftsize // 2 + 1, complex_dtype(dtype), aligned=True, contiguous=True
             ) as cbuffer:
                 fplan = pyfftw.FFTW(
-                    rbuffer, cbuffer, fftw_flags=[fftw_flag], threads=nthreads
+                    rbuffer, cbuffer, flags=[fftw_flag], threads=nthreads
                 )
                 bplan = pyfftw.FFTW(
                     cbuffer,
                     rbuffer,
                     direction='FFTW_BACKWARD',
-                    fftw_flags=[fftw_flag],
+                    flags=[fftw_flag],
                     threads=nthreads,
                 )
                 kernel = self._get_kernel(
