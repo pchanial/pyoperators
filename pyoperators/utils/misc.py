@@ -412,7 +412,7 @@ def first_is_not(iterable, value):
     'b'
 
     """
-    return next((_ for _ in iterable if _ is not value), value)
+    return next((_ for _ in iterable if _ != value), value)
 
 
 def ifirst(iterable, match):
