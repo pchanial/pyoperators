@@ -55,6 +55,7 @@ dev = [
     "pytest-cov",
     "pytest-mock",
     "pchanial-legacy-install-hooks",
+    "setuptools_scm",
 ]
 
 [project.urls]
