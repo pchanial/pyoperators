@@ -1,11 +1,11 @@
-from test.common import get_associated_operator
-
 import numpy as np
 import pytest
 
 from pyoperators import AdditionOperator, CompositionOperator, Operator, flags
 from pyoperators.proxy import proxy_group
 from pyoperators.utils.testing import assert_same
+
+from .common import get_associated_operator
 
 mat = np.array([[1, 1, 1j], [0, 1, 1], [0, 0, 1]])
 matI = np.linalg.inv(mat)
