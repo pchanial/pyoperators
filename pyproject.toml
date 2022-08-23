@@ -77,9 +77,6 @@ testpaths = [
     "tests",
 ]
 
-[tool.setuptools.packages.find]
-include = ["pyoperators*"]
-
 [tool.setuptools_scm]
 version_scheme = "post-release"
 fallback_version = "0.0.0"
