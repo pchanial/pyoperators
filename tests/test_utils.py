@@ -687,64 +687,77 @@ def test_strshape_error(value):
 
 def test_timer1():
     t = Timer()
+    t0 = time.time()
     with t:
         time.sleep(0.01)
         delta1 = t.elapsed
         time.sleep(0.01)
         delta2 = t.elapsed
+    overhead = time.time() - t0 - 0.02
+
     time.sleep(0.01)
     delta3 = t.elapsed
-    assert abs(delta1 - 0.01) < 0.001
-    assert abs(delta2 - 0.02) < 0.001
-    assert abs(delta3 - 0.02) < 0.001
+    assert abs(delta1 - 0.01) < overhead
+    assert abs(delta2 - 0.02) < overhead
+    assert abs(delta3 - 0.02) < overhead
+
+    t0 = time.time()
     with t:
         time.sleep(0.01)
         delta1 = t.elapsed
         time.sleep(0.01)
         delta2 = t.elapsed
+    overhead = time.time() - t0 - 0.02
+
     time.sleep(0.01)
     delta3 = t.elapsed
-    assert abs(delta1 - 0.01) < 0.001
-    assert abs(delta2 - 0.02) < 0.001
-    assert abs(delta3 - 0.02) < 0.001
+    assert abs(delta1 - 0.01) < overhead
+    assert abs(delta2 - 0.02) < overhead
+    assert abs(delta3 - 0.02) < overhead
 
 
 def test_timer2():
     t = Timer(cumulative=True)
+    t0 = time.time()
     with t:
         time.sleep(0.01)
         delta1 = t.elapsed
-        time.sleep(0.01)
-        delta2 = t.elapsed
-    time.sleep(0.01)
-    delta3 = t.elapsed
+    overhead1 = time.time() - t0 - 0.01
 
-    assert abs(delta1 - 0.01) < 0.001
-    assert abs(delta2 - 0.02) < 0.001
-    assert abs(delta3 - 0.02) < 0.001
+    time.sleep(0.01)
+    delta2 = t.elapsed
+    assert abs(delta1 - 0.01) < overhead1
+    assert abs(delta2 - 0.01) < overhead1
+
+    t0 = time.time()
     with t:
         time.sleep(0.01)
-        delta1 = t.elapsed
+        delta3 = t.elapsed
         time.sleep(0.01)
-        delta2 = t.elapsed
+        delta4 = t.elapsed
+    overhead2 = time.time() - t0 - 0.02
+
     time.sleep(0.01)
-    delta3 = t.elapsed
-    assert abs(delta1 - 0.03) < 0.001
-    assert abs(delta2 - 0.04) < 0.001
-    assert abs(delta3 - 0.04) < 0.001
+    delta5 = t.elapsed
+    assert abs(delta3 - 0.02) < overhead1 + overhead2
+    assert abs(delta4 - 0.03) < overhead1 + overhead2
+    assert abs(delta5 - 0.03) < overhead1 + overhead2
 
 
 def test_timer3():
     t = Timer()
+    t0 = time.time()
     try:
         with t:
             time.sleep(0.01)
             raise RuntimeError()
     except RuntimeError:
         pass
+    overhead = time.time() - t0 - 0.01
+
     time.sleep(0.01)
     assert t._level == 0
-    assert abs(t.elapsed - 0.01) < 0.001
+    assert abs(t.elapsed - 0.01) < overhead
 
 
 def test_zip_broadcast1():
