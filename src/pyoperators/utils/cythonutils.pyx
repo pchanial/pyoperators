@@ -1,8 +1,9 @@
 from __future__ import division
 
 import numpy as np
-cimport numpy as np
+
 cimport cython
+cimport numpy as np
 
 __all__ = []
 
