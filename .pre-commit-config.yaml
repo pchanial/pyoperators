@@ -46,4 +46,4 @@ repos:
     # E203 whitespace before ':' (black incompatibility)
     # E731 do not assign a lambda expression, use a def
     - --extend-ignore=E203,E731
-    files: ^pyoperators/
+    files: ^src/pyoperators/
