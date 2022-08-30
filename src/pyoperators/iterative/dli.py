@@ -190,7 +190,7 @@ class DoubleLoopAlgorithm(Algorithm):
         else:
             try:
                 if not np.isscalar(tau):
-                    tau = np.asscalar(tau)
+                    tau = np.asarray(tau).item()
                 self.tau = tau * np.ones(prior.shape[0])
             except (ValueError):
                 raise ValueError('Incorrect shape for tau.')

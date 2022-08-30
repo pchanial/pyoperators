@@ -38,7 +38,7 @@ requires-python = ">=3.8"
 license = {file = "LICENSE"}
 dependencies = [
     "numexpr>=2",
-    "numpy>=1.6",
+    "numpy>=1.16",
     "scipy>=0.9",
 ]
 dynamic = ["version"]
