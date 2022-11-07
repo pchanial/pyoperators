@@ -4,12 +4,19 @@ title: 5. Examples
 category: doc
 ---
 
-h2. 5.1 <a name="data_fusion"></a>Data fusion
+5.1 <a name="data_fusion"></a>Data fusion
+-----------------------------------------
 
-This example treats the case where a high resolution high noise observation and a low resolution low noise observation are available. We will see how these two observations can be combined and deconvolved. This example is not about which deconvolution method is the best, so we'll choose the simplest method: Tikhonov regularisation using the Identity matrix, which minimises the total power.
-We write the acquisition as a block column operator, whose blocks are the individual methods of observation.
+This example treats the case where a high resolution high noise
+observation and a low resolution low noise observation are available. We
+will see how these two observations can be combined and deconvolved.
+This example is not about which deconvolution method is the best, so
+we’ll choose the simplest method: Tikhonov regularisation using the
+Identity matrix, which minimises the total power.  
+We write the acquisition as a block column operator, whose blocks are
+the individual methods of observation.
 
-{% highlight python %}
+```python
 from __future__ import division
 import numpy as np
 import scipy
@@ -31,10 +38,10 @@ y  = H(x0) + n
 
 A = H.T * invN * H + 0.0005 * I
 solution = pcg(A, H.T(invN(y)))
-{% endhighlight %}
+```
 
 The script computes the bottom-right image.
 
-<img src="{{site.baseurl}}/documentation/figures/lena3_orig.png"> </img>
+<img src="figures/lena3_orig.png">
 
-<img src="{{site.baseurl}}/documentation/figures/lena3_deconvolved.png"> </img>
+<img src="figures/lena3_deconvolved.png">

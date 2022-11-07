@@ -6,3 +6,5 @@ meta_keywords: Pierre Chanial, Inverse problem, Signal Processing, High-performa
 menu: <a href="http://pchanial.github.io/pysimulators">PySimulators</a><br><a href="http://pchanial.github.io/tamasis-pacs">Tamasis/PACS</a>
 githuburl: https://github.com/pchanial/pyoperators
 version_stable: 0.13
+markdown: kramdown
+

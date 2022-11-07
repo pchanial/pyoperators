@@ -1,0 +1,20 @@
+---
+layout: default
+title: Credits
+---
+
+# Credits
+
+To cite this package, use:
+
+<div class="definition">
+2011, PyOperators: Operators and Solvers for High-Performance Computing,
+P. Chanial & N. Barbey, in&nbsp;prep.,
+http://pchanial.github.io/pyoperators
+</div>
+
+
+# Acknowledgements
+
+- The pyoperators package is the result of the merging of the packages [Tamasis/PACS](https://github.com/pchanial/tamasis-pacs) (v3) by Pierre Chanial and the package [linear\_operators](https://github.com/nbarbey/linear_operators) by Nicolas Barbey.
+- Pierre Chanial and Nicolas Barbey thank the ASTRONET consortium for funding this work through the TAMASIS and CSH projects.

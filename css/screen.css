@@ -108,10 +108,13 @@ ol > li {
   list-style-type: decimal;
 }
 
-table {
-  margin: 0 -1em;
-  border-collapse:separate;
-  border-spacing: 1em 0.25em;
+th {
+  border-bottom: solid;
+  border-width: 1px;
+}
+
+th, td {
+  padding: 0.25em;
 }
 
 img {
@@ -248,10 +251,6 @@ div#header li form input {
 div.definition {
   border-radius: 5px;
   box-shadow: 0 0 1px #333;
-  -moz-border-radius: 5px;
-  -moz-box-shadow: 0 0 1px #333;
-  -webkit-border-radius: 5px;
-  -webkit-box-shadow: 0 0 1px #333;
   display: inline-block;
   background-color:#fffbbb;
   color: #000;
@@ -267,7 +266,7 @@ div.definition p {
 }
   
 div.definition + hr {
-  margin:0;
+  margin: 0;
 }
 
 div.centered {
