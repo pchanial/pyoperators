@@ -1,7 +1,5 @@
 permalink: /:year/:title
-auto: true
-server: true
-pygments: true
+highlighter: pygments
 baseurl: /pyoperators
 package: PyOperators
 meta_keywords: Pierre Chanial, Inverse problem, Signal Processing, High-performance computing, HPC, Python, Operator, Linear Operator, Simulators, Acquisition models, Astrophysics
