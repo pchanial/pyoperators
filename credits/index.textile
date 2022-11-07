@@ -8,7 +8,7 @@ h1. Credits
 To cite this package, use:
 
 <div class="definition">
-2011, PyOperators: Operators and Solvers for High-Performance Computing, P. Chanial & N. Barbey, in&nbsp;prep., http://pchanial.github.com/pyoperators
+2011, PyOperators: Operators and Solvers for High-Performance Computing, P. Chanial & N. Barbey, in&nbsp;prep., http://pchanial.github.io/pyoperators
 </div>
 
 h1. Acknowledgements

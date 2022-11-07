@@ -5,49 +5,49 @@ layout: none
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 
    <url>
-      <loc>http://pchanial.github.com/pyoperators/</loc>
+      <loc>http://pchanial.github.io/pyoperators/</loc>
       <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>daily</changefreq>
       <priority>1</priority>
    </url>
 
    <url>
-      <loc>http://pchanial.github.com/pyoperators/download/</loc>
+      <loc>http://pchanial.github.io/pyoperators/download/</loc>
       <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.7</priority>
    </url>
 
    <url>
-      <loc>http://pchanial.github.com/pyoperators/installation/</loc>
+      <loc>http://pchanial.github.io/pyoperators/installation/</loc>
       <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.7</priority>
    </url>
 
    <url>
-      <loc>http://pchanial.github.com/pyoperators/faq/</loc>
+      <loc>http://pchanial.github.io/pyoperators/faq/</loc>
       <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.7</priority>
    </url>
 
    <url>
-      <loc>http://pchanial.github.com/pyoperators/contact/</loc>
+      <loc>http://pchanial.github.io/pyoperators/contact/</loc>
       <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.1</priority>
    </url>
 
    <url>
-      <loc>http://pchanial.github.com/pyoperators/archive</loc>
+      <loc>http://pchanial.github.io/pyoperators/archive</loc>
       <lastmod>{{ site.time | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>daily</changefreq>
       <priority>0.1</priority>
    </url>
 {% for post in site.posts %}
    <url>
-      <loc>http://pchanial.github.com/pyoperators{{ post.url }}/</loc>
+      <loc>http://pchanial.github.io/pyoperators{{ post.url }}/</loc>
       <lastmod>{{ post.date | date: '%Y-%m-%d' }}</lastmod>
       <changefreq>weekly</changefreq>
       <priority>0.8</priority>
