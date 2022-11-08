@@ -13,6 +13,7 @@ from pyoperators import (
     BlockSliceOperator,
     CompositionOperator,
     ConstantOperator,
+    DenseBlockDiagonalOperator,
     DenseOperator,
     DiagonalOperator,
     GroupOperator,
@@ -1195,24 +1196,25 @@ def test_asoperator_scalar_constant(dtype):
         (DenseOperator, [[1]]),
         (DenseOperator, [[1, 2]]),
         (DenseOperator, [[1, 2], [2, 3]]),
-        pytest.param(DenseOperator, [[[1, 2], [2, 3]]], marks=pytest.mark.xfail),
-        pytest.param(
-            DenseOperator,
+        (DenseBlockDiagonalOperator, [[[1, 2], [2, 3]]]),
+        (
+            DenseBlockDiagonalOperator,
             [[[1, 2], [2, 3]], [[4, 5], [6, 7]], [[8, 9], [10, 11]]],
-            marks=pytest.mark.xfail,
         ),
     ],
 )
-def test_asoperator_ndarray(cls, values):
-    vt = totuple(values)
-    va = np.array(values)
-    shape = va.shape
-    for v in values, vt, va:
-        o = asoperator(v)
-        assert isinstance(o, cls)
-        if len(shape) > 1:
-            shape = shape[:-2] + (shape[-1],)
-        assert o.shapein == shape
+@pytest.mark.parametrize('func', [lambda x: x, totuple, np.array])
+def test_asoperator_ndarray(cls, values, func):
+    values = func(values)
+    shape = np.array(values).shape
+    if len(shape) > 1:
+        expected_shape = shape[:-2] + (shape[-1],)
+    else:
+        expected_shape = shape
+
+    o = asoperator(values)
+    assert isinstance(o, cls)
+    assert o.shapein == expected_shape
 
 
 @pytest.mark.parametrize(
