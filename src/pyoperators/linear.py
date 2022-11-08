@@ -367,7 +367,7 @@ class DenseOperator(DenseBlockDiagonalOperator):
         )
 
     def direct(self, input, output):
-        # M, N * P, N -> P, M
+        # (M, N) @ (P, N) -> (P, M)
         if self.naxesin > 1:
             input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
         if self.naxesout > 1:
@@ -375,7 +375,7 @@ class DenseOperator(DenseBlockDiagonalOperator):
         np.dot(input, self._data.T, output)
 
     def reshapeout(self, shape):
-        # P, M -> P, N
+        # (P, M) -> (P, N)
         return shape[: -self.naxesout] + self._sn
 
 
