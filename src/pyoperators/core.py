@@ -4234,19 +4234,23 @@ class DiagonalOperator(DiagonalBase):
 
     Exemple
     -------
-    >>> A = DiagonalOperator(np.arange(1, 6, 2))
+    >>> A = DiagonalOperator([1, 3, 5])
     >>> A.todense()
     array([[1, 0, 0],
            [0, 3, 0],
            [0, 0, 5]])
 
-    >>> A = DiagonalOperator([1, 2], broadcast='rightward', shapein=(2, 2))
-    >>> A.todense()
-    array([[1, 0, 0, 0],
-           [0, 1, 0, 0],
-           [0, 0, 2, 0],
-           [0, 0, 0, 2]])
+    >>> A = DiagonalOperator([1, -1], broadcast='rightward', shapein=(2, 4))
+    >>> A([[1, 2, 3, 4], [10, 20, 30, 40]])
+    array([[  1,   2,   3,   4],
+           [-10, -20, -30, -40]])
 
+    >>> A = DiagonalOperator([1, -1], broadcast='leftward', shapein=(4, 2))
+    >>> A([[1, 10], [2, 20], [3, 30], [4, 40]])
+    array([[ 1, -10],
+           [ 2, -20],
+           [ 3, -30],
+           [ 4, -40]])
     """
 
     def __init__(self, data, broadcast=None, dtype=None, **keywords):
