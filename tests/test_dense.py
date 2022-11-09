@@ -93,23 +93,81 @@ def test_dense_rule_homothety():
     assert d.dtype == complex
 
 
-@pytest.mark.parametrize('shapein', [(2,), (3, 2)])
-@pytest.mark.parametrize('shapeout', [(3,), (2, 3)])
-@pytest.mark.parametrize('extradata', [(4,), (2, 1), (2, 4)])
-@pytest.mark.parametrize('extrainput', [(), (4,), (2, 4), (2, 1), (3, 1, 4)])
-def test_block_diagonal(shapein, shapeout, extradata, extrainput):
-    datashape = extradata + shapeout + shapein
+@pytest.mark.parametrize('sn', [(2,), (3, 2)])
+@pytest.mark.parametrize('sm', [(3,), (2, 3)])
+@pytest.mark.parametrize('sl_data', [(), (4,), (1, 4), (2, 1), (2, 4)])
+@pytest.mark.parametrize('sl_input', [(), (4,), (2, 4), (2, 1)])
+@pytest.mark.parametrize('broadcast', ['leftward', 'rightward'])
+def test_block_diagonal(sn, sm, sl_data, sl_input, broadcast):
+    if len(sl_input) > len(sl_data):
+        return
+    datashape = sl_data + sm + sn
     d = np.arange(product(datashape)).reshape(datashape)
-    b = DenseBlockDiagonalOperator(d, naxesin=len(shapein), naxesout=len(shapeout))
-    new_shape = broadcast_shapes(extradata, extrainput)
-    bdense = b.todense(shapein=new_shape + shapein)
-    d_ = reshape_broadcast(d, new_shape + shapeout + shapein)
-    d_ = d_.reshape(-1, product(shapeout), product(shapein))
+    b = DenseBlockDiagonalOperator(
+        d, naxesin=len(sn), naxesout=len(sm), broadcast=broadcast
+    )
+    sl = broadcast_shapes(sl_data, sl_input)
+    bdense = b.todense(shapein=sl + sn)
+    d_ = reshape_broadcast(d, sl + sm + sn)
+    d_ = d_.reshape(-1, product(sm), product(sn))
     expected = BlockDiagonalOperator([_ for _ in d_], axisin=0).todense(
-        shapein=product(new_shape + shapein)
+        shapein=product(sl + sn)
     )
     assert_same(bdense, expected)
-    bTdense = b.T.todense(shapein=new_shape + shapeout)
+    bTdense = b.T.todense(shapein=sl + sm)
+    assert_same(bTdense, expected.T)
+
+
+@pytest.mark.parametrize('sn', [(2,), (3, 2)])
+@pytest.mark.parametrize('sm', [(3,), (2, 3)])
+@pytest.mark.parametrize('sl_data', [(), (4,), (1, 4), (2, 1), (2, 4)])
+@pytest.mark.parametrize('sl_input', [(), (4,), (2, 4), (2, 1)])
+@pytest.mark.parametrize('sp_input', [(1,), (3,), (2, 2)])
+def test_block_diagonal_leftward(sn, sm, sl_data, sl_input, sp_input):
+    # (L, M, N) @ (P, L', N) -> (P, L'', M)
+    if len(sl_input) > len(sl_data):
+        return
+    datashape = sl_data + sm + sn
+    d = np.arange(product(datashape)).reshape(datashape)
+    b = DenseBlockDiagonalOperator(
+        d, naxesin=len(sn), naxesout=len(sm), broadcast='leftward'
+    )
+    sl = broadcast_shapes(sl_data, sl_input)
+    bdense = b.todense(shapein=sp_input + sl + sn)
+    d_ = reshape_broadcast(d, sp_input + sl + sm + sn)
+    d_ = d_.reshape(-1, product(sm), product(sn))
+    expected = BlockDiagonalOperator([_ for _ in d_], axisin=0).todense(
+        shapein=product(sp_input + sl + sn)
+    )
+    assert_same(bdense, expected)
+    bTdense = b.T.todense(shapein=sp_input + sl + sm)
+    assert_same(bTdense, expected.T)
+
+
+@pytest.mark.parametrize('sn', [(2,), (3, 2)])
+@pytest.mark.parametrize('sm', [(3,), (2, 3)])
+@pytest.mark.parametrize('sl_data', [(), (4,), (1, 4), (2, 1), (2, 4)])
+@pytest.mark.parametrize('sl_input', [(), (4,), (2, 4), (2, 1)])
+@pytest.mark.parametrize('sp_input', [(1,), (3,), (2, 2)])
+def test_block_diagonal_rightward(sn, sm, sl_data, sl_input, sp_input):
+    # (L, M, N) @ (L', N, P) -> (L'', M, P)
+    if len(sl_input) != len(sl_data):
+        return
+    datashape = sl_data + sm + sn
+    d = np.arange(product(datashape)).reshape(datashape)
+    b = DenseBlockDiagonalOperator(
+        d, naxesin=len(sn), naxesout=len(sm), broadcast='rightward'
+    )
+    sl = broadcast_shapes(sl_data, sl_input)
+    bdense = b.todense(shapein=sl + sn + sp_input)
+    d_ = reshape_broadcast(d, sl + sm + sn)
+    d_ = d_.reshape(-1, product(sm), product(sn))
+    expected = np.kron(
+        BlockDiagonalOperator(list(d_), axisin=0).todense(shapein=product(sl + sn)),
+        np.eye(product(sp_input)),
+    )
+    assert_same(bdense, expected)
+    bTdense = b.T.todense(shapein=sl + sm + sp_input)
     assert_same(bTdense, expected.T)
 
 

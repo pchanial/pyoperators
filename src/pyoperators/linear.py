@@ -100,6 +100,7 @@ class DenseBase(Operator):
         naxesin=None,
         naxesout=None,
         naxesextra=None,
+        broadcast='leftward',
         dtype=None,
         issquare=None,
         **keywords,
@@ -135,7 +136,9 @@ class DenseBase(Operator):
             naxesextra = data.ndim - naxesin - naxesout
             if naxesextra == 0 and not isinstance(self, DenseOperator):
                 self.__class__ = DenseOperator
-                self.__init__(data, naxesin=naxesin, dtype=None, **keywords)
+                self.__init__(
+                    data, naxesin=naxesin, dtype=None, broadcast=broadcast, **keywords
+                )
                 return
             if naxesextra < 0:
                 raise ValueError(
@@ -162,6 +165,7 @@ class DenseBase(Operator):
         self.naxesin = int(naxesin)
         self.naxesout = int(naxesout)
         self.naxesextra = int(naxesextra)
+        self.broadcast = broadcast
         self._sl = data.shape[:naxesextra]
         self._sm = data.shape[-naxesin - naxesout : -naxesin]
         self._sn = data.shape[-naxesin:]
@@ -196,20 +200,6 @@ class DenseBase(Operator):
     def nbytes(self):
         return self.data.nbytes
 
-    def validatein(self, shape):
-        if len(shape) < self.naxesin or shape[-self.naxesin :] != self._sn:
-            return ValueError(
-                f"The input shape '{shape}' is invalid. The last dimension(s) should "
-                f"be '{self._sn}'."
-            )
-
-    def validateout(self, shape):
-        if len(shape) < self.naxesout or shape[-self.naxesout :] != self._sm:
-            return ValueError(
-                f"The output shape '{shape}' is invalid. The last dimension(s) should "
-                f"be '{self._sm}'."
-            )
-
     @staticmethod
     def _rule_homothety(self, other):
         return type(self)(
@@ -219,16 +209,21 @@ class DenseBase(Operator):
 
 class DenseBlockDiagonalOperator(DenseBase):
     """
-    Operator with broadcastable same dimension diagonal dense blocks.
+    Block diagonal Operator with dense blocks of same dimensions.
 
-    If the array used to store the diagonal blocks has a shape (L, M, N),
-    the shape of the output of the operator applied over an input of shape:
+    The diagonal blocks of the operator can be broadcast. If the array used to store
+    the blocks has a shape (L, M, N), the shape of the output of the operator applied
+    over an input of shape:
         - (N,) will be (L, M)
+        - (1, N) will be (L, M)
         - (L, N) will be (L, M)
-        - (P, 1, N) will be (P, L, M)
-    Broadcasting the input along an axis (when 1 are prepended to the input or
-    when the input axis length is 1) stacks as columns the operator blocks
-    along this axis.
+
+    A second broadcast is performed if the input contains additional dimensions. An
+    input of shape
+        - (P, 1, N) or (P, L, N) will result in an output of shape (P, L, M) for
+    leftward broadcast (default)
+        - (1, N, P) or (L, N, P) will result in an output of shape  (L, M, P) for
+    rightward broadcast.
 
     Example
     -------
@@ -236,6 +231,9 @@ class DenseBlockDiagonalOperator(DenseBase):
     >>> np.shape(data)
     (2, 1, 3)
     >>> d = DenseBlockDiagonalOperator(data, dtype=int)
+    >>> d.todense(shapein=(2, 3))
+    array([[ 1,  1,  1,  0,  0,  0],
+           [ 0,  0,  0,  1, -1,  1]])
     >>> print(d(np.ones(3)).shape)  # the input is broadcast
     (2, 1)
     >>> print(d.todense(shapein=3))
@@ -277,26 +275,123 @@ class DenseBlockDiagonalOperator(DenseBase):
         )
 
     def direct(self, input, output):
-        # L, M, N * L', N -> L", M
-        if self.naxesin > 1:
-            input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
-        if self.naxesout > 1:
-            output = output.reshape(output.shape[: -self.naxesout] + (self._m,))
-        np.einsum('...mn,...n->...m', self._data, input, out=output)
+        if self.broadcast == 'leftward' or input.ndim <= self.naxesextra + self.naxesin:
+            # (L, M, N) @ (P, L', N) -> (P, L'', M)
+            if self.naxesin > 1:
+                input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
+            if self.naxesout > 1:
+                output_ = output.reshape(output.shape[: -self.naxesout] + (self._m,))
+            else:
+                output_ = output
+            np.einsum('...mn,...n->...m', self._data, input, out=output_)
+        elif self.broadcast == 'rightward':
+            # (L, M, N) @ (L', N, P) -> (L'', M, P)
+            if len(input.shape) > self.naxesextra + self.naxesin:
+                input = input.reshape(input.shape[: self.naxesextra] + (self._n, -1))
+            if len(output.shape) > self.naxesextra + self.naxesout:
+                output_ = output.reshape(
+                    output.shape[: self.naxesextra] + (self._m, -1)
+                )
+            else:
+                output_ = output
+            np.einsum('...mn,...np->...mp', self._data, input, out=output_)
+        else:
+            raise NotImplementedError
+
+        if not isalias(output, output_):
+            output[...] = output_.reshape(output.shape)
 
     def reshapein(self, shape):
-        # L', N -> L", M
-        return broadcast_shapes(self._sl, shape[: -self.naxesin]) + self._sm
+        # (L, M, N) @ (L', N) -> (L'', M)
+        # (L, M, N) @ (P, L', N) -> (P, L'', M) (leftward broadcast)
+        # (L, M, N) @ (L', N, P) -> (L'', M, P) (rightward broadcast)
+        if self.broadcast == 'leftward' or len(shape) <= self.naxesextra + self.naxesin:
+            shape_pl = shape[: -self.naxesin]
+            return broadcast_shapes(shape_pl, self._sl) + self._sm
+        if self.broadcast == 'rightward':
+            shape_l = shape[: self.naxesextra]
+            shape_p = shape[self.naxesextra + self.naxesin :]
+            return broadcast_shapes(shape_l, self._sl) + self._sm + shape_p
+        raise NotImplementedError
+
+    def reshapeout(self, shape):
+        if (
+            self.broadcast == 'leftward'
+            or len(shape) <= self.naxesextra + self.naxesout
+        ):
+            shape_pl = shape[: -self.naxesout]
+            return broadcast_shapes(shape_pl, self._sl) + self._sn
+        if self.broadcast == 'rightward':
+            shape_l = shape[: self.naxesextra]
+            shape_p = shape[self.naxesextra + self.naxesout :]
+            return broadcast_shapes(shape_l, self._sl) + self._sn + shape_p
+        raise NotImplementedError
 
     def validatein(self, shape):
-        # L', N
-        DenseBase.validatein(self, shape)
-        broadcast_shapes(shape[: -self.naxesin], self._sl)
+        if len(shape) < self.naxesin:
+            raise ValueError(
+                f"The input shape '{shape}' has an invalid number of dimensions. "
+                f"It should at least be of shape '{self._sn}'."
+            )
+
+        if len(shape) <= self.naxesextra + self.naxesin:
+            shape_l = shape[: -self.naxesin]
+            shape_n = shape[-self.naxesin :]
+        elif self.broadcast == 'leftward':
+            shape_l = shape[-self.naxesextra - self.naxesin : -self.naxesin]
+            shape_n = shape[-self.naxesin :]
+        elif self.broadcast == 'rightward':
+            shape_l = shape[: self.naxesextra]
+            shape_n = shape[self.naxesextra : self.naxesextra + self.naxesin]
+        else:
+            raise NotImplementedError
+
+        if shape_n != self._sn:
+            if (
+                len(shape) > self.naxesin + self.naxesextra
+                and self.broadcast == 'rightward'
+            ):
+                raise ValueError(
+                    f"The input shape '{shape}' is invalid: {shape_n} != {self._sn}."
+                )
+            raise ValueError(
+                f"The input shape '{shape}' is invalid. The last dimension(s) "
+                f"should be '{self._sn}'."
+            )
+        broadcast_shapes(shape_l, self._sl)
 
     def validateout(self, shape):
-        # L", M
-        DenseBase.validateout(self, shape)
-        broadcast_shapes(shape[: -self.naxesout], self._sl)
+        if len(shape) < self.naxesout:
+            raise ValueError(
+                f"The output shape '{shape}' has an invalid number of dimensions. "
+                f"It should at least be of shape '{self._sm}'."
+            )
+
+        if len(shape) <= self.naxesextra + self.naxesout:
+            shape_l = shape[: -self.naxesout]
+            shape_m = shape[-self.naxesout :]
+        elif self.broadcast == 'leftward':
+            shape_l = shape[-self.naxesextra - self.naxesout : -self.naxesout]
+            shape_m = shape[-self.naxesout :]
+        elif self.broadcast == 'rightward':
+            shape_l = shape[: self.naxesextra]
+            shape_m = shape[self.naxesextra : self.naxesextra + self.naxesout]
+        else:
+            raise NotImplementedError
+
+        if shape_m != self._sm:
+            if (
+                len(shape) > self.naxesextra + self.naxesout
+                and self.broadcast == 'rightward'
+            ):
+                raise ValueError(
+                    f"The input shape '{shape}' is invalid: {shape_m} != {self._sm}."
+                )
+            raise ValueError(
+                f"The output shape '{shape}' is invalid. The last dimension(s) "
+                f"should be '{self._sl + self._sm}'."
+            )
+        broadcast_shapes(shape_l, self._sl)
 
     @staticmethod
     def _rule_transpose(self):
@@ -304,7 +399,7 @@ class DenseBlockDiagonalOperator(DenseBase):
         for i in range(self.naxesin):
             data = np.rollaxis(data, -1, self.naxesextra)
         return DenseBlockDiagonalOperator(
-            data, naxesin=self.naxesout, naxesout=self.naxesin
+            data, naxesin=self.naxesout, naxesout=self.naxesin, broadcast=self.broadcast
         )
 
     @staticmethod
@@ -317,20 +412,27 @@ class DenseBlockDiagonalOperator(DenseBase):
             _data = np.einsum('...ij,...jk->...ik', self._data, other._data)
         data = _data.reshape(_data.shape[:-2] + self._sm + other._sn)
         return DenseBlockDiagonalOperator(
-            data, naxesin=other.naxesin, naxesout=self.naxesout
+            data,
+            naxesin=other.naxesin,
+            naxesout=self.naxesout,
+            broadcast=other.broadcast,
         )
 
 
 class DenseOperator(DenseBlockDiagonalOperator):
     """
-    Dense operator. The operator can be broadcast over the inputs.
+    Dense operator.
 
-    If the dense array is a matrix of shape (M, N), the application of
-    the operator over an input of shape (P, N) will result in an output
-    of shape (P, M).
+    If additional dimensions are provided in the input vectors, the matrix
+    multiplication is broadcast over these dimensions.
 
-    Example
-    -------
+    By default, the broadcast is performed leftward: if the dense array is a matrix of
+    shape (M, N), the application of the operator over an input of shape (P, N) will
+    result in an output of shape (P, M). In the case of rightward broadcast, an input
+    of shape (N, P) will result in a an array of shape (M, P).
+
+    Examples
+    --------
     >>> m = np.array([[1., 2., 3.],
     ...               [2., 3., 4.]])
     >>> d = DenseOperator(m)
@@ -341,21 +443,41 @@ class DenseOperator(DenseBlockDiagonalOperator):
     >>> m = [[np.cos(theta), -np.sin(theta)],
     ...      [np.sin(theta),  np.cos(theta)]]
     >>> input = [[1, 0], [0, 1], [-1, 0], [0, -1]]
-    >>> op = DenseOperator(m)
-    >>> print(op(input))
+    >>> op_l = DenseOperator(m)
+    >>> xs = [1, 0, -1, 0]
+    >>> ys = [0, 1, 0, -1]
+    >>> input = np.array([[x, y] for x, y in zip(xs, ys)])
+    >>> input.shape
+    (4, 2)
+    >>> print(op_l(input))
     [[ 0.70710678  0.70710678]
      [-0.70710678  0.70710678]
      [-0.70710678 -0.70710678]
      [ 0.70710678 -0.70710678]]
-    >>> print(op.T(op(input)))
+    >>> print(op_l.T(op_l(input)))
     [[ 1.  0.]
      [ 0.  1.]
      [-1.  0.]
      [ 0. -1.]]
+    >>> op_r = DenseOperator(m, broadcast='rightward')
+    >>> input = np.array([xs, ys])
+    >>> input.shape
+    (2, 4)
+    >>> print(op_r(input))
+    [[ 0.70710678 -0.70710678 -0.70710678  0.70710678]
+     [ 0.70710678  0.70710678 -0.70710678 -0.70710678]]
 
     """
 
-    def __init__(self, data, naxes=None, naxesin=None, naxesout=None, **keywords):
+    def __init__(
+        self,
+        data,
+        naxes=None,
+        naxesin=None,
+        naxesout=None,
+        broadcast='leftward',
+        **keywords,
+    ):
         DenseBlockDiagonalOperator.__init__(
             self,
             data,
@@ -363,20 +485,30 @@ class DenseOperator(DenseBlockDiagonalOperator):
             naxesin=naxesin,
             naxesout=naxesout,
             naxesextra=0,
+            broadcast=broadcast,
             **keywords,
         )
 
     def direct(self, input, output):
-        # (M, N) @ (P, N) -> (P, M)
-        if self.naxesin > 1:
-            input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
-        if self.naxesout > 1:
-            output = output.reshape(output.shape[: -self.naxesout] + (self._m,))
-        np.dot(input, self._data.T, output)
+        if self.broadcast == 'leftward' or input.ndim == self.naxesin:
+            # (M, N) @ (P, N) -> (P, M)
+            if self.naxesin > 1:
+                input = input.reshape(input.shape[: -self.naxesin] + (self._n,))
+            if self.naxesout > 1:
+                output_ = output.reshape(output.shape[: -self.naxesout] + (self._m,))
+            else:
+                output_ = output
+            np.dot(input, self._data.T, output_)
+        elif self.broadcast == 'rightward':
+            # (M, N) @ (N, P) -> (M, P)
+            input = input.reshape(self._n, -1)
+            output_ = output.reshape(self._m, -1)
+            np.dot(self._data, input, output_)
+        else:
+            raise NotImplementedError
 
-    def reshapeout(self, shape):
-        # (P, M) -> (P, N)
-        return shape[: -self.naxesout] + self._sn
+        if not isalias(output, output_):
+            output[...] = output_.reshape(output.shape)
 
 
 @linear
