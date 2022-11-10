@@ -6,6 +6,7 @@ Operator docstring for more information.
 
 import inspect
 import logging
+import re
 import sys
 import types
 from collections.abc import Callable, MutableMapping, MutableSequence, MutableSet
@@ -96,6 +97,8 @@ OPERATOR_ATTRIBUTES = [
 logger = logging.getLogger(__name__)
 if DEBUG:
     logger.setLevel(logging.DEBUG)
+
+REGEX_PARENTHESIS_NOT_REQUIRED = re.compile(r'^(([a-z\d_]*(\(.*\))?)|\[.*\])$', re.I)
 
 
 class Operator:
@@ -1494,9 +1497,9 @@ class Operator:
             return NotImplemented
         if not self.flags.linear or not other.flags.linear:
             return MultiplicationOperator([self, other])
-        # ensure that A * A is A if A is idempotent
-        if self.flags.idempotent and self is other:
-            return self
+        return CompositionOperator([self, other])
+
+    def __matmul__(self, other):
         return CompositionOperator([self, other])
 
     def __rmul__(self, other):
@@ -1543,7 +1546,7 @@ class Operator:
         return AdditionOperator([other, -self])
 
     def __neg__(self):
-        return HomothetyOperator(-1) * self
+        return HomothetyOperator(-1) @ self
 
     def __eq__(self, other):
         if self is other:
@@ -2795,40 +2798,26 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         return operands
 
     def __str__(self):
-        if len(self.operands) == 0:
-            return str(self.operands[0])
-
-        s = ''
-        for islinear, group in groupby(
-            reversed(self.operands), lambda _: _.flags.linear
-        ):
-            group = tuple(group)
-            if islinear:
-                s_group = ' * '.join(str(_) for _ in reversed(group))
-                if len(s) == 0:
-                    s = s_group
-                    continue
-                need_protection = len(group) > 1 or ' ' in s_group
-                if need_protection:
-                    s = f'({s_group})({s})'
-                else:
-                    s = s_group + f'({s})'
+        out = self._enclose_if_needed(str(self.operands[-1]))
+        for operand in reversed(self.operands[:-1]):
+            s = str(operand)
+            if '...' in s:
+                out = self._enclose_if_needed(out)
+                if '(...,' in s and out[0] == '(' and out[-1] == ')':
+                    out = out[1:-1]
+                out = s.replace('...', out)
                 continue
-            for op in group:
-                s_op = str(op)
-                if len(s) == 0:
-                    s = s_op
-                    continue
-                if '...' not in s_op:
-                    s = f'{s_op}({s})'
-                    continue
-                protected = '...,' in s_op or ', ...' in s_op
-                need_protection = ' ' in s  # XXX fail for f(..., z=1)
-                if not protected and need_protection:
-                    s = s_op.replace('...', f'({s})')
-                else:
-                    s = s_op.replace('...', s)
-        return s
+            s = self._enclose_if_needed(str(operand))
+            out = f'{s} @ {out}'
+
+        return out
+
+    @staticmethod
+    def _enclose_if_needed(op_str):
+        # op_str = str(op)
+        if not REGEX_PARENTHESIS_NOT_REQUIRED.match(op_str):
+            op_str = f'({op_str})'
+        return op_str
 
 
 class GroupOperator(CompositionOperator):
@@ -4934,7 +4923,7 @@ def asoperator1d(x):
     x = asoperator(x)
     r = ReshapeOperator(x.shape[1], x.shapein)
     s = ReshapeOperator(x.shapeout, x.shape[0])
-    return s * x * r
+    return s @ x @ r
 
 
 _pool = MemoryPool()

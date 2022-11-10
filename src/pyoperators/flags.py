@@ -16,11 +16,11 @@ class Flags(
             'real',  # o.C = o
             'symmetric',  # o.T = o
             'hermitian',  # o.H = o
-            'idempotent',  # o * o = o
-            'involutary',  # o * o = I
-            'orthogonal',  # o * o.T = I
-            'unitary',  # o * o.H = I
-            'separable',  # o*[B1...Bn] = [o*B1...o*Bn]
+            'idempotent',  # o @ o = o
+            'involutary',  # o @ o = I
+            'orthogonal',  # o @ o.T = I
+            'unitary',  # o @ o.H = I
+            'separable',  # o @ [B1...Bn] = [o @ B1 ... o @ Bn]
             'aligned_input',  # aligned input requirement
             'aligned_output',  # aligned output requirement
             'contiguous_input',  # contiguous input requirement

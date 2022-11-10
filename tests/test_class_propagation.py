@@ -74,12 +74,12 @@ def assert_direct_inplace(op, i, c):
     [
         (I, np.ones(2), np.ndarray),
         (Op2(), np.ones(2), ndarraywrap),
-        (Op2() * Op3(), np.ones(2), ndarray3),
-        (Op3() * Op2(), np.ones(2), ndarray3),
+        (Op2() @ Op3(), np.ones(2), ndarray3),
+        (Op3() @ Op2(), np.ones(2), ndarray3),
         (I, np.ones(2).view(ndarray2), ndarray2),
         (Op2(), np.ones(2).view(ndarray2), ndarray2),
-        (Op2() * Op3(), np.ones(2).view(ndarray2), ndarray3),
-        (Op3() * Op2(), np.ones(2).view(ndarray2), ndarray3),
+        (Op2() @ Op3(), np.ones(2).view(ndarray2), ndarray3),
+        (Op3() @ Op2(), np.ones(2).view(ndarray2), ndarray3),
     ],
 )
 def test_propagation_class(op, input, expected_class):
@@ -91,16 +91,16 @@ def test_propagation_class(op, input, expected_class):
     [
         (I, np.ones(2), np.ndarray),
         (Op2(), np.ones(2), np.ndarray),
-        (Op2() * Op3(), np.ones(2), np.ndarray),
-        (Op3() * Op2(), np.ones(2), np.ndarray),
+        (Op2() @ Op3(), np.ones(2), np.ndarray),
+        (Op3() @ Op2(), np.ones(2), np.ndarray),
         (I, np.ones(2).view(ndarray2), ndarray2),
         (Op2(), np.ones(2).view(ndarray2), ndarray2),
-        (Op2() * Op3(), np.ones(2).view(ndarray2), ndarray3),
-        (Op3() * Op2(), np.ones(2).view(ndarray2), ndarray3),
+        (Op2() @ Op3(), np.ones(2).view(ndarray2), ndarray3),
+        (Op3() @ Op2(), np.ones(2).view(ndarray2), ndarray3),
         (I, np.ones(2).view(ndarray3), ndarray3),
         (Op2(), np.ones(2).view(ndarray3), ndarray3),
-        (Op2() * Op3(), np.ones(2).view(ndarray3), ndarray3),
-        (Op3() * Op2(), np.ones(2).view(ndarray3), ndarray3),
+        (Op2() @ Op3(), np.ones(2).view(ndarray3), ndarray3),
+        (Op3() @ Op2(), np.ones(2).view(ndarray3), ndarray3),
     ],
 )
 def test_propagation_class_inplace(op, input, expected_class):
@@ -112,12 +112,12 @@ def test_propagation_class_inplace(op, input, expected_class):
     [
         (I, np.ones(2), np.ndarray),
         (Op2(), np.ones(2), np.ndarray),
-        (Op2() * Op3(), np.ones(2), ndarray4),
-        (Op3() * Op2(), np.ones(2), ndarray4),
+        (Op2() @ Op3(), np.ones(2), ndarray4),
+        (Op3() @ Op2(), np.ones(2), ndarray4),
         (I, np.ones(2).view(ndarray2), ndarray2),
         (Op2(), np.ones(2).view(ndarray2), ndarray2),
-        (Op2() * Op3(), np.ones(2).view(ndarray2), ndarray4),
-        (Op3() * Op2(), np.ones(2).view(ndarray2), ndarray4),
+        (Op2() @ Op3(), np.ones(2).view(ndarray2), ndarray4),
+        (Op3() @ Op2(), np.ones(2).view(ndarray2), ndarray4),
     ],
 )
 def test_propagation_classT(op, input, expected_class):
@@ -129,16 +129,16 @@ def test_propagation_classT(op, input, expected_class):
     [
         (I, np.ones(2), np.ndarray),
         (Op2(), np.ones(2), np.ndarray),
-        (Op2() * Op3(), np.ones(2), np.ndarray),
-        (Op3() * Op2(), np.ones(2), np.ndarray),
+        (Op2() @ Op3(), np.ones(2), np.ndarray),
+        (Op3() @ Op2(), np.ones(2), np.ndarray),
         (I, np.ones(2).view(ndarray2), ndarray2),
         (Op2(), np.ones(2).view(ndarray2), ndarray2),
-        (Op2() * Op3(), np.ones(2).view(ndarray2), ndarray4),
-        (Op3() * Op2(), np.ones(2).view(ndarray2), ndarray4),
+        (Op2() @ Op3(), np.ones(2).view(ndarray2), ndarray4),
+        (Op3() @ Op2(), np.ones(2).view(ndarray2), ndarray4),
         (I, np.ones(2).view(ndarray4), ndarray4),
         (Op2(), np.ones(2).view(ndarray4), ndarray4),
-        (Op2() * Op3(), np.ones(2).view(ndarray4), ndarray4),
-        (Op3() * Op2(), np.ones(2).view(ndarray4), ndarray4),
+        (Op2() @ Op3(), np.ones(2).view(ndarray4), ndarray4),
+        (Op3() @ Op2(), np.ones(2).view(ndarray4), ndarray4),
     ],
 )
 def test_propagation_classT_inplace(op, input, expected_class):
@@ -164,12 +164,12 @@ OPS2_PROPAGATION_CLASS_NESTED = [
 @pytest.mark.parametrize('op1', OPS1_PROPAGATION_CLASS_NESTED)
 @pytest.mark.parametrize('op2', OPS2_PROPAGATION_CLASS_NESTED)
 def test_propagation_class_2ops_nested(op1, op2):
-    assert type((op1 * op2)(1)) is ndarray2
-    assert type((op2 * op1)(1)) is ndarray2
+    assert type((op1 @ op2)(1)) is ndarray2
+    assert type((op2 @ op1)(1)) is ndarray2
 
 
 @pytest.mark.parametrize('op1', OPS1_PROPAGATION_CLASS_NESTED)
 @pytest.mark.parametrize('op2', OPS2_PROPAGATION_CLASS_NESTED)
 @pytest.mark.parametrize('op3', OPS1_PROPAGATION_CLASS_NESTED)
 def test_propagation_class_3ops_nested(op1, op2, op3):
-    assert type((op1 * op2 * op3)(1)) is ndarray2
+    assert type((op1 @ op2 @ op3)(1)) is ndarray2

@@ -113,7 +113,7 @@ Many simplifications are available. For instance:
 ```python
 >>> from pyoperators import Operator
 >>> C = Operator(flags='idempotent,linear')
->>> C * C is C
+>>> C @ C is C
 True
 >>> D = Operator(flags='involutary')
 >>> D(D)

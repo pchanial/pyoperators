@@ -101,7 +101,7 @@ def test_flags(op):
 
 
 def test_symmetric():
-    mat = np.matrix([[2, 1], [1, 2]])
+    mat = np.array([[2, 1], [1, 2]])
 
     @flags.square
     @flags.symmetric
@@ -122,7 +122,7 @@ def test_symmetric():
     assert op is op.C
     assert op is op.T
     assert op is op.H
-    assert_equal(op([1, 1]), np.array(mat * [[1], [1]]).ravel())
+    assert_equal(op([1, 1]), np.array(mat @ [[1], [1]]).ravel())
 
 
 @pytest.mark.parametrize('cls', OPS)
@@ -468,7 +468,7 @@ def test_shape_explicit():
     )
 
     for op, eout, ein in zip(
-        [o1 * o2, o2 * o3, o1 * o2 * o3],
+        [o1 @ o2, o2 @ o3, o1 @ o2 @ o3],
         ((13, 2), (2, 2), (13, 2)),
         ((1, 3), (4,), (4,)),
     ):
@@ -527,9 +527,9 @@ def test_shape_implicit1(op):
 @pytest.mark.parametrize(
     'op, eout, ein',
     [
-        (OpShapeImplicit(2) * OpShapeImplicit(3), (6,), (4,)),
-        (OpShapeImplicit(3) * OpShapeImplicit(4), (12,), (2,)),
-        (OpShapeImplicit(2) * OpShapeImplicit(3) * OpShapeImplicit(4), (24,), (1,)),
+        (OpShapeImplicit(2) @ OpShapeImplicit(3), (6,), (4,)),
+        (OpShapeImplicit(3) @ OpShapeImplicit(4), (12,), (2,)),
+        (OpShapeImplicit(2) @ OpShapeImplicit(3) @ OpShapeImplicit(4), (24,), (1,)),
     ],
 )
 def test_shape_implicit2(op, eout, ein):
@@ -551,7 +551,7 @@ def test_shapeout_unconstrained2(s1, s2):
         def direct(self, input, output):
             output[...] = 4
 
-    op = IdentityOperator(shapein=s1) * Op(shapein=s2)
+    op = IdentityOperator(shapein=s1) @ Op(shapein=s2)
     if s1 is not None:
         assert op.shapeout == s1
     else:
@@ -823,7 +823,7 @@ def test_iadd_imul(operation, cls1, cls2):
         op = op1 + op2
         op1 += op2
     else:
-        op = op1 * op2.T
+        op = op1 @ op2.T
         op1 *= op2.T
     assert_equal(op1, op)
 
@@ -1107,7 +1107,7 @@ def test_block_slice(ndim, nops, cls):
 
 def test_block_slice_rule_homothety():
     b = BlockSliceOperator(2 * [HomothetyOperator(3)], [slice(0, 10), slice(12, 14)])
-    hb = HomothetyOperator(2) * b
+    hb = HomothetyOperator(2) @ b
     assert isinstance(hb, BlockSliceOperator)
     for op in hb.operands:
         assert isinstance(op, HomothetyOperator)

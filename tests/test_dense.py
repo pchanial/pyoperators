@@ -84,10 +84,10 @@ def test_dense_error(shape):
 
 def test_dense_rule_homothety():
     m = np.array([[1, 2], [3, 4], [5, 6]])
-    d = HomothetyOperator(2) * DenseOperator(m)
+    d = HomothetyOperator(2) @ DenseOperator(m)
     assert type(d) is DenseOperator
     assert_same(d.data, m * 2)
-    d = HomothetyOperator(2j) * DenseOperator(m)
+    d = HomothetyOperator(2j) @ DenseOperator(m)
     assert type(d) is DenseOperator
     assert_same(d.data, m * 2j)
     assert d.dtype == complex
@@ -218,8 +218,8 @@ def test_rule_mul(shape1, shape2, mat_shape1, mat_shape2):
     data2 = np.arange(product(shape2 + mat_shape2)).reshape(shape2 + mat_shape2)
     op1 = DenseBlockDiagonalOperator(data1)
     op2 = DenseBlockDiagonalOperator(data2)
-    comp1 = op1 * op2
+    comp1 = op1 @ op2
     assert isinstance(comp1, DenseBlockDiagonalOperator)
     with rule_manager(none=True):
-        comp2 = op1 * op2
+        comp2 = op1 @ op2
     assert_same(comp1.todense(shapein), comp2.todense(shapein))

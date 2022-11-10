@@ -20,7 +20,7 @@ ops = [_() for _ in OPS] + [
 )
 @pytest.mark.parametrize('op_', ops)
 def test_rule_right(id_, op_):
-    op = id_(op_)
+    op = id_ @ op_
     assert type(op) is type(op_)
     attr = {}
     assert op.classout is id_.classout
@@ -40,7 +40,7 @@ def test_rule_right(id_, op_):
 )
 @pytest.mark.parametrize('op_', ops)
 def test_rule_left(id_, op_):
-    op = op_(id_)
+    op = op_ @ id_
     assert_is_type(op, type(op_))
     attr = {}
     assert op.classout is op_.classout

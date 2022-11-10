@@ -97,7 +97,7 @@ def test_partition4():
 
     op = Op()
     p = BlockDiagonalOperator([o1, o2, o3], axisin=0)
-    r = (op + p + op) * p
+    r = (op + p + op) @ p
     assert isinstance(r, BlockDiagonalOperator)
 
 
@@ -146,7 +146,7 @@ def test_block4():
 
     op = Op()
     p = BlockDiagonalOperator([o1, o2, o3], new_axisin=0)
-    r = (op + p + op) * p
+    r = (op + p + op) @ p
     assert isinstance(r, BlockDiagonalOperator)
 
 
@@ -162,8 +162,8 @@ def test_block_column1():
 
 
 def test_block_column2():
-    p = np.matrix([[1, 0], [0, 2], [1, 0]])
-    o = asoperator(np.matrix(p))
+    p = np.array([[1, 0], [0, 2], [1, 0]])
+    o = asoperator(p)
     e = BlockColumnOperator([o, 2 * o], axisout=0)
     assert_equal(e.todense(), np.vstack([p, 2 * p]))
     assert_equal(e.T.todense(), e.todense().T)
@@ -284,7 +284,7 @@ def test_partition_implicit_composition(pin1, pout2):
         )
         assert type(op2) is cls2
 
-        op = op1 * op2
+        op = op1 @ op2
         assert isinstance(op, cls)
 
         if not isinstance(op, BlockOperator):
@@ -293,6 +293,24 @@ def test_partition_implicit_composition(pin1, pout2):
         pin = None if isinstance(op, BlockColumnOperator) else merge_none(pin1, pout2)
         assert pout == op.partitionout
         assert pin == op.partitionin
+
+
+@pytest.mark.parametrize(
+    'cls1, cls2, cls3',
+    [
+        (BlockRowOperator, BlockDiagonalOperator, BlockRowOperator),
+        3 * (BlockDiagonalOperator,),
+        (BlockDiagonalOperator, BlockColumnOperator, BlockColumnOperator),
+        (BlockRowOperator, BlockColumnOperator, AdditionOperator),
+    ],
+)
+def test_mul(cls1, cls2, cls3):
+    op = Operator(shapein=10, flags='square')
+    op1 = cls1(3 * [op], axisin=0)
+    op2 = cls2(3 * [op], axisout=0)
+    result = op1 * op2
+    assert type(result) is cls3
+    assert type(result.operands[0]) is MultiplicationOperator
 
 
 @pytest.mark.parametrize(
@@ -308,10 +326,9 @@ def test_partition_implicit_composition(pin1, pout2):
         (BlockRowOperator, BlockColumnOperator, AdditionOperator),
     ],
 )
-def test_mul(op, cls1, cls2, cls3):
-    operation = CompositionOperator if op.flags.linear else MultiplicationOperator
+def test_matmul(op, cls1, cls2, cls3):
     op1 = cls1(3 * [op], axisin=0)
     op2 = cls2(3 * [op], axisout=0)
-    result = op1 * op2
+    result = op1 @ op2
     assert type(result) is cls3
-    assert type(result.operands[0]) is operation
+    assert type(result.operands[0]) is CompositionOperator

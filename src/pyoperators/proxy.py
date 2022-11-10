@@ -93,7 +93,7 @@ class ProxyOperator(ProxyBase):
     this operator (including the associated operators, such as conjugate,
     transpose, etc.) will not require another call to the potentially expensive
     callback function. For example, given the group of proxy operators
-    [o1, o2, o3], the sum o1.T * o1 + o2.T * o2 + o3.T * o3 only makes three
+    [o1, o2, o3], the sum o1.T @ o1 + o2.T @ o2 + o3.T @ o3 only makes three
     calls to the callback function.
 
     """

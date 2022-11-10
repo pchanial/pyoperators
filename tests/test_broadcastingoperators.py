@@ -180,7 +180,7 @@ def test_masking():
 
 def test_masking2():
     m = MaskOperator([True, False, True])
-    assert_equal(m * m, m)
+    assert m @ m == m
 
 
 def test_homothety_operator_one():
@@ -257,7 +257,7 @@ def test_homothety_rules3(opout, opin, idin):
 
     if opin is not None and idin is not None and opin != idin:
         return
-    p = Op(shapeout=opout, shapein=opin) * IdentityOperator(shapein=idin)
+    p = Op(shapeout=opout, shapein=opin) @ IdentityOperator(shapein=idin)
 
     if idin is None:
         idin = opin
@@ -303,7 +303,7 @@ def test_constant_rules1(value1, broadcast1, value2, broadcast2):
     assert_equal(v, z)
 
 
-OPERATOR_CONSTANT_RULES2 = HomothetyOperator(2, shapein=(2, 3)) * Operator(
+OPERATOR_CONSTANT_RULES2 = HomothetyOperator(2, shapein=(2, 3)) @ Operator(
     direct=np.square, shapein=(2, 3), flags='linear,square'
 )
 
@@ -361,7 +361,6 @@ def test_constant_rules2(cop, oop, expected_type, expected_data):
     assert_equal(op.data, expected_data)
 
 
-@pytest.mark.xfail(reason='reason: Unknown.')
 @pytest.mark.parametrize(
     'shapein, constant_op',
     [
@@ -384,7 +383,7 @@ def test_constant_rules3(shapein, constant_op):
 
     y_tmp = np.empty(shapein, int)
     constant_op(v, y_tmp)
-    assert_equal((op * constant_op)(v), op(y_tmp))
+    assert_equal((op @ constant_op)(v), op(y_tmp))
 
 
 @pytest.mark.parametrize(

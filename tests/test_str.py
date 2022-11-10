@@ -1,9 +1,11 @@
-import itertools
-
 import pytest
 
 from pyoperators import (
+    BlockColumnOperator,
+    BlockDiagonalOperator,
+    BlockRowOperator,
     CompositionOperator,
+    I,
     Operator,
     PowerOperator,
     ProductOperator,
@@ -31,119 +33,105 @@ class L(Operator):
     pass
 
 
-def check(group, expected):
-    actual = str(CompositionOperator(group))
-    if '**2**2' in actual:
-        pytest.xfail('**2**2')
-    assert str(CompositionOperator(group)) == expected
+n = NL1()
+l = L()
+a = NL2()
+b = NL3()
+br = BlockRowOperator([I, 2 * I], axisin=0, partitionin=(3, 3))
+bd = BlockDiagonalOperator([I, 2 * I], axisin=0, partitionin=(3, 3))
+bc = BlockColumnOperator([I, 2 * I], axisout=0, partitionout=(3, 3))
+add = l + n
+mul = l * n
 
 
-def test1():
-    n = NL1()
-    l = L()
-    groups = itertools.chain(
-        *[itertools.product([n, l], repeat=i) for i in range(1, 5)]
-    )
-    expecteds = (
-        'n|l|'
-        'n(n)|n(l)|l(n)|l * l|'
-        'n(n(n))|n(n(l))|n(l(n))|n(l * l)|'
-        'l(n(n))|l(n(l))|(l * l)(n)|l * l * l|'
-        'n(n(n(n)))|n(n(n(l)))|n(n(l(n)))|n(n(l * l))|'
-        'n(l(n(n)))|n(l(n(l)))|n((l * l)(n))|n(l * l * l)|'
-        'l(n(n(n)))|l(n(n(l)))|l(n(l(n)))|l(n(l * l))|'
-        '(l * l)(n(n))|(l * l)(n(l))|(l * l * l)(n)|l * l * l * l'
-    )
-    for group, expected in zip(groups, expecteds.split('|')):
-        check(group, expected)
+@pytest.mark.parametrize(
+    'operands, expected_str',
+    [
+        ([n], 'n'),
+        ([l], 'l'),
+        ([n, n], 'n @ n'),
+        ([n, l], 'n @ l'),
+        ([l, n], 'l @ n'),
+        ([l, l], 'l @ l'),
+        ([n, n, n], 'n @ n @ n'),
+        ([n, n, l], 'n @ n @ l'),
+        ([n, l, n], 'n @ l @ n'),
+        ([n, l, l], 'n @ l @ l'),
+        ([l, n, n], 'l @ n @ n'),
+        ([l, n, l], 'l @ n @ l'),
+        ([l, l, n], 'l @ l @ n'),
+        ([l, l, l], 'l @ l @ l'),
+    ],
+)
+def test1(operands, expected_str):
+    assert str(CompositionOperator(operands)) == expected_str
 
 
-def test2():
-    n = NL1()
-    a = NL2()
-    l = L()
-    groups = itertools.chain(
-        *[itertools.product([n, l, a], repeat=i) for i in range(1, 4)]
-    )
-    expecteds = iter(
-        (
-            'a(..., z=1)|'
-            'n(a(..., z=1))|'
-            'l(a(..., z=1))|'
-            'a(n, z=1)|'
-            'a(l, z=1)|'
-            'a(a(..., z=1), z=1)|'
-            'n(n(a(..., z=1)))|'
-            'n(l(a(..., z=1)))|'
-            'n(a(n, z=1))|'
-            'n(a(l, z=1))|'
-            'n(a(a(..., z=1), z=1))|'
-            'l(n(a(..., z=1)))|'
-            '(l * l)(a(..., z=1))|'
-            'l(a(n, z=1))|'
-            'l(a(l, z=1))|'
-            'l(a(a(..., z=1), z=1))|'
-            'a(n(n), z=1)|'
-            'a(n(l), z=1)|'
-            'a(n(a(..., z=1)), z=1)|'
-            'a(l(n), z=1)|'
-            'a(l * l, z=1)|'
-            'a(l(a(..., z=1)), z=1)|'
-            'a(a(n, z=1), z=1)|'
-            'a(a(l, z=1), z=1)|'
-            'a(a(a(..., z=1), z=1), z=1)'
-        ).split('|')
-    )
-    for group in groups:
-        if a not in group:
-            continue
-        expected = next(expecteds)
-        check(group, expected)
+@pytest.mark.parametrize(
+    'operands, expected_str',
+    [
+        ([a], 'a(..., z=1)'),
+        ([n, a], 'n @ a(..., z=1)'),
+        ([a, n], 'a(n, z=1)'),
+        ([a, a], 'a(a(..., z=1), z=1)'),
+        ([n, n, a], 'n @ n @ a(..., z=1)'),
+        ([n, a, n], 'n @ a(n, z=1)'),
+        ([n, a, a], 'n @ a(a(..., z=1), z=1)'),
+        ([a, n, n], 'a(n @ n, z=1)'),
+        ([a, n, a], 'a(n @ a(..., z=1), z=1)'),
+        ([a, a, n], 'a(a(n, z=1), z=1)'),
+        ([a, a, a], 'a(a(a(..., z=1), z=1), z=1)'),
+    ],
+)
+def test2(operands, expected_str):
+    assert str(CompositionOperator(operands)) == expected_str
 
 
-def test3():
-    n = NL1()
-    a = NL3()
-    l = L()
-    groups = itertools.chain(
-        *[itertools.product([n, l, a], repeat=i) for i in range(1, 4)]
-    )
-    expecteds = iter(
-        (
-            '...**2|'
-            'n(...**2)|'
-            'l(...**2)|'
-            'n**2|'
-            'l**2|'
-            '(...**2)**2|'
-            'n(n(...**2))|'
-            'n(l(...**2))|'
-            'n(n**2)|'
-            'n(l**2)|'
-            'n((...**2)**2)|'
-            'l(n(...**2))|'
-            '(l * l)(...**2)|'
-            'l(n**2)|'
-            'l(l**2)|'
-            'l((...**2)**2)|'
-            'n(n)**2|'
-            'n(l)**2|'
-            'n(...**2)**2|'
-            'l(n)**2|'
-            '(l * l)**2|'
-            'l(...**2)**2|'
-            '(n**2)**2|'
-            '(l**2)**2|'
-            '((...**2)**2)**2|'
-        ).split('|')
-    )
-    for group in groups:
-        if a not in group:
-            continue
-        expected = next(expecteds)
-        check(group, expected)
+@pytest.mark.parametrize(
+    'operands, expected_str',
+    [
+        ([b], '...**2'),
+        ([n, b], 'n @ (...**2)'),
+        ([b, n], 'n**2'),
+        ([b, b], '(...**2)**2'),
+        ([n, n, b], 'n @ n @ (...**2)'),
+        ([n, b, n], 'n @ n**2'),
+        ([n, b, b], 'n @ (...**2)**2'),
+        ([b, n, n], '(n @ n)**2'),
+        ([b, n, b], '(n @ (...**2))**2'),
+        ([b, b, n], '(n**2)**2'),
+        ([b, b, b], '((...**2)**2)**2'),
+    ],
+)
+def test3(operands, expected_str):
+    assert str(CompositionOperator(operands)) == expected_str
 
 
-@pytest.mark.xfail(reason='reason: Extra parenthesis.')
-def test4():
-    assert str(PowerOperator(3)(ProductOperator(axis=2))) == 'product(..., axis=2)**3'
+@pytest.mark.parametrize(
+    'operator, expected_str',
+    [
+        (PowerOperator(3) @ ProductOperator(axis=2), 'product(..., axis=2)**3'),
+        (bc, '[ [I] [2I] ]'),
+        (bd, 'I ⊕ 2I'),
+        (br, '[[ I 2I ]]'),
+        (add, 'l + n'),
+        (mul, 'l × n'),
+        (l @ bc, 'l @ [ [I] [2I] ]'),
+        (l @ bd, 'l @ (I ⊕ 2I)'),
+        (l @ br, 'l @ [[ I 2I ]]'),
+        (l @ add, 'l @ (l + n)'),
+        (l @ mul, 'l @ (l × n)'),
+        (bc @ l, '[ [I] [2I] ] @ l'),
+        (bd @ l, '(I ⊕ 2I) @ l'),
+        (br @ l, '[[ I 2I ]] @ l'),
+        (add @ l, '(l + n) @ l'),
+        (mul @ l, '(l × n) @ l'),
+        (l @ bc @ l, 'l @ [ [I] [2I] ] @ l'),
+        (l @ bd @ l, 'l @ (I ⊕ 2I) @ l'),
+        (l @ br @ l, 'l @ [[ I 2I ]] @ l'),
+        (l @ add @ l, 'l @ (l + n) @ l'),
+        (l @ mul @ l, 'l @ (l × n) @ l'),
+    ],
+)
+def test4(operator, expected_str):
+    assert str(operator) == expected_str

@@ -35,7 +35,7 @@ SOLVERS = [pcg]
 @pytest.mark.parametrize('vector', VECTORS)
 @pytest.mark.parametrize('method', METHODS)
 def test_methods_inv(operator, vector, method):
-    y = operator * vector
+    y = operator @ vector
     xe = method(operator, y, maxiter=100, tol=1e-7)
     assert_same(vector, xe)
 

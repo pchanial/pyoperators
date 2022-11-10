@@ -445,7 +445,7 @@ class _FFTWComplexForwardOperator(_FFTWComplexOperator):
         self.set_rule(
             'H',
             lambda s: HomothetyOperator(1 / product(s.shapein))
-            * _FFTWComplexBackwardOperator(s.shapein, forward=s),
+            @ _FFTWComplexBackwardOperator(s.shapein, forward=s),
         )
         self.set_rule(
             (_FFTWComplexBackwardOperator, '.'),

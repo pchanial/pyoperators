@@ -22,28 +22,28 @@ class MyOperator(Operator):
         Operator.__init__(self, dtype=np.array(mat).dtype, **keywords)
 
     def direct(self, x, out):
-        out[...] = self.i * np.dot(mat, x)
+        out[...] = self.i * (mat @ x)
 
     def conjugate(self, x, out):
-        out[...] = self.i * np.dot(mat.conjugate(), x)
+        out[...] = self.i * (mat.conjugate() @ x)
 
     def transpose(self, x, out):
-        out[...] = self.i * np.dot(x, mat)
+        out[...] = self.i * (x @ mat)
 
     def adjoint(self, x, out):
-        out[...] = self.i * np.dot(x, mat.conjugate())
+        out[...] = self.i * (x @ mat.conjugate())
 
     def inverse(self, x, out):
-        out[...] = 1 / self.i * np.dot(matI, x)
+        out[...] = 1 / self.i * (matI @ x)
 
     def inverse_conjugate(self, x, out):
-        out[...] = 1 / self.i * np.dot(matI.conjugate(), x)
+        out[...] = 1 / self.i * (matI.conjugate() @ x)
 
     def inverse_transpose(self, x, out):
-        out[...] = 1 / self.i * np.dot(x, matI)
+        out[...] = 1 / self.i * (x @ matI)
 
     def inverse_adjoint(self, x, out):
-        out[...] = 1 / self.i * np.dot(x, matI.conjugate())
+        out[...] = 1 / self.i * (x @ matI.conjugate())
 
 
 def callback(i):

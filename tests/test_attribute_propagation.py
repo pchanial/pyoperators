@@ -57,7 +57,7 @@ def test_add_attribute1(input):
 
 @pytest.mark.parametrize('input', [np.ones(5), np.ones(5).view(ndarray2)])
 def test_add_attribute2(input):
-    op = OpAddAttribute2() * OpAddAttribute()
+    op = OpAddAttribute2() @ OpAddAttribute()
     assert not op(input).newattr_direct
     assert_equal(op.attrout, {'newattr_direct': False})
     assert_equal(op.attrin, {'newattr_transpose': True})
@@ -66,7 +66,7 @@ def test_add_attribute2(input):
 
 @pytest.mark.parametrize('input', [np.ones(5), np.ones(5).view(ndarray2)])
 def test_add_attribute3(input):
-    op = OpAddAttribute3() * OpAddAttribute()
+    op = OpAddAttribute3() @ OpAddAttribute()
     assert op(input).newattr_direct
     assert op(input).newattr3_direct
     assert_equal(op.attrout, {'newattr_direct': True, 'newattr3_direct': True})
@@ -86,7 +86,7 @@ def test_add_attribute4(input):
 
 @pytest.mark.parametrize('input', [np.ones(5), np.ones(5).view(ndarray2)])
 def test_add_attribute5(input):
-    op = OpAddAttribute2() * OpAddAttribute()
+    op = OpAddAttribute2() @ OpAddAttribute()
     i = input.copy()
     assert not op(i, i).newattr_direct
     i = input.copy()
@@ -95,7 +95,7 @@ def test_add_attribute5(input):
 
 @pytest.mark.parametrize('input', [np.ones(5), np.ones(5).view(ndarray2)])
 def test_add_attribute6(input):
-    op = OpAddAttribute3() * OpAddAttribute()
+    op = OpAddAttribute3() @ OpAddAttribute()
     i = input.copy()
     o = op(i, i)
     assert o.newattr_direct
@@ -229,7 +229,7 @@ def test_propagation_attribute2():
         'attr_class1': 1,
     }
 
-    op = Op().T * Op()  # -> ndarray2 -> ndarray1
+    op = Op().T @ Op()  # -> ndarray2 -> ndarray1
     input = ndarray1(1)
     input.attr_class = 30
     input.attr_class1 = 31
@@ -256,7 +256,7 @@ def test_propagation_attribute2():
         'attr_class1': 1,
     }
 
-    op = Op() * Op().T  # -> ndarray1 -> ndarray2
+    op = Op() @ Op().T  # -> ndarray1 -> ndarray2
     input = ndarray1(1)
     input.attr_class = 30
     input.attr_class1 = 31

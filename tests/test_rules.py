@@ -257,14 +257,14 @@ def assert_merge_identity(op, op1, op2, op_ref):
 @pytest.mark.parametrize('op1', TEST_RULE_OPS)
 @pytest.mark.parametrize('op2', IDS_RIGHTS)
 def test_merge_identity_right(op1, op2):
-    op = op1 * op2
+    op = op1 @ op2
     assert_merge_identity(op, op1, op2, op1)
 
 
 @pytest.mark.parametrize('op1', TEST_RULE_OPS)
 @pytest.mark.parametrize('op2', IDS_LEFTS)
 def test_merge_identity_left(op1, op2):
-    op = op2 * op1
+    op = op2 @ op1
     assert_merge_identity(op, op2, op1, op1)
 
 

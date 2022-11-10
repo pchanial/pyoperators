@@ -84,13 +84,13 @@ def test_diagonal_numexpr(broadcast, values):
 def test_diagonal_numexpr2():
     d1 = DiagonalNumexprOperator([1, 2, 3], '(data + 1) * 3', broadcast='rightward')
     d2 = DiagonalNumexprOperator([3, 2, 1], '(data + 2) * 2')
-    d = d1 * d2
+    d = d1 @ d2
     assert isinstance(d, DiagonalOperator)
     assert d.broadcast == 'disabled'
     assert_equal(d.data, [60, 72, 72])
     c = BlockColumnOperator(3 * [IdentityOutplace()], new_axisout=0)
     v = [1, 2]
-    assert_inplace_outplace(d1 * c, v, d1(c(v)))
+    assert_inplace_outplace(d1 @ c, v, d1(c(v)))
 
 
 @pytest.mark.parametrize('shape', [(3,), (3, 4), (3, 4, 5), (3, 4, 5, 6)])
@@ -172,7 +172,7 @@ def test_intrinsic_rotation_3d_2axis(convention):
     alpha = 0.1
     beta = 0.2
     r = Rotation3dOperator(convention, alpha, beta)
-    r2 = Rotation3dOperator(convention[0], alpha) * Rotation3dOperator(
+    r2 = Rotation3dOperator(convention[0], alpha) @ Rotation3dOperator(
         convention[1], beta
     )
     assert_allclose(r(ref), r2(ref))
@@ -184,7 +184,7 @@ def test_extrinsic_rotation_3d_2axis(convention):
     alpha = 0.1
     beta = 0.2
     r = Rotation3dOperator(convention, alpha, beta)
-    r2 = Rotation3dOperator(convention[1], beta) * Rotation3dOperator(
+    r2 = Rotation3dOperator(convention[1], beta) @ Rotation3dOperator(
         convention[0], alpha
     )
     assert_allclose(r(ref), r2(ref))
@@ -215,8 +215,8 @@ def test_intrinsic_rotation_3d_3axis(convention):
     r = Rotation3dOperator(convention, alpha, beta, gamma)
     r2 = (
         Rotation3dOperator(convention[0], alpha)
-        * Rotation3dOperator(convention[1], beta)
-        * Rotation3dOperator(convention[3], gamma)
+        @ Rotation3dOperator(convention[1], beta)
+        @ Rotation3dOperator(convention[3], gamma)
     )
     assert_allclose(r(ref), r2(ref))
 
@@ -246,8 +246,8 @@ def test_extrinsic_rotation_3d_3axis(convention):
     r = Rotation3dOperator(convention, alpha, beta, gamma)
     r2 = (
         Rotation3dOperator(convention[2], gamma)
-        * Rotation3dOperator(convention[1], beta)
-        * Rotation3dOperator(convention[0], alpha)
+        @ Rotation3dOperator(convention[1], beta)
+        @ Rotation3dOperator(convention[0], alpha)
     )
     assert_allclose(r(ref), r2(ref))
 

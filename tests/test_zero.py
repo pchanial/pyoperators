@@ -51,7 +51,7 @@ def test_zero2():
 def test_zero3():
     z = ZeroOperator(shapein=3, shapeout=6)
     o = Operator(flags='square')
-    zo = z * o
+    zo = z @ o
     assert isinstance(zo, ZeroOperator)
     assert zo.shapein == z.shapein, 'in'
     assert zo.shapeout == z.shapeout, 'out'
@@ -60,15 +60,15 @@ def test_zero3():
 def test_zero4():
     z = ZeroOperator()
     o = Operator(flags='linear')
-    assert isinstance(z * o, ZeroOperator)
-    assert isinstance(o * z, ZeroOperator)
+    assert isinstance(z @ o, ZeroOperator)
+    assert isinstance(o @ z, ZeroOperator)
 
 
 def test_zero5():
     z = ZeroOperator()
     o = Operator(shapein=3, shapeout=6, flags='linear')
-    zo = z * o
-    oz = o * z
+    zo = z @ o
+    oz = o @ z
     assert isinstance(zo, ZeroOperator), 'zo'
     assert zo.shapein == o.shapein, 'zo in'
     assert zo.shapeout is None, 'zo out'
@@ -96,19 +96,19 @@ def test_zero6():
     z = ZeroOperator(flags='square')
     o = Op()
     od = o.todense(shapein=4)
-    zo = z * o
+    zo = z @ o
     zod_ref = np.dot(np.zeros((8, 8)), od)
-    assert_equal((z * o).todense(shapein=4), zod_ref)
-    oz = o * z
+    assert_equal((z @ o).todense(shapein=4), zod_ref)
+    oz = o @ z
     ozd_ref = np.dot(od, np.zeros((4, 4)))
-    assert_equal((o * z).todense(shapein=4), ozd_ref)
+    assert_equal((o @ z).todense(shapein=4), ozd_ref)
     assert_equal(zo.T.todense(shapein=8), zod_ref.T)
     assert_equal(oz.T.todense(shapein=8), ozd_ref.T)
 
 
 def test_zero7():
     z = ZeroOperator()
-    assert z * z == z
+    assert z @ z == z
 
 
 def test_zero8():

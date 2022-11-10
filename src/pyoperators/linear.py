@@ -600,7 +600,7 @@ class SparseOperator(SparseBase):
         self.set_rule('T', lambda s: SparseOperator(s.matrix.transpose()))
         self.set_rule(
             ('.', HomothetyOperator),
-            lambda s, o: SparseOperator(o * s.matrix),
+            lambda s, o: SparseOperator(o.data * s.matrix),
             CompositionOperator,
         )
 

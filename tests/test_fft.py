@@ -122,7 +122,7 @@ def test_convolution_rules_cmp(
 
     c1 = ConvolutionOperator(kernel1, image.shape)
     c2 = ConvolutionOperator(kernel2, image.shape)
-    c = c1 * c2
+    c = c1 @ c2
     if kernel1.dtype.kind == 'f' and kernel2.dtype.kind == 'f':
         assert isinstance(c, _FFTWRealConvolutionOperator)
     else:
@@ -158,5 +158,5 @@ def test_convolution_rules_homothety(setup_convolution_rules_homothety, op_attr,
     h, c, ref = setup_convolution_rules_homothety
     c = get_associated_operator(c, op_attr)
     ref = get_associated_operator(ref, op_attr)
-    op = CompositionOperator([c, h] if swap else [h, c])
+    op = c @ h if swap else h @ c
     assert_same(op.todense(), ref, atol=5)

@@ -10,19 +10,25 @@ from pyoperators.core import _pool as pool
 from .common import OPS, CanUpdateOutput
 
 SHAPES = (None, (), (1,), (3,), (2, 3))
+COMPOSITION_FUNCS = [
+    lambda a, b: CompositionOperator([a, b]),
+    lambda a, b: a(b),
+    lambda a, b: a @ b,
+]
 
 
 @pytest.mark.parametrize('shapein', SHAPES)
 @pytest.mark.parametrize('shapemid', SHAPES)
 @pytest.mark.parametrize('shapeout', SHAPES)
-def test_composition1(shapein, shapemid, shapeout):
+@pytest.mark.parametrize('compose', COMPOSITION_FUNCS)
+def test_composition1(shapein, shapemid, shapeout, compose):
     if shapemid is None and shapein is not None:
         return
     if shapeout is None and shapemid is not None:
         return
     op1 = Operator(shapein=shapein, shapeout=shapemid)
     op2 = Operator(shapein=shapemid, shapeout=shapeout)
-    op = op2(op1)
+    op = compose(op2, op1)
     assert_equal(op.shapein, shapein)
     assert_equal(op.shapeout, shapeout)
     if shapein is not None and shapein == shapeout:
@@ -36,15 +42,14 @@ class OpReshapein(Operator):
 
 @pytest.mark.parametrize('shape', SHAPES)
 def test_composition2(shape):
-    op = OpReshapein()(Operator(shapeout=shape))
+    op = OpReshapein() @ Operator(shapeout=shape)
     assert op.shapein is None
     assert op.shapeout == (2 * shape if shape is not None else None)
     assert not op.flags.square
 
 
 def test_composition3():
-
-    op = OpReshapein()(OpReshapein())
+    op = OpReshapein() @ OpReshapein()
     assert op.shapein is None
     assert op.shapeout is None
     assert not op.flags.square
@@ -63,13 +68,13 @@ def test_composition4():
             np.multiply(input, self.v, output)
 
     pool.clear()
-    op = np.product([Op(v) for v in [1]])
+    op = Op(1)
     assert op.__class__ is Op
     op(1)
     assert_equal(len(pool), 0)
 
     pool.clear()
-    op = np.product([Op(v) for v in [1, 2]])
+    op = Op(1) @ Op(2)
     assert op.__class__ is CompositionOperator
     assert_equal(op(1), 2)
     assert_equal(len(pool), 0)
@@ -78,7 +83,7 @@ def test_composition4():
     assert_equal(op([1]), 2)
     assert_equal(len(pool), 0)
 
-    op = np.product([Op(v) for v in [1, 2, 4]])
+    op = Op(1) @ Op(2) @ Op(4)
     assert op.__class__ is CompositionOperator
 
     pool.clear()
@@ -143,9 +148,9 @@ def test_composition_shapes(cls1, cls2):
     n1 = cls1.__name__
     n2 = cls2.__name__
     if n1[4:] == 'Expl' and n2[:4] == 'Expl':
-        op = cls1() * cls2(shapeout=3)
+        op = cls1() @ cls2(shapeout=3)
     else:
-        op = cls1() * cls2()
+        op = cls1() @ cls2()
 
     shape_output = op.flags.shape_output
     if n1[:4] == 'Unco':
