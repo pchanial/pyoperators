@@ -29,16 +29,16 @@ jobs:
 
   build_wheels:
     name: Build wheels (${{ matrix.python.version }}) on ${{ matrix.platform.os }}/${{ matrix.platform.arch }}
-    runs-on: ${{ matrix.platform.os }}
+    runs-on: ${{ matrix.platform.os }}-latest
     strategy:
       fail-fast: false
       matrix:
         platform:
-          - os: ubuntu-20.04
+          - os: Ubuntu
             arch: x86_64
-          - os: macos-11
+          - os: macOS
             arch: x86_64
-          - os: macos-11
+          - os: macOS
             arch: arm64
         python:
           - version: "3.8"
