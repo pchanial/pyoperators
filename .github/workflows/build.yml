@@ -47,6 +47,8 @@ jobs:
             cp: cp39
           - version: "3.10"
             cp: cp310
+          - version: "3.11"
+            cp: cp311
     steps:
       - uses: actions/checkout@v3
         with:
@@ -64,7 +66,14 @@ jobs:
           CIBW_BEFORE_TEST_LINUX: |
             yum install -y openmpi-devel
             MPICC=/lib64/openmpi/bin/mpicc pip install mpi4py
-          CIBW_BEFORE_TEST_MACOS: brew install openmpi
+            if [ ${{ matrix.python.version }} = 3.11 ]; then
+              yum install fftw-devel
+            fi
+          CIBW_BEFORE_TEST_MACOS: |
+            brew install openmpi
+            if [ ${{ matrix.python.version }} = 3.11 ]; then
+              brew install fftw
+            fi
           CIBW_TEST_EXTRAS: dev
           CIBW_TEST_COMMAND: pytest {package}/tests
 
