@@ -115,8 +115,8 @@ def test_partition4():
 def test_block1(axis, shape):
     ops = [HomothetyOperator(i, shapein=(2, 2)) for i in range(1, 4)]
     op = BlockDiagonalOperator(ops, new_axisin=axis)
-    assert_equal(op.shapein, shape)
-    assert_equal(op.shapeout, shape)
+    assert op.shapein == shape
+    assert op.shapeout == shape
 
 
 @pytest.mark.parametrize('axisp', [0, 1, 2, 3, -1, -2, -3])

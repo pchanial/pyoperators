@@ -117,8 +117,8 @@ def test_symmetric():
     assert op.flags.square
     assert op.flags.real
     assert op.flags.symmetric
-    assert_equal(op.shape, (2, 2))
-    assert_equal(op.shapeout, (2,))
+    assert op.shape == (2, 2)
+    assert op.shapeout == (2,)
     assert op is op.C
     assert op is op.T
     assert op is op.H
@@ -131,8 +131,8 @@ def test_shape_input_and_output(cls):
     flags = op.flags
     name = type(op).__name__
     kind = {'Expl': 'explicit', 'Impl': 'implicit', 'Unco': 'unconstrained'}
-    assert_equal(flags.shape_output, kind[name[:4]])
-    assert_equal(flags.shape_input, kind[name[4:]])
+    assert flags.shape_output == kind[name[:4]]
+    assert flags.shape_input == kind[name[4:]]
 
 
 @pytest.mark.parametrize('cls', [OperatorNIR1, OperatorNIR2])
@@ -472,8 +472,8 @@ def test_shape_explicit():
         ((13, 2), (2, 2), (13, 2)),
         ((1, 3), (4,), (4,)),
     ):
-        assert_equal(op.shapeout, eout)
-        assert_equal(op.shapein, ein)
+        assert op.shapeout == eout
+        assert op.shapein == ein
 
     with pytest.raises(ValueError):
         CompositionOperator([o2, o1])
@@ -487,8 +487,8 @@ def test_shape_explicit():
 
     o1 = Operator(shapein=(13, 2), flags='square')
     for op in [o1 + I, I + o1, o1 + o4, o1 + I + o5 + o4, I + o5 + o1]:
-        assert_equal(op.shapeout, o1.shapeout)
-        assert_equal(op.shapein, o1.shapein)
+        assert op.shapeout == o1.shapeout
+        assert op.shapein == o1.shapein
 
     with pytest.raises(ValueError):
         AdditionOperator([o2, o1])
@@ -533,8 +533,8 @@ def test_shape_implicit1(op):
     ],
 )
 def test_shape_implicit2(op, eout, ein):
-    assert_equal(op.reshapein((1,)), eout)
-    assert_equal(op.reshapeout((24,)), ein)
+    assert op.reshapein((1,)) == eout
+    assert op.reshapeout((24,)) == ein
 
 
 @pytest.mark.parametrize('shape', SHAPES)
@@ -648,7 +648,7 @@ class OpShapeinUnconstrained4(Operator):
 def test_shapein_unconstrained3(cls, shapeout):
     op = cls(shapeout=shapeout)
     assert_square(op)
-    assert_equal(op.shapein, shapeout)
+    assert op.shapein == shapeout
 
 
 # ================
@@ -715,8 +715,8 @@ def test_dtype1(dop, di):
     except TypeError:
         i = np.array(input.real, di)
     o = Op(dop)(i)
-    assert_equal(o.dtype, (i * np.array(value, dop)).dtype, str((dop, di)))
-    assert_equal(o, i * np.array(value, dop), str((dop, di)))
+    assert o.dtype == (i * np.array(value, dop)).dtype
+    assert_equal(o, i * np.array(value, dop))
 
 
 @pytest.mark.parametrize('di', DTYPES)
@@ -735,8 +735,8 @@ def test_dtype2(di):
     except TypeError:
         i = np.array(input.real, di)
     o = op(i)
-    assert_equal(o.dtype, (i * i).dtype, str(di))
-    assert_equal(o, i * i, str(di))
+    assert o.dtype == (i * i).dtype
+    assert_equal(o, i * i)
 
 
 # ===================
@@ -805,7 +805,7 @@ def test_merge_name(op, h):
 
 @pytest.mark.parametrize('cls', OPS)
 def test_eq(cls):
-    assert_equal(cls(), cls())
+    assert cls() == cls()
 
 
 # ================
@@ -825,7 +825,7 @@ def test_iadd_imul(operation, cls1, cls2):
     else:
         op = op1 @ op2.T
         op1 *= op2.T
-    assert_equal(op1, op)
+    assert op1 == op
 
 
 # ====================
@@ -855,7 +855,7 @@ class OpAssociativity4(Operator):
 def test_associativity_composite_and_operator(operation):
     def func():
         assert isinstance(op, operation)
-        assert_equal(len(op.operands), 3)
+        assert len(op.operands) == 3
         if all(
             isinstance(o, c)
             for o, c in zip(
@@ -901,7 +901,7 @@ def test_associativity3():
     for o1, o2 in [(OpAssociativity1(), a), (a, OpAssociativity1()), (a, b)]:
         op = o1(o2)
         assert isinstance(op, CompositionOperator)
-        assert_equal(len(op.operands), 2)
+        assert len(op.operands) == 2
         assert op.operands[0] is o1
         assert op.operands[1] is o2
 
@@ -970,11 +970,11 @@ def test_addition():
     assert op.__class__ is Op
 
     op = np.sum([Op(v) for v in [1, 2]])
-    assert_equal(op.__class__, AdditionOperator)
+    assert op.__class__ is AdditionOperator
 
     pool.clear()
     assert_equal(op(1), 3)
-    assert_equal(len(pool), 1)
+    assert len(pool) == 1
 
     op = np.sum([Op(v) for v in [1, 2, 4]])
     assert op.__class__ is AdditionOperator
@@ -985,14 +985,14 @@ def test_addition():
     assert_equal(op(input, output), 7)
     assert_equal(input, 1)
     assert_equal(output, 7)
-    assert_equal(len(pool), 1)
+    assert len(pool) == 1
 
     pool.clear()
     output = input
     assert_equal(op(input, output), 7)
     assert_equal(input, 7)
     assert_equal(output, 7)
-    assert_equal(len(pool), 2)
+    assert len(pool) == 2
 
 
 @pytest.mark.parametrize(
@@ -1018,9 +1018,9 @@ def test_multiplication():
     assert op.__class__ is Op
 
     op = MultiplicationOperator([Op(v) for v in [1, 2]])
-    assert_equal(op.__class__, MultiplicationOperator)
+    assert op.__class__ is MultiplicationOperator
     assert_equal(op(1), 2)
-    assert_equal(len(pool), 1)
+    assert len(pool) == 1
 
     op = MultiplicationOperator([Op(v) for v in [1, 2, 4]])
     assert op.__class__ is MultiplicationOperator
@@ -1030,13 +1030,13 @@ def test_multiplication():
     assert_equal(op(input, output), 8)
     assert_equal(input, 1)
     assert_equal(output, 8)
-    assert_equal(len(pool), 1)
+    assert len(pool) == 1
 
     output = input
     assert_equal(op(input, output), 8)
     assert_equal(input, 8)
     assert_equal(output, 8)
-    assert_equal(len(pool), 2)
+    assert len(pool) == 2
 
 
 @pytest.mark.parametrize('flag', ['real', 'square', 'separable'])

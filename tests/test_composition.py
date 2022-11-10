@@ -29,8 +29,8 @@ def test_composition1(shapein, shapemid, shapeout, compose):
     op1 = Operator(shapein=shapein, shapeout=shapemid)
     op2 = Operator(shapein=shapemid, shapeout=shapeout)
     op = compose(op2, op1)
-    assert_equal(op.shapein, shapein)
-    assert_equal(op.shapeout, shapeout)
+    assert op.shapein == shapein
+    assert op.shapeout == shapeout
     if shapein is not None and shapein == shapeout:
         assert op.flags.square
 
@@ -71,17 +71,17 @@ def test_composition4():
     op = Op(1)
     assert op.__class__ is Op
     op(1)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
     pool.clear()
     op = Op(1) @ Op(2)
     assert op.__class__ is CompositionOperator
     assert_equal(op(1), 2)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
     pool.clear()
     assert_equal(op([1]), 2)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
     op = Op(1) @ Op(2) @ Op(4)
     assert op.__class__ is CompositionOperator
@@ -92,13 +92,13 @@ def test_composition4():
     assert_equal(op(input, output), 8)
     assert_equal(input, 1)
     assert_equal(output, 8)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
     pool.clear()
     output = input
     assert_equal(op(input, output), 8)
     assert_equal(input, 8)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
     pool.clear()
     input = np.array([1], int)
@@ -106,14 +106,14 @@ def test_composition4():
     assert_equal(op(input, output), 8)
     assert_equal(input, 1)
     assert_equal(output, 8)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
     pool.clear()
     output = input
     assert_equal(op(input, output), 8)
     assert_equal(input, 8)
     assert_equal(output, 8)
-    assert_equal(len(pool), 0)
+    assert len(pool) == 0
 
 
 @pytest.mark.parametrize('flag', ['linear', 'real', 'square', 'separable'])

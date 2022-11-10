@@ -794,10 +794,10 @@ def test_zip_broadcast1():
         hh.append(h_)
     assert aa == 3 * a
     assert bb == list(3 * b)
-    assert_equal(cc, [[0, 1, 2], [0, 1, 2], [0, 1, 2]])
-    assert dd == list(_ for _ in d)
-    assert ee == list(_ for _ in e)
-    assert_equal(ff, list(_ for _ in f))
+    assert_equal(cc, 3 * [c[0]])
+    assert dd == list(d)
+    assert ee == list(e)
+    assert_equal(ff, list(f))
     assert gg == [0, 1, 2]
     assert hh == [3, 3, 3]
 
@@ -815,7 +815,7 @@ def test_zip_broadcast2():
         cc.append(c_)
     assert aa == a
     assert tuple(bb) == b
-    assert_equal(cc, c)
+    assert_equal(cc, list(c))
 
 
 def test_zip_broadcast3():

@@ -1,6 +1,5 @@
 import numpy as np
 import pytest
-from numpy.testing import assert_equal
 
 from pyoperators import Operator, flags
 
@@ -59,8 +58,8 @@ def test_add_attribute1(input):
 def test_add_attribute2(input):
     op = OpAddAttribute2() @ OpAddAttribute()
     assert not op(input).newattr_direct
-    assert_equal(op.attrout, {'newattr_direct': False})
-    assert_equal(op.attrin, {'newattr_transpose': True})
+    assert op.attrout == {'newattr_direct': False}
+    assert op.attrin == {'newattr_transpose': True}
     assert op.T(input).newattr_transpose
 
 
@@ -69,8 +68,8 @@ def test_add_attribute3(input):
     op = OpAddAttribute3() @ OpAddAttribute()
     assert op(input).newattr_direct
     assert op(input).newattr3_direct
-    assert_equal(op.attrout, {'newattr_direct': True, 'newattr3_direct': True})
-    assert_equal(op.attrin, {'newattr_transpose': True, 'newattr3_transpose': True})
+    assert op.attrout == {'newattr_direct': True, 'newattr3_direct': True}
+    assert op.attrin == {'newattr_transpose': True, 'newattr3_transpose': True}
     assert op.T(input).newattr_transpose
     assert op.T(input).newattr3_transpose
 

@@ -1,5 +1,4 @@
 import pytest
-from numpy.testing import assert_equal
 
 from pyoperators import IdentityOperator
 from pyoperators.utils.testing import assert_is_type
@@ -26,9 +25,9 @@ def test_rule_right(id_, op_):
     assert op.classout is id_.classout
     attr.update(op_.attrout)
     attr.update(id_.attrout)
-    assert_equal(op.attrout, attr)
-    assert_equal(op.flags.linear, op_.flags.linear)
-    assert_equal(op.flags.contiguous_input, op_.flags.contiguous_input)
+    assert op.attrout == attr
+    assert op.flags.linear == op_.flags.linear
+    assert op.flags.contiguous_input == op_.flags.contiguous_input
 
 
 @pytest.mark.parametrize(
