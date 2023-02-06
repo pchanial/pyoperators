@@ -456,7 +456,6 @@ def test_shape_is_inttuple(shape):
 
 
 def test_shape_explicit():
-
     o1, o2, o3 = (
         Operator(shapeout=(13, 2), shapein=(2, 2), flags='linear'),
         Operator(shapeout=(2, 2), shapein=(1, 3), flags='linear'),
@@ -879,7 +878,6 @@ def test_associativity_composite_and_operator(operation):
     'operation', [AdditionOperator, MultiplicationOperator, CompositionOperator]
 )
 def test_associativity_composite_and_composite(operation):
-
     op = operation(
         [
             operation([OpAssociativity1(), OpAssociativity2()]),
@@ -1132,7 +1130,6 @@ def test_copy():
 @pytest.mark.parametrize('func', [np.add, np.multiply, np.min, np.max, np.sum, np.prod])
 @pytest.mark.parametrize('shape', SHAPES[2:])
 def test_reduction_operator(func, shape):
-
     for a in [None] + list(range(len(shape))):
         op = ReductionOperator(func, axis=a)
         v = np.arange(product(shape)).reshape(shape)

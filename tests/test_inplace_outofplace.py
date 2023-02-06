@@ -246,7 +246,6 @@ EXPECTED_OUTPLACE_CANNOT_USE_OUTPUT = [
 def test_inplace_cannot_use_output_check_outplace(
     always_reuse_buffer, op_kinds, expected
 ):
-
     nops = len(op_kinds)
     pool._buffers = [C, D]
     log = []
@@ -303,7 +302,6 @@ EXPECTED_INPLACE_CANNOT_USE_OUTPUT = [
 def test_inplace_cannot_use_output_check_inplace(
     always_reuse_buffer, op_kinds, expected
 ):
-
     nops = len(op_kinds)
     pool._buffers = [B, C]
     log = []

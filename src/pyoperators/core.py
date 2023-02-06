@@ -430,7 +430,6 @@ class Operator:
     def __call__(
         self, x, out=None, operation=operation_assignment, preserve_input=True
     ):
-
         if isinstance(x, Callable):
             if self.flags.idempotent and self is x:
                 return self
@@ -1016,7 +1015,6 @@ class Operator:
         self.dtype = dtype
 
     def _init_flags(self, flags):
-
         self._set_flags(flags)
 
         # A non-complex dtype sets the real flag to true.
@@ -2329,7 +2327,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
     def direct(
         self, input, output, operation=operation_assignment, preserve_input=True
     ):
-
         preserve_input &= not isalias(input, output)
         preserve_output = operation is not operation_assignment
 
@@ -2350,9 +2347,7 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         for igroup, (ninplace, bufsize, aligned, contiguous) in renumerate(
             zip(ninplaces, bufsizes, aligneds, contiguouss)
         ):
-
             if igroup != ngroups - 1:
-
                 # get output for the current outplace operator if possible
                 reuse_output = (
                     not preserve_output
@@ -2617,7 +2612,6 @@ class CompositionOperator(NonCommutativeCompositeOperator):
 
         # loop over operators
         while iop >= 0:
-
             # loop over in-place operators
             while iop >= 0:
                 op = self.operands[iop]
@@ -2914,7 +2908,6 @@ class BlockOperator(NonCommutativeCompositeOperator):
         new_axisout=None,
         **keywords,
     ):
-
         operands = self._validate_operands(operands)
         if len(operands) == 1:
             operands[0].copy(self)
@@ -3664,7 +3657,6 @@ class BlockDiagonalOperator(BlockOperator):
         new_axisout=None,
         **keywords,
     ):
-
         operands = self._validate_operands(operands)
 
         if axisout is None:
@@ -3770,7 +3762,6 @@ class BlockColumnOperator(BlockOperator):
     def __init__(
         self, operands, partitionout=None, axisout=None, new_axisout=None, **keywords
     ):
-
         operands = self._validate_operands(operands)
 
         if axisout is None and new_axisout is None:
@@ -3847,7 +3838,6 @@ class BlockRowOperator(BlockOperator):
         operation=iadd,
         **keywords,
     ):
-
         operands = self._validate_operands(operands)
 
         if axisin is None and new_axisin is None:
@@ -3895,7 +3885,6 @@ class BlockRowOperator(BlockOperator):
         with _pool.get_if(
             self._need_temporary, output.shape, output.dtype, self.__name__
         ) as buf:
-
             for op, sin in zip(self.operands[1:], sins[1:]):
                 i = input[tuple(sin)]
                 with _pool.copy_if(

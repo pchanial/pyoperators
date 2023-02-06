@@ -43,7 +43,6 @@ def test_composition2(shape):
 
 
 def test_composition3():
-
     op = OpReshapein()(OpReshapein())
     assert op.shapein is None
     assert op.shapeout is None

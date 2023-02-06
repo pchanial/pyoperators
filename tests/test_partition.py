@@ -240,7 +240,17 @@ def test_partition_implicit_commutative(operation, p1, p2):
 def test_partition_implicit_composition(pin1, pout2):
     ops = [I, 2 * I]
 
-    for cls1, cls2, cls, aout1, ain1, aout2, ain2, pout1, pin2, in zip(
+    for (
+        cls1,
+        cls2,
+        cls,
+        aout1,
+        ain1,
+        aout2,
+        ain2,
+        pout1,
+        pin2,
+    ) in zip(
         (
             BlockRowOperator,
             BlockRowOperator,

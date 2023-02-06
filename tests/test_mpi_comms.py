@@ -49,7 +49,6 @@ def test_comm_composite(cls, comms, inout):
 @pytest.mark.parametrize('commin', ALL_COMMS)
 @pytest.mark.parametrize('commout', ALL_COMMS)
 def test_comm_composition(commin, commout):
-
     ops = [Operator(commin=commin), Operator(commout=commout)]
     if None not in (commin, commout) and commin is not commout:
         with pytest.raises(ValueError):
