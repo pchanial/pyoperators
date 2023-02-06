@@ -16,7 +16,7 @@ def inspect_special_values_bool8(np.ndarray[np.uint8_t, ndim=1] v):
     for i in range(n):
         if v[i] == 0:
             nzeros += 1
-    return 0, nzeros, n - nzeros, False, nzeros in (0, n)
+    return 0, nzeros, n - nzeros, False, nzeros in (0, <int>n)
 
 @cython.boundscheck(False)
 def inspect_special_values_uint64(np.ndarray[np.uint64_t, ndim=1] v):

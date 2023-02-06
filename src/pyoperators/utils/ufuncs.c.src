@@ -1,5 +1,4 @@
 /*-*-c-*-*/
-#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 
 #include <Python.h>
 #include <math.h>
@@ -55,7 +54,7 @@ static void *null_data17[17] = {NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
  * #c = f, , l#
  */
 NPY_NO_EXPORT void
-abs2@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *data)
+abs2@c@(char **args, const npy_intp *dimensions, const npy_intp *steps, void *data)
 {
     UNARY_LOOP {
         const @ftype@ inr = *(@ftype@ *)ip;
@@ -65,7 +64,7 @@ abs2@c@(char **args, npy_intp *dimensions, npy_intp *steps, void *data)
 }
 
 NPY_NO_EXPORT void
-abs2@c@_real(char **args, npy_intp *dimensions, npy_intp *steps, void *data)
+abs2@c@_real(char **args, const npy_intp *dimensions, const npy_intp *steps, void *data)
 {
     UNARY_LOOP {
         const @ftype@ in = *(@ftype@ *)ip;
@@ -88,7 +87,7 @@ static PyUFuncGenericFunction abs2_funcs[6] =
  * #c = f,,l#
  */
 NPY_NO_EXPORT void
-hard_thresholding@c@(char **args, npy_intp *dimensions, npy_intp* steps,
+hard_thresholding@c@(char **args, const npy_intp *dimensions, const npy_intp* steps,
                      void* data)
 {
     npy_intp i;
@@ -129,7 +128,7 @@ static PyUFuncGenericFunction hard_thresholding_funcs[3] =
  *         npy_half, npy_float, npy_double, npy_longdouble#
  */
 NPY_NO_EXPORT void
-@TYPE@_masking(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
+@TYPE@_masking(char **args, const npy_intp *dimensions, const npy_intp* steps, void* data)
 {
     npy_intp i;
     npy_intp n = dimensions[0];
@@ -163,7 +162,7 @@ NPY_NO_EXPORT void
  * #ftype = npy_float, npy_double, npy_longdouble#
  */
 NPY_NO_EXPORT void
-@TYPE@_masking(char **args, npy_intp *dimensions, npy_intp* steps, void* data)
+@TYPE@_masking(char **args, const npy_intp *dimensions, const npy_intp* steps, void* data)
 {
     npy_intp i;
     npy_intp n = dimensions[0];
@@ -234,7 +233,7 @@ static char masking_types[17*3] = {NPY_BYTE, NPY_BOOL, NPY_BYTE,
  * #c = f, , l#
  */
 NPY_NO_EXPORT void
-multiply_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps,
+multiply_conjugate@c@(char **args, const npy_intp *dimensions, const npy_intp *steps,
                       void *data)
 {
     BINARY_LOOP {
@@ -248,7 +247,7 @@ multiply_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps,
 }
 
 NPY_NO_EXPORT void
-multiply_real_conjugate@c@(char **args, npy_intp *dimensions, npy_intp *steps,
+multiply_real_conjugate@c@(char **args, const npy_intp *dimensions, const npy_intp *steps,
                            void *data)
 {
     BINARY_LOOP {
@@ -279,7 +278,7 @@ static PyUFuncGenericFunction multiply_conjugate_funcs[6] =
  * #c = f,,l#
  */
 NPY_NO_EXPORT void
-soft_thresholding@c@(char **args, npy_intp *dimensions, npy_intp* steps,
+soft_thresholding@c@(char **args, const npy_intp *dimensions, const npy_intp* steps,
                      void* data)
 {
     npy_intp i;
