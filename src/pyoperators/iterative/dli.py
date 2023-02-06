@@ -172,7 +172,6 @@ class DoubleLoopAlgorithm(Algorithm):
         callback=default_callback,
         stop_condition=DEFAULT_STOP,
     ):
-
         model = asoperator(model)
         self.shapein = model.shapein
         self.model = asoperator1d(model)
@@ -192,7 +191,7 @@ class DoubleLoopAlgorithm(Algorithm):
                 if not np.isscalar(tau):
                     tau = np.asarray(tau).item()
                 self.tau = tau * np.ones(prior.shape[0])
-            except (ValueError):
+            except ValueError:
                 raise ValueError('Incorrect shape for tau.')
         self.sigma = sigma
         self.optimizer = optimizer

@@ -36,6 +36,7 @@ __all__ = [
 # norms
 # =====
 
+
 # 2-norm
 def norm2(x):
     return np.dot(x.ravel().T, x.ravel())

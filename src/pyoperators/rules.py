@@ -29,7 +29,6 @@ class Rule:
     """
 
     def __init__(self, subjects, predicate):
-
         if not isinstance(subjects, (list, str, tuple)):
             raise TypeError(f'The input {subjects} is invalid.')
 
@@ -86,7 +85,7 @@ class Rule:
             return op
         try:
             return {'C': op._C, 'T': op._T, 'H': op._H, 'I': op._I}[symbol]
-        except (KeyError):
+        except KeyError:
             raise ValueError(f"Invalid symbol: '{symbol}'.")
 
     @classmethod
@@ -226,7 +225,6 @@ class BinaryRule(Rule):
         self.other = self.subjects[1 - self.reference]
 
     def __call__(self, o1, o2):
-
         reference, other = (o1, o2) if self.reference == 0 else (o2, o1)
         subother = self._symbol2operator(reference, self.other)
 

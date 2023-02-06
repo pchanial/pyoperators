@@ -46,7 +46,6 @@ class MPIDistributionGlobalOperator(Operator):
     """
 
     def __init__(self, shapein, commout=None, **keywords):
-
         if shapein is None:
             raise ValueError('The input shape is None.')
         commout = commout or MPI.COMM_WORLD
