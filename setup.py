@@ -1,5 +1,5 @@
-import hooks
 import numpy as np
+from Cython.Build import cythonize
 from numpy.distutils.core import setup
 from numpy.distutils.extension import Extension
 
@@ -18,6 +18,5 @@ ext_modules = [
 ]
 
 setup(
-    cmdclass=hooks.cmdclass,
-    ext_modules=ext_modules,
+    ext_modules=cythonize(ext_modules),
 )

@@ -3,7 +3,6 @@ build-backend = "setuptools.build_meta"
 requires = [
     "Cython>=0.13",
     "oldest-supported-numpy",
-    "pchanial-legacy-install-hooks",
     "setuptools==64.0.3",
     "setuptools_scm[toml]>=6.2",
     "wheel",
