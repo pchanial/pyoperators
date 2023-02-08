@@ -4103,16 +4103,18 @@ class BroadcastingBase(Operator):
             ops = [func_operation(self, o) for o in op.operands]
         else:
             data = self._as_strided(shape)
-            argspec = inspect.getargspec(type(self).__init__)
-            nargs = (
-                len(argspec.args)
+            parameters = inspect.signature(type(self).__init__).parameters.values()
+            narg = (
+                sum(
+                    _.default is inspect._empty and not str(_).startswith('*')
+                    for _ in parameters
+                )
                 - 1
-                - (len(argspec.defaults) if argspec.defaults is not None else 0)
             )
             slices = op._get_slices(partition, axis, new_axis)
             ops = []
             for s, o in zip(slices, op.operands):
-                if nargs == 0:
+                if narg == 0:
                     sliced = type(self)(*args, **keywords)
                 else:
                     sliced = type(self)(data[tuple(s)], broadcast=b, *args, **keywords)

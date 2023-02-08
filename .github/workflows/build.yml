@@ -47,6 +47,8 @@ jobs:
             cp: cp39
           - version: "3.10"
             cp: cp310
+          - version: "3.11"
+            cp: cp311
     steps:
       - uses: actions/checkout@v3
         with:
