@@ -45,11 +45,11 @@ dynamic = ["version"]
 [project.optional-dependencies]
 fft = ["pyfftw"]
 mpi = ["mpi4py"]
-wavelets = ["pywavelets"]
+wavelets = ["pywavelets>=0.4.0"]
 dev = [
     "pyfftw",
     "mpi4py",
-    "pywavelets",
+    "pywavelets>=0.4.0",
     "pytest",
     "pytest-cov",
     "pytest-mock",

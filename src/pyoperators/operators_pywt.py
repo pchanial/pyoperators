@@ -33,7 +33,7 @@ class WaveletOperator(Operator):
     skip_doctest = True
 
     def __init__(
-        self, wavelet, mode='zpd', level=None, shapein=None, dtype=float, **keywords
+        self, wavelet, mode='zero', level=None, shapein=None, dtype=float, **keywords
     ):
         """
         1D wavelet decomposition and reconstruction. Wavelet coefficients
@@ -99,7 +99,7 @@ class WaveletOperator(Operator):
 @linear
 class Wavelet2dOperator(Operator):
     def __init__(
-        self, wavelet, mode='zpd', level=None, shapein=None, dtype=float, **keywords
+        self, wavelet, mode='zero', level=None, shapein=None, dtype=float, **keywords
     ):
         """
         2D wavelet decomposition and reconstruction. Wavelet coefficients
