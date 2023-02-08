@@ -50,7 +50,7 @@ def test_update_output(format):
 
 
 @pytest.mark.parametrize(
-    'value', [sp.lil_matrix(A), np.zeros((10, 4)), np.matrix(np.zeros((10, 4))), 3]
+    'value', [sp.lil_matrix(A), np.zeros((10, 4)), np.array(np.zeros((10, 4))), 3]
 )
 def test_error1(value):
     with pytest.raises(TypeError):

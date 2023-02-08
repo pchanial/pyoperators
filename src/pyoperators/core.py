@@ -1589,53 +1589,48 @@ class Operator:
 
         a = []
         init = getattr(self, '__init_original__', self.__init__)
-        vars, args, keywords, defaults = inspect.getargspec(init)
-        if defaults is None:
-            defaults = []
-        else:
-            defaults = list(defaults)
+        parameters = {
+            _.name: _.default for _ in inspect.signature(init).parameters.values()
+        }
 
         # XXX it would be better to walk the Operator's hirarchy
         # to grab all keywords.
-        if 'shapein' not in vars:
-            vars.append('shapein')
-            defaults.append(None)
-        if 'shapeout' not in vars:
-            vars.append('shapeout')
-            defaults.append(None)
+        if 'shapein' not in parameters:
+            parameters['shapein'] = None
+        if 'shapeout' not in parameters:
+            parameters['shapeout'] = None
 
-        for ivar, var in enumerate(vars):
-            if var in ('flags', 'self'):
+        for name, default in parameters.items():
+            if name in ('flags', 'self'):
                 continue
-            if var == 'shapeout' and self.flags.shape_output == 'implicit':
+            if name == 'shapeout' and self.flags.shape_output == 'implicit':
                 continue
-            if var == 'shapein' and self.flags.shape_input == 'implicit':
+            if name == 'shapein' and self.flags.shape_input == 'implicit':
                 continue
             if (
-                var == 'reshapeout'
+                name == 'reshapeout'
                 and self.flags.square
                 and self.flags.shape_input == 'implicit'
             ):
                 continue
 
-            val = getattr(self, var, None)
+            val = getattr(self, name, None)
             if isinstance(val, types.MethodType):
                 continue
-            nargs = len(vars) - len(defaults)
-            if ivar >= nargs:
+            if default is not inspect._empty:
                 try:
-                    if val == defaults[ivar - nargs]:
+                    if val == default:
                         continue
                 except Exception:
-                    if val is defaults[ivar - nargs]:
+                    if val is default:
                         continue
             if (
-                var == 'reshapein'
+                name == 'reshapein'
                 and self.flags.square
                 and self.flags.shape_output == 'implicit'
             ):
                 s = 'lambda x:x'
-            elif var in ('commin', 'commout'):
+            elif name in ('commin', 'commout'):
                 if val is MPI.COMM_WORLD:
                     s = 'MPI.COMM_WORLD'
                 elif val is MPI.COMM_SELF:
@@ -1646,7 +1641,7 @@ class Operator:
                 s = 'Operator()'
             elif type(val) is type:
                 s = val.__module__ + '.' + val.__name__
-            elif var in ['shapein', 'shapeout']:
+            elif name in ['shapein', 'shapeout']:
                 s = strshape(val)
             elif isinstance(val, np.ndarray) and val.ndim == 0:
                 s = repr(val[()])
@@ -1658,15 +1653,15 @@ class Operator:
                     s += ', ' if val.size == 2 else ', ..., '
                     s += str(val.flat[-1])
                 s += val.ndim * ']' + f', dtype={val.dtype})'
-            elif var == 'dtype':
+            elif name == 'dtype':
                 s = str(val)
             else:
                 s = repr(val)
 
-            if ivar < nargs:
+            if default is inspect._empty:
                 a += [s]
             else:
-                a += [var + '=' + s]
+                a += [name + '=' + s]
         return self.__name__ + '(' + ', '.join(a) + ')'
 
 
@@ -4631,18 +4626,18 @@ class ReductionOperator(Operator):
         elif isinstance(func, types.FunctionType):
             if hasattr(func, '__wrapped__'):
                 func = func.__wrapped__
-            vars, junk, junk, junk = inspect.getargspec(func)
-            if 'axis' not in vars:
+            parameters = inspect.signature(func).parameters
+            if 'axis' not in parameters:
                 raise TypeError(
                     f"The input function {func.__name__!r} does not have an 'axis' "
                     f'argument.'
                 )
             kw = {}
-            if 'dtype' in vars:
+            if 'dtype' in parameters:
                 kw['dtype'] = dtype
-            if 'skipna' in vars:
+            if 'skipna' in parameters:
                 kw['skipna'] = skipna
-            if 'out' not in vars:
+            if 'out' not in parameters:
 
                 def direct(x, out):
                     out[...] = func(x, axis=axis, **kw)

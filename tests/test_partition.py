@@ -162,8 +162,8 @@ def test_block_column1():
 
 
 def test_block_column2():
-    p = np.matrix([[1, 0], [0, 2], [1, 0]])
-    o = asoperator(np.matrix(p))
+    p = np.array([[1, 0], [0, 2], [1, 0]])
+    o = asoperator(p)
     e = BlockColumnOperator([o, 2 * o], axisout=0)
     assert_equal(e.todense(), np.vstack([p, 2 * p]))
     assert_equal(e.T.todense(), e.todense().T)
@@ -184,8 +184,8 @@ def test_block_row1():
 
 
 def test_block_row2():
-    p = np.matrix([[1, 0], [0, 2], [1, 0]])
-    o = asoperator(np.matrix(p))
+    p = np.array([[1, 0], [0, 2], [1, 0]])
+    o = asoperator(p)
     r = BlockRowOperator([o, 2 * o], axisin=0)
     assert_equal(r.todense(), np.hstack([p, 2 * p]))
     assert_equal(r.T.todense(), r.todense().T)

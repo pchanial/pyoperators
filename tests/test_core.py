@@ -101,7 +101,7 @@ def test_flags(op):
 
 
 def test_symmetric():
-    mat = np.matrix([[2, 1], [1, 2]])
+    mat = np.array([[2, 1], [1, 2]])
 
     @flags.square
     @flags.symmetric
@@ -122,7 +122,7 @@ def test_symmetric():
     assert op is op.C
     assert op is op.T
     assert op is op.H
-    assert_equal(op([1, 1]), np.array(mat * [[1], [1]]).ravel())
+    assert_equal(op([1, 1]), np.array(mat @ [[1], [1]]).ravel())
 
 
 @pytest.mark.parametrize('cls', OPS)
@@ -292,7 +292,7 @@ OPS_TIMES_MUL_OR_COMP = [
     np.ones(3),
     np.negative,
     np.sqrt,
-    np.matrix(MATRIX_TIMES_MUL_OR_COMP),
+    np.array(MATRIX_TIMES_MUL_OR_COMP),
     csc_matrix(MATRIX_TIMES_MUL_OR_COMP),
     DenseOperator(MATRIX_TIMES_MUL_OR_COMP),
     HomothetyOperator(3),
@@ -306,7 +306,7 @@ OPS_TIMES_MUL_OR_COMP = [
 @pytest.mark.parametrize('y', OPS_TIMES_MUL_OR_COMP)
 def test_times_mul_or_comp(x, y):
     def islinear(_):
-        if isinstance(_, (np.matrix, csc_matrix)):
+        if isinstance(_, csc_matrix):
             return True
         if _ is np.sqrt:
             return False
@@ -320,9 +320,9 @@ def test_times_mul_or_comp(x, y):
         return
 
     if isinstance(x, np.ndarray):
-        if isinstance(x, np.matrix):
+        if x.ndim == 2:
             x = DenseOperator(x)
-        elif x.ndim > 0:
+        elif x.ndim == 1:
             x = DiagonalOperator(x)
     if isinstance(x, csc_matrix):
         x = SparseOperator(x)
@@ -345,11 +345,7 @@ def test_times_mul_or_comp(x, y):
     elif x is X.T and y is X or x is X and y is X.T:
         assert type(z) is CompositionOperator
     elif x is X:
-        if (
-            np.isscalar(y)
-            or isinstance(y, (list, np.ndarray, HomothetyOperator))
-            and not isinstance(y, np.matrix)
-        ):
+        if np.isscalar(y) or isinstance(y, (list, np.ndarray, HomothetyOperator)):
             assert type(z) is CompositionOperator
         else:
             assert type(z) is MultiplicationOperator

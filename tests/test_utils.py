@@ -413,7 +413,7 @@ def test_first_or_last_error_found(func, iterable, value):
         (1, 1),
         (2, 2),
         (2, 1),
-        np.random.random_integers(-1, 1, size=10),
+        np.random.randint(-1, 2, size=10),
     ],
 )
 def test_inspect_special_values(dtype, value):
