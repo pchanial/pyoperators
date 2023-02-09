@@ -55,7 +55,6 @@ dev = [
     "pytest",
     "pytest-cov",
     "pytest-mock",
-    "pchanial-legacy-install-hooks",
     "setuptools_scm",
 ]
 

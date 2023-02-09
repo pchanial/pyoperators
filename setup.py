@@ -1,9 +1,9 @@
 import numpy as np
 from Cython.Build import cythonize
-from numpy.distutils.core import setup
-from numpy.distutils.extension import Extension
+from numpy.distutils.core import setup  # for the pre-processing of .c.src files
+from setuptools import Extension
 
-ext_modules = [
+extensions = [
     Extension(
         'pyoperators.utils.cythonutils',
         sources=['src/pyoperators/utils/cythonutils.pyx'],
@@ -18,5 +18,5 @@ ext_modules = [
 ]
 
 setup(
-    ext_modules=cythonize(ext_modules),
+    ext_modules=cythonize(extensions),
 )
