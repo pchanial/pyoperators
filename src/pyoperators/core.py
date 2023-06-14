@@ -91,6 +91,8 @@ OPERATOR_ATTRIBUTES = [
     'validatein',
     'validateout',
     'dtype',
+    'dtypein',
+    'dtypeout',
     'flags',
 ]
 
@@ -176,6 +178,8 @@ class Operator:
         validatein=None,
         validateout=None,
         dtype=None,
+        dtypein=None,
+        dtypeout=None,
         flags={},
         name=None,
     ):
@@ -207,7 +211,7 @@ class Operator:
                 # should also check that the method has at least two arguments
                 setattr(self, name_, method)
 
-        self._init_dtype(dtype)
+        self._init_dtype(dtype, dtypein, dtypeout)
         self._init_flags(flags)
         self._init_rules()
         self._init_name(name)
@@ -1010,10 +1014,16 @@ class Operator:
         IT._C, IT._T, IT._H, IT._I = IH, I, IC, T
         IH._C, IH._T, IH._H, IH._I = IT, IC, I, H
 
-    def _init_dtype(self, dtype):
+    def _init_dtype(self, dtype, dtypein, dtypeout):
         if dtype is not None:
             dtype = np.dtype(dtype)
+        if dtypein is not None:
+            dtypein = np.dtype(dtypein)
+        if dtypeout is not None:
+            dtypeout = np.dtype(dtypeout)
         self.dtype = dtype
+        self.dtypein = dtypein
+        self.dtypeout = dtypeout
 
     def _init_flags(self, flags):
         self._set_flags(flags)
@@ -1304,16 +1314,18 @@ class Operator:
         If required, allocate the output.
         """
         input = np.array(input, copy=False)
-        dtype = self._find_common_type([input.dtype, self.dtype])
+        common_type = self._find_common_type([input.dtype, self.dtype])
+        dtypein = self.dtypein or common_type
+        dtypeout = self.dtypeout or common_type
 
         input_ = None
         output_ = None
 
         # if the input is not compatible, copy it into a buffer from the pool
-        if input.dtype != dtype or not iscompatible(
+        if input.dtype != dtypein or not iscompatible(
             input,
             input.shape,
-            dtype,
+            dtypein,
             self.flags.aligned_input,
             self.flags.contiguous_input,
         ):
@@ -1323,7 +1335,7 @@ class Operator:
                 and iscompatible(
                     output,
                     input.shape,
-                    dtype,
+                    dtypein,
                     self.flags.aligned_input,
                     self.flags.contiguous_input,
                 )
@@ -1332,22 +1344,22 @@ class Operator:
             else:
                 input_ = _pool.extract(
                     input.shape,
-                    dtype,
+                    dtypein,
                     self.flags.aligned_input,
                     self.flags.contiguous_input,
                 )
                 buf = input_
-            input, input[...] = _pool.view(buf, input.shape, dtype), input
+            input, input[...] = _pool.view(buf, input.shape, dtypein), input
 
         # check compatibility of provided output
         if output is not None:
             if not isinstance(output, np.ndarray):
                 raise TypeError('The output argument is not an ndarray.')
             output = output.view(np.ndarray)
-            if output.dtype != dtype:
+            if output.dtype != dtypeout:
                 raise ValueError(
                     f'The output has an invalid dtype {output.dtype!r}. Expected dtype '
-                    f'is {dtype!r}.'
+                    f'is {dtypeout!r}.'
                 )
 
             # if the output does not fulfill the operator's alignment &
@@ -1357,7 +1369,7 @@ class Operator:
                 not iscompatible(
                     output,
                     output.shape,
-                    dtype,
+                    dtypeout,
                     self.flags.aligned_output,
                     self.flags.contiguous_output,
                 )
@@ -1366,11 +1378,11 @@ class Operator:
             ):
                 output_ = _pool.extract(
                     output.shape,
-                    dtype,
+                    dtypeout,
                     self.flags.aligned_output,
                     self.flags.contiguous_output,
                 )
-                output = _pool.view(output_, output.shape, dtype)
+                output = _pool.view(output_, output.shape, dtypeout)
             shapeout = output.shape
         else:
             shapeout = None
@@ -1390,7 +1402,7 @@ class Operator:
             if shapeout is None:
                 shapeout = input.shape
             output = empty(
-                shapeout, dtype, description=f"for {self.__name__}'s output."
+                shapeout, dtypeout, description=f"for {self.__name__}'s output."
             )
         return input, input_, output, output_
 
@@ -1942,6 +1954,8 @@ class CommutativeCompositeOperator(CompositeOperator):
             'commin': first_is_not((o.commin for o in operands), None),
             'commout': first_is_not((o.commout for o in operands), None),
             'dtype': cls._find_common_type(o.dtype for o in operands),
+            'dtypein': first_is_not((o.dtypein for o in operands), None),
+            'dtypeout': first_is_not((o.dtypeout for o in operands), None),
             'flags': cls._merge_flags(operands),
             'reshapein': cls._merge_reshapein(operands),
             'reshapeout': cls._merge_reshapeout(operands),
@@ -2689,6 +2703,8 @@ class CompositionOperator(NonCommutativeCompositeOperator):
             'commin': first_is_not((o.commin for o in operands[::-1]), None),
             'commout': first_is_not((o.commout for o in operands), None),
             'dtype': cls._find_common_type(o.dtype for o in operands),
+            'dtypein': first_is_not((o.dtypein for o in operands[::-1]), None),
+            'dtypeout': first_is_not((o.dtypeout for o in operands), None),
             'flags': cls._merge_flags(operands),
             'reshapein': cls._merge_reshapein(operands),
             'reshapeout': cls._merge_reshapeout(operands),
@@ -3169,6 +3185,8 @@ class BlockOperator(NonCommutativeCompositeOperator):
             'commin': first_is_not((o.commin for o in operands), None),
             'commout': first_is_not((o.commout for o in operands), None),
             'dtype': self._find_common_type(o.dtype for o in operands),
+            'dtypein': first_is_not((o.dtypein for o in operands), None),
+            'dtypeout': first_is_not((o.dtypeout for o in operands), None),
             'flags': self._merge_flags(operands),
             'shapein': self.reshapeout(None),
             'shapeout': self.reshapein(None),

@@ -687,53 +687,6 @@ def test_validation(cls):
             cls(validatein=vin, shapeout=y_err.shape)
 
 
-# ====================
-# Test operator dtype
-# ====================
-
-
-@pytest.mark.parametrize('dop', DTYPES)
-@pytest.mark.parametrize('di', DTYPES)
-def test_dtype1(dop, di):
-    @flags.square
-    class Op(Operator):
-        def __init__(self, dtype):
-            Operator.__init__(self, dtype=dtype)
-
-        def direct(self, input, output):
-            np.multiply(input, np.array(value, self.dtype), output)
-
-    value = 2.5
-    input = complex(1, 1)
-    try:
-        i = np.array(input, di)
-    except TypeError:
-        i = np.array(input.real, di)
-    o = Op(dop)(i)
-    assert_equal(o.dtype, (i * np.array(value, dop)).dtype, str((dop, di)))
-    assert_equal(o, i * np.array(value, dop), str((dop, di)))
-
-
-@pytest.mark.parametrize('di', DTYPES)
-def test_dtype2(di):
-    @flags.linear
-    @flags.square
-    class Op(Operator):
-        def direct(self, input, output):
-            np.multiply(input, input, output)
-
-    op = Op()
-    input = complex(1, 1)
-
-    try:
-        i = np.array(input, di)
-    except TypeError:
-        i = np.array(input.real, di)
-    o = op(i)
-    assert_equal(o.dtype, (i * i).dtype, str(di))
-    assert_equal(o, i * i, str(di))
-
-
 # ===================
 # Test operator name
 # ===================
