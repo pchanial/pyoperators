@@ -3,6 +3,7 @@ The core module defines the Operator class. Operators are functions
 which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
+from __future__ import annotations
 
 import inspect
 import logging
@@ -232,10 +233,10 @@ class Operator:
     flags = Flags()
     rules = None
 
-    _C = None
-    _T = None
-    _H = None
-    _I = None
+    _C: Operator = None
+    _T: Operator = None
+    _H: Operator = None
+    _I: Operator = None
 
     attrin = {}
     attrout = {}
@@ -707,34 +708,34 @@ class Operator:
         del rules[index]
 
     @property
-    def C(self):
+    def C(self) -> Operator:
         """Return the complex-conjugate of the operator."""
         if self._C is None:
             self._generate_associated_operators()
         return self._C
 
     @property
-    def T(self):
+    def T(self) -> Operator:
         """Return the transpose of the operator."""
         if self._T is None:
             self._generate_associated_operators()
         return self._T
 
     @property
-    def H(self):
+    def H(self) -> Operator:
         """Return the adjoint of the operator."""
         if self._H is None:
             self._generate_associated_operators()
         return self._H
 
     @property
-    def I(self):  # noqa: E741, E743
+    def I(self) -> Operator:  # noqa: E741, E743
         """Return the inverse of the operator."""
         if self._I is None:
             self._generate_associated_operators()
         return self._I
 
-    def copy(self, target=None):
+    def copy(self, target=None) -> Operator:
         """Return a shallow copy of the operator."""
 
         class Target:
