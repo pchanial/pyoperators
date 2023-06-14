@@ -138,10 +138,14 @@ class Operator:
     flags : Flags
         The flags describe properties of the operator.
     dtype : dtype
-        The operator's dtype is used to determine the dtype of its output.
-        Unless it is None, the output dtype is the common type of the operator
-        and input dtypes. If dtype is None, the output dtype is the input
-        dtype.
+        Unless the dtypeout attribute is set, the operator's dtype is used to determine
+        the dtype of its output. If set, the output data type is the common type of
+        the operator and input data types. If dtypeout and dtype is None, the output
+        data type is the input data type.
+    dtypein: dtype
+        The data type to which the input is converted.
+    dtypeout: dtype
+        The data type of the output.
     C : Operator
         Conjugate operator.
     T : Operator
