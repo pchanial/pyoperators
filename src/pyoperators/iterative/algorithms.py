@@ -1,6 +1,7 @@
 """
 Implements iterative algorithm class.
 """
+
 from copy import copy
 
 import numpy as np
