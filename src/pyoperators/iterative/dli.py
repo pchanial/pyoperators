@@ -10,6 +10,7 @@ Matthias W. Seeger
 http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.165.8284&rep=rep1&type=pdf
 
 """
+
 from copy import copy
 
 import numpy as np

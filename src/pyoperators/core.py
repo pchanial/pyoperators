@@ -3,6 +3,7 @@ The core module defines the Operator class. Operators are functions
 which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -1233,16 +1234,20 @@ class Operator:
         flag_is = (
             'explicit'
             if self.shapein is not None
-            else 'implicit'
-            if self.reshapeout != Operator.reshapeout.__get__(self, type(self))
-            else 'unconstrained'
+            else (
+                'implicit'
+                if self.reshapeout != Operator.reshapeout.__get__(self, type(self))
+                else 'unconstrained'
+            )
         )
         flag_os = (
             'explicit'
             if self.shapeout is not None
-            else 'implicit'
-            if self.reshapein != Operator.reshapein.__get__(self, type(self))
-            else 'unconstrained'
+            else (
+                'implicit'
+                if self.reshapein != Operator.reshapein.__get__(self, type(self))
+                else 'unconstrained'
+            )
         )
         self._set_flags(shape_input=flag_is, shape_output=flag_os)
 
@@ -1779,9 +1784,11 @@ class CompositeOperator(Operator):
 
         # parentheses for AdditionOperator and BlockDiagonalOperator
         operands = [
-            f'({o})'
-            if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
-            else str(o)
+            (
+                f'({o})'
+                if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
+                else str(o)
+            )
             for o in self.operands
         ]
 
@@ -2440,9 +2447,11 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         """
         return sum(
             (
-                self._apply_rule_homothety_linear(list(group))
-                if islinear
-                else list(group)
+                (
+                    self._apply_rule_homothety_linear(list(group))
+                    if islinear
+                    else list(group)
+                )
                 for islinear, group in groupby(operands, lambda o: o.flags.linear)
             ),
             [],
@@ -3470,9 +3479,9 @@ class BlockOperator(NonCommutativeCompositeOperator):
             )
         )
 
-        return None if pout is None else merge_none(
-            op1.partitionout, pout
-        ), None if pin is None else merge_none(op2.partitionin, pin)
+        return None if pout is None else merge_none(op1.partitionout, pout), (
+            None if pin is None else merge_none(op2.partitionin, pin)
+        )
 
     @staticmethod
     def _rule_operator_commutative(self, op, cls):
