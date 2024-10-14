@@ -15,6 +15,7 @@ if scipy.optimize is in PYTHONPATH:
 
 - LineSearch, LineSearchArmijo, LineSearchWolfe1; LineSearchWolfe2
 """
+
 import numpy as np
 
 from .criterions import Norm2
