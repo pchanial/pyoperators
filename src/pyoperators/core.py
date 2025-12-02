@@ -3,6 +3,7 @@ The core module defines the Operator class. Operators are functions
 which can be added, composed or multiplied by a scalar. See the
 Operator docstring for more information.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -759,7 +760,7 @@ class Operator:
         dtypes = [d for d in dtypes if d is not None]
         if len(dtypes) == 0:
             return None
-        return np.find_common_type(dtypes, [])
+        return np.result_type(*dtypes)
 
     def _generate_associated_operators(self):
         """
@@ -1233,16 +1234,20 @@ class Operator:
         flag_is = (
             'explicit'
             if self.shapein is not None
-            else 'implicit'
-            if self.reshapeout != Operator.reshapeout.__get__(self, type(self))
-            else 'unconstrained'
+            else (
+                'implicit'
+                if self.reshapeout != Operator.reshapeout.__get__(self, type(self))
+                else 'unconstrained'
+            )
         )
         flag_os = (
             'explicit'
             if self.shapeout is not None
-            else 'implicit'
-            if self.reshapein != Operator.reshapein.__get__(self, type(self))
-            else 'unconstrained'
+            else (
+                'implicit'
+                if self.reshapein != Operator.reshapein.__get__(self, type(self))
+                else 'unconstrained'
+            )
         )
         self._set_flags(shape_input=flag_is, shape_output=flag_os)
 
@@ -1303,7 +1308,7 @@ class Operator:
         Return the input and output as ndarray instances.
         If required, allocate the output.
         """
-        input = np.array(input, copy=False)
+        input = np.asarray(input)
         dtype = self._find_common_type([input.dtype, self.dtype])
 
         input_ = None
@@ -1779,9 +1784,11 @@ class CompositeOperator(Operator):
 
         # parentheses for AdditionOperator and BlockDiagonalOperator
         operands = [
-            f'({o})'
-            if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
-            else str(o)
+            (
+                f'({o})'
+                if isinstance(o, (AdditionOperator, BlockDiagonalOperator))
+                else str(o)
+            )
             for o in self.operands
         ]
 
@@ -2440,9 +2447,11 @@ class CompositionOperator(NonCommutativeCompositeOperator):
         """
         return sum(
             (
-                self._apply_rule_homothety_linear(list(group))
-                if islinear
-                else list(group)
+                (
+                    self._apply_rule_homothety_linear(list(group))
+                    if islinear
+                    else list(group)
+                )
                 for islinear, group in groupby(operands, lambda o: o.flags.linear)
             ),
             [],
@@ -3470,9 +3479,9 @@ class BlockOperator(NonCommutativeCompositeOperator):
             )
         )
 
-        return None if pout is None else merge_none(
-            op1.partitionout, pout
-        ), None if pin is None else merge_none(op2.partitionin, pin)
+        return None if pout is None else merge_none(op1.partitionout, pout), (
+            None if pin is None else merge_none(op2.partitionin, pin)
+        )
 
     @staticmethod
     def _rule_operator_commutative(self, op, cls):
@@ -4268,7 +4277,7 @@ class DiagonalOperator(DiagonalBase):
             self, (HomothetyOperator, po.linear.MaskOperator)
         ):
             self.__class__ = po.linear.MaskOperator
-            self.__init__(~data.astype(np.bool8), broadcast=broadcast, **keywords)
+            self.__init__(~data.astype(bool), broadcast=broadcast, **keywords)
             return
         if nmones + nones == n:
             keywords['flags'] = self.validate_flags(
@@ -4608,14 +4617,8 @@ class ReductionOperator(Operator):
                     f'The input ufunc {func.__name__!r} has {func.nout} output '
                     f'arguments. Expected number is 1.'
                 )
-            if np.__version__ < '2':
-                if axis is None:
-                    direct = lambda x, out: func.reduce(x.flat, 0, dtype, out)
-                else:
-                    direct = lambda x, out: func.reduce(x, axis, dtype, out)
-            else:
-                direct = lambda x, out: func.reduce(x, axis, dtype, out, skipna=skipna)
-        elif isinstance(func, types.FunctionType):
+            direct = lambda x, out: func.reduce(x, axis, dtype, out)
+        elif callable(func):
             if hasattr(func, '__wrapped__'):
                 func = func.__wrapped__
             parameters = inspect.signature(func).parameters
@@ -4636,6 +4639,10 @@ class ReductionOperator(Operator):
 
             else:
                 direct = lambda x, out: func(x, axis=axis, out=out, **kw)
+
+        else:
+            raise TypeError(f'The input is not callable: {func}')
+
         self.axis = axis
         Operator.__init__(self, direct=direct, dtype=dtype, **keywords)
 

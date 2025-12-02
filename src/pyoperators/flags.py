@@ -4,6 +4,7 @@ These decorators update their 'flags' attribute to specify properties such as
 linear, square etc.
 
 """
+
 from collections import namedtuple
 
 

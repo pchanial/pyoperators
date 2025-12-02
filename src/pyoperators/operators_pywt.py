@@ -1,4 +1,4 @@
-""" Wrap PyWavelets wavelet transforms into Operators.
+"""Wrap PyWavelets wavelet transforms into Operators.
 
 For now only 1D and 2D wavelets are available.
 

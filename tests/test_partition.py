@@ -123,7 +123,7 @@ def test_block1(axis, shape):
 @pytest.mark.parametrize('axiss', [0, 1, 2])
 def test_block2(axisp, axiss):
     shape = (3, 4, 5, 6)
-    i = np.arange(np.product(shape)).reshape(shape)
+    i = np.arange(np.prod(shape)).reshape(shape)
     op = BlockDiagonalOperator(shape[axisp] * [Stretch(axiss)], new_axisin=axisp)
     axisp_ = axisp if axisp >= 0 else axisp + 4
     axiss_ = axiss if axisp_ > axiss else axiss + 1

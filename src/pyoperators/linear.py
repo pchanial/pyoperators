@@ -6,7 +6,7 @@ from warnings import warn
 import numexpr
 import numpy as np
 import scipy.sparse as sp
-import scipy.sparse.sparsetools as sps
+from scipy.sparse import _sparsetools
 from scipy.sparse.linalg import eigsh
 
 from .core import (
@@ -159,7 +159,7 @@ class DenseBase(Operator):
             dtype = float_or_complex_dtype(data.dtype)
         else:
             dtype = np.dtype(dtype)
-        data = np.array(data, dtype=dtype, copy=False)
+        data = np.asarray(data, dtype=dtype)
 
         self.data = data
         self.naxesin = int(naxesin)
@@ -605,30 +605,52 @@ class SparseOperator(SparseBase):
         )
 
     def direct(self, input, output, operation=operation_assignment):
+        if operation not in (operation_assignment, operator.iadd):
+            raise ValueError('Invalid reduction operation.')
+
         input = input.ravel().astype(output.dtype)
         output = output.ravel()
-        if operation is operation_assignment:
-            output[...] = 0
-        elif operation is not operator.iadd:
-            raise ValueError('Invalid reduction operation.')
         m = self.matrix
-        if isinstance(m, sp.dok_matrix):
-            for (i, j), v in m.items():
-                output[i] += v * input[j]
+
+        # Handle different sparse matrix formats
+        if not sp.issparse(m) or (fmt := m.format) not in [
+            'csr',
+            'csc',
+            'coo',
+            'bsr',
+            'dia',
+        ]:
+            # For other formats (DOK, LIL, etc.), fallback to @ operator
+            result = m @ input
+            if operation is operation_assignment:
+                output[:] = result
+            else:
+                output[:] += result
             return
+
+        if operation is operation_assignment:
+            output.fill(0)
+
+        # Use scipy.sparse._sparsetools for zero-copy operations
         M, N = m.shape
-        fn = getattr(sps, m.format + '_matvec')
-        if isinstance(m, (sp.csr_matrix, sp.csc_matrix)):
-            fn(M, N, m.indptr, m.indices, m.data, input, output)
-        elif isinstance(m, sp.coo_matrix):
-            fn(m.nnz, m.row, m.col, m.data, input, output)
-        elif isinstance(m, sp.bsr_matrix):
+
+        if fmt == 'csr':
+            _sparsetools.csr_matvec(M, N, m.indptr, m.indices, m.data, input, output)
+        elif fmt == 'csc':
+            _sparsetools.csc_matvec(M, N, m.indptr, m.indices, m.data, input, output)
+        elif fmt == 'coo':
+            _sparsetools.coo_matvec(m.nnz, m.row, m.col, m.data, input, output)
+        elif fmt == 'bsr':
             R, C = m.blocksize
-            fn(M // R, N // C, R, C, m.indptr, m.indices, m.data.ravel(), input, output)
-        elif isinstance(m, sp.dia_matrix):
-            fn(M, N, len(m.offsets), m.data.shape[1], m.offsets, m.data, input, output)
+            _sparsetools.bsr_matvec(
+                M // R, N // C, R, C, m.indptr, m.indices, m.data.ravel(), input, output
+            )
+        elif fmt == 'dia':
+            n_diag = len(m.offsets)
+            L = m.data.shape[1]
+            _sparsetools.dia_matvec(M, N, n_diag, L, m.offsets, m.data, input, output)
         else:
-            raise NotImplementedError()
+            assert False, 'unreachable'
 
     def todense(self, shapein=None, shapeout=None, inplace=False):
         return self.matrix.toarray()
@@ -805,7 +827,7 @@ class MaskOperator(DiagonalBase):
     """
 
     def __init__(self, data, broadcast=None, **keywords):
-        data = np.array(data, dtype=bool, copy=False)
+        data = np.asarray(data, dtype=bool)
         if broadcast is None:
             broadcast = 'scalar' if data.ndim == 0 else 'disabled'
         if broadcast == 'disabled':
@@ -880,7 +902,7 @@ class PackOperator(PackBase):
     """
 
     def __init__(self, data, broadcast='disabled', **keywords):
-        data = np.array(data, bool, copy=False)
+        data = np.asarray(data, dtype=bool)
         if np.all(data == data.flat[0]):
             if data.flat[0]:
                 self.__class__ = DiagonalOperator
@@ -921,7 +943,7 @@ class UnpackOperator(PackBase):
     """
 
     def __init__(self, data, broadcast='disabled', **keywords):
-        data = np.array(data, bool, copy=False)
+        data = np.asarray(data, dtype=bool)
         if np.all(data == data.flat[0]):
             if data.flat[0]:
                 self.__class__ = DiagonalOperator
@@ -1076,12 +1098,12 @@ class Rotation3dOperator(DenseBlockDiagonalOperator):
         a2 = np.asarray(a2)
         a3 = np.asarray(a3)
         if dtype is None:
-            dtype = np.find_common_type(
-                [float_dtype(a.dtype) for a in (a1, a2, a3)], []
+            dtype = np.result_type(
+                float_dtype(a1.dtype), float_dtype(a2.dtype), float_dtype(a3.dtype)
             )
-        a1 = np.asarray(a1, dtype)
-        a2 = np.asarray(a2, dtype)
-        a3 = np.asarray(a3, dtype)
+        a1 = a1.astype(dtype, copy=False)
+        a2 = a2.astype(dtype, copy=False)
+        a3 = a3.astype(dtype, copy=False)
         if degrees:
             a1 = np.radians(a1)
             a2 = np.radians(a2)
@@ -1320,10 +1342,7 @@ class SumOperator(ReductionOperator):
     """
 
     def __init__(self, axis=None, dtype=None, skipna=True, **keywords):
-        if np.__version__ < '2':
-            func = np.nansum if skipna else np.add
-        else:
-            func = np.add
+        func = np.add
         ReductionOperator.__init__(
             self, func, axis=axis, dtype=dtype, skipna=skipna, **keywords
         )

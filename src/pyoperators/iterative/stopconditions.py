@@ -3,7 +3,6 @@ Module defining stop conditions for iterative algorithms.
 
 """
 
-
 __all__ = ['StopCondition', 'MaxErrorStopCondition', 'MaxIterationStopCondition']
 
 

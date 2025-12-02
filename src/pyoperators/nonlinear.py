@@ -437,10 +437,7 @@ class MaxOperator(ReductionOperator):
     """
 
     def __init__(self, axis=None, dtype=None, skipna=False, **keywords):
-        if np.__version__ < '2':
-            func = np.nanmax if skipna else np.max
-        else:
-            func = np.max
+        func = np.max
         ReductionOperator.__init__(
             self, func, axis=axis, dtype=dtype, skipna=skipna, **keywords
         )
@@ -475,10 +472,7 @@ class MinOperator(ReductionOperator):
     """
 
     def __init__(self, axis=None, dtype=None, skipna=False, **keywords):
-        if np.__version__ < '2':
-            func = np.nanmin if skipna else np.min
-        else:
-            func = np.min
+        func = np.min
         ReductionOperator.__init__(
             self, func, axis=axis, dtype=dtype, skipna=skipna, **keywords
         )
@@ -868,9 +862,9 @@ class _1dNdOperator(Operator):
         self.order = order
         self.ndim = ndim
         if order == 'C':
-            self.coefs = np.cumproduct((1,) + shape_[:0:-1])[::-1]
+            self.coefs = np.cumprod((1,) + shape_[:0:-1])[::-1]
         elif order == 'F':
-            self.coefs = np.cumproduct((1,) + shape_[:-1])
+            self.coefs = np.cumprod((1,) + shape_[:-1])
 
     def _reshape_to1d(self, shape):
         return shape[:-1]
