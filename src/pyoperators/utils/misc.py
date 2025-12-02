@@ -235,10 +235,10 @@ def cast(arrays, dtype=None, order='c'):
     """
     arrays = tuple(arrays)
     if dtype is None:
-        arrays_ = [np.array(a, copy=False) for a in arrays if a is not None]
+        arrays_ = [np.asarray(a) for a in arrays if a is not None]
         dtype = np.result_type(*arrays_)
     result = (
-        np.array(a, dtype=dtype, order=order, copy=False) if a is not None else None
+        np.asarray(a, dtype=dtype, order=order) if a is not None else None
         for a in arrays
     )
     return tuple(result)
@@ -670,12 +670,13 @@ def least_greater_multiple(a, factors, out=None):
     values = 1
     for v, p in zip(factors, powers):
         values = values * v**p
+    initial = (
+        np.iinfo(values.dtype).max
+        if np.issubdtype(values.dtype, np.integer)
+        else np.inf
+    )
     for v, o in it:
-        if np.__version__ < '2':
-            values_ = np.ma.MaskedArray(values, mask=values < v, copy=False)
-            o[...] = np.min(values_)
-        else:
-            o[...] = np.amin(values, where=values >= v)
+        o[...] = np.amin(values, where=values >= v, initial=initial)
     out = it.operands[1]
     if out.ndim == 0:
         return out.flat[0]
@@ -793,7 +794,7 @@ def product(a):
         return r
 
     a = np.asarray(a)
-    return np.product(a, dtype=a.dtype)
+    return np.prod(a, dtype=a.dtype)
 
 
 def renumerate(iterable):
@@ -1208,11 +1209,11 @@ def zip_broadcast(*args, **keywords):
         raise TypeError('Invalid keyword(s).')
     iter_str = keywords.get('iter_str', True)
     n = max(
-        1
-        if not isinstance(_, Iterable) or isinstance(_, str) and not iter_str
-        else len(_)
-        if hasattr(_, '__len__')
-        else sys.maxsize
+        (
+            1
+            if not isinstance(_, Iterable) or isinstance(_, str) and not iter_str
+            else len(_) if hasattr(_, '__len__') else sys.maxsize
+        )
         for _ in args
     )
 

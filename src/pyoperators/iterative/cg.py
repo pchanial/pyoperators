@@ -75,7 +75,7 @@ class PCGAlgorithm(IterativeAlgorithm):
             raise TypeError('The complex case is not yet implemented.')
         elif dtype.kind != 'f':
             dtype = np.dtype(float)
-        b = np.array(b, dtype, copy=False)
+        b = np.asarray(b, dtype=dtype)
 
         if x0 is None:
             x0 = zeros(b.shape, dtype)

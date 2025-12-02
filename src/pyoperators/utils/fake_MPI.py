@@ -1,6 +1,7 @@
 """
 MPI-wrapper module for non-MPI enabled platforms.
 """
+
 import builtins as _builtins
 from itertools import count as _count
 

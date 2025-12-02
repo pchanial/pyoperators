@@ -62,13 +62,13 @@ def test_composition4():
             np.multiply(input, self.v, output)
 
     pool.clear()
-    op = np.product([Op(v) for v in [1]])
+    op = np.prod([Op(v) for v in [1]])
     assert op.__class__ is Op
     op(1)
     assert_equal(len(pool), 0)
 
     pool.clear()
-    op = np.product([Op(v) for v in [1, 2]])
+    op = np.prod([Op(v) for v in [1, 2]])
     assert op.__class__ is CompositionOperator
     assert_equal(op(1), 2)
     assert_equal(len(pool), 0)
@@ -77,7 +77,7 @@ def test_composition4():
     assert_equal(op([1]), 2)
     assert_equal(len(pool), 0)
 
-    op = np.product([Op(v) for v in [1, 2, 4]])
+    op = np.prod([Op(v) for v in [1, 2, 4]])
     assert op.__class__ is CompositionOperator
 
     pool.clear()

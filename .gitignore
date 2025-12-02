@@ -1,3 +1,4 @@
+/.idea/
 *.pyc
 *.so
 .coverage
@@ -7,7 +8,7 @@ dist
 _site
 htmlcov
 src/pyoperators/utils/cythonutils.c
-src/pyoperators/utils/ufuncs.c
 __pycache__
 *.egg-info
+.venv*/
 venv*/

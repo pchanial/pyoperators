@@ -86,7 +86,7 @@ class _FFTWConvolutionOperator(Operator):
         if pyfftw is None:
             raise ImportError('The package pyfftw is not installed.')
 
-        kernel = np.array(kernel, dtype=dtype, copy=False)
+        kernel = np.asarray(kernel, dtype=dtype)
         dtype = kernel.dtype
         if dtype.kind not in ('f', 'c'):
             kernel = kernel.astype(float)

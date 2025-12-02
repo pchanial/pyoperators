@@ -3,6 +3,7 @@ import numpy as np
 from .core import IdentityOperator, Operator
 from .flags import inplace, linear, real, square
 from .utils import isalias, split
+from .utils.misc import product
 from .utils.mpi import MPI, as_mpi, distribute_shape, timer_mpi
 
 __all__ = ['MPIDistributionGlobalOperator', 'MPIDistributionIdentityOperator']
@@ -56,7 +57,7 @@ class MPIDistributionGlobalOperator(Operator):
         counts = []
         offsets = [0]
         for s in split(shapein[0], commout.size):
-            n = (s.stop - s.start) * np.product(shapein[1:])
+            n = (s.stop - s.start) * product(shapein[1:])
             counts.append(n)
             offsets.append(offsets[-1] + n)
         offsets.pop()

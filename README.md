@@ -123,10 +123,33 @@ IdentityOperator()
 
 ## Requirements
 
-- python 3.8
+- Python >= 3.10
+- NumPy >= 2.0
+- SciPy >= 1.10
 
 Optional requirements:
 
 - PyWavelets: wavelet transforms
 - pyfftw: Fast Fourier transforms
 - mpi4py: For MPI communication
+
+## Development
+
+To build from source, you'll need:
+
+- Meson >= 1.1.0
+- Ninja
+- Cython >= 0.29.30
+- A C compiler
+
+Build the project:
+
+```bash
+pip install -e . --no-build-isolation
+```
+
+Or build a wheel:
+
+```bash
+python -m build
+```

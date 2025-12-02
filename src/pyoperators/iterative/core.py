@@ -217,7 +217,10 @@ class IterativeAlgorithm:
         for var, info in self.info.items():
             for n, b in zip(info['names'][skip_new:], self._initial_state[var]):
                 # XXX FIXME: b should be aligned...
-                b = np.array(b, info['dtype'], order='c', copy=copy)
+                if copy:
+                    b = np.array(b, info['dtype'], order='c', copy=True)
+                else:
+                    b = np.asarray(b, dtype=info['dtype'], order='c')
                 setattr(self, n, b)
 
     def next(self, n=1):
