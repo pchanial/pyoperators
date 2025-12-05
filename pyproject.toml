@@ -28,6 +28,8 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Programming Language :: C",
     "Programming Language :: Cython",
     "Development Status :: 5 - Production/Stable",
@@ -44,24 +46,28 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[project.optional-dependencies]
+[project.urls]
+homepage = "https://pchanial.github.io/pyoperators"
+repository = "https://github.com/pchanial/pyoperators"
+
+[dependency-groups]
 fft = ["pyfftw"]
 mpi = ["mpi4py"]
 wavelets = ["pywavelets>=0.4.0"]
 dev = [
-    "ninja",
-    "mpi4py",
-    "pyfftw",
-    "pytest",
+    {include-group = "fft"},
+    {include-group = "mpi"},
+    {include-group = "wavelets"},
+    "pytest>=6.0",
     "pytest-cov",
     "pytest-mock",
-    "pywavelets>=0.4.0",
     "setuptools_scm",
 ]
 
-[project.urls]
-homepage = "https://pchanial.github.io/pyoperators"
-repository = "https://github.com/pchanial/pyoperators"
+[tool.cibuildwheel]
+skip = "*-musllinux_*"
+test-groups = ["dev"]
+environment = {PIP_PREFER_BINARY=1}
 
 [tool.coverage.report]
 exclude_lines = [
@@ -73,11 +79,9 @@ exclude_lines = [
 show_missing = true
 skip_covered = true
 
-[tool.pytest.ini_options]
-addopts = "-ra --cov=pyoperators"
-testpaths = [
-    "tests",
-]
+[tool.pytest]
+addopts = ["-ra", "--color", "yes"]
+testpaths = ["tests"]
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
