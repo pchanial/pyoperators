@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 
 import numpy as np
@@ -432,7 +433,11 @@ def test_inspect_special_values(dtype, value):
             nmones = nzeros = nones = 0
         return nmones, nzeros, nones, nothers > 0, np.all(x == x.flat[0])
 
-    value = np.asarray(value).astype(dtype)
+    try:
+        value = np.asarray(value).astype(dtype)
+    except FloatingPointError:
+        pytest.skip(f'Cannot cast {value} to {dtype} on {sys.platform}.')
+
     assert inspect_special_values(value) == ref(value)
 
 
