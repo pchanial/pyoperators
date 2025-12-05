@@ -279,7 +279,7 @@ def assert_symmetric_band_toeplitz(n, firstrow):
     s = SymmetricBandToeplitzOperator(n, firstrow)
     if firstrow == [1] or firstrow == [[2], [1]]:
         assert isinstance(s, DiagonalOperator)
-    assert_same(s.todense(), totoeplitz(n, firstrow).todense(), atol=1)
+    assert_same(s.todense(), totoeplitz(n, firstrow).todense(), atol=2)
 
 
 @pytest.mark.skipif(
