@@ -43,7 +43,7 @@ class Op2(Operator):
         (sp.csc_matrix, 192),
         (sp.csr_matrix, 184),
         (sp.dia_matrix, 308),
-        (sp.dok_matrix, 2240 if sys.version_info >= (3, 8) else 2464),
+        (sp.dok_matrix, 2240 if (3, 8) <= sys.version_info < (3, 14) else 2464),
     ],
 )
 def test_sparse(cls, expected):
