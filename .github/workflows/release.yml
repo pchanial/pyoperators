@@ -1,0 +1,96 @@
+name: Release to PyPI
+
+on:
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        fetch-depth: 0
+
+    - name: Check tag of last commit
+      run: |
+        echo "Current tag:"
+        git describe --tags --exact-match HEAD
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Build sdist
+      run: pipx run build --sdist
+
+    - name: Update sdist artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: sdist
+        path: dist/*.tar.gz
+
+  build_wheels:
+    name: Build wheel for ${{ matrix.python }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15-intel, macos-14]
+        python: [cp310, cp311, cp312, cp313, cp314]  # no fftw wheel for cp314t
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Build wheel
+        uses: pypa/cibuildwheel@v3.3.0
+        env:
+          CIBW_BUILD: ${{ matrix.python }}-*
+          CIBW_BEFORE_TEST_MACOS: |
+            # Workaround: pyfftw wheels for Python 3.11/3.12 are incompatible with macOS 15 Intel
+            # Rebuild from source for these specific versions on macos-15-intel only
+            if [[ ${{ matrix.os }} == "macos-15-intel" && ${{ matrix.python }} =~ ^cp31[12]$ ]]; then
+              echo "Rebuilding pyfftw from source for Python ${{ matrix.python }} on macOS 15 Intel (wheel incompatibility)"
+              brew install fftw libomp
+              pip uninstall -y pyfftw
+              pip install --no-binary pyfftw pyfftw
+              python -c "import pyfftw; print('✓ pyfftw works')"
+            fi
+          CIBW_TEST_COMMAND: |
+            pip install mpi4py openmpi
+            python -c "import pyoperators; print('✓ pyoperators works')"
+            mpirun -np 2 --allow-run-as-root pytest {project}/tests/test_mpi_comms.py
+
+      - name: Upload wheel artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.python }}-${{ matrix.os }}
+          path: ./wheelhouse/*.whl
+
+  publish:
+    name: "Publish"
+    needs: [build_sdist, build_wheels]
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*'
+          path: dist
+          merge-multiple: true
+
+      - name: Upload to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
