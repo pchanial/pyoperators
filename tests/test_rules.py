@@ -380,8 +380,7 @@ def user_rules():
     new_local_path = tempfile.gettempdir()
     pyoperators.config.LOCAL_PATH = new_local_path
     with open(os.path.join(new_local_path, 'rules.txt'), 'w') as f:
-        f.write(
-            """
+        f.write("""
 d1 = 3
 d2 = 'value2' # comment
 incorrect1
@@ -390,8 +389,7 @@ incorrect1
  # comment
 d3 = incorrect2
 d4 = 'value4' = incorrect3
-d1 = 4"""
-        )
+d1 = 4""")
 
     yield
 
